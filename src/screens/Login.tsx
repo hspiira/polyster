@@ -1,11 +1,13 @@
 /**
- * Shop-level login (IMPLEMENTATION_PLAN.md Phase 1 step 1).
+ * Shop-level login (Phase 1 step 1).
  *
  * This is the shop's account, not a staff member's -- one account per shop,
  * signed in once per device and then persisted. Staff identify themselves with
- * a PIN after this, on a screen that does not exist yet (Phase 1 step 2).
+ * a PIN afterwards, on the staff gate.
  */
 import { useState } from 'preact/hooks'
+import { Button, ErrorNote, Field, Input } from '../components/ui'
+import { IconOrders } from '../components/icons'
 import type { AuthController } from '../lib/auth'
 import { useOnline } from '../hooks/useOnline'
 
@@ -34,62 +36,52 @@ export function Login({ controller }: LoginProps) {
   }
 
   return (
-    <main class="min-h-svh flex items-center justify-center bg-gray-50 px-4 py-10">
-      <form onSubmit={onSubmit} class="w-full max-w-sm space-y-5">
-        <header class="space-y-1">
-          <h1 class="text-2xl font-semibold text-gray-900">Tailor &amp; Rental Tracker</h1>
-          <p class="text-sm text-gray-500">Sign in with your shop account.</p>
+    <main class="flex min-h-svh items-center justify-center bg-stone-100 px-4 py-10 dark:bg-stone-950">
+      <form onSubmit={onSubmit} class="w-full max-w-sm space-y-6">
+        <header class="flex flex-col items-center text-center">
+          <span class="flex size-14 items-center justify-center rounded-2xl bg-brand-700 text-white shadow-raised">
+            <IconOrders size={26} />
+          </span>
+          <h1 class="mt-4 text-2xl font-semibold tracking-tight">Tailor &amp; Rental Tracker</h1>
+          <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
+            Sign in with your shop account.
+          </p>
         </header>
 
         {!online && (
-          <p class="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+          <p class="rounded-control border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
             You appear to be offline. Signing in for the first time on this device needs a
             connection; after that the app opens without one.
           </p>
         )}
 
-        <div class="space-y-3">
-          <label class="block">
-            <span class="text-sm font-medium text-gray-700">Email</span>
-            <input
+        <div class="space-y-4">
+          <Field label="Email">
+            <Input
               type="email"
               required
               autocomplete="username"
               value={email}
               onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
-              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-base
-                     focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
             />
-          </label>
+          </Field>
 
-          <label class="block">
-            <span class="text-sm font-medium text-gray-700">Password</span>
-            <input
+          <Field label="Password">
+            <Input
               type="password"
               required
               autocomplete="current-password"
               value={password}
               onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
-              class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-base
-                     focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
             />
-          </label>
+          </Field>
         </div>
 
-        {error && (
-          <p role="alert" class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        )}
+        {error && <ErrorNote>{error}</ErrorNote>}
 
-        <button
-          type="submit"
-          disabled={busy}
-          class="w-full rounded-lg bg-gray-900 px-4 py-3 text-base font-medium text-white
-                 disabled:opacity-50"
-        >
+        <Button type="submit" block disabled={busy}>
           {busy ? 'Signing in...' : 'Sign in'}
-        </button>
+        </Button>
       </form>
     </main>
   )

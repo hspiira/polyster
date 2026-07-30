@@ -1,9 +1,13 @@
 /**
  * New and edit order form (Phase 1 step 5).
  *
- * One component for both because the fields are identical and keeping two
- * copies in step is a losing game. `/orders/new` creates, `/orders/:id/edit`
- * updates.
+ * One component for both, because the fields are identical and keeping two
+ * copies in step is a losing game. `/orders/new` creates,
+ * `/orders/:id/edit` updates.
+ *
+ * The save button is pinned to the bottom rather than sitting at the end of
+ * the form: on a phone with the keyboard up, a button below six fields is
+ * two scrolls away from wherever you are typing.
  */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useLocation, useRoute } from 'preact-iso'
@@ -14,6 +18,7 @@ import {
   Field,
   Input,
   Screen,
+  Segmented,
   Select,
   Textarea,
 } from '../components/ui'
@@ -41,8 +46,8 @@ const BLANK: Draft = {
   item_description: '',
   price_total: '',
   // A week out is the common case and saves a date-picker interaction on
-  // nearly every order. Easy to change, and never silently wrong -- the field
-  // is visible and required.
+  // nearly every order. Never silently wrong: the field is visible and
+  // required.
   pickup_due_date: addDays(today(), 7),
   return_due_date: '',
   notes: '',
@@ -141,15 +146,17 @@ export function OrderForm() {
     }
   }
 
+  const backTo = orderId ? `/orders/${orderId}` : '/orders'
+
   if (clients.length === 0) {
     return (
-      <Screen title={isEdit ? 'Edit order' : 'New order'}>
+      <Screen title="New order" back="/orders">
         <Card>
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-stone-600 dark:text-stone-300">
             An order belongs to a client, and there are none yet. Add the client first.
           </p>
           <a href="/clients" class="mt-3 block">
-            <Button class="w-full">Go to clients</Button>
+            <Button block>Go to clients</Button>
           </a>
         </Card>
       </Screen>
@@ -159,105 +166,115 @@ export function OrderForm() {
   const isRental = draft.order_type === 'rental'
 
   return (
-    <Screen title={isEdit ? 'Edit order' : 'New order'}>
-      <Card>
-        <form onSubmit={submit} class="space-y-3">
-          <Field label="Client">
-            <Select
-              value={draft.client_id}
-              onChange={(e) => setDraft({ ...draft, client_id: (e.target as HTMLSelectElement).value })}
-            >
-              <option value="">Choose a client</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+    <Screen title={isEdit ? 'Edit order' : 'New order'} back={backTo}>
+      <form onSubmit={submit}>
+        <Card>
+          <div class="space-y-4">
+            <Field label="Client">
+              <Select
+                value={draft.client_id}
+                onChange={(e) =>
+                  setDraft({ ...draft, client_id: (e.target as HTMLSelectElement).value })
+                }
+              >
+                <option value="">Choose a client</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
-          <Field label="Type">
-            <Select
-              value={draft.order_type}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  order_type: (e.target as HTMLSelectElement).value as OrderType,
-                })
-              }
-            >
-              {ORDER_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {ORDER_TYPE_LABELS[type]}
-                </option>
-              ))}
-            </Select>
-          </Field>
+            <Field label="Type">
+              <Segmented
+                value={draft.order_type}
+                options={ORDER_TYPES.map((type) => ({
+                  value: type,
+                  label: ORDER_TYPE_LABELS[type],
+                }))}
+                onChange={(order_type) => setDraft({ ...draft, order_type })}
+                label="Order type"
+              />
+            </Field>
 
-          <Field label="Item" hint="What is being made, rented, or sold.">
-            <Input
-              value={draft.item_description}
-              onInput={(e) =>
-                setDraft({ ...draft, item_description: (e.target as HTMLInputElement).value })
-              }
-            />
-          </Field>
-
-          <Field label="Price">
-            <Input
-              inputmode="decimal"
-              value={draft.price_total}
-              onInput={(e) => setDraft({ ...draft, price_total: (e.target as HTMLInputElement).value })}
-            />
-          </Field>
-
-          <Field label={isRental ? 'Collection date' : 'Pickup date'}>
-            <Input
-              type="date"
-              value={draft.pickup_due_date}
-              onInput={(e) =>
-                setDraft({ ...draft, pickup_due_date: (e.target as HTMLInputElement).value })
-              }
-            />
-          </Field>
-
-          {isRental && (
-            <Field label="Return date" hint="When the item is due back.">
+            <Field label="Item" hint="What is being made, rented, or sold.">
               <Input
-                type="date"
-                min={draft.pickup_due_date}
-                value={draft.return_due_date}
+                value={draft.item_description}
+                placeholder="Navy two-piece suit"
                 onInput={(e) =>
-                  setDraft({ ...draft, return_due_date: (e.target as HTMLInputElement).value })
+                  setDraft({ ...draft, item_description: (e.target as HTMLInputElement).value })
                 }
               />
             </Field>
-          )}
 
-          <Field label="Notes">
-            <Textarea
-              value={draft.notes}
-              onInput={(e) => setDraft({ ...draft, notes: (e.target as HTMLTextAreaElement).value })}
-            />
-          </Field>
+            <Field label="Price">
+              <Input
+                inputmode="decimal"
+                placeholder="0"
+                value={draft.price_total}
+                onInput={(e) =>
+                  setDraft({ ...draft, price_total: (e.target as HTMLInputElement).value })
+                }
+              />
+            </Field>
 
-          {error && <ErrorNote>{error}</ErrorNote>}
+            <Field label={isRental ? 'Collection date' : 'Pickup date'}>
+              <Input
+                type="date"
+                value={draft.pickup_due_date}
+                onInput={(e) =>
+                  setDraft({ ...draft, pickup_due_date: (e.target as HTMLInputElement).value })
+                }
+              />
+            </Field>
 
-          <div class="flex gap-2">
+            {isRental && (
+              <Field label="Return date" hint="When the item is due back.">
+                <Input
+                  type="date"
+                  min={draft.pickup_due_date}
+                  value={draft.return_due_date}
+                  onInput={(e) =>
+                    setDraft({ ...draft, return_due_date: (e.target as HTMLInputElement).value })
+                  }
+                />
+              </Field>
+            )}
+
+            <Field label="Notes">
+              <Textarea
+                value={draft.notes}
+                onInput={(e) => setDraft({ ...draft, notes: (e.target as HTMLTextAreaElement).value })}
+              />
+            </Field>
+
+            {error && <ErrorNote>{error}</ErrorNote>}
+          </div>
+        </Card>
+
+        {/* Pinned above the tab bar so it is reachable without scrolling back
+            past every field. */}
+        <div
+          class="fixed inset-x-0 bottom-14 z-20 border-t border-stone-200/80 bg-white/90
+                 px-4 py-3 backdrop-blur-lg safe-bottom dark:border-stone-800
+                 dark:bg-stone-900/90"
+        >
+          <div class="mx-auto flex max-w-lg gap-2">
             <Button
               variant="secondary"
               class="flex-1"
               type="button"
-              onClick={() => location.route(orderId ? `/orders/${orderId}` : '/orders')}
+              onClick={() => location.route(backTo)}
             >
               Cancel
             </Button>
-            <Button class="flex-1" type="submit" disabled={saving}>
+            <Button class="flex-[2]" type="submit" disabled={saving}>
               {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create order'}
             </Button>
           </div>
-        </form>
-      </Card>
+        </div>
+      </form>
     </Screen>
   )
 }

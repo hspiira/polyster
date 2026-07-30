@@ -2,15 +2,14 @@
  * Light reports (Phase 1 step 8).
  *
  * "Just enough for a shop owner to sanity-check the week at a glance", per
- * pwa-schema-and-screens.md section 3 -- deliberately not an analytics suite.
+ * pwa-schema-and-screens.md s3 -- deliberately not an analytics suite.
  *
  * Everything is computed locally from replicated rows, so it works offline and
- * reflects exactly what this device knows. That last part matters: if the
- * device is behind, the figures are behind, which is why the sync badge stays
- * on screen rather than being hidden on a reporting page.
+ * reflects exactly what this device knows. That last part matters, and the
+ * screen says so rather than presenting stale figures as fact.
  */
 import { useMemo } from 'preact/hooks'
-import { Card, Screen } from '../components/ui'
+import { Card, InfoNote, Screen, SectionTitle } from '../components/ui'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
@@ -33,15 +32,14 @@ export function Reports() {
 
   const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
 
-  // Payments are not scoped by shop_id -- they hang off orders. RLS means the
-  // local database only ever holds this shop's rows, but filtering explicitly
-  // keeps the report correct rather than correct-by-accident.
+  // Payments hang off orders rather than carrying shop_id. RLS means the local
+  // database only ever holds this shop's rows, but filtering explicitly keeps
+  // the report correct rather than correct-by-accident.
   const orderIds = useMemo(() => new Set(orders.map((order) => order.id)), [orders])
 
   const collected = useMemo(() => {
     const weekStart = addDays(now, -7)
     const monthStart = addDays(now, -30)
-
     let week = 0
     let month = 0
     let all = 0
@@ -49,13 +47,11 @@ export function Reports() {
     for (const doc of paymentDocs) {
       const payment = doc.toJSON()
       if (!orderIds.has(payment.order_id)) continue
-
       const day = payment.payment_date.slice(0, 10)
       all += payment.amount
       if (day >= monthStart) month += payment.amount
       if (day >= weekStart) week += payment.amount
     }
-
     return { week, month, all }
   }, [paymentDocs, orderIds, now])
 
@@ -73,50 +69,74 @@ export function Reports() {
     return counts
   }, [orders])
 
+  const maxStage = Math.max(1, ...stageCounts.values())
+
   return (
-    <Screen title="Reports">
-      <div class="space-y-4">
-        <Card>
-          <h2 class="font-medium text-gray-900">Collected</h2>
-          <dl class="mt-2 space-y-1 text-sm">
-            <Line label="Last 7 days" value={formatMoney(collected.week)} />
-            <Line label="Last 30 days" value={formatMoney(collected.month)} />
-            <Line label="All time" value={formatMoney(collected.all)} />
-          </dl>
-        </Card>
+    <Screen title="Reports" back="/settings">
+      <div class="space-y-5">
+        <div class="rounded-card bg-gradient-to-br from-brand-700 to-brand-800 p-5 text-white shadow-raised">
+          <p class="text-xs font-medium uppercase tracking-wider opacity-80">Collected, 7 days</p>
+          <p class="mt-1 text-3xl font-semibold tracking-tight">{formatMoney(collected.week)}</p>
+          <div class="mt-4 flex gap-6 border-t border-white/20 pt-3 text-sm">
+            <span>
+              <span class="block opacity-80">30 days</span>
+              <span class="font-semibold">{formatMoney(collected.month)}</span>
+            </span>
+            <span>
+              <span class="block opacity-80">All time</span>
+              <span class="font-semibold">{formatMoney(collected.all)}</span>
+            </span>
+          </div>
+        </div>
 
-        <Card>
-          <h2 class="font-medium text-gray-900">Outstanding</h2>
-          <dl class="mt-2 space-y-1 text-sm">
-            <Line label="Orders with a balance" value={String(outstanding.count)} />
-            <Line label="Total owed" value={formatMoney(outstanding.total)} />
-          </dl>
-        </Card>
+        <section>
+          <SectionTitle>Outstanding</SectionTitle>
+          <Card>
+            <div class="flex items-baseline justify-between">
+              <span class="text-2xl font-semibold text-amber-700 dark:text-amber-400">
+                {formatMoney(outstanding.total)}
+              </span>
+              <span class="text-sm text-stone-500 dark:text-stone-400">
+                across {outstanding.count} order{outstanding.count === 1 ? '' : 's'}
+              </span>
+            </div>
+          </Card>
+        </section>
 
-        <Card>
-          <h2 class="font-medium text-gray-900">Orders by stage</h2>
-          <dl class="mt-2 space-y-1 text-sm">
-            {[...stageCounts].map(([stage, count]) => (
-              <Line key={stage} label={STAGE_LABELS[stage]} value={String(count)} />
-            ))}
-            <Line label="Total" value={String(orders.length)} />
-          </dl>
-        </Card>
+        <section>
+          <SectionTitle>Orders by stage</SectionTitle>
+          <Card>
+            <ul class="space-y-2.5">
+              {[...stageCounts].map(([stage, count]) => (
+                <li key={stage}>
+                  <div class="flex items-baseline justify-between text-sm">
+                    <span class="text-stone-600 dark:text-stone-300">{STAGE_LABELS[stage]}</span>
+                    <span class="font-semibold tabular-nums">{count}</span>
+                  </div>
+                  {/* A bar, not a chart. It makes the shape of the workload
+                      readable at a glance without pulling in a chart library
+                      for five numbers. */}
+                  <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                    <div
+                      class="h-full rounded-full bg-brand-600"
+                      style={{ width: `${(count / maxStage) * 100}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div class="mt-3 flex items-baseline justify-between border-t border-stone-100 pt-3 text-sm dark:border-stone-800">
+              <span class="text-stone-600 dark:text-stone-300">Total</span>
+              <span class="font-semibold tabular-nums">{orders.length}</span>
+            </div>
+          </Card>
+        </section>
 
-        <p class="text-xs text-gray-500">
+        <InfoNote>
           Figures come from what is on this device. If it has not synced recently, another device's
           latest payments may not be counted yet.
-        </p>
+        </InfoNote>
       </div>
     </Screen>
-  )
-}
-
-function Line({ label, value }: { label: string; value: string }) {
-  return (
-    <div class="flex justify-between gap-4">
-      <dt class="text-gray-500">{label}</dt>
-      <dd class="font-medium text-gray-900">{value}</dd>
-    </div>
   )
 }

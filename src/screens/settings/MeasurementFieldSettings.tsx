@@ -2,14 +2,31 @@
  * The measurement field editor (Phase 1 step 3).
  *
  * This is the screen that lets one app serve a suit tailor and a dressmaker
- * without a fork: each shop declares the measurements it actually takes, and
- * the client measurement form is rendered from that list.
+ * without a fork: each shop declares the measurements it takes, and the client
+ * measurement form is rendered from that list.
  *
  * Built before Clients on purpose -- the measurement form has nothing to
  * render until a shop has configured something here.
  */
 import { useMemo, useState } from 'preact/hooks'
-import { Button, Card, EmptyState, ErrorNote, Field, Input, Screen } from '../../components/ui'
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorNote,
+  Field,
+  InfoNote,
+  Input,
+  Screen,
+  Sheet,
+} from '../../components/ui'
+import {
+  IconArrowDown,
+  IconArrowUp,
+  IconPlus,
+  IconRuler,
+  IconTrash,
+} from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import {
@@ -20,7 +37,7 @@ import {
 
 /**
  * Offered on an empty list so a shop is not staring at a blank screen trying
- * to remember what a measurement list should look like. Starting points, not
+ * to remember what a measurement list looks like. Starting points, not
  * defaults -- nothing is created without a tap.
  */
 const SUGGESTIONS = [
@@ -37,6 +54,7 @@ export function MeasurementFieldSettings() {
   const [label, setLabel] = useState('')
   const [unit, setUnit] = useState('in')
   const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
 
   const fieldDocs = useRxQuery(
     () =>
@@ -47,14 +65,13 @@ export function MeasurementFieldSettings() {
     [db, shop?.id],
     [],
   )
-
   const fields = useMemo(() => fieldDocs.map((doc) => doc.toJSON()), [fieldDocs])
 
   if (!shop) {
     return (
-      <Screen title="Measurement fields">
+      <Screen title="Measurement fields" back="/settings">
         <Card>
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-stone-600 dark:text-stone-300">
             The shop record has not reached this device yet. It arrives with the first sync.
           </p>
         </Card>
@@ -70,23 +87,12 @@ export function MeasurementFieldSettings() {
     }
     setError(null)
     try {
-      await createMeasurementField(db, shop!.id, {
-        label,
-        unit,
-        display_order: fields.length,
-      })
+      await createMeasurementField(db, shop!.id, { label, unit, display_order: fields.length })
       setLabel('')
+      setAdding(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add that field.')
     }
-  }
-
-  async function addSuggested(suggestion: (typeof SUGGESTIONS)[number], index: number) {
-    await createMeasurementField(db, shop!.id, {
-      label: suggestion.label,
-      unit: suggestion.unit,
-      display_order: index,
-    })
   }
 
   async function move(index: number, direction: -1 | 1) {
@@ -101,56 +107,88 @@ export function MeasurementFieldSettings() {
   }
 
   return (
-    <Screen title="Measurement fields">
+    <Screen
+      title="Measurements"
+      subtitle={fields.length > 0 ? `${fields.length} fields` : undefined}
+      back="/settings"
+      action={
+        fields.length > 0 && (
+          <Button size="sm" onClick={() => setAdding(true)}>
+            <IconPlus size={16} /> Add
+          </Button>
+        )
+      }
+    >
       <div class="space-y-4">
         {fields.length === 0 ? (
-          <EmptyState
-            title="No fields yet"
-            description="Add the measurements you actually take. The client form is built from this list, so only what is here will be asked for."
-            action={
-              <Button
-                onClick={() =>
-                  void Promise.all(SUGGESTIONS.map((s, i) => addSuggested(s, i)))
-                }
-              >
-                Start with common ones
-              </Button>
-            }
-          />
+          <Card padded={false}>
+            <EmptyState
+              icon={<IconRuler size={26} />}
+              title="No fields yet"
+              description="Add the measurements you actually take. The client form is built from this list, so only what is here will be asked for."
+              action={
+                <div class="flex flex-col gap-2">
+                  <Button
+                    onClick={() =>
+                      void Promise.all(
+                        SUGGESTIONS.map((s, i) =>
+                          createMeasurementField(db, shop.id, {
+                            label: s.label,
+                            unit: s.unit,
+                            display_order: i,
+                          }),
+                        ),
+                      )
+                    }
+                  >
+                    Start with common ones
+                  </Button>
+                  <Button variant="secondary" onClick={() => setAdding(true)}>
+                    Add one myself
+                  </Button>
+                </div>
+              }
+            />
+          </Card>
         ) : (
-          <Card class="!p-0">
-            <ul class="divide-y divide-gray-100 px-3">
+          <Card padded={false}>
+            <ul class="divide-y divide-stone-100 dark:divide-stone-800">
               {fields.map((field, index) => (
-                <li key={field.id} class="flex items-center gap-2 py-2">
-                  <span class="min-w-0 flex-1">
-                    <span class="block truncate font-medium text-gray-900">{field.label}</span>
-                    {field.unit && <span class="block text-xs text-gray-500">{field.unit}</span>}
+                <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
+                  <span class="min-w-0 flex-1 pl-1">
+                    <span class="block truncate font-medium">{field.label}</span>
+                    {field.unit && (
+                      <span class="block text-xs text-stone-500 dark:text-stone-400">
+                        {field.unit}
+                      </span>
+                    )}
                   </span>
                   <Button
                     variant="ghost"
-                    class="px-2"
+                    size="sm"
                     aria-label={`Move ${field.label} up`}
                     disabled={index === 0}
                     onClick={() => void move(index, -1)}
                   >
-                    ↑
+                    <IconArrowUp size={18} />
                   </Button>
                   <Button
                     variant="ghost"
-                    class="px-2"
+                    size="sm"
                     aria-label={`Move ${field.label} down`}
                     disabled={index === fields.length - 1}
                     onClick={() => void move(index, 1)}
                   >
-                    ↓
+                    <IconArrowDown size={18} />
                   </Button>
                   <Button
                     variant="ghost"
-                    class="px-2 text-red-600"
+                    size="sm"
+                    class="text-red-600 dark:text-red-400"
                     aria-label={`Remove ${field.label}`}
                     onClick={() => void removeMeasurementField(db, field.id)}
                   >
-                    Remove
+                    <IconTrash size={18} />
                   </Button>
                 </li>
               ))}
@@ -158,43 +196,48 @@ export function MeasurementFieldSettings() {
           </Card>
         )}
 
-        <Card>
-          <form onSubmit={add} class="space-y-3">
-            <h2 class="font-medium text-gray-900">Add a field</h2>
-            <div class="flex gap-2">
-              <div class="flex-1">
-                <Field label="Name">
-                  <Input
-                    value={label}
-                    placeholder="Chest"
-                    onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
-                  />
-                </Field>
-              </div>
-              <div class="w-24">
-                <Field label="Unit">
-                  <Input
-                    value={unit}
-                    placeholder="in"
-                    onInput={(e) => setUnit((e.target as HTMLInputElement).value)}
-                  />
-                </Field>
-              </div>
-            </div>
-            {error && <ErrorNote>{error}</ErrorNote>}
-            <Button type="submit" class="w-full">
-              Add
-            </Button>
-          </form>
-        </Card>
-
         {fields.length > 0 && (
-          <p class="text-xs text-gray-500">
+          <InfoNote>
             Removing a field hides it from new forms. Measurements already recorded against it are
             kept, so nothing a client gave you is lost.
-          </p>
+          </InfoNote>
         )}
       </div>
+
+      <Sheet open={adding} title="Add a measurement" onClose={() => setAdding(false)}>
+        <form onSubmit={add} class="space-y-4">
+          <div class="flex gap-3">
+            <div class="flex-1">
+              <Field label="Name">
+                <Input
+                  value={label}
+                  autofocus
+                  placeholder="Chest"
+                  onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
+                />
+              </Field>
+            </div>
+            <div class="w-24">
+              <Field label="Unit">
+                <Input
+                  value={unit}
+                  placeholder="in"
+                  onInput={(e) => setUnit((e.target as HTMLInputElement).value)}
+                />
+              </Field>
+            </div>
+          </div>
+          {error && <ErrorNote>{error}</ErrorNote>}
+          <div class="flex gap-2 pt-1">
+            <Button variant="secondary" class="flex-1" type="button" onClick={() => setAdding(false)}>
+              Cancel
+            </Button>
+            <Button class="flex-1" type="submit">
+              Add
+            </Button>
+          </div>
+        </form>
+      </Sheet>
     </Screen>
   )
 }

@@ -1,22 +1,24 @@
 /**
- * Staff picker and PIN gate (IMPLEMENTATION_PLAN.md Phase 1 step 2).
+ * Staff picker and PIN gate (Phase 1 step 2).
  *
  * Sits between the shop login and the app. Its job is attribution, not
- * security -- see ARCHITECTURE.md D4 and the header of lib/pin.ts. Treat it as
- * "who is holding the phone right now", and design it for a shop floor: big
- * targets, a number pad, and no friction for the common case.
+ * security -- ARCHITECTURE.md D4 and the header of lib/pin.ts. Designed for a
+ * shop floor: big targets, a real number pad, and no friction in the common
+ * case.
  *
  * The single-staff shop skips it entirely. A solo owner should not tap their
  * own name and type a PIN forty times a day to use their own app.
  */
 import { useEffect, useState } from 'preact/hooks'
-import { Button, Card, ErrorNote } from '../components/ui'
+import type { ComponentChildren } from 'preact'
+import { Avatar, Button, Card, ErrorNote } from '../components/ui'
+import { IconBackspace, IconUsers } from '../components/icons'
 import { useShop } from '../state/ShopProvider'
 import { verifyPin } from '../lib/pin'
 import type { StaffDoc } from '../db/schema'
 
 export function StaffGate() {
-  const { staff, setActiveStaff } = useShop()
+  const { staff, setActiveStaff, shop } = useShop()
   const [selected, setSelected] = useState<StaffDoc | null>(null)
 
   // A shop with one active staff member has nothing to pick between, and the
@@ -29,13 +31,16 @@ export function StaffGate() {
     return (
       <Centred>
         <Card>
-          <h1 class="text-lg font-semibold text-gray-900">No staff yet</h1>
-          <p class="mt-1 text-sm text-gray-600">
+          <div class="flex size-11 items-center justify-center rounded-full bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400">
+            <IconUsers size={22} />
+          </div>
+          <h1 class="mt-3 text-lg font-semibold">No staff yet</h1>
+          <p class="mt-1 text-sm text-stone-600 dark:text-stone-300">
             Add at least one person under Settings so their name can be recorded against the work
             they do. If you are the only one, add yourself.
           </p>
           <a href="/settings/staff" class="mt-4 block">
-            <Button class="w-full">Go to staff settings</Button>
+            <Button block>Go to staff settings</Button>
           </a>
         </Card>
       </Centred>
@@ -56,11 +61,11 @@ export function StaffGate() {
 
   return (
     <Centred>
-      <div class="space-y-4">
-        <div>
-          <h1 class="text-xl font-semibold text-gray-900">Who is using the app?</h1>
-          <p class="mt-1 text-sm text-gray-500">
-            Your name is recorded against the orders you take and the stages you advance.
+      <div class="space-y-5">
+        <div class="text-center">
+          <h1 class="text-xl font-semibold tracking-tight">Who is using the app?</h1>
+          <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
+            {shop?.name ? `${shop.name}. ` : ''}Your name is recorded against the orders you take.
           </p>
         </div>
 
@@ -70,11 +75,18 @@ export function StaffGate() {
               <button
                 type="button"
                 onClick={() => setSelected(member)}
-                class="flex min-h-14 w-full items-center justify-between rounded-lg border
-                       border-gray-200 bg-white px-4 text-left active:bg-gray-50"
+                class="flex min-h-16 w-full items-center gap-3 rounded-card border
+                       border-stone-200/80 bg-white px-4 text-left shadow-card
+                       transition-transform active:scale-[0.99] active:bg-stone-50
+                       dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800"
               >
-                <span class="font-medium text-gray-900">{member.name}</span>
-                {member.role === 'owner' && <span class="text-xs text-gray-500">Owner</span>}
+                <Avatar name={member.name} />
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate font-medium">{member.name}</span>
+                  {member.role === 'owner' && (
+                    <span class="block text-xs text-stone-500 dark:text-stone-400">Owner</span>
+                  )}
+                </span>
               </button>
             </li>
           ))}
@@ -84,9 +96,9 @@ export function StaffGate() {
   )
 }
 
-function Centred({ children }: { children: preact.ComponentChildren }) {
+function Centred({ children }: { children: ComponentChildren }) {
   return (
-    <main class="flex min-h-svh items-center justify-center bg-gray-50 px-4 py-10">
+    <main class="flex min-h-svh items-center justify-center bg-stone-100 px-4 py-10 dark:bg-stone-950">
       <div class="w-full max-w-sm">{children}</div>
     </main>
   )
@@ -126,45 +138,52 @@ function PinEntry({
   function press(key: string) {
     if (checking) return
     setError(null)
-
     if (key === 'del') {
       setPin((current) => current.slice(0, -1))
       return
     }
     if (key === '') return
-
     setPin((current) => (current.length >= MAX_PIN ? current : current + key))
   }
 
   return (
-    <div class="space-y-5">
-      <div class="text-center">
-        <h1 class="text-xl font-semibold text-gray-900">{staff.name}</h1>
-        <p class="mt-1 text-sm text-gray-500">Enter your PIN</p>
+    <div class="space-y-6">
+      <div class="flex flex-col items-center text-center">
+        <Avatar name={staff.name} />
+        <h1 class="mt-3 text-xl font-semibold tracking-tight">{staff.name}</h1>
+        <p class="mt-0.5 text-sm text-stone-500 dark:text-stone-400">Enter your PIN</p>
       </div>
 
-      <div class="flex justify-center gap-2" aria-label={`${pin.length} digits entered`}>
+      <div class="flex justify-center gap-2.5" aria-label={`${pin.length} digits entered`}>
         {Array.from({ length: MAX_PIN }, (_, index) => (
           <span
             key={index}
-            class={`h-3 w-3 rounded-full ${index < pin.length ? 'bg-gray-900' : 'bg-gray-300'}`}
+            class={`size-3 rounded-full transition-colors ${
+              index < pin.length
+                ? 'bg-brand-700 dark:bg-brand-400'
+                : 'bg-stone-300 dark:bg-stone-700'
+            }`}
           />
         ))}
       </div>
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      <div class="grid grid-cols-3 gap-2">
+      <div class="grid grid-cols-3 gap-2.5">
         {KEYS.map((key, index) => (
           <button
             key={index}
             type="button"
             disabled={key === '' || checking}
             onClick={() => press(key)}
-            class="min-h-16 rounded-lg border border-gray-200 bg-white text-xl text-gray-900
-                   disabled:border-transparent disabled:bg-transparent active:bg-gray-100"
+            aria-label={key === 'del' ? 'Delete' : key || undefined}
+            class="flex min-h-16 items-center justify-center rounded-card border
+                   border-stone-200/80 bg-white text-xl font-medium shadow-card
+                   transition-transform active:scale-95 active:bg-stone-100
+                   disabled:border-transparent disabled:bg-transparent disabled:shadow-none
+                   dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800"
           >
-            {key === 'del' ? '⌫' : key}
+            {key === 'del' ? <IconBackspace size={22} /> : key}
           </button>
         ))}
       </div>
@@ -173,11 +192,7 @@ function PinEntry({
         <Button variant="secondary" class="flex-1" onClick={onCancel} disabled={checking}>
           Back
         </Button>
-        <Button
-          class="flex-1"
-          disabled={pin.length < 4 || checking}
-          onClick={() => void submit(pin)}
-        >
+        <Button class="flex-1" disabled={pin.length < 4 || checking} onClick={() => void submit(pin)}>
           {checking ? 'Checking...' : 'Continue'}
         </Button>
       </div>

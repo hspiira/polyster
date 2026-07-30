@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks'
-import { Button, Card, ErrorNote, Screen } from '../../components/ui'
+import { Button, Card, ErrorNote, InfoNote, Screen, SectionTitle } from '../../components/ui'
+import { IconAlert, IconCheck, IconDownload } from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
 import {
   backupFilename,
@@ -33,69 +34,71 @@ export function BackupSettings() {
     }
   }
 
+  const stale = days === null || days > 14
+
   return (
-    <Screen title="Backup">
-      <div class="space-y-4">
-        <Card>
-          <p class="text-sm text-gray-600">
-            Downloads everything this device holds as a single JSON file: clients, measurements,
-            orders, payments, staff, and history.
+    <Screen title="Backup" back="/settings">
+      <div class="space-y-5">
+        <div
+          class={`rounded-card p-5 shadow-card ${
+            stale
+              ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200'
+              : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200'
+          }`}
+        >
+          <div class="flex items-center gap-2 text-sm font-medium">
+            {stale ? <IconAlert size={18} /> : <IconCheck size={18} />}
+            {days === null
+              ? 'No backup taken on this device'
+              : days === 0
+                ? 'Backed up today'
+                : `Last backup ${days} ${days === 1 ? 'day' : 'days'} ago`}
+          </div>
+          <p class="mt-1.5 text-sm opacity-90">
+            A phone's stored data is not guaranteed to last. Clearing site data, or the phone
+            reclaiming space, can take it -- and work done offline exists nowhere else until it
+            syncs.
           </p>
-          <p class="mt-2 text-sm text-gray-600">
-            Worth doing because a phone's stored data is not guaranteed to last. Clearing site data,
-            or the phone reclaiming space, can take it -- and work done offline exists nowhere else
-            until it syncs.
-          </p>
+        </div>
 
-          <p class="mt-3 text-sm">
-            {days === null ? (
-              <span class="text-amber-700">No backup has been taken on this device.</span>
-            ) : days === 0 ? (
-              <span class="text-green-700">Last backup: today.</span>
-            ) : (
-              <span class={days > 14 ? 'text-amber-700' : 'text-gray-600'}>
-                Last backup: {days} {days === 1 ? 'day' : 'days'} ago.
-              </span>
-            )}
-          </p>
+        {error && <ErrorNote>{error}</ErrorNote>}
 
-          {error && (
-            <div class="mt-3">
-              <ErrorNote>{error}</ErrorNote>
-            </div>
-          )}
-
-          <Button class="mt-3 w-full" disabled={busy} onClick={() => void exportNow()}>
-            {busy ? 'Building...' : 'Download backup'}
-          </Button>
-        </Card>
+        <Button block disabled={busy} onClick={() => void exportNow()}>
+          <IconDownload size={18} /> {busy ? 'Building...' : 'Download backup'}
+        </Button>
 
         {lastResult && (
-          <Card>
-            <h2 class="font-medium text-gray-900">What was in it</h2>
-            <dl class="mt-2 space-y-1 text-sm">
-              {Object.entries(lastResult.counts).map(([table, count]) => (
-                <div key={table} class="flex justify-between gap-4">
-                  <dt class="text-gray-500">{table.replace(/_/g, ' ')}</dt>
-                  <dd class="text-gray-900">{count}</dd>
-                </div>
-              ))}
-            </dl>
-            <p class="mt-2 text-xs text-gray-500">
-              Worth checking against what you expect. A backup nobody has looked inside is a backup
-              nobody knows works.
-            </p>
-          </Card>
+          <section>
+            <SectionTitle>What was in it</SectionTitle>
+            <Card>
+              <dl class="space-y-1 text-sm">
+                {Object.entries(lastResult.counts).map(([table, count]) => (
+                  <div key={table} class="flex justify-between gap-4">
+                    <dt class="text-stone-500 dark:text-stone-400">{table.replace(/_/g, ' ')}</dt>
+                    <dd class="font-medium tabular-nums">{count}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+            <div class="mt-2">
+              <InfoNote>
+                Worth checking against what you expect. A backup nobody has looked inside is a
+                backup nobody knows works.
+              </InfoNote>
+            </div>
+          </section>
         )}
 
-        <Card>
-          <h2 class="font-medium text-gray-900">Restoring</h2>
-          <p class="mt-1 text-sm text-gray-600">
-            There is no restore button yet. The file is plain JSON, so the data is recoverable by
-            hand, but bringing it back into the app is not built. If you are relying on this,
-            say so -- it changes what gets built next.
-          </p>
-        </Card>
+        <section>
+          <SectionTitle>Restoring</SectionTitle>
+          <Card>
+            <p class="text-sm text-stone-600 dark:text-stone-300">
+              There is no restore button yet. The file is plain JSON, so the data is recoverable by
+              hand, but bringing it back into the app is not built. If you are relying on this, say
+              so -- it changes what gets built next.
+            </p>
+          </Card>
+        </section>
       </div>
     </Screen>
   )

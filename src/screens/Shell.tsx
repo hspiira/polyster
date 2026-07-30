@@ -1,16 +1,17 @@
 /**
- * The authenticated app shell: a scrolling screen area above a fixed tab bar,
- * with the sync badge always in view.
+ * The authenticated app shell.
+ *
+ * A thin status strip, a scrolling screen area, and a fixed tab bar. The tab
+ * bar is `fixed` rather than `sticky` so it survives the iOS URL bar
+ * collapsing on scroll, which otherwise makes a sticky bar jump.
  *
  * ## Routing
  *
  * `preact-iso` with real history URLs rather than hash routing. The usual
- * argument against history routing in a PWA -- a deep link 404s on refresh --
- * does not apply: vite-plugin-pwa's generateSW mode sets
- * `navigateFallback: 'index.html'` by default, so the service worker answers
- * every navigation from the precached shell, including offline. Real paths are
- * worth having for debugging in a browser tab, and they keep the door open to
- * sharing a link to an order later.
+ * objection -- a deep link 404s on refresh -- does not apply:
+ * vite-plugin-pwa's generateSW mode sets `navigateFallback: 'index.html'` by
+ * default, so the service worker answers every navigation from the precached
+ * shell, offline included.
  */
 import { Route, Router } from 'preact-iso'
 import { TabBar } from '../components/TabBar'
@@ -40,18 +41,23 @@ interface ShellProps {
 }
 
 export function Shell({ online, auth, replication }: ShellProps) {
-  const { activeStaff } = useShop()
+  const { activeStaff, shop } = useShop()
 
   return (
-    <div class="flex min-h-svh flex-col bg-gray-50">
-      <div class="border-b border-gray-200 bg-white">
-        <div class="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-2">
+    <div class="min-h-svh bg-stone-100 dark:bg-stone-950">
+      <div class="safe-top bg-white dark:bg-stone-900">
+        <div class="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-1.5">
           <SyncBadge online={online} auth={auth} replication={replication} />
-          {activeStaff && <span class="text-xs text-gray-500">{activeStaff.name}</span>}
+          {activeStaff && (
+            <span class="truncate text-xs text-stone-500 dark:text-stone-400">
+              {activeStaff.name}
+              {shop && <span class="text-stone-400 dark:text-stone-600"> · {shop.name}</span>}
+            </span>
+          )}
         </div>
       </div>
 
-      <main class="flex-1">
+      <main>
         <Router>
           <Route path="/" component={Dashboard} />
           <Route path="/clients" component={Clients} />
