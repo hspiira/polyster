@@ -18,7 +18,6 @@ import { Login } from './screens/Login'
 import { StaffGate } from './screens/StaffGate'
 import { SetupFlow } from './screens/setup/SetupFlow'
 import { Shell } from './screens/Shell'
-import { DevTools } from './dev/DevTools'
 import type { AuthController, AuthState } from './lib/auth'
 import type { ReplicationStatus } from './hooks/useReplication'
 
@@ -71,23 +70,15 @@ function Gate({
 }) {
   const { shop, staff, activeStaff } = useShop()
 
-  // A shop with nobody in it has never been set up. Sending it to the staff
-  // picker would show an empty list whose only way out is a route the picker
-  // itself blocks -- which is exactly what used to happen.
-  //
-  // Latched rather than derived: creating the first staff member makes
-  // `staff.length === 0` false, and a plain condition would tear the wizard
-  // down on its second step. It stays up until it says it is finished.
-  const [setupRunning, setSetupRunning] = useState(false)
+  // Latched, not derived: creating the shop/first staff member makes
+  // `!shop || staff.length === 0` false, and a plain condition would tear
+  // the wizard down mid-flow. It stays up until it says it's finished.
+  const [setupRunning, setSetupRunning] = useState(!shop || staff.length === 0)
   const [setupFinished, setSetupFinished] = useState(false)
 
   useEffect(() => {
-    if (shop && staff.length === 0 && !setupFinished) setSetupRunning(true)
+    if ((!shop || staff.length === 0) && !setupFinished) setSetupRunning(true)
   }, [shop, staff.length, setupFinished])
-
-  if (!shop) {
-    return <WaitingForShop replication={replication} online={online} />
-  }
 
   if (setupRunning && !setupFinished) {
     return (
@@ -132,41 +123,6 @@ function Splash() {
   return (
     <main class="flex min-h-svh items-center justify-center bg-stone-100 dark:bg-stone-950">
       <span class="size-8 animate-spin rounded-full border-2 border-stone-300 border-t-brand-700 dark:border-stone-700 dark:border-t-brand-400" />
-    </main>
-  )
-}
-
-/**
- * The shop row arrives with the first replication pull. On a brand-new device
- * that is a few seconds; with no connectivity it may never come, and saying so
- * beats an indefinite spinner.
- */
-function WaitingForShop({
-  replication,
-  online,
-}: {
-  replication: ReplicationStatus
-  online: boolean
-}) {
-  const stuck = !online || replication.status === 'error' || replication.status === 'idle'
-
-  return (
-    <main class="flex min-h-svh items-center justify-center bg-stone-100 px-6 dark:bg-stone-950">
-      <div class="max-w-sm space-y-3 text-center">
-        <h1 class="text-lg font-semibold">Setting up this device</h1>
-        {stuck ? (
-          <p class="text-sm text-stone-600 dark:text-stone-300">
-            This device has not received the shop's details yet, and cannot reach the server to
-            fetch them. Connect to the internet once and this will complete; afterwards the app
-            works offline.
-          </p>
-        ) : (
-          <p class="text-sm text-stone-600 dark:text-stone-300">
-            Fetching the shop's details for the first time...
-          </p>
-        )}
-        <DevTools />
-      </div>
     </main>
   )
 }

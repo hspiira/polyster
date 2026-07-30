@@ -1,36 +1,20 @@
 /**
  * First-run setup: the shop, and its first person.
  *
- * ## Why this exists
- *
- * Signing in gets you a shop row and nothing else. Before this, a freshly
- * signed-in device landed on the staff gate with no staff, which offered a
- * link to `/settings/staff` -- a route inside the shell that the gate itself
- * blocks. A dead end on the very first screen after sign-in.
- *
- * ## Shape
- *
- * Three steps, and only the first two are required:
- *
- *   1. **The shop** -- name and WhatsApp number. Pre-filled from whatever the
- *      administrator put in the `shops` row, so usually a confirmation.
- *   2. **You** -- name and a six-digit PIN, typed twice on the real pad. This
- *      person is the owner: the first account added to a shop always is.
- *   3. **Measurements** -- the fields this shop actually takes. Skippable,
- *      because a shop can get through a whole first day without it and the
- *      client screen offers the same setup when it is needed.
- *
- * Adding more staff is deliberately *not* here. One person can start working
- * immediately, and Settings already does that job properly. A setup wizard
- * that insists on entering the whole team before anyone can take an order is
- * a wizard people abandon.
+ * Three steps, first two required: the shop (creates it locally if one
+ * doesn't exist yet -- see ARCHITECTURE.md section 4 and D14), you as owner,
+ * then measurement fields (skippable). Adding more staff is deliberately not
+ * here; see StaffSettings.tsx, which gates that on sync being available.
  */
 import { useState } from 'preact/hooks'
 import { Button, Card, ErrorNote, Field, Input, InfoNote } from '../../components/ui'
 import { PinPad } from '../../components/PinPad'
 import { IconCheck, IconChevronLeft } from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
-import { createMeasurementField, createStaff, updateShop } from '../../db/writes'
+import { useAuth } from '../../hooks/useAuth'
+import { isSupabaseConfigured } from '../../lib/supabaseClient'
+import { DevTools } from '../../dev/DevTools'
+import { createMeasurementField, createShop, createStaff, updateShop } from '../../db/writes'
 import { toWaNumber } from '../../lib/whatsapp'
 import { PIN_LENGTH } from '../../lib/pin'
 import type { ShopDoc, StaffDoc } from '../../db/schema'
@@ -60,8 +44,8 @@ export function SetupFlow({ onDone }: { onDone: () => void }) {
   const { shop, setActiveStaff } = useShop()
   const [step, setStep] = useState<Step>('shop')
   const [owner, setOwner] = useState<StaffDoc | null>(null)
-
-  if (!shop) return null
+  // Not `shop` from context past this point -- a just-created shop needs its id now, before the reactive query catches up.
+  const [activeShop, setActiveShop] = useState<ShopDoc | null>(shop)
 
   /** Signs the new owner in and hands control back to the app root. */
   function finish() {
@@ -72,7 +56,7 @@ export function SetupFlow({ onDone }: { onDone: () => void }) {
   return (
     <main class="min-h-svh bg-stone-100 dark:bg-stone-950">
       <div class="mx-auto flex min-h-svh w-full max-w-sm flex-col px-6">
-        <header class="safe-top flex items-center gap-2 pt-3 pb-2">
+        <header class="safe-top flex items-center gap-2 pb-2">
           {step !== 'shop' ? (
             <button
               type="button"
@@ -90,16 +74,27 @@ export function SetupFlow({ onDone }: { onDone: () => void }) {
         </header>
 
         <div class="flex-1 pb-10">
-          {step === 'shop' && <ShopStep shop={shop} onNext={() => setStep('person')} />}
-          {step === 'person' && (
+          {step === 'shop' && (
+            <ShopStep
+              shop={activeShop}
+              onNext={(saved) => {
+                setActiveShop(saved)
+                setStep('person')
+              }}
+            />
+          )}
+          {step === 'person' && activeShop && (
             <PersonStep
+              shopId={activeShop.id}
               onCreated={(created) => {
                 setOwner(created)
                 setStep('measurements')
               }}
             />
           )}
-          {step === 'measurements' && <MeasurementStep shopId={shop.id} onFinish={finish} />}
+          {step === 'measurements' && activeShop && (
+            <MeasurementStep shopId={activeShop.id} onFinish={finish} />
+          )}
         </div>
       </div>
     </main>
@@ -130,12 +125,35 @@ function StepHeading({ title, body }: { title: string; body: string }) {
   )
 }
 
-function ShopStep({ shop, onNext }: { shop: ShopDoc; onNext: () => void }) {
+/** No notice for the ordinary `signed_in` path -- a banner on every sign-in trains people to ignore it. */
+function SyncNotice({ status }: { status: 'local_only' | 'offline_stale' | 'signed_in' }) {
+  if (status === 'signed_in') return null
+
+  const message =
+    status === 'local_only'
+      ? "This app is set up to run fully offline on this device. What you enter here stays on this phone -- there's no server for it to reach."
+      : "You're offline right now. What you enter here is saved on this device and syncs automatically the next time you're connected."
+
+  return (
+    <div class="mb-4">
+      <InfoNote>{message}</InfoNote>
+    </div>
+  )
+}
+
+function ShopStep({ shop, onNext }: { shop: ShopDoc | null; onNext: (shop: ShopDoc) => void }) {
   const { db } = useShop()
-  const [name, setName] = useState(shop.name)
-  const [whatsapp, setWhatsapp] = useState(shop.whatsapp_number ?? '')
+  const { state: auth } = useAuth()
+  const [name, setName] = useState(shop?.name ?? '')
+  const [whatsapp, setWhatsapp] = useState(shop?.whatsapp_number ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const syncStatus = !isSupabaseConfigured()
+    ? ('local_only' as const)
+    : auth.status === 'signed_in'
+      ? ('signed_in' as const)
+      : ('offline_stale' as const)
 
   async function submit(event: Event) {
     event.preventDefault()
@@ -146,8 +164,17 @@ function ShopStep({ shop, onNext }: { shop: ShopDoc; onNext: () => void }) {
     setSaving(true)
     setError(null)
     try {
-      await updateShop(db, shop.id, { name, whatsapp_number: whatsapp })
-      onNext()
+      if (shop) {
+        await updateShop(db, shop.id, { name, whatsapp_number: whatsapp })
+        onNext(shop)
+      } else {
+        const created = await createShop(db, {
+          name,
+          whatsapp_number: whatsapp,
+          supabaseAuthUserId: auth.status === 'signed_in' ? auth.userId : undefined,
+        })
+        onNext(created)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save.')
     } finally {
@@ -163,6 +190,8 @@ function ShopStep({ shop, onNext }: { shop: ShopDoc; onNext: () => void }) {
         title="Your shop"
         body="This is the name clients see in the messages you send them. You can change it later in Settings."
       />
+
+      <SyncNotice status={syncStatus} />
 
       <Card>
         <div class="space-y-4">
@@ -193,6 +222,12 @@ function ShopStep({ shop, onNext }: { shop: ShopDoc; onNext: () => void }) {
       <Button type="submit" block class="mt-5" disabled={saving}>
         {saving ? 'Saving...' : 'Continue'}
       </Button>
+
+      {!shop && (
+        <div class="mt-4">
+          <DevTools />
+        </div>
+      )}
     </form>
   )
 }
@@ -204,8 +239,14 @@ function ShopStep({ shop, onNext }: { shop: ShopDoc; onNext: () => void }) {
  * way to reveal what was typed -- and a PIN mistyped once is a person locked
  * out of their own shop until someone with Settings access resets it.
  */
-function PersonStep({ onCreated }: { onCreated: (staff: StaffDoc) => void }) {
-  const { db, shop } = useShop()
+function PersonStep({
+  shopId,
+  onCreated,
+}: {
+  shopId: string
+  onCreated: (staff: StaffDoc) => void
+}) {
+  const { db } = useShop()
   const [name, setName] = useState('')
   const [phase, setPhase] = useState<'name' | 'pin' | 'confirm'>('name')
   const [firstPin, setFirstPin] = useState('')
@@ -288,7 +329,7 @@ function PersonStep({ onCreated }: { onCreated: (staff: StaffDoc) => void }) {
           }
 
           try {
-            const created = await createStaff(db, shop!.id, { name, pin, role: 'owner' })
+            const created = await createStaff(db, shopId, { name, pin, role: 'owner' })
             // Deliberately not signed in yet -- doing so here unmounts the
             // whole flow before the last step can render. The caller signs
             // them in once setup actually finishes.

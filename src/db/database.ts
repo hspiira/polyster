@@ -122,7 +122,13 @@ export async function createDatabase(
   })
 
   await db.addCollections({
-    shops: { schema: shopSchema, migrationStrategies: {} },
+    shops: {
+      schema: shopSchema,
+      migrationStrategies: {
+        // v1 just relaxed `required` (supabase_auth_user_id is now optional); no shape change.
+        1: (doc) => doc,
+      },
+    },
     staff: {
       schema: staffSchema,
       migrationStrategies: {

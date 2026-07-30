@@ -29,12 +29,19 @@ import { PinPad } from '../../components/PinPad'
 import { IconPlus, IconUsers } from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
+import { useAuth } from '../../hooks/useAuth'
+import { useOnline } from '../../hooks/useOnline'
 import { createStaff, setStaffActive, setStaffPin } from '../../db/writes'
 import { PIN_LENGTH } from '../../lib/pin'
 import type { StaffDoc, StaffRole } from '../../db/schema'
 
 export function StaffSettings() {
   const { db, shop, activeStaff } = useShop()
+  const { state: auth } = useAuth()
+  const online = useOnline()
+  // Inviting someone new only helps once their PIN can reach every device
+  // this shop uses -- see ARCHITECTURE.md D14.
+  const canInvite = auth.status === 'signed_in' && online
 
   // Not filtered to active, unlike the picker -- this is where someone is
   // brought back after being deactivated by mistake.
@@ -82,7 +89,7 @@ export function StaffSettings() {
       back="/settings"
       action={
         staff.length > 0 && (
-          <Button size="sm" onClick={() => setAdding(true)}>
+          <Button size="sm" onClick={() => setAdding(true)} disabled={!canInvite}>
             <IconPlus size={16} /> Add
           </Button>
         )
@@ -90,6 +97,14 @@ export function StaffSettings() {
     >
       <div class="space-y-4">
         {error && <ErrorNote>{error}</ErrorNote>}
+
+        {staff.length > 0 && !canInvite && (
+          <InfoNote>
+            {auth.status === 'local_only'
+              ? "Inviting someone new needs a live connection, so their PIN reaches every device this shop uses -- this app is running fully offline."
+              : "Inviting someone new needs a live connection, so their PIN reaches every device this shop uses. You're offline right now."}
+          </InfoNote>
+        )}
 
         {staff.length === 0 ? (
           <Card padded={false}>

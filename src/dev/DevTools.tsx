@@ -38,11 +38,16 @@ function DevPanel() {
     try {
       const { seedIfEmpty } = await import('./seed')
       const result = await seedIfEmpty(db)
-      setMessage(
-        result
-          ? `Seeded ${result.clients.length} clients and ${result.orders.length} orders. Every PIN is ${SEED_PIN}.`
-          : 'A shop already exists on this device, so nothing was seeded.',
-      )
+      if (result) {
+        setMessage(
+          `Seeded ${result.clients.length} clients and ${result.orders.length} orders. Every PIN is ${SEED_PIN}. Reloading...`,
+        )
+        // A fresh mount re-derives Gate's setup-wizard latch from scratch,
+        // rather than this component reaching past its own screen to reset it.
+        window.setTimeout(() => window.location.reload(), 900)
+      } else {
+        setMessage('A shop already exists on this device, so nothing was seeded.')
+      }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Seeding failed.')
     } finally {

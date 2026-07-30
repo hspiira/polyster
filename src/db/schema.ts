@@ -44,11 +44,12 @@ export interface ShopDoc {
   id: string
   name: string
   whatsapp_number?: string
-  supabase_auth_user_id: string
+  /** Unset until linked to a live Supabase session; never syncs until then. */
+  supabase_auth_user_id?: string
   created_at: string
 }
 export const shopSchema: RxJsonSchema<ShopDoc> = {
-  version: 0,
+  version: 1, // v1: supabase_auth_user_id no longer required -- see database.ts's migrationStrategies
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -58,7 +59,7 @@ export const shopSchema: RxJsonSchema<ShopDoc> = {
     supabase_auth_user_id: uuidField,
     created_at: { type: 'string', format: 'date-time' },
   },
-  required: ['id', 'name', 'supabase_auth_user_id'],
+  required: ['id', 'name'],
 }
 
 export type StaffRole = 'owner' | 'staff'
