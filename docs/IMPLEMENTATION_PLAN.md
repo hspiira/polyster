@@ -18,6 +18,62 @@ Phases are sequential by design: each one produces something real and checkable 
 Nothing in Phase 0 that requires a browser, a phone, or a live Supabase project has been verified. That is not a small caveat: the two items with the most value -- sync actually working, and one shop genuinely being unable to read another's data -- are exactly the ones that cannot be checked from a keyboard alone. Treat Phase 0 as unfinished until the checklist below is signed off.
 
 
+## Next tasks
+
+The ordered list of what to pick up, with what "done" means for each. The phase sections below remain the full plan; this is the working queue.
+
+The ordering is not arbitrary. N1 can invalidate work done after it, and N2-N4 are foundations that get more expensive to retrofit the further into the screens you are.
+
+### Now -- unblocks everything else
+
+**N1. Verify Phase 0 against a real project and real devices.**
+Everything after this is built on assumptions until it is done. Create the Supabase project, run the migration, create **two** shop accounts with data in each, and work the Phase 0 exit checklist below.
+*Do the tenant-isolation item first, not last.* If `select * from order_balances` as shop A returns shop B's rows, the schema is wrong and every screen built on top of it is built on a leak.
+**Done when:** every box in the Phase 0 exit checklist is ticked, and the two that failed (there will usually be one or two) have fixes committed.
+**Blocks:** N3 onwards. N2 can proceed in parallel.
+
+### Next -- foundations, before any screen is built
+
+**N2. Decide the PIN hashing scheme and write down why.**
+The PIN is a 4-6 digit attribution check, not a password, but the hash replicates to every device on the shop's account and a plain digest of a 4-digit PIN is exhaustible in microseconds. Use WebCrypto PBKDF2 with a per-staff random salt and a deliberate iteration count chosen against a measurement on a low-end Android phone, not a desktop.
+Record the algorithm, salt handling, and iteration count in `ARCHITECTURE.md` as a decision. Do not invent a scheme.
+**Done when:** the decision is written down, `src/lib/pin.ts` implements it, and unit tests cover hash/verify plus rejection of a wrong PIN.
+**Blocks:** N5.
+
+**N3. Add RxDB migration strategies.**
+Every collection is `version: 0` with no `migrationStrategies`. That is fine while the only installed data is test data. Once Phase 1 is on a real shop's phone, the first schema change without a strategy fails to open the database, with that shop's orders inside it.
+This is the same shape of decision as `order_stage_history`: cheap now, expensive later.
+**Done when:** every collection declares a `migrationStrategies` map (empty is fine at v0, the point is the pattern), and a test bumps one collection's version and proves existing documents survive.
+**Blocks:** the first real install. Not the screens.
+
+**N4. Choose a router and build the app shell.**
+Steps 5-11 of Phase 1 are all screens, and there is currently no navigation of any kind. Preact ships no router. Decide between `preact-iso` (official, small, supports lazy routes) and hash-based routing (zero dependency, and hash URLs sidestep the deep-link-refresh problem in an installed PWA entirely). Weigh it against the service worker's navigation fallback -- this interacts with PWA behaviour and is worth getting right once.
+Build the shell around it: bottom tab bar (Dashboard, Clients, Orders, Settings), the persistent `SyncBadge`, and a route for the staff PIN gate.
+**Done when:** an empty screen exists behind each tab, navigation survives a reload of the installed app, and the back button behaves on Android.
+**Blocks:** N5 onwards.
+
+**N5. Dev fixtures.**
+Building the client and order screens against an empty database means hand-entering data on every reload. A seed script that writes a realistic shop (a few clients, measurement fields, orders across every stage, partial payments) into the local RxDB saves that cost many times over, and gives the dashboard something to be wrong about.
+**Done when:** `pnpm seed` populates a local database, is dev-only, and cannot run against a configured Supabase project by accident.
+
+### Then -- Phase 1 screens, in dependency order
+
+**N6. Staff picker + PIN gate** (Phase 1 step 2). Needs N2 and N4.
+**N7. Settings: shop basics and the measurement field editor** (step 3). Built before Clients because the measurement form is rendered from this configuration.
+**N8. Clients: list, search, add, detail with measurement profile and order history** (step 4).
+**N9. Orders: form, detail, stage tracker, payments, running balance** (step 5). The largest single piece. Balance comes from `observeBalance()`, not the view. Every stage change writes an `order_stage_history` row in the same transaction as the order update, or the audit trail has gaps.
+**N10. WhatsApp button** (step 6). Small, and the first thing that makes the app visibly better than a notebook.
+**N11. Dashboard** (step 7). After orders and payments exist, so there is real data to develop against.
+
+Steps 8-11 (reports, staff management, export backup, real icons) follow; they are listed in the Phase 1 section and none of them blocks anything else.
+
+### Worth doing whenever there is a gap
+
+**N12. Wire up CI.** `pnpm verify` exists and nothing runs it automatically. A GitHub Actions workflow on push and pull request is perhaps twenty lines, and the schema bug this project already shipped once is precisely what it would catch.
+
+**N13. Add a linter.** There is none. Lower value than CI, since `strict` and the tests carry most of the weight, but it is the cheap moment to add one.
+
+
 ## Phase 0 -- Project & infrastructure setup
 
 Goal: an empty but fully wired-up app -- installable, offline-capable, syncing end to end -- before any real screen is built. This phase exists to catch integration problems (service worker scope, RLS policies, replication config) while there's nothing else going on to confuse the diagnosis.
@@ -144,6 +200,11 @@ Recorded so they aren't lost, not because they're next:
 
 ## Decisions still open
 
-- **PIN hashing algorithm** -- blocks Phase 1 step 2.
-- **Offline double-booking** -- blocks Phase 2 step 5.
-- **RxDB migration strategies** -- blocks the first real install.
+| Decision | Blocks | Task |
+|---|---|---|
+| PIN hashing algorithm | Phase 1 step 2 | N2 |
+| Router and app shell | Phase 1 steps 4-11 | N4 |
+| RxDB migration strategies | The first real install | N3 |
+| Offline double-booking | Phase 2 step 5 | Phase 2 |
+
+None of these should be resolved by whoever happens to reach them mid-screen. Each one is written down here because defaulting quietly is how they turn into things nobody remembers choosing.
