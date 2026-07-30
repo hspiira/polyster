@@ -43,21 +43,24 @@ export function TabBar() {
               <a
                 href={href}
                 aria-current={active ? 'page' : undefined}
-                class={`relative flex min-h-14 flex-col items-center justify-center gap-0.5
+                class={`relative flex min-h-14 flex-col items-center justify-center gap-1
                         transition-colors ${
                           active
-                            ? 'text-brand-700 dark:text-brand-400'
+                            ? 'text-brand-800 dark:text-brand-300'
                             : 'text-stone-500 dark:text-stone-400'
                         }`}
               >
-                {/* A short bar rather than a filled pill: it marks the active
-                    tab without competing with the icon for attention. */}
+                {/* A filled pill behind the active icon, the way a fitness
+                    app's tab bar marks the current section, rather than the
+                    thin top bar this replaces -- it reads at a glance without
+                    needing the colour change on the label underneath it. */}
                 <span
-                  class={`absolute top-0 h-0.5 w-8 rounded-full transition-opacity ${
-                    active ? 'bg-brand-600 opacity-100' : 'opacity-0'
+                  class={`flex h-7 w-11 items-center justify-center rounded-full transition-colors ${
+                    active ? 'bg-brand-100 dark:bg-brand-950' : 'bg-transparent'
                   }`}
-                />
-                <Icon size={22} stroke-width={active ? 2.1 : 1.75} />
+                >
+                  <Icon size={22} stroke-width={active ? 2.1 : 1.75} />
+                </span>
                 <span class={`text-[11px] ${active ? 'font-semibold' : ''}`}>{label}</span>
               </a>
             </li>
