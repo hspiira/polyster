@@ -53,6 +53,14 @@ export function PinPad({
   const mounted = useRef(true)
   useEffect(() => () => { mounted.current = false }, [])
 
+  // Synchronous, so two taps in one frame cannot both read a stale value.
+  const entered = useRef('')
+
+  function write(next: string) {
+    entered.current = next
+    setPin(next)
+  }
+
   async function submit(candidate: string) {
     if (running.current) return
     running.current = true
@@ -61,7 +69,7 @@ export function PinPad({
       const ok = await onComplete(candidate)
       if (!ok && mounted.current) {
         setFailed(true)
-        setPin('')
+        write('')
         window.setTimeout(() => mounted.current && setFailed(false), 600)
       }
     } finally {
@@ -75,16 +83,15 @@ export function PinPad({
     setFailed(false)
 
     if (key === 'del') {
-      setPin((current) => current.slice(0, -1))
+      write(entered.current.slice(0, -1))
       return
     }
 
-    setPin((current) => {
-      if (current.length >= PIN_LENGTH) return current
-      const next = current + key
-      if (next.length === PIN_LENGTH) void submit(next)
-      return next
-    })
+    if (entered.current.length >= PIN_LENGTH) return
+    const next = entered.current + key
+    write(next)
+    // Out of the state updater: a side effect there can run more than once.
+    if (next.length === PIN_LENGTH) void submit(next)
   }
 
   const dark = tone === 'dark'
@@ -116,7 +123,7 @@ export function PinPad({
           return (
             <span
               key={index}
-              class={`size-3.5 rounded-full transition-all duration-150 ${
+              class={`size-3.5 rounded-full transition-[transform,background-color] duration-150 ${
                 failed
                   ? 'bg-red-500'
                   : filled
@@ -174,9 +181,17 @@ function PadKey({
     <button
       type="button"
       disabled={disabled}
-      onClick={onPress}
+      // On press, not release: a click needs the touch to stay inside the
+      // browser's slop, and fast typing rolls the finger past it.
+      onPointerDown={(event) => {
+        if (event.button === 0) onPress()
+      }}
+      // detail 0 means keyboard, the one case pointerdown never sees.
+      onClick={(event) => {
+        if (event.detail === 0) onPress()
+      }}
       class={cn(
-        'flex size-18 items-center justify-center overflow-hidden rounded-full',
+        'flex size-18 select-none items-center justify-center overflow-hidden rounded-full',
         'transition-transform duration-75 active:scale-90 disabled:opacity-40',
         // "Delete" is a word, so it cannot carry the digits' type size.
         ghost ? 'text-sm font-medium' : 'text-2xl font-normal',
@@ -186,7 +201,7 @@ function PadKey({
             : 'text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
           : dark
             ? // No sheen: eighteen keys each catching a highlight reads as noise, not material.
-              'glass text-stone-100'
+              'glass-flat text-stone-100'
             : `border border-stone-200/80 bg-white shadow-card active:bg-stone-100
                dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800`,
       )}
