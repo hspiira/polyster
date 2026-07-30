@@ -1,43 +1,64 @@
 /**
- * Wizard step state that Android's back gesture understands.
+ * Wizard step state that back gestures understand.
  *
- * The entry flow shows no back arrow, so back is swipe on iOS and the system
- * gesture on Android. With steps held in plain state that gesture leaves the
- * app instead of stepping back -- so each step is a real history entry.
+ * Each step is a real history entry, so Android's system back and the browser's
+ * own edge-swipe step back rather than leaving the app. An installed PWA has
+ * neither, which is why the depth here also drives the app's own swipe-back
+ * (useSwipeBack) -- `canGoBack` is what keeps that gesture from walking off the
+ * first step and out of the wizard entirely.
  */
-import { useCallback, useEffect, useState } from 'preact/hooks'
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
-const STATE_KEY = 'polyster.wizardStep'
+const STEP_KEY = 'polyster.wizardStep'
+const DEPTH_KEY = 'polyster.wizardDepth'
 
 export interface WizardSteps<T extends string> {
   step: T
+  /** True when a step has been pushed, so back stays inside the wizard. */
+  canGoBack: boolean
   /** Advances and pushes a history entry. */
   goTo(step: T): void
   /** Replaces the current entry, for a step that must not be returned to. */
   replaceWith(step: T): void
+  goBack(): void
 }
 
 export function useWizardSteps<T extends string>(steps: readonly T[], first: T): WizardSteps<T> {
   const [step, setStep] = useState<T>(first)
+  const [canGoBack, setCanGoBack] = useState(false)
+  // A ref so `goTo` can read the current depth without being rebuilt on every
+  // step change, which would re-run the effects of anything holding it.
+  const depth = useRef(0)
 
   useEffect(() => {
     function onPopState(event: PopStateEvent) {
-      const next = (event.state as Record<string, unknown> | null)?.[STATE_KEY]
-      setStep(typeof next === 'string' && steps.includes(next as T) ? (next as T) : first)
+      const state = event.state as Record<string, unknown> | null
+      const nextStep = state?.[STEP_KEY]
+      const nextDepth = state?.[DEPTH_KEY]
+
+      setStep(typeof nextStep === 'string' && steps.includes(nextStep as T) ? (nextStep as T) : first)
+      // No depth on the entry means we have popped back to whatever preceded
+      // the wizard, so there is nothing left of it to go back through.
+      depth.current = typeof nextDepth === 'number' ? nextDepth : 0
+      setCanGoBack(depth.current > 0)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [steps, first])
 
   const goTo = useCallback((next: T) => {
-    window.history.pushState({ [STATE_KEY]: next }, '')
+    depth.current += 1
+    window.history.pushState({ [STEP_KEY]: next, [DEPTH_KEY]: depth.current }, '')
     setStep(next)
+    setCanGoBack(true)
   }, [])
 
   const replaceWith = useCallback((next: T) => {
-    window.history.replaceState({ [STATE_KEY]: next }, '')
+    window.history.replaceState({ [STEP_KEY]: next, [DEPTH_KEY]: depth.current }, '')
     setStep(next)
   }, [])
 
-  return { step, goTo, replaceWith }
+  const goBack = useCallback(() => window.history.back(), [])
+
+  return { step, canGoBack, goTo, replaceWith, goBack }
 }
