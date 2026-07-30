@@ -172,3 +172,16 @@ export function getDatabase(): Promise<AppDatabase> {
   }
   return dbPromise
 }
+
+/**
+ * Destroys every local collection.
+ *
+ * For handing a device on, and for the one recovery path that has nothing to
+ * verify against. A shop's local copy is the only copy until it syncs, so this
+ * is always presented as destructive. Callers reload afterwards -- the cached
+ * promise above would otherwise hand out a removed database.
+ */
+export async function wipeLocalDatabase(db: AppDatabase): Promise<void> {
+  await db.remove()
+  dbPromise = null
+}

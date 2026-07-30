@@ -311,6 +311,7 @@ function PersonStep({
 
       <PinPad
         key={phase}
+        tone="light"
         hint={confirming ? 'Confirm your PIN' : 'Choose your PIN'}
         errorHint="Those did not match. Start again."
         busyHint="Saving..."

@@ -256,6 +256,7 @@ function AddStaffSheet({
           {error && <ErrorNote>{error}</ErrorNote>}
           <PinPad
             key={phase}
+            tone="light"
             hint={
               phase === 'confirm'
                 ? 'Type it again to confirm'
@@ -315,6 +316,7 @@ function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose:
         {error && <ErrorNote>{error}</ErrorNote>}
         <PinPad
           key={phase}
+          tone="light"
           hint={phase === 'confirm' ? 'Type it again to confirm' : `Choose ${PIN_LENGTH} digits`}
           errorHint="Those did not match. Start again."
           busyHint="Saving..."

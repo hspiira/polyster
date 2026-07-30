@@ -18,8 +18,7 @@
  * `tone="dark"` is for StaffGate's fixed-dark screen; SetupFlow stays on the default `"light"`.
  */
 import { useEffect, useRef, useState } from 'preact/hooks'
-import type { ComponentChildren } from 'preact'
-import { IconBackspace } from './icons'
+import { cn } from '../lib/cn'
 import { PIN_LENGTH } from '../lib/pin'
 
 export interface PinPadProps {
@@ -42,7 +41,7 @@ export function PinPad({
   hint = 'Enter your PIN',
   errorHint = 'Wrong PIN, try again',
   busyHint = 'Checking...',
-  tone = 'light',
+  tone = 'dark',
 }: PinPadProps) {
   const [pin, setPin] = useState('')
   const [failed, setFailed] = useState(false)
@@ -147,14 +146,7 @@ export function PinPad({
         <span />
         <PadKey label="0" tone={tone} disabled={busy} onPress={() => press('0')} />
         {pin.length > 0 ? (
-          <PadKey
-            label="Delete"
-            ghost
-            tone={tone}
-            disabled={busy}
-            onPress={() => press('del')}
-            icon={<IconBackspace size={24} />}
-          />
+          <PadKey label="Delete" ghost tone={tone} disabled={busy} onPress={() => press('del')} />
         ) : (
           <span />
         )}
@@ -165,14 +157,12 @@ export function PinPad({
 
 function PadKey({
   label,
-  icon,
   ghost = false,
-  tone = 'light',
+  tone = 'dark',
   disabled,
   onPress,
 }: {
   label: string
-  icon?: ComponentChildren
   ghost?: boolean
   tone?: 'light' | 'dark'
   disabled?: boolean
@@ -183,22 +173,24 @@ function PadKey({
   return (
     <button
       type="button"
-      aria-label={label}
       disabled={disabled}
       onClick={onPress}
-      class={`flex size-18 items-center justify-center rounded-full text-2xl font-normal
-              transition-transform duration-75 active:scale-90 disabled:opacity-40 ${
-                ghost
-                  ? dark
-                    ? 'text-stone-300 active:bg-white/10'
-                    : 'text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
-                  : dark
-                    ? 'border border-white/10 bg-white/5 text-stone-100 backdrop-blur-md active:bg-white/10'
-                    : `border border-stone-200/80 bg-white shadow-card active:bg-stone-100
-                       dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800`
-              }`}
+      class={cn(
+        'flex size-18 items-center justify-center rounded-full transition-transform',
+        'duration-75 active:scale-90 disabled:opacity-40',
+        // "Delete" is a word, so it cannot carry the digits' type size.
+        ghost ? 'text-sm font-medium' : 'text-2xl font-normal',
+        ghost
+          ? dark
+            ? 'text-stone-300 active:bg-white/10'
+            : 'text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
+          : dark
+            ? 'border border-white/10 bg-white/5 text-stone-100 backdrop-blur-md active:bg-white/10'
+            : `border border-stone-200/80 bg-white shadow-card active:bg-stone-100
+               dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800`,
+      )}
     >
-      {icon ?? label}
+      {label}
     </button>
   )
 }
