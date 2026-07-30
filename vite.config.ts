@@ -49,8 +49,12 @@ export default defineConfig({
         // handled by RxDB's local-first layer, not by the service worker.
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
       },
+      // Off by default. A live service worker in dev caches aggressively and
+      // produces stale-asset confusion that looks like a code bug. Turn it on
+      // deliberately (VITE_PWA_DEV=1 pnpm dev) when testing install or offline
+      // behaviour, which is the only time it earns its keep.
       devOptions: {
-        enabled: true,
+        enabled: process.env.VITE_PWA_DEV === '1',
       },
     }),
   ],
