@@ -1,0 +1,28 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the engines floor in package.json.
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Typecheck, then tests, then build -- in that order on purpose. The
+      # tests exercise RxDB's dev-mode schema validation, which the production
+      # build strips out, so a schema fault fails here rather than shipping
+      # silently. This project has already shipped that exact bug once.
+      - run: pnpm verify
