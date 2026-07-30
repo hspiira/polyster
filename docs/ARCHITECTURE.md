@@ -2,34 +2,33 @@
 
 **Status:** Accepted
 **Date:** 2026-07-30
+**Last revised:** 2026-07-30 (build-time corrections, see section 10)
 **Deciders:** Ahum
 
-This is the consolidated architecture reference. It draws together decisions made across three earlier working documents -- `pwa-research-notes.md`, `pwa-schema-and-screens.md`, and `pwa-stack-options.md` -- into one document a developer (including a future version of this project) can read first. Those three documents remain the record of *why*, with full source citations; this one is the record of *what*, kept current as the system gets built.
-
-One correction folded in from the most recent discussion: the framework choice between Preact and Svelte was left open pending your input. To keep this document usable as a build reference, it proceeds with **Preact** as the working decision (smaller ecosystem risk, React-shaped API), consistent with the lean stated in `pwa-stack-options.md`. This is called out again in the decisions table below and is a cheap swap if you'd rather go with Svelte -- nothing else in this document depends on which one is picked.
+This is the consolidated architecture reference and the current record of *what* the system is. It draws together decisions made across three earlier working documents -- `pwa-research-notes.md`, `pwa-schema-and-screens.md`, and `pwa-stack-options.md` -- which remain the record of *why*, with full source citations. Where any of those disagrees with this document, this document wins; the disagreements are listed in section 10.
 
 
 ## 1. System overview
 
 This is one product, not two custom builds. Any number of independent cloth tailoring/rental shops ("tenants") use the same app and the same database, each seeing only their own data. A shop may be solo-run or have several staff sharing one or more devices; both cases use the identical architecture.
 
-The core design constraint is that the app must keep working with no internet connection, because it's used shop-floor, day-to-day, in conditions where connectivity can't be assumed. Everything else -- the choice of local database, the sync mechanism, even the choice not to depend on push notifications -- follows from that constraint.
+The core design constraint is that the app must keep working with no internet connection, because it's used shop-floor, day-to-day, in conditions where connectivity can't be assumed. Everything else -- the choice of local database, the sync mechanism, the choice not to depend on push notifications, and the decision to compute balances client-side rather than read a server view -- follows from that constraint.
 
 ```
-                        ┌─────────────────────────────┐
-                        │   Browser / installed PWA    │
+                        ┌──────────────────────────────┐
+                        │   Browser / installed PWA     │
                         │                               │
                         │  Preact UI  <-->  RxDB (local)│
-                        │                     │          │
-                        └─────────────────────┼──────────┘
+                        │                     │         │
+                        └─────────────────────┼─────────┘
                                               │  replication
-                                              │  (online only)
+                                              │  (online + authenticated only)
                                               ▼
-                        ┌─────────────────────────────┐
+                        ┌──────────────────────────────┐
                         │           Supabase            │
                         │  Postgres + Auth + Realtime   │
                         │  + Storage (catalogue photos) │
-                        └─────────────────────────────┘
+                        └──────────────────────────────┘
 
               Static assets (HTML/JS/CSS, service worker)
               served from:  Cloudflare Pages
@@ -40,33 +39,40 @@ The app always reads and writes to the local RxDB store first. Supabase is a syn
 
 ## 2. Components
 
-**Frontend (Preact + Vite).** A single-page app, no server-side rendering. Chosen specifically because this app has no SEO surface (it sits behind a login, nothing here is ever meant to be indexed) and no server-rendering need -- see the Next.js discussion folded into decision D2 below. `vite-plugin-pwa` (Workbox-based) generates the manifest and service worker that make the app installable and cache the app shell.
+**Frontend (Preact + Vite).** A single-page app, no server-side rendering. Chosen specifically because this app has no SEO surface (it sits behind a login, nothing here is ever meant to be indexed) and no server-rendering need -- see decision D2 below. `vite-plugin-pwa` (Workbox-based) generates the manifest and service worker that make the app installable and cache the app shell.
 
 **Local data layer (RxDB + Dexie.js storage).** Runs entirely in the browser on top of IndexedDB. Holds the working copy of every table the current shop can see. All UI reads and writes go through RxDB, never directly to Supabase -- this is what makes the UI stay responsive and functional offline.
 
-**Backend (Supabase).** Postgres database (source of truth once synced), Auth (one account per shop, used for Row Level Security), Realtime (pushes changes to other devices on the same shop live), and Storage (catalogue item photos, phase 2 only). No custom server is written or run for this app -- Supabase's managed services cover everything the backend needs to do.
+**Backend (Supabase).** Postgres database (source of truth once synced), Auth (one account per shop, used for Row Level Security), Realtime (pushes changes to other devices on the same shop live), and Storage (catalogue item photos, Phase 2 only). No custom server is written or run for this app.
 
 **Hosting (Cloudflare Pages).** Serves the built static assets. Chosen for unlimited free-tier bandwidth and CDN reach, both of which matter for a public, install-anywhere PWA with usage patterns that are hard to predict in advance.
 
-**Sync layer (RxDB Supabase replication plugin).** Bidirectional: pulls remote changes via PostgREST and Supabase Realtime, pushes local changes the same way, and reconciles using a `_modified` timestamp per row. Runs automatically whenever the device has connectivity; does nothing when offline, and the app doesn't wait on it for anything.
+**Sync layer (RxDB Supabase replication plugin).** Bidirectional: pulls remote changes via PostgREST and Supabase Realtime, pushes local changes the same way, and reconciles using a `_modified` timestamp per row. Runs whenever the device has connectivity *and* a live session; does nothing otherwise, and the app never waits on it.
 
 
 ## 3. Data flow
 
 **Normal write (online):** Staff action → written to local RxDB → UI updates immediately from the local write → replication plugin pushes the change to Supabase in the background → Supabase Realtime notifies any other device currently open on that shop → their RxDB updates → their UI updates. The person who made the change never waits for this round trip; everyone else sees it arrive live.
 
-**Write while offline:** Staff action → written to local RxDB → UI updates immediately, exactly as above. The change simply sits unsynced until connectivity returns, at which point the replication plugin pushes it automatically. Nothing in the UI needs to know or care whether the device is currently online.
+**Write while offline:** Staff action → written to local RxDB → UI updates immediately, exactly as above. The change sits unsynced until connectivity returns, at which point the replication plugin pushes it automatically. Nothing in the UI needs to know or care whether the device is currently online -- but the UI does *show* it (see section 9).
 
-**Conflict case:** two staff members edit the same order while both offline, then both reconnect. This is rare in practice (two people editing the exact same order at the exact same moment) but not impossible. The Supabase replication plugin's conflict handling applies here -- worth a deliberate test during Phase 0 (see `IMPLEMENTATION_PLAN.md`) rather than an assumption it "just works."
+**Conflict case:** two staff members edit the same order while both offline, then both reconnect. Rare in practice but not impossible. The Supabase replication plugin's conflict handling applies here -- still an untested assumption, and still a Phase 0 verification item.
 
-**Read (dashboard, lists, etc.):** always served from local RxDB via reactive queries. A screen never blocks on a network call to render -- the data it shows may be a few seconds stale if offline, but it is always immediately available.
+**Read (dashboard, lists, balances):** always served from local RxDB via reactive queries. A screen never blocks on a network call to render.
 
 
 ## 4. Multi-tenancy and security model
 
-Every table (except `shops` itself) carries a `shop_id`. Row Level Security policies in Postgres restrict all reads and writes to rows matching the currently authenticated shop -- enforced at the database layer, not by the app remembering to filter correctly. This is what guarantees one shop's data is never visible to another, even though they share one database and one deployed app.
+Every table (except `shops` itself) carries a `shop_id`, directly or through a join. Row Level Security policies in Postgres restrict all reads and writes to rows matching the currently authenticated shop -- enforced at the database layer, not by the app remembering to filter correctly.
 
-**Auth is shop-level; PIN is attribution-level, not a security boundary.** Each shop authenticates as one Supabase account. Staff PINs are an app-layer convenience on top -- they determine who gets credited with an action (e.g. "marked ready by [name]"), not who is allowed to do what. Anyone who can unlock the device and knows any staff member's PIN can act as that person. This was a deliberate simplification to avoid the overhead of real per-person accounts for a two-or-three-person shop, made explicit here so it stays a conscious trade-off rather than a gap discovered later. If a shop ever needs a genuine security boundary between staff members, that requires individual Supabase accounts per person, which is a bigger change than adding a new PIN.
+Four implementation rules make that guarantee real rather than nominal. All four are in `supabase/migrations/0001_init.sql`:
+
+1. **Every policy names `to authenticated`.** A policy without it applies to `public`, which includes the `anon` role. It would still deny, because `auth.uid()` is null for anon, but that is an accident rather than a decision.
+2. **The `order_balances` view is created `with (security_invoker = on)`.** A Postgres view runs with its *owner's* privileges by default, and the migration runs as a role that bypasses RLS. Without this, every shop could read every other shop's balances through the view even though the base tables are locked down correctly. This is the single easiest way to open a tenant-isolation hole in this design, which is why the Phase 0 checklist tests the view by name.
+3. **`current_shop_id()` is `security definer` with a fixed `search_path`.** Definer rights keep the tenant lookup independent of the policies built on top of it; the fixed search path closes the privilege-escalation route Supabase's linter flags as `function_search_path_mutable`.
+4. **`shops` permits select and update only, never insert or delete.** Shop rows are provisioned out-of-band by an administrator. A `for all` policy would let any authenticated client self-provision.
+
+**Auth is shop-level; PIN is attribution-level, not a security boundary.** Each shop authenticates as one Supabase account. Staff PINs are an app-layer convenience on top -- they determine who gets credited with an action ("marked ready by [name]"), not who is allowed to do what. Anyone who can unlock the device and knows any staff member's PIN can act as that person. This was a deliberate simplification to avoid the overhead of real per-person accounts for a two-or-three-person shop. If a shop ever needs a genuine security boundary between staff members, that requires individual Supabase accounts per person, which is a bigger change than adding a new PIN.
 
 
 ## 5. Data model summary
@@ -79,56 +85,114 @@ Full field-level definitions live in `pwa-schema-and-screens.md`. Summary for or
 | `staff` | Staff members per shop, PIN hash, attribution only. |
 | `clients` | Customers of a shop. |
 | `measurement_fields` | Per-shop configurable list of measurement fields (chest/waist vs bust/hip, etc.) -- what makes one app fit shops with different garment types. |
-| `measurement_profiles` | A client's saved measurements, as `jsonb` keyed by field. |
-| `orders` | The core work-tracking record: type (tailor-made/rental/purchase), stage, dates, price. Carries a nullable `catalogue_item_id` reserved for the phase 2 catalogue module. |
-| `payments` | Partial/multiple payments per order; balance is always derived, never stored. |
-| `order_balances` | A Postgres view, not a table -- `price_total` minus summed payments. |
-| `order_stage_history` (default: included) | Logs every stage transition with who and when, for audit purposes. Cheap to add at schema-design time; treated as in-scope by default rather than deferred, since retrofitting it later is the more expensive path. Trivial to drop before the first migration if it turns out not to be wanted. |
-| `catalogue_items` (phase 2) | Rental/sale stock, tracked as item-type + quantity (not individual physical pieces), per the July 30 decision in `pwa-schema-and-screens.md` section 4. |
+| `measurement_profiles` | A client's saved measurements, as `jsonb` keyed by field. One per client, enforced by a unique constraint. |
+| `orders` | The core work-tracking record: type (tailor-made/rental/purchase), stage, dates, price. Carries a nullable `catalogue_item_id` reserved for the Phase 2 catalogue module. |
+| `payments` | Partial/multiple payments per order. Positive amounts only; a mistaken entry is voided by soft-delete, never by a negative correcting row. |
+| `order_balances` | A Postgres view, not a table. **Server-side reporting only** -- see below. |
+| `order_stage_history` | Logs every stage transition with who and when, for audit purposes. |
+| `catalogue_items` (Phase 2) | Rental/sale stock, tracked as item-type + quantity, not individual physical pieces. |
 
-Every synced table additionally needs `_modified` (timestamp) and `_deleted` (boolean, soft delete) columns -- a requirement of the RxDB-Supabase replication protocol, documented in `pwa-stack-options.md` section 3. This is a real schema detail, not optional plumbing, and needs to be in the first migration.
+### Balances are computed on the client
+
+`order_balances` exists in Postgres and the app does not read it. RxDB replicates tables, not views, so a balance read from the view is a live network call on the order detail screen -- the screen most likely to be open with no connectivity. `src/db/balances.ts` derives the same figure from the already-replicated `payments` collection, applying the same two rules the view applies (soft-deleted payments excluded; no payments means zero, not null) and summing in integer minor units so floating-point error cannot make a fully-paid order show a balance of 0.0000000001.
+
+Keeping two implementations of one calculation is a real cost. It is accepted because the alternative is a screen that stops working offline, and the calculation is small enough to unit-test exhaustively (`src/db/balances.test.ts`).
+
+### `_modified` and `_deleted` are Postgres columns only
+
+Every synced table carries `_modified` (timestamp) and `_deleted` (boolean, soft delete). These are a requirement of the RxDB-Supabase replication protocol.
+
+**Neither is declared in the RxDB collection schemas.** RxDB rejects top-level fields beginning with `_` other than `_id` and `_deleted`, and it does so only when the dev-mode plugin is loaded -- which is development and tests, but not a production build. Getting this wrong therefore breaks `pnpm dev` while `vite build` passes clean. The first scaffold shipped exactly that bug. See `src/db/schema.ts` for the full reasoning and `src/db/database.test.ts` for the test that now prevents its return.
+
+`_modified` is server-owned in any case: a BEFORE trigger sets it, and the replication plugin strips it from every pushed row.
 
 
 ## 6. Key decisions (summary)
 
-Full trade-off writeups and sources are in `pwa-research-notes.md` and `pwa-stack-options.md`. This table is the fast-reference version.
+Full trade-off writeups and sources are in `pwa-research-notes.md` and `pwa-stack-options.md`.
 
 | # | Decision | Chosen | Rejected alternatives | Why |
 |---|---|---|---|---|
 | D1 | Local data layer + sync | RxDB + Supabase (Postgres) | Plain Dexie (no sync), Firebase Firestore, PouchDB/CouchDB | Needed real multi-device sync once multi-staff shops entered scope; Supabase avoids both a self-hosted server (CouchDB) and vendor lock to a proprietary format (Firestore). |
-| D2 | Frontend framework | Preact (working decision, reversible) | Svelte, plain React, Next.js, vanilla JS | Preact: React-shaped API keeps ecosystem/maintainability high while staying small. Svelte is the leaner alternative if bundle size matters more than ecosystem to you. Next.js rejected: no SSR/SEO need since the app sits behind auth, and its server-oriented model fights an offline-first design rather than helping it. |
+| D2 | Frontend framework | **Preact (settled 2026-07-30)** | Svelte, plain React, Next.js, vanilla JS | React-shaped API keeps ecosystem and maintainability high while staying small. Svelte was the leaner alternative; the bundle difference is smaller in practice than the isolated benchmark suggests once RxDB is in the build. Next.js rejected: no SSR/SEO need behind auth, and its server-oriented model fights an offline-first design. |
 | D3 | Hosting | Cloudflare Pages | Vercel, Netlify | Unlimited free-tier bandwidth removes surprise-bill risk; strongest CDN reach helps first-load speed on weak connections. |
-| D4 | Auth model | One Supabase account per shop + app-level staff PIN | Individual Supabase accounts per staff member | PIN is far lower friction for a 1-3 person shop opening the app dozens of times a day; explicitly not a hard security boundary (see section 4). |
-| D5 | Reminders | In-app "due today" dashboard | OS push notifications | Push reliability on iOS is conditional (home-screen install required, version-gated) and fundamentally can't be guaranteed for an offline-first app anyway. |
-| D6 | WhatsApp integration | `wa.me` pre-filled links (manual send) for v1; Cloud API automation on roadmap | Automated Cloud API sending in v1 | Zero infrastructure, zero cost, ships immediately. Automation needs a backend (token can't live client-side) -- deferred until it's clear manual sending is actually a bottleneck. |
-| D7 | Data safety | Explicit in-app "Export backup" (JSON) | Relying on browser storage persistence alone | Browser-stored data isn't guaranteed permanent (documented risk, not an edge case); cheap to build, meaningfully reduces data-loss risk. |
-| D8 | Stock/catalogue model | Item-type + quantity, not individual physical pieces | Per-item unique tracking | Matches how shop stock actually works (multiples of the same design/size); scoped to rental/purchase orders only, tailor-made stays bespoke. |
+| D4 | Auth model | One Supabase account per shop + app-level staff PIN | Individual Supabase accounts per staff member | PIN is far lower friction for a 1-3 person shop opening the app dozens of times a day; explicitly not a hard security boundary (section 4). |
+| D5 | Reminders | In-app "due today" dashboard | OS push notifications | Push reliability on iOS is conditional and fundamentally can't be guaranteed for an offline-first app anyway. |
+| D6 | WhatsApp integration | `wa.me` pre-filled links (manual send) for v1; Cloud API automation on roadmap | Automated Cloud API sending in v1 | Zero infrastructure, zero cost, ships immediately. Automation needs a backend (token can't live client-side). |
+| D7 | Data safety | Explicit in-app "Export backup" (JSON) | Relying on browser storage persistence alone | Browser-stored data isn't guaranteed permanent; cheap to build, meaningfully reduces data-loss risk. |
+| D8 | Stock/catalogue model | Item-type + quantity, not individual physical pieces | Per-item unique tracking | Matches how shop stock actually works; scoped to rental/purchase orders only. |
+| D9 | Balance calculation (new) | Computed client-side from replicated payments | Reading the `order_balances` Postgres view | The view is a network call on the most offline-critical screen. Section 5. |
+| D10 | Expired session while offline (new) | Keep the app fully usable, disable sync, say so in the UI | Force re-login | An app whose premise is "works with no internet" cannot lock the till because a JWT aged out overnight. Section 7. |
 
 
-## 7. Deployment topology
+## 7. Session and startup sequence
 
-There is no custom backend server anywhere in this system. The browser talks directly to Supabase's managed APIs (REST via PostgREST, WebSocket via Realtime) and to Cloudflare Pages for static assets. This keeps operational surface area to two managed services, both with usable free tiers at this app's expected scale, and nothing for anyone to patch, restart, or keep running.
+Order matters, and it is enforced in `src/app.tsx`:
+
+1. **Open the local database.** Nothing else can proceed without it, and it needs no network. A failure here is fatal and shown as such.
+2. **Establish who the shop is.** `supabase-js` persists the session in localStorage, so a device that has signed in once opens straight into the app with no network.
+3. **Start replication -- only now.** Starting it before authentication means RLS has nothing to scope the sync to, so it syncs zero rows and looks exactly like a broken connection.
+
+Auth has four resting states (`src/lib/auth.ts`):
+
+| State | Meaning | Local data | Sync |
+|---|---|---|---|
+| `signed_in` | Live session | Read/write | Running |
+| `offline_stale` | Signed in before, no session reachable now | Read/write | Off, resumes automatically when the session is restored |
+| `signed_out` | No session, no remembered login | Login screen | Off |
+| `local_only` | No Supabase credentials in this build | Read/write | Off, permanently |
+
+`offline_stale` is decision D10. Access tokens expire and refreshing one needs connectivity, so without this state the app would lock itself out overnight. It is not a security weakening: RLS is enforced server-side on every synced byte, an expired token syncs nothing at all, and the local copy is data the device already legitimately pulled. Writes queue in RxDB and push when the session comes back.
+
+
+## 8. Deployment topology
+
+There is no custom backend server anywhere in this system. The browser talks directly to Supabase's managed APIs (REST via PostgREST, WebSocket via Realtime) and to Cloudflare Pages for static assets.
 
 ```
-Build:   vite build  ->  static assets (dist/)
+Build:   pnpm build  ->  static assets (dist/)
 Deploy:  push to main  ->  Cloudflare Pages auto-deploy
 Runtime: browser <-> Cloudflare Pages (assets, cached by service worker)
          browser <-> Supabase (data, direct from client, governed by RLS)
 ```
 
+**Bundle size is a design constraint, not a metric.** The users are on metered, low-bandwidth connections. RxDB's dev-mode and ajv-validation plugins are roughly 240 KB together and are loaded behind `import.meta.env.DEV` so Rollup can prove them unreachable and drop them. That guard has to be the statically-known constant, not a runtime flag -- passing a variable keeps both chunks in the build and in the service worker's precache manifest, where every install pays for them. See the comment in `src/db/database.ts`.
 
-## 8. Known limitations (carried forward deliberately, not oversights)
+
+## 9. Making sync state visible
+
+Unsynced work that nobody knows about is the worst failure this design can produce: a week of orders on one phone, and no signal that anything is wrong. So sync state is shown, not hidden, on every screen (`src/components/SyncBadge.tsx`) -- including when everything is fine, so that staff learn what "fine" looks like and notice when it changes.
+
+A replication error is surfaced and never thrown. Sync failing is a normal condition for this app, not an exception.
+
+
+## 10. Corrections folded in at build time
+
+Recorded so the earlier documents can still be read without being misleading.
+
+| # | Earlier document said | Actually |
+|---|---|---|
+| C1 | `pwa-stack-options.md` s3: every synced table needs `_modified`/`_deleted`, implying in the RxDB schema too | Postgres columns only. RxDB rejects `_modified`, and only in dev mode -- so it broke `pnpm dev` while the production build passed. Section 5. |
+| C2 | `pwa-schema-and-screens.md` s2: `order_balances` "joined for convenience wherever a balance needs to be displayed" | Server-side reporting only. The UI computes balances locally. Section 5, D9. |
+| C3 | Original migration comment: a view inherits the underlying tables' RLS automatically | It does not. It needs `security_invoker = on`, or every shop can read every other shop's balances. Section 4. |
+| C4 | `pwa-stack-options.md` s1 and D2: Preact vs Svelte left open | Settled on Preact and built on. |
+| C5 | Original `supabaseClient.ts`: "the app will still run offline-only without" the env vars | It threw on import. `createClient('')` raises `supabaseUrl is required.` The client is now built lazily. |
+
+
+## 11. Known limitations (carried forward deliberately, not oversights)
 
 - PIN-based staff attribution is not real per-person security (section 4).
-- Conflict resolution for simultaneous offline edits to the same record has a defined mechanism (RxDB/Supabase's built-in handling) but has not yet been deliberately tested end-to-end -- flagged as a Phase 0 verification step, not assumed safe.
-- No automated WhatsApp reminders in v1 -- manual-tap only, by design, revisited later.
+- Conflict resolution for simultaneous offline edits to the same record has a defined mechanism but **has not been tested end-to-end**. Phase 0 verification item.
+- The balance calculation exists twice: the Postgres view and `src/db/balances.ts`. Unit-tested, but a change to one must be made to the other.
+- No automated WhatsApp reminders in v1 -- manual-tap only, by design.
 - No rental inventory availability tracking until Phase 2.
-- Framework choice (Preact vs Svelte, decision D2) is a working default, not a final confirmed answer from you.
+- No RxDB schema migration strategy yet. Every collection is `version: 0` with no `migrationStrategies`. This is fine only while there is no installed data; the first schema change after Phase 1 ships will fail to open the database without one. See IMPLEMENTATION_PLAN.md.
+- Staff PIN hashing is not implemented yet and the algorithm is not chosen (Phase 1 step 2).
 
 
 ## Companion documents
 
 - `pwa-research-notes.md` -- full research, sources, and reasoning behind each architectural choice
-- `pwa-schema-and-screens.md` -- complete field-level schema and screen-by-screen UI design
-- `pwa-stack-options.md` -- concrete tool/library choices and why
+- `pwa-schema-and-screens.md` -- original field-level schema and screen-by-screen UI design, with build-time corrections marked
+- `pwa-stack-options.md` -- concrete tool/library choices and why, with build-time corrections marked
 - `IMPLEMENTATION_PLAN.md` -- phased build plan and verification checklist

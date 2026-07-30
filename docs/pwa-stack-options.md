@@ -5,9 +5,19 @@ Prepared for Ahum, July 30, 2026
 Follows pwa-research-notes.md (architecture: RxDB + Supabase) and pwa-schema-and-screens.md (data model and screens). This document picks the concrete tools that implement that architecture.
 
 
-1. Frontend framework -- the one real open fork
+> **Resolved and corrected, 2026-07-30 (build time).** Two updates to this document:
+>
+> 1. **Section 1 is closed. Preact was chosen** and is built on. See the note at the end of that section.
+> 2. **Section 3's schema claim was wrong in one specific way** -- `_modified` must *not* be declared in the RxDB schema. Corrected in place below.
+>
+> The rest of the document stands as written.
 
-Everything else in this document has a fairly clear recommendation. This one is a genuine trade-off worth your input rather than a default I should just pick.
+
+1. Frontend framework -- RESOLVED: Preact
+
+*Resolution, 2026-07-30:* Preact, for the reason given in the lean below, and now built on. The Phase 0 scaffold, the login screen, and the hooks in `src/hooks/` are all Preact. Swapping to Svelte is no longer free -- it would mean rewriting those, though at the current volume that is hours rather than days. Treat this as settled unless something concrete argues otherwise.
+
+The original open-question framing is preserved below as the record of the trade-off.
 
 Svelte -- compiles components to plain JavaScript at build time rather than shipping a runtime framework, which produces the smallest bundle of the options compared (roughly 7KB in one head-to-head benchmark, versus Preact's build coming in noticeably larger in the same comparison, though I'd treat that specific Preact figure as benchmark-dependent rather than a fixed rule -- bundle size varies a lot with how a project is set up). Given the earlier research finding that offline-first apps for low-connectivity users benefit directly from a smaller initial download (the Starbucks/Twitter Lite case studies), Svelte is the stronger technical fit. Trade-off: smaller ecosystem than React, fewer tutorials, fewer developers available if you ever want to hand this to someone else to maintain or extend.
 
@@ -36,7 +46,16 @@ Sources:
 
 RxDB, as decided in the research doc, using the Dexie.js-based RxStorage adapter -- this is the free option and is explicitly recommended by RxDB's own docs as the right default for projects at this scale. There's a faster, smaller "premium IndexedDB" storage adapter RxDB sells for production use (their docs claim up to 36% smaller build size and better read/write performance), but I could not find specific pricing in this research -- worth checking rxdb.info/premium directly if performance ever becomes a real issue, but not something to pay for up front on a guess.
 
-Schema addition required for replication to work: every table that syncs through the RxDB-Supabase plugin needs a _modified timestamp column (so the replication protocol can detect what changed) and a _deleted boolean flag for soft deletes (rows can't just be hard-deleted from Supabase, since other devices may not have replicated that deletion yet). This applies to every table in pwa-schema-and-screens.md except the append-only ones like payments, where thinking through whether soft-delete matters is worth a moment -- a mistaken payment entry might be better corrected by voiding/reversing it than deleting it outright anyway, which the _deleted flag handles naturally.
+Schema addition required for replication to work: every table that syncs through the RxDB-Supabase plugin needs a _modified timestamp column (so the replication protocol can detect what changed) and a _deleted boolean flag for soft deletes (rows can't just be hard-deleted from Supabase, since other devices may not have replicated that deletion yet). This applies to every table in pwa-schema-and-screens.md including the append-only ones like payments -- a mistaken payment entry is better corrected by voiding it than deleting it outright, which the _deleted flag handles naturally. (The migration enforces `amount > 0`, so a void is a soft delete, never a negative correcting row.)
+
+*Correction, 2026-07-30 (build time).* The paragraph above is right about Postgres and wrong about RxDB. **These are Postgres columns only. Neither belongs in the RxDB collection schema.**
+
+- RxDB rejects any top-level field beginning with `_` other than `_id` and `_deleted`. Declaring `_modified` makes `addCollections()` throw with error SC1/SC8.
+- Worse, it throws *only when the dev-mode plugin is loaded*, which is development and tests but not a production build. The first scaffold shipped with this mistake, so `pnpm dev` was broken while `vite build` passed clean. That asymmetry is the reason `src/db/database.test.ts` now creates every collection with dev-mode forced on.
+- The replication plugin does not need the field declared. It reads `_modified` off the raw Postgres row for checkpointing, strips it, and only copies it back onto the document if the schema happens to declare that property. `_deleted` it manages internally.
+- `_modified` is server-owned regardless: a BEFORE trigger sets it and the plugin deletes it from every pushed row, so client code could not meaningfully set it even if RxDB allowed the field.
+
+Verified against the installed rxdb 17.4.0 source, not from documentation or memory: `checkFieldNameRegex` in `rxdb/plugins/dev-mode/check-schema.js`, and `rowToDoc` in `rxdb/plugins/replication-supabase/index.js`.
 
 Sources:
 - RxStorage Dexie.js -- official RxDB docs (https://rxdb.info/rx-storage-dexie.html)

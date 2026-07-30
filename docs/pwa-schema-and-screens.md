@@ -8,12 +8,21 @@ Revised July 30: this is one product for cloth tailoring/rental businesses gener
 
 This is a design document, not code. Field lists below describe intent (name, type, purpose); the actual SQL migration comes at build time.
 
+> **Correction, 2026-07-30 (build time).** Two things in this document did not survive contact with the implementation. Both are corrected inline below and carried into ARCHITECTURE.md, which is the current record:
+>
+> 1. **Balances are computed client-side, not read from the Postgres view.** See section 2, `order_balances`.
+> 2. **`_modified` and `_deleted` are Postgres columns only.** They are not declared in the RxDB schemas. See pwa-stack-options.md section 3 for the corrected version of that claim.
+>
+> Where this document and ARCHITECTURE.md disagree, ARCHITECTURE.md wins. This one stays as the record of the original design reasoning.
+
 
 1. Design principles behind the schema
 
 One schema, any number of shops, kept apart by shop_id. Every shop using this app reads the same tables. What differs between shops is data, not structure -- driven by an order_type flag on each order and a configurable measurement-field list per shop, not separate tables or separate app versions per shop.
 
-Money is derived, not stored redundantly. An order's outstanding balance is always price_total minus the sum of its payments, computed on read (a Postgres view), rather than a stored "balance" column that could drift out of sync with reality if a payment is edited or deleted.
+Money is derived, not stored redundantly. An order's outstanding balance is always price_total minus the sum of its payments, computed on read, rather than a stored "balance" column that could drift out of sync with reality if a payment is edited or deleted.
+
+*Corrected at build time:* the original wording said "computed on read (a Postgres view)". The view exists and is still the right thing server-side, but the app does not read it. RxDB replicates tables, not views, so reading the view would put a network call on the order detail screen -- the screen most likely to be open with no connectivity. The app derives the same figure from the already-replicated payments, in `src/db/balances.ts`. The principle is unchanged; only where the arithmetic happens changed.
 
 Auth is shop-level, PIN is attribution-level. Each shop gets one real Supabase account (used for Row Level Security). Staff PINs sit on top as an app-level "who's using the device right now" layer -- convenient for showing who marked an order ready, but it is a UX/attribution feature, not a hard security boundary between staff members. Worth being clear-eyed about that distinction: anyone who can unlock the device can act as any staff member whose PIN they know. If real per-person security ever matters (e.g. preventing one employee from seeing another's actions), that would need individual Supabase accounts per staff member instead -- flagging this now so it's a conscious choice, not an oversight.
 
@@ -108,7 +117,12 @@ payments
 | notes | text, nullable | |
 
 order_balances (Postgres view, not a table)
-Computed as price_total - COALESCE(SUM(payments.amount), 0) per order, joined for convenience wherever a balance needs to be displayed. Nothing writes to this directly.
+Computed as price_total - COALESCE(SUM(payments.amount), 0) per order. Nothing writes to this directly.
+
+*Corrected at build time.* Two changes:
+
+- **Server-side only.** The original "joined for convenience wherever a balance needs to be displayed" is not how the app uses it, for the offline reason given in section 1. The view is for reporting and ad-hoc SQL; the UI uses `src/db/balances.ts`, which applies the same two rules (soft-deleted payments excluded, no payments means zero rather than null) and is unit-tested against them.
+- **`security_invoker = on` is required on the view.** A Postgres view runs with its owner's privileges by default, and the migration is run from the SQL editor as a role that bypasses RLS. Without that setting the underlying orders/payments policies are not applied to the caller, and any authenticated shop can read every other shop's balances through the view. This is a tenant-isolation hole, not a tuning detail, and it is why the Phase 0 checklist tests isolation against the view specifically and not only against the base tables.
 
 Optional, worth flagging but not required for v1: an order_stage_history table (order_id, from_stage, to_stage, changed_by, changed_at) would give a full audit trail of who advanced an order through which stage and when. Cheap to add now, awkward to retrofit later if it turns out to matter (e.g. resolving a "who told the client it was ready" dispute). Worth a quick decision before building rather than adding after the fact.
 
