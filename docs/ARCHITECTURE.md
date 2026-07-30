@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-30
-**Last revised:** 2026-07-30 (build-time corrections, see section 10)
+**Last revised:** 2026-07-30 (Phase 1 steps 1-10; corrections in section 10)
 **Deciders:** Ahum
 
 This is the consolidated architecture reference and the current record of *what* the system is. It draws together decisions made across three earlier working documents -- `pwa-research-notes.md`, `pwa-schema-and-screens.md`, and `pwa-stack-options.md` -- which remain the record of *why*, with full source citations. Where any of those disagrees with this document, this document wins; the disagreements are listed in section 10.
@@ -122,7 +122,10 @@ Full trade-off writeups and sources are in `pwa-research-notes.md` and `pwa-stac
 | D7 | Data safety | Explicit in-app "Export backup" (JSON) | Relying on browser storage persistence alone | Browser-stored data isn't guaranteed permanent; cheap to build, meaningfully reduces data-loss risk. |
 | D8 | Stock/catalogue model | Item-type + quantity, not individual physical pieces | Per-item unique tracking | Matches how shop stock actually works; scoped to rental/purchase orders only. |
 | D9 | Balance calculation (new) | Computed client-side from replicated payments | Reading the `order_balances` Postgres view | The view is a network call on the most offline-critical screen. Section 5. |
-| D10 | Expired session while offline (new) | Keep the app fully usable, disable sync, say so in the UI | Force re-login | An app whose premise is "works with no internet" cannot lock the till because a JWT aged out overnight. Section 7. |
+| D10 | Expired session while offline | Keep the app fully usable, disable sync, say so in the UI | Force re-login | An app whose premise is "works with no internet" cannot lock the till because a JWT aged out overnight. Section 7. |
+| D11 | Staff PIN hashing (new) | PBKDF2-HMAC-SHA256, per-staff 16-byte salt, 210,000 iterations, self-describing hash string | Plain digest; Argon2id | The PIN is not a security boundary, but the hash replicates to every device and people reuse four-digit numbers. A slow KDF costs the shop nothing (verified once per session) and turns an instant sweep of 10,000 candidates into one with a price. Argon2id means shipping WASM to a low-bandwidth device, which is not worth it here. See `src/lib/pin.ts`. |
+| D12 | Routing (new) | `preact-iso`, real history URLs | Hash routing; hand-rolled router | The usual objection to history routing in a PWA is that deep links 404 on refresh. vite-plugin-pwa's generateSW mode defaults `navigateFallback` to `index.html`, so the service worker answers every navigation from the precached shell, offline included. Verified against the plugin's defaults. |
+| D13 | Stage change and audit row (new) | Write the history row first, accept non-atomicity | A transaction | RxDB has no cross-collection transaction. Writing history first means a failure leaves a visible spurious entry; the other order silently drops the audit record, which is the only thing that table exists for. See `src/db/writes.ts`. |
 
 
 ## 7. Session and startup sequence
@@ -187,7 +190,11 @@ Recorded so the earlier documents can still be read without being misleading.
 - No automated WhatsApp reminders in v1 -- manual-tap only, by design.
 - No rental inventory availability tracking until Phase 2.
 - No RxDB schema migration strategy yet. Every collection is `version: 0` with no `migrationStrategies`. This is fine only while there is no installed data; the first schema change after Phase 1 ships will fail to open the database without one. See IMPLEMENTATION_PLAN.md.
-- Staff PIN hashing is not implemented yet and the algorithm is not chosen (Phase 1 step 2).
+- The PIN iteration count (D11) was measured on a desktop and extrapolated to a phone. That extrapolation is not a measurement -- time it on the shop's actual handset.
+- Backup exports but does not import. The UI says so plainly, but a backup with no restore path is a promise half-kept.
+- The currency is hardcoded to UGX in `src/lib/money.ts`, in a product that is explicitly install-anywhere. One constant in one module, so the fix stays small.
+- The Phase 1 screens have been driven in a desktop browser at phone dimensions, which is a simulation of a phone. Nothing has been used on real hardware.
+- Screen-level behaviour has no automated coverage. The units are tested; the screens were verified by driving a browser once, which does not survive a refactor.
 
 
 ## Companion documents

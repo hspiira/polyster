@@ -4,7 +4,7 @@ Companion to `ARCHITECTURE.md`. This is the build sequence -- what gets built in
 
 Phases are sequential by design: each one produces something real and checkable before the next begins.
 
-**Last revised:** 2026-07-30, after the Phase 0 review.
+**Last revised:** 2026-07-30, after building Phase 1 steps 1-10.
 
 
 ## Status at a glance
@@ -12,8 +12,10 @@ Phases are sequential by design: each one produces something real and checkable 
 | Phase | State |
 |---|---|
 | Phase 0 -- infrastructure | Code complete, **not verified**. Every remaining item needs a real Supabase project and a real phone. |
-| Phase 1 -- core v1 | Step 1 (shop login) done. Steps 2-11 not started. |
+| Phase 1 -- core v1 | Steps 1-10 built and driven end to end in a browser. Step 11 (real icons) needs artwork. **Not tested on a phone, and not against Supabase.** |
 | Phase 2 -- catalogue | Not started. |
+
+Phase 1 has been driven in a desktop browser against seeded fixture data: sign-in, staff PIN gate, dashboard, clients, measurements, order detail, payments, reports, and settings all render and the arithmetic reconciles. That is worth something and it is not the same as working. Nothing has been opened on a phone, and nothing has been run against Supabase, which means every sync path in the app is still theory.
 
 Nothing in Phase 0 that requires a browser, a phone, or a live Supabase project has been verified. That is not a small caveat: the two items with the most value -- sync actually working, and one shop genuinely being unable to read another's data -- are exactly the ones that cannot be checked from a keyboard alone. Treat Phase 0 as unfinished until the checklist below is signed off.
 
@@ -24,6 +26,8 @@ The ordered list of what to pick up, with what "done" means for each. The phase 
 
 The ordering is not arbitrary. N1 can invalidate work done after it, and N2-N4 are foundations that get more expensive to retrofit the further into the screens you are.
 
+**Everything below N1 is now done except where noted.** N1 has not moved, because it cannot: it needs a Supabase project and a physical handset.
+
 ### Now -- unblocks everything else
 
 **N1. Verify Phase 0 against a real project and real devices.**
@@ -32,46 +36,82 @@ Everything after this is built on assumptions until it is done. Create the Supab
 **Done when:** every box in the Phase 0 exit checklist is ticked, and the two that failed (there will usually be one or two) have fixes committed.
 **Blocks:** N3 onwards. N2 can proceed in parallel.
 
-### Next -- foundations, before any screen is built
+### Done since this queue was written
 
-**N2. Decide the PIN hashing scheme and write down why.**
-The PIN is a 4-6 digit attribution check, not a password, but the hash replicates to every device on the shop's account and a plain digest of a 4-digit PIN is exhaustible in microseconds. Use WebCrypto PBKDF2 with a per-staff random salt and a deliberate iteration count chosen against a measurement on a low-end Android phone, not a desktop.
-Record the algorithm, salt handling, and iteration count in `ARCHITECTURE.md` as a decision. Do not invent a scheme.
-**Done when:** the decision is written down, `src/lib/pin.ts` implements it, and unit tests cover hash/verify plus rejection of a wrong PIN.
-**Blocks:** N5.
+**N2. PIN hashing.** PBKDF2-HMAC-SHA256 via WebCrypto, per-staff random salt,
+210,000 iterations, in `src/lib/pin.ts`. Hashes are self-describing
+(`pbkdf2$sha256$iterations$salt$hash`) so the cost can be raised later without
+invalidating anyone's PIN. The iteration count was measured on a desktop
+(~190ms) and extrapolated to a low-end phone; **that extrapolation is still not
+a measurement.** Time it on the real hardware and adjust.
 
-**N3. Add RxDB migration strategies.**
-Every collection is `version: 0` with no `migrationStrategies`. That is fine while the only installed data is test data. Once Phase 1 is on a real shop's phone, the first schema change without a strategy fails to open the database, with that shop's orders inside it.
-This is the same shape of decision as `order_stage_history`: cheap now, expensive later.
-**Done when:** every collection declares a `migrationStrategies` map (empty is fine at v0, the point is the pattern), and a test bumps one collection's version and proves existing documents survive.
-**Blocks:** the first real install. Not the screens.
+**N3. RxDB migration strategies.** Every collection declares one, empty at v0.
+Two tests on a throwaway collection: one proves a document survives a version
+bump, the other proves that bumping without a strategy fails to open -- which
+is the scenario being kept off a shop's phone.
 
-**N4. Choose a router and build the app shell.**
-Steps 5-11 of Phase 1 are all screens, and there is currently no navigation of any kind. Preact ships no router. Decide between `preact-iso` (official, small, supports lazy routes) and hash-based routing (zero dependency, and hash URLs sidestep the deep-link-refresh problem in an installed PWA entirely). Weigh it against the service worker's navigation fallback -- this interacts with PWA behaviour and is worth getting right once.
-Build the shell around it: bottom tab bar (Dashboard, Clients, Orders, Settings), the persistent `SyncBadge`, and a route for the staff PIN gate.
-**Done when:** an empty screen exists behind each tab, navigation survives a reload of the installed app, and the back button behaves on Android.
-**Blocks:** N5 onwards.
+**N4. Router and app shell.** `preact-iso` with real history URLs. The usual
+objection (deep links 404 on refresh) does not apply: vite-plugin-pwa's
+generateSW mode defaults `navigateFallback` to `index.html`, so the service
+worker answers every navigation offline. Bottom tab bar, four destinations,
+persistent sync badge. **The Android back button is still unverified** -- it
+needs a handset.
 
-**N5. Dev fixtures.**
-Building the client and order screens against an empty database means hand-entering data on every reload. A seed script that writes a realistic shop (a few clients, measurement fields, orders across every stage, partial payments) into the local RxDB saves that cost many times over, and gives the dashboard something to be wrong about.
-**Done when:** `pnpm seed` populates a local database, is dev-only, and cannot run against a configured Supabase project by accident.
+**N5. Dev fixtures.** Seeded from the dev panel rather than a `pnpm seed`
+script, because the data has to go into the browser's IndexedDB and a Node
+script cannot reach it. Refuses to run outside dev, and refuses when Supabase
+is configured so it cannot push fixtures into a real project.
 
-### Then -- Phase 1 screens, in dependency order
+**N6-N11 and Phase 1 steps 8-10.** Staff gate, settings, clients, orders,
+payments, WhatsApp, dashboard, reports, staff management, backup export. All
+built and driven in a desktop browser.
 
-**N6. Staff picker + PIN gate** (Phase 1 step 2). Needs N2 and N4.
-**N7. Settings: shop basics and the measurement field editor** (step 3). Built before Clients because the measurement form is rendered from this configuration.
-**N8. Clients: list, search, add, detail with measurement profile and order history** (step 4).
-**N9. Orders: form, detail, stage tracker, payments, running balance** (step 5). The largest single piece. Balance comes from `observeBalance()`, not the view. Every stage change writes an `order_stage_history` row in the same transaction as the order update, or the audit trail has gaps.
-**N10. WhatsApp button** (step 6). Small, and the first thing that makes the app visibly better than a notebook.
-**N11. Dashboard** (step 7). After orders and payments exist, so there is real data to develop against.
+**N12. CI.** `.github/workflows/verify.yml` runs `pnpm verify` on push and
+pull request.
 
-Steps 8-11 (reports, staff management, export backup, real icons) follow; they are listed in the Phase 1 section and none of them blocks anything else.
+One correction to N9 as written above: it said every stage change writes its
+history row "in the same transaction as the order update". RxDB has no
+cross-collection transaction, so that is not possible. The history row is
+written first instead, so a failure leaves a visible spurious entry rather
+than silently losing the audit record. See the header of `src/db/writes.ts`.
 
-### Worth doing whenever there is a gap
 
-**N12. Wire up CI.** `pnpm verify` exists and nothing runs it automatically. A GitHub Actions workflow on push and pull request is perhaps twenty lines, and the schema bug this project already shipped once is precisely what it would catch.
+## Next tasks, in order
 
-**N13. Add a linter.** There is none. Lower value than CI, since `strict` and the tests carry most of the weight, but it is the cheap moment to add one.
+**X1. Verify Phase 0 against a real project and real devices.** Unchanged from
+N1 above, and still the thing everything else waits on.
+
+**X2. Install on an actual phone and use it for a day.** Everything in Phase 1
+was checked at 390x844 in a desktop browser, which is a simulation of a phone,
+not a phone. What that cannot tell you: whether the tap targets work with
+fabric in your other hand, whether the PIN pad is fast enough at 210,000
+iterations on the shop's actual handset, whether the Android back button
+behaves, and whether the date input is usable on iOS Safari.
+**Done when:** someone has taken a real order on a real phone.
+
+**X3. Decide whether backup needs a restore.** The export exists and the
+screen says outright that there is no way to bring the file back in. That is
+honest but it is not a backup strategy. Either build the import, or decide
+that the real recovery path is Supabase and say so in the UI.
+
+**X4. Measure and re-tune the PIN iteration count** on the lowest-end Android
+the shop uses. Target roughly 250ms. See N2.
+
+**X5. Currency.** Hardcoded to UGX in `src/lib/money.ts` for a product that is
+explicitly install-anywhere. Fixing it properly means a `currency` column on
+`shops`, a migration on both sides, and a settings field -- worth doing when a
+shop outside Uganda is actually in view, not on speculation.
+
+**X6. Real icons** (Phase 1 step 11). Needs artwork, not code.
+
+**X7. A linter.** Still none. `strict` and the tests carry most of the weight,
+so this stays low value, but it is cheap.
+
+**X8. Component tests.** The units are covered (94 tests across dates, money,
+balances, PIN, WhatsApp, stage flows, schema). The screens are not -- they were
+verified by driving a browser once, which does not survive a refactor. The
+order form's validation and the dashboard's bucketing are the two worth
+pinning down first.
 
 
 ## Phase 0 -- Project & infrastructure setup
@@ -121,25 +161,24 @@ Goal: a shop owner can track a real order from measurement to pickup, take payme
 Build order reflects dependency order (later screens need earlier ones' data to exist).
 
 1. ~~**Shop-level login**~~ -- **done.** Supabase Auth (email/password), one account per shop, session persisted. Four auth states including `offline_stale`; see `ARCHITECTURE.md` section 7.
-2. **Staff picker + PIN gate** -- reads `staff` for the current shop, PIN checked locally against `pin_hash`. Single-tap skip if only one active staff member.
-   **Decide the hash before writing this.** The PIN is a 4-6 digit attribution check, not a password, but a plain SHA-256 of a 4-digit PIN is exhaustible in microseconds and the hash replicates to every device on the shop's account. Use WebCrypto PBKDF2 with a per-staff random salt and a deliberate iteration count. Do not invent a scheme; pick one and write down why.
-3. **Settings: shop basics** -- name, WhatsApp number, and the measurement field editor (add/reorder/remove fields with label + unit). Built early because Clients and Measurements depend on this being configurable, not hardcoded.
-4. **Clients** -- list, search, add. Client detail with the measurement profile form (rendered from whatever fields the shop configured in step 3) and order history.
-5. **Orders** -- new/edit order form; order detail with the stage tracker, payments list, "add payment" flow, and the running balance.
+2. ~~**Staff picker + PIN gate**~~ -- **done.** Reads `staff` for the current shop, PIN checked locally against `pin_hash` with PBKDF2 (`src/lib/pin.ts`). A shop with one active staff member skips the gate entirely.
+3. ~~**Settings: shop basics**~~ -- **done.** -- name, WhatsApp number, and the measurement field editor (add/reorder/remove fields with label + unit). Built early because Clients and Measurements depend on this being configurable, not hardcoded.
+4. ~~**Clients**~~ -- **done.** list, search, add. Client detail with the measurement profile form (rendered from whatever fields the shop configured in step 3) and order history.
+5. ~~**Orders**~~ -- **done.** new/edit order form; order detail with the stage tracker, payments list, "add payment" flow, and the running balance.
    The balance comes from `observeBalance()` in `src/db/balances.ts`, **not** from the `order_balances` view. An earlier draft of this plan said otherwise; see decision D9.
    Every stage change writes an `order_stage_history` row in the same transaction as the order update, or the audit trail has gaps.
-6. **WhatsApp button** -- `wa.me` link builder on the order detail screen, with stage-appropriate pre-filled text (ready for pickup, balance reminder), per `pwa-research-notes.md` section 7 Option A.
-7. **Dashboard** -- due today / due this week / overdue balances / stage counts, all as reactive RxDB queries. The compound indexes those queries need are already in both schemas. Build this after orders and payments exist so there is real data to develop against.
-8. **Reports (light)** -- weekly/monthly totals collected, outstanding balance total, stage counts.
-9. **Settings: staff management** -- add/deactivate staff, set PINs.
-10. **Settings: Export backup** -- downloads a JSON snapshot of the shop's data. Add a soft "last backup: N days ago" indicator on the dashboard or in settings, per `pwa-research-notes.md` section 6.
-11. **Real icon set** -- replace the placeholder icons with final artwork at all required sizes.
+6. ~~**WhatsApp button**~~ -- **done.** `wa.me` link builder on the order detail screen, with stage-appropriate pre-filled text (ready for pickup, balance reminder), per `pwa-research-notes.md` section 7 Option A.
+7. ~~**Dashboard**~~ -- **done.** due today / due this week / overdue balances / stage counts, all as reactive RxDB queries. The compound indexes those queries need are already in both schemas. Build this after orders and payments exist so there is real data to develop against.
+8. ~~**Reports (light)**~~ -- **done.** weekly/monthly totals collected, outstanding balance total, stage counts.
+9. ~~**Settings: staff management**~~ -- **done.** add/deactivate staff, set PINs.
+10. ~~**Settings: Export backup**~~ -- **done**, export only; no restore. See X3. downloads a JSON snapshot of the shop's data. Add a soft "last backup: N days ago" indicator on the dashboard or in settings, per `pwa-research-notes.md` section 6.
+11. **Real icon set** (X6, needs artwork) -- replace the placeholder icons with final artwork at all required sizes.
 
 ### Before Phase 1 ships: RxDB migration strategies
 
-Every collection is `version: 0` with no `migrationStrategies`. That is fine while the only installed data is test data. Once Phase 1 is on a real shop's phone, the first schema change without a migration strategy will fail to open the database on that phone, with the shop's orders inside it.
+**Done.** Every collection declares a `migrationStrategies` map, empty while all schemas sit at `version: 0`. The pattern is what matters: bumping a version without a strategy makes the database fail to open on a device that already holds data, and that device may be holding the only copy of a week's offline work. Two tests in `database.test.ts` cover both directions.
 
-This is cheap now and expensive later, exactly like `order_stage_history` was. Do it before the first real install, not after.
+When you bump a `version` in `schema.ts`, add the strategy in the same commit.
 
 ### Phase 1 exit checklist
 
@@ -195,16 +234,20 @@ Recorded so they aren't lost, not because they're next:
 
 - **Preact vs Svelte** -- settled on Preact and built on (`ARCHITECTURE.md` D2).
 - **`order_stage_history`** -- included from the first migration, as planned.
-- **Where balances are computed** -- client-side (D9). Newly decided.
-- **Expired session while offline** -- app stays usable, sync stops, UI says so (D10). Newly decided.
+- **Where balances are computed** -- client-side (D9).
+- **Expired session while offline** -- app stays usable, sync stops, UI says so (D10).
+- **PIN hashing** -- PBKDF2-HMAC-SHA256, per-staff salt, 210,000 iterations, self-describing hash format (D11).
+- **Routing** -- `preact-iso` with history URLs, relying on the service worker's `navigateFallback` (D12).
+- **Stage/history atomicity** -- not achievable in RxDB; history is written first so a failure is visible rather than silent (D13).
 
 ## Decisions still open
 
 | Decision | Blocks | Task |
 |---|---|---|
-| PIN hashing algorithm | Phase 1 step 2 | N2 |
-| Router and app shell | Phase 1 steps 4-11 | N4 |
-| RxDB migration strategies | The first real install | N3 |
 | Offline double-booking | Phase 2 step 5 | Phase 2 |
+| Whether backup needs a restore path | Nothing yet, but it is a promise the UI is not making good on | X3 |
+| Currency, hardcoded to UGX | Any shop outside Uganda | X5 |
+
+Closed since: PIN hashing (PBKDF2, N2), router and shell (`preact-iso`, N4), RxDB migration strategies (N3).
 
 None of these should be resolved by whoever happens to reach them mid-screen. Each one is written down here because defaulting quietly is how they turn into things nobody remembers choosing.

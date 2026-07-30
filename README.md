@@ -10,13 +10,22 @@ Stack: Preact + Vite + Tailwind CSS + `vite-plugin-pwa`, RxDB (Dexie storage ada
 
 ## Where this is
 
-Phase 0 is **code complete but not verified**, and Phase 1 step 1 (shop login) is done. What that means concretely:
+Phase 0 is **code complete but not verified**. Phase 1 steps 1-10 are built and
+have been driven end to end in a desktop browser at phone dimensions.
 
-- Typecheck, tests, and production build all pass. `pnpm verify` runs all three.
-- Sign-in, session persistence, replication start/stop, and local balance calculation are written and unit-tested where they can be.
-- **Nothing that needs a browser, a phone, or a live Supabase project has been checked.** Sync working end to end, and one shop being unable to read another's data, are both still assumptions. The Phase 0 exit checklist in the implementation plan is the list of what remains, and none of it is ticked.
+- `pnpm verify` passes: strict typecheck, 94 tests, production build.
+- Sign-in, staff PIN gate, dashboard, clients and measurements, orders with
+  stages and payments, the WhatsApp button, reports, settings, and backup export
+  all work against seeded fixture data.
+- **Nothing has run on a phone, and nothing has run against Supabase.** Every
+  sync path in the app is therefore still theory, as is tenant isolation. The
+  Phase 0 exit checklist in the implementation plan is the list of what remains,
+  and none of it is ticked.
 
-Signing in and reaching the placeholder screen means the database opened, the session took, and replication started. The real screens are Phase 1 steps 2-11.
+To see it working without a Supabase project: `pnpm dev`, then use the "Seed
+sample shop data" button on the first screen. Every seeded PIN is `1234`.
+
+## Setup
 
 ## Setup
 
@@ -74,6 +83,9 @@ Sign in with a shop account. You should reach the status screen showing the data
 | `pnpm verify` | Typecheck, tests, build. Run this before pushing. |
 | `VITE_PWA_DEV=1 pnpm dev` | Dev server *with* the service worker, for testing install and offline behaviour. |
 
+CI runs `pnpm verify` on every push and pull request
+(`.github/workflows/verify.yml`).
+
 The service worker is off in development on purpose. It caches aggressively and produces stale-asset behaviour that reads as a code bug. Turn it on when you are specifically testing PWA behaviour, and expect to clear site data afterwards.
 
 ## Two things worth knowing before you change anything
@@ -86,27 +98,33 @@ The service worker is off in development on purpose. It caches aggressively and 
 
 ```
 src/
-  app.tsx                Root: open database -> establish session -> start replication
+  app.tsx                Root: open database -> establish session -> replication -> staff gate
   components/
+    ui.tsx               Shared primitives, sized for one-handed phone use
+    TabBar.tsx           Bottom navigation
     SyncBadge.tsx        Sync state, always visible
   db/
     schema.ts            RxDB collection schemas, mirroring the Postgres tables
-    database.ts          RxDB singleton, dev-mode + validation wiring
-    database.test.ts     Creates every collection with validation on
-    replication.ts       Supabase sync wiring (starts once a shop is logged in)
+    database.ts          RxDB singleton, dev-mode wiring, migration strategies
+    replication.ts       Supabase sync (starts once a shop is logged in)
     balances.ts          Order balances, computed locally -- not from the view
-    balances.test.ts
-  hooks/
-    useAuth.ts           Shared auth controller
-    useDatabase.ts       Shared RxDB instance
-    useReplication.ts    Starts/stops sync with the session
-    useOnline.ts
+    writes.ts            Every mutation the app makes, in one place
+  dev/
+    seed.ts              Fixture shop. Dev-only, refuses when Supabase is set
+    DevTools.tsx         Seed button. Compiled out of production
+  hooks/                 useAuth, useDatabase, useReplication, useRxQuery, useOnline
   lib/
     auth.ts              Shop-level session state machine
     supabaseClient.ts    Lazily constructed Supabase client
+    pin.ts               PBKDF2 staff PIN hashing
+    money.ts, dates.ts   Formatting and due-date arithmetic
+    whatsapp.ts          wa.me link and message building
+    backup.ts            JSON export
   screens/
-    Login.tsx            Phase 1 step 1
-  test/setup.ts          fake-indexeddb
+    Shell.tsx            Routed shell
+    Dashboard, Clients, ClientDetail, Orders, OrderForm, OrderDetail,
+    Reports, Settings, StaffGate, Login, NotFound
+    settings/            Shop, measurements, staff, backup
 supabase/
   migrations/
     0001_init.sql        Schema, constraints, RLS policies, Realtime
