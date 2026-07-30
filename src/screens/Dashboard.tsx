@@ -243,7 +243,10 @@ function Section({
                     <span class="block truncate font-medium text-gray-900">
                       {order.item_description}
                     </span>
-                    <span class="block truncate text-sm text-gray-500">
+                    {/* Wraps rather than truncates. An amount clipped to
+                        "USh 25..." is worse than a second line -- the figure
+                        is the reason this row is on the dashboard. */}
+                    <span class="block text-sm text-gray-500">
                       {clientNames.get(order.client_id) ?? 'Unknown client'} ·{' '}
                       {formatDueDate(order.pickup_due_date)}
                       {outstanding > 0 && ` · ${formatMoney(outstanding)} due`}
