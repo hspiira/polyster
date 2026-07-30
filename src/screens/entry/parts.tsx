@@ -119,14 +119,14 @@ export function EntryInput({ class: className, ...props }: JSX.IntrinsicElements
   )
 }
 
-/** The one solid, saturated thing on the screen. Everything else is glass or black. */
+/** Glass, matching the landing pill, so every screen speaks one material. */
 export function EntryButton({ class: className, ...props }: JSX.IntrinsicElements['button']) {
   return (
     <button
       {...props}
       class={cn(
-        'min-h-13 w-full rounded-control bg-brand-500 px-4 text-[15px] font-semibold',
-        'text-white transition-transform active:scale-[0.98] active:bg-brand-600',
+        'glass glass-sheen min-h-13 w-full overflow-hidden rounded-control px-4',
+        'text-[15px] font-semibold text-white transition-transform active:scale-[0.98]',
         'disabled:pointer-events-none disabled:opacity-40',
         className,
       )}
