@@ -7,16 +7,18 @@
  * auth, and screens/StaffGate.tsx for why the staff check comes last.
  */
 import { LocationProvider } from 'preact-iso'
+import { useState } from 'preact/hooks'
 import { useAuth } from './hooks/useAuth'
 import { useDatabase } from './hooks/useDatabase'
 import { useOnline } from './hooks/useOnline'
 import { useReplication } from './hooks/useReplication'
 import { ShopProvider, useShop } from './state/ShopProvider'
+import { Landing } from './screens/Landing'
 import { Login } from './screens/Login'
 import { StaffGate } from './screens/StaffGate'
 import { Shell } from './screens/Shell'
 import { DevTools } from './dev/DevTools'
-import type { AuthState } from './lib/auth'
+import type { AuthController, AuthState } from './lib/auth'
 import type { ReplicationStatus } from './hooks/useReplication'
 
 export function App() {
@@ -41,7 +43,7 @@ export function App() {
   }
 
   if (auth.status === 'signed_out') {
-    return <Login controller={controller} />
+    return <SignedOut controller={controller} />
   }
 
   return (
@@ -79,10 +81,31 @@ function Gate({
   return <Shell online={online} auth={auth} replication={replication} />
 }
 
+/**
+ * The signed-out half of the app: landing, then login.
+ *
+ * Two screens rather than one because the people who open this the first time
+ * did not choose it -- someone handed them a phone. Dropping straight into an
+ * email field asks them to act before they have been told what they are
+ * looking at.
+ *
+ * Local state rather than routes: the router lives inside the authenticated
+ * shell, and standing one up out here to toggle between two screens would be
+ * more machinery than the job needs.
+ */
+function SignedOut({ controller }: { controller: AuthController }) {
+  const [view, setView] = useState<'landing' | 'login'>('landing')
+
+  if (view === 'login') {
+    return <Login controller={controller} onBack={() => setView('landing')} />
+  }
+  return <Landing onSignIn={() => setView('login')} />
+}
+
 function Splash() {
   return (
-    <main class="flex min-h-svh items-center justify-center bg-gray-50">
-      <p class="text-sm text-gray-500">Opening...</p>
+    <main class="flex min-h-svh items-center justify-center bg-stone-100 dark:bg-stone-950">
+      <span class="size-8 animate-spin rounded-full border-2 border-stone-300 border-t-brand-700 dark:border-stone-700 dark:border-t-brand-400" />
     </main>
   )
 }
@@ -102,17 +125,19 @@ function WaitingForShop({
   const stuck = !online || replication.status === 'error' || replication.status === 'idle'
 
   return (
-    <main class="flex min-h-svh items-center justify-center bg-gray-50 px-4">
+    <main class="flex min-h-svh items-center justify-center bg-stone-100 px-6 dark:bg-stone-950">
       <div class="max-w-sm space-y-3 text-center">
-        <h1 class="text-lg font-semibold text-gray-900">Setting up this device</h1>
+        <h1 class="text-lg font-semibold">Setting up this device</h1>
         {stuck ? (
-          <p class="text-sm text-gray-600">
+          <p class="text-sm text-stone-600 dark:text-stone-300">
             This device has not received the shop's details yet, and cannot reach the server to
             fetch them. Connect to the internet once and this will complete; afterwards the app
             works offline.
           </p>
         ) : (
-          <p class="text-sm text-gray-600">Fetching the shop's details for the first time...</p>
+          <p class="text-sm text-stone-600 dark:text-stone-300">
+            Fetching the shop's details for the first time...
+          </p>
         )}
         <DevTools />
       </div>
@@ -122,14 +147,14 @@ function WaitingForShop({
 
 function FatalError({ error }: { error: Error }) {
   return (
-    <main class="flex min-h-svh items-center justify-center bg-gray-50 px-4">
+    <main class="flex min-h-svh items-center justify-center bg-stone-100 px-6 dark:bg-stone-950">
       <div class="max-w-md space-y-3 text-center">
-        <h1 class="text-xl font-semibold text-gray-900">The local database did not open</h1>
-        <p class="text-sm text-gray-600">
+        <h1 class="text-xl font-semibold">The local database did not open</h1>
+        <p class="text-sm text-stone-600 dark:text-stone-300">
           Nothing has been lost, but this device cannot record work until it does. Reloading the
           app is worth trying first.
         </p>
-        <pre class="overflow-x-auto rounded-lg bg-gray-900 p-3 text-left text-xs text-gray-100">
+        <pre class="overflow-x-auto rounded-control bg-stone-900 p-3 text-left text-xs text-stone-100 dark:bg-black">
           {error.message}
         </pre>
       </div>

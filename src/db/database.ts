@@ -123,7 +123,17 @@ export async function createDatabase(
 
   await db.addCollections({
     shops: { schema: shopSchema, migrationStrategies: {} },
-    staff: { schema: staffSchema, migrationStrategies: {} },
+    staff: {
+      schema: staffSchema,
+      migrationStrategies: {
+        // v1 added pin_length. Existing rows keep it undefined rather than
+        // being guessed at: the PIN pad falls back to a confirm button when
+        // the length is unknown, and the value fills in the next time that
+        // person's PIN is set. Guessing 4 here would lock out anyone with a
+        // longer PIN.
+        1: (doc: StaffDoc) => doc,
+      },
+    },
     clients: { schema: clientSchema, migrationStrategies: {} },
     measurement_fields: { schema: measurementFieldSchema, migrationStrategies: {} },
     measurement_profiles: { schema: measurementProfileSchema, migrationStrategies: {} },

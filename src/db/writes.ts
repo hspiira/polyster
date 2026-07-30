@@ -290,6 +290,7 @@ export async function createStaff(
     shop_id: shopId,
     name: input.name.trim(),
     pin_hash: await hashPin(input.pin),
+    pin_length: input.pin.length,
     role: input.role,
     active: true,
     created_at: now(),
@@ -301,7 +302,10 @@ export async function createStaff(
 export async function setStaffPin(db: AppDatabase, staffId: string, pin: string): Promise<void> {
   const doc = await db.staff.findOne(staffId).exec()
   if (!doc) throw new Error('That staff member no longer exists on this device.')
-  await doc.patch({ pin_hash: await hashPin(pin) })
+  // Recording the length alongside the hash is what lets the PIN pad submit
+  // itself; see 0002_staff_pin_length.sql. Setting a PIN is also how a row
+  // predating that column acquires a length.
+  await doc.patch({ pin_hash: await hashPin(pin), pin_length: pin.length })
 }
 
 /**

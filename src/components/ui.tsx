@@ -14,6 +14,7 @@
 import type { ComponentChildren, JSX } from 'preact'
 import { useEffect } from 'preact/hooks'
 import { IconChevronLeft, IconChevronRight, IconSearch } from './icons'
+import { useSwipeBack } from '../hooks/useSwipeBack'
 
 /** Minimum comfortable tap target. Below this, mis-taps become common. */
 const TAP = 'min-h-11'
@@ -29,6 +30,10 @@ const TEXT_MUTED = 'text-stone-500 dark:text-stone-400'
  *
  * The title stays visible while the content scrolls, which matters on a long
  * order list where it is otherwise easy to lose track of where you are.
+ *
+ * Passing `back` gets both a chevron and an edge-swipe gesture, because in an
+ * installed PWA there is no browser chrome and no system back swipe -- see
+ * hooks/useSwipeBack.ts.
  */
 export function Screen({
   title,
@@ -39,13 +44,15 @@ export function Screen({
 }: {
   title: string
   subtitle?: string
-  /** Href for a back chevron. Omit on the four tab roots. */
+  /** Href for the back chevron and the edge-swipe. Omit on the tab roots. */
   back?: string
   action?: ComponentChildren
   children: ComponentChildren
 }) {
+  const swipeRef = useSwipeBack(back)
+
   return (
-    <>
+    <div ref={swipeRef}>
       <header
         class={`sticky top-0 z-20 border-b ${BORDER} ${SURFACE} backdrop-blur-lg
                 supports-[backdrop-filter]:bg-white/75
@@ -72,7 +79,7 @@ export function Screen({
       </header>
 
       <div class="mx-auto w-full max-w-lg px-4 pt-4 pb-28">{children}</div>
-    </>
+    </div>
   )
 }
 

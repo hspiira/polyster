@@ -68,12 +68,22 @@ export interface StaffDoc {
   shop_id: string
   name: string
   pin_hash: string
+  /**
+   * Digit count of the PIN behind `pin_hash`, so the PIN pad knows when the
+   * user has finished typing and can submit itself.
+   *
+   * Optional: rows written before this field existed have no recorded length,
+   * and the pad falls back to a confirm button for them rather than guessing
+   * 4 and locking out anyone with a longer PIN. See 0002_staff_pin_length.sql
+   * for why storing it is an acceptable trade.
+   */
+  pin_length?: number
   role: StaffRole
   active: boolean
   created_at: string
 }
 export const staffSchema: RxJsonSchema<StaffDoc> = {
-  version: 0,
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -81,6 +91,7 @@ export const staffSchema: RxJsonSchema<StaffDoc> = {
     shop_id: uuidField,
     name: { type: 'string' },
     pin_hash: { type: 'string' },
+    pin_length: { type: 'number', minimum: 4, maximum: 6 },
     role: { type: 'string', enum: ['owner', 'staff'] },
     active: { type: 'boolean' },
     created_at: { type: 'string', format: 'date-time' },

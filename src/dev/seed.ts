@@ -88,8 +88,14 @@ export async function seed(db: AppDatabase): Promise<SeedResult> {
 
   const pinHash = await hashPin(SEED_PIN)
   const staff: StaffDoc[] = [
-    { id: id(), shop_id: shop.id, name: 'Grace', pin_hash: pinHash, role: 'owner', active: true, created_at: now },
-    { id: id(), shop_id: shop.id, name: 'Joseph', pin_hash: pinHash, role: 'staff', active: true, created_at: now },
+    {
+      id: id(), shop_id: shop.id, name: 'Grace', pin_hash: pinHash,
+      pin_length: SEED_PIN.length, role: 'owner', active: true, created_at: now,
+    },
+    {
+      id: id(), shop_id: shop.id, name: 'Joseph', pin_hash: pinHash,
+      pin_length: SEED_PIN.length, role: 'staff', active: true, created_at: now,
+    },
   ]
   await db.staff.bulkInsert(staff)
 
