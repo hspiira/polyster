@@ -20,6 +20,8 @@ import { useLocation } from 'preact-iso'
  * Chrome and Safari already do this natively for browser history. This exists
  * because an installed PWA in standalone display has no browser chrome and no
  * such gesture, which is the mode this app is actually used in.
+ *
+ * `target` is an href to route to, or a callback for local-state-only steps.
  */
 
 /** Only swipes starting this close to the left edge count. */
@@ -29,18 +31,20 @@ const COMPLETE_PX = 90
 /** Below this much horizontal movement, direction is still ambiguous. */
 const DIRECTION_LOCK_PX = 10
 
-export function useSwipeBack(href: string | undefined) {
+export function useSwipeBack(target: string | (() => void) | undefined) {
   const location = useLocation()
   const ref = useRef<HTMLDivElement>(null)
   // A ref, not state: this updates on every touchmove and re-rendering the
   // whole screen at 60fps to move it sideways would drop frames on the cheap
   // hardware this targets.
   const drag = useRef({ startX: 0, startY: 0, active: false, locked: false })
+  // Read at completion time, not closed over, so a fresh inline callback still resolves correctly.
+  const targetRef = useRef(target)
+  targetRef.current = target
 
   useEffect(() => {
     const node = ref.current
-    if (!href || !node) return
-    const target = href
+    if (!target || !node) return
 
     function setOffset(px: number, animate: boolean) {
       if (!node) return
@@ -94,7 +98,9 @@ export function useSwipeBack(href: string | undefined) {
         setOffset(window.innerWidth, true)
         window.setTimeout(() => {
           setOffset(0, false)
-          location.route(target)
+          const current = targetRef.current
+          if (typeof current === 'function') current()
+          else if (current) location.route(current)
         }, 150)
       } else {
         setOffset(0, true)
@@ -116,7 +122,7 @@ export function useSwipeBack(href: string | undefined) {
       node.style.transform = ''
       node.style.transition = ''
     }
-  }, [href, location])
+  }, [Boolean(target), location])
 
   return ref
 }

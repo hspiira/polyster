@@ -27,6 +27,7 @@ import type {
   OrderType,
   PaymentDoc,
   PaymentMethod,
+  ShopDoc,
   StaffDoc,
   StaffRole,
 } from './schema'
@@ -319,6 +320,22 @@ export async function setStaffActive(
 }
 
 // ------------------------------------------------------------------- shop
+
+/** Creates a shop locally, online or offline. See ARCHITECTURE.md D14. */
+export async function createShop(
+  db: AppDatabase,
+  input: { name: string; whatsapp_number?: string; supabaseAuthUserId?: string },
+): Promise<ShopDoc> {
+  const doc: ShopDoc = {
+    id: newId(),
+    name: input.name.trim(),
+    whatsapp_number: input.whatsapp_number?.trim() || undefined,
+    supabase_auth_user_id: input.supabaseAuthUserId,
+    created_at: now(),
+  }
+  await db.shops.insert(doc)
+  return doc
+}
 
 export async function updateShop(
   db: AppDatabase,

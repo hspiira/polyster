@@ -15,6 +15,9 @@ import type { ComponentChildren, JSX } from 'preact'
 import { useEffect } from 'preact/hooks'
 import { IconChevronLeft, IconChevronRight, IconSearch } from './icons'
 import { useSwipeBack } from '../hooks/useSwipeBack'
+import { cn } from '../lib/cn'
+
+export { cn }
 
 /** Minimum comfortable tap target. Below this, mis-taps become common. */
 const TAP = 'min-h-11'
@@ -55,8 +58,8 @@ export function Screen({
     <div ref={swipeRef}>
       <header
         class={`sticky top-0 z-20 border-b ${BORDER} ${SURFACE} backdrop-blur-lg
-                supports-[backdrop-filter]:bg-white/75
-                dark:supports-[backdrop-filter]:bg-stone-900/75`}
+                supports-backdrop-filter:bg-white/75
+                dark:supports-backdrop-filter:bg-stone-900/75`}
       >
         <div class="mx-auto flex max-w-lg items-center gap-2 px-4 py-3">
           {back && (
@@ -111,7 +114,7 @@ export function SectionTitle({
 }) {
   return (
     <div class="mb-2 flex items-baseline justify-between gap-3 px-1">
-      <h2 class={`text-xs font-semibold uppercase tracking-wider ${TEXT_MUTED}`}>{children}</h2>
+      <h2 class={cn('text-xs font-semibold tracking-wide', TEXT_MUTED)}>{children}</h2>
       {action}
     </div>
   )
@@ -222,23 +225,28 @@ export function Field({
   )
 }
 
-const CONTROL = `w-full rounded-control border border-stone-300 bg-white px-3.5
+const CONTROL_BASE = `w-full border border-stone-300 bg-white
                  text-base text-stone-900 outline-none transition-colors
                  placeholder:text-stone-400
                  focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20
                  dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100
                  dark:placeholder:text-stone-500`
 
+/** Pill fields need the extra horizontal padding or the text sits on the curve. */
+const CONTROL = cn(CONTROL_BASE, 'rounded-control px-4.5')
+/** A pill fights a multi-line text block, and search is shaped by its icon. */
+const CONTROL_BOXED = cn(CONTROL_BASE, 'rounded-boxed px-3.5')
+
 export function Input({ class: className, ...props }: JSX.IntrinsicElements['input']) {
-  return <input {...props} class={`${TAP} ${CONTROL} ${className ?? ''}`} />
+  return <input {...props} class={cn(TAP, CONTROL, className)} />
 }
 
 export function Textarea({ class: className, ...props }: JSX.IntrinsicElements['textarea']) {
-  return <textarea {...props} rows={3} class={`${CONTROL} py-2.5 ${className ?? ''}`} />
+  return <textarea {...props} rows={3} class={cn(CONTROL_BOXED, 'py-2.5', className)} />
 }
 
 export function Select({ class: className, ...props }: JSX.IntrinsicElements['select']) {
-  return <select {...props} class={`${TAP} ${CONTROL} pr-8 ${className ?? ''}`} />
+  return <select {...props} class={cn(TAP, CONTROL, 'pr-8', className)} />
 }
 
 export function SearchInput({ class: className, ...props }: JSX.IntrinsicElements['input']) {
@@ -247,7 +255,7 @@ export function SearchInput({ class: className, ...props }: JSX.IntrinsicElement
       <span class={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${TEXT_MUTED}`}>
         <IconSearch size={18} />
       </span>
-      <input {...props} type="search" class={`${TAP} ${CONTROL} pl-10 ${className ?? ''}`} />
+      <input {...props} type="search" class={cn(TAP, CONTROL_BOXED, 'pl-10', className)} />
     </div>
   )
 }
@@ -276,7 +284,7 @@ export function Segmented<T extends string>({
       role="tablist"
       aria-label={label}
       class="flex gap-1 overflow-x-auto rounded-control bg-stone-200/70 p-1
-             dark:bg-stone-800/80 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+             dark:bg-stone-800/80 scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
       {options.map((option) => {
         const active = option.value === value
@@ -395,22 +403,25 @@ export function Chip({
   )
 }
 
-/** Circular initials, so a client list scans by shape as well as by reading. */
-export function Avatar({ name }: { name: string }) {
-  const initials = name
+/** First letter of up to two words, the way every avatar and initials chip in the app agree on. */
+export function getInitials(name: string): string {
+  return name
     .split(/\s+/)
     .slice(0, 2)
     .map((part) => part[0] ?? '')
     .join('')
     .toUpperCase()
+}
 
+/** Circular initials, so a client list scans by shape as well as by reading. */
+export function Avatar({ name }: { name: string }) {
   return (
     <span
       class="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-100
              text-sm font-semibold text-brand-800 dark:bg-brand-950 dark:text-brand-300"
       aria-hidden="true"
     >
-      {initials}
+      {getInitials(name)}
     </span>
   )
 }

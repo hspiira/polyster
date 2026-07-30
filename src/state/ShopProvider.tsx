@@ -19,7 +19,7 @@ import { useCallback, useContext, useMemo, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import type { AppDatabase } from '../db/database'
 import type { ShopDoc, StaffDoc } from '../db/schema'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useRxQueryStatus } from '../hooks/useRxQuery'
 
 const ACTIVE_STAFF_KEY = 'tailor_tracker.active_staff_id'
 
@@ -32,6 +32,12 @@ export interface ShopContextValue {
   /** Whoever is currently attributed for actions, or null before the gate. */
   activeStaff: StaffDoc | null
   setActiveStaff(staff: StaffDoc | null): void
+  /**
+   * Whether the shop and staff queries have emitted. Before this, `shop: null`
+   * and `staff: []` mean "not read yet", not "nothing here" -- and treating
+   * those as the same thing reopens the first-run wizard on every cold start.
+   */
+  loaded: boolean
 }
 
 const ShopContext = createContext<ShopContextValue | null>(null)
@@ -62,15 +68,16 @@ function writeStoredStaffId(id: string | null): void {
 export function ShopProvider({ db, children }: { db: AppDatabase; children: ComponentChildren }) {
   const [storedStaffId, setStoredStaffId] = useState<string | null>(readStoredStaffId)
 
-  const shops = useRxQuery(() => db.shops.find().$, [db], [])
-  const staffDocs = useRxQuery(
+  const shops = useRxQueryStatus(() => db.shops.find().$, [db], [])
+  const staffDocs = useRxQueryStatus(
     () => db.staff.find({ selector: { active: true }, sort: [{ name: 'asc' }] }).$,
     [db],
     [],
   )
 
-  const shop = useMemo(() => shops[0]?.toJSON() ?? null, [shops])
-  const staff = useMemo(() => staffDocs.map((doc) => doc.toJSON()), [staffDocs])
+  const shop = useMemo(() => shops.value[0]?.toJSON() ?? null, [shops.value])
+  const staff = useMemo(() => staffDocs.value.map((doc) => doc.toJSON()), [staffDocs.value])
+  const loaded = shops.loaded && staffDocs.loaded
 
   const activeStaff = useMemo(
     () => staff.find((member) => member.id === storedStaffId) ?? null,
@@ -83,8 +90,8 @@ export function ShopProvider({ db, children }: { db: AppDatabase; children: Comp
   }, [])
 
   const value = useMemo<ShopContextValue>(
-    () => ({ db, shop, staff, activeStaff, setActiveStaff }),
-    [db, shop, staff, activeStaff, setActiveStaff],
+    () => ({ db, shop, staff, activeStaff, setActiveStaff, loaded }),
+    [db, shop, staff, activeStaff, setActiveStaff, loaded],
   )
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>

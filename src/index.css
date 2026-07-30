@@ -3,37 +3,36 @@
 /**
  * Design tokens.
  *
- * Teal primary with warm stone neutrals, rather than the usual indigo-on-cool-
- * grey. Two reasons beyond taste: a deep saturated primary keeps its contrast
- * in bright outdoor light, which is where this app is used, and warm neutrals
- * sit better against fabric and skin tones than blue-tinted greys do.
+ * Brand is blue (was teal -- teal's outdoor-contrast reasoning still holds,
+ * this trades it away deliberately). 700/500/400 are the approved colour;
+ * the rest are color-mix'd around them. Warm stone neutrals stay regardless.
  *
- * Amber is reserved. It means "money outstanding" and nothing else, so a shop
- * learns to read one colour rather than decode a palette.
+ * Amber is reserved for "money outstanding" and nothing else.
  *
- * No web fonts. The system stack renders instantly, costs nothing to
- * download, and already looks native on both platforms -- which matters more
- * than a typeface on a metered connection.
+ * No web fonts: the system stack is instant and free on a metered connection.
  */
 @theme {
-  --color-brand-50: oklch(0.977 0.014 180);
-  --color-brand-100: oklch(0.951 0.032 181);
-  --color-brand-200: oklch(0.91 0.061 181);
-  --color-brand-300: oklch(0.855 0.089 183);
-  --color-brand-400: oklch(0.777 0.101 184);
-  --color-brand-500: oklch(0.704 0.101 185);
-  --color-brand-600: oklch(0.6 0.09 186);
-  --color-brand-700: oklch(0.511 0.076 187);
-  --color-brand-800: oklch(0.437 0.063 188);
-  --color-brand-900: oklch(0.386 0.054 189);
-  --color-brand-950: oklch(0.277 0.041 192);
+  --color-brand-950: color-mix(in oklch, #12309e 55%, black);
+  --color-brand-900: color-mix(in oklch, #12309e 78%, black);
+  --color-brand-800: color-mix(in oklch, #12309e 92%, black);
+  --color-brand-700: #12309e;
+  --color-brand-600: color-mix(in oklch, #12309e 45%, #1a46e0 55%);
+  --color-brand-500: #1a46e0;
+  --color-brand-400: #5577f5;
+  --color-brand-300: color-mix(in oklch, #5577f5 72%, white);
+  --color-brand-200: color-mix(in oklch, #5577f5 45%, white);
+  --color-brand-100: color-mix(in oklch, #5577f5 22%, white);
+  --color-brand-50: color-mix(in oklch, #5577f5 10%, white);
 
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
 
   --radius-card: 1rem;
-  --radius-control: 0.75rem;
+  /* Fully round: buttons, inputs and chips read as things you touch.
+     Textarea and search keep a boxed radius of their own -- see ui.tsx. */
+  --radius-control: 999px;
+  --radius-boxed: 0.75rem;
 
   /* Soft, low-spread shadows. Heavy drop shadows read as dated and cost
      paint time on cheap hardware. */
@@ -83,6 +82,78 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+/**
+ * Glass.
+ *
+ * The entry flow is a fixed dark world, which is the one place a translucent
+ * surface reads as material rather than as a gimmick. Three pieces, so every
+ * screen catches light the same way:
+ *
+ *  - `.glass`       raised surfaces: buttons, notes, pad keys
+ *  - `.glass-inset` recessed surfaces: inputs, which should look pressed in
+ *  - `.glass-sheen` the diagonal highlight, opt-in on top of either
+ *
+ * `backdrop-filter` is behind `@supports`: without it the fallback is a flat
+ * translucent fill, which is fine, rather than an invisible control.
+ */
+@layer components {
+  /**
+   * Raised surface. Neutral and low-contrast on purpose: the glow behind these
+   * screens supplies the colour, and a tinted surface on top of it reads as
+   * plastic rather than glass.
+   */
+  .glass {
+    position: relative;
+    background: color-mix(in oklch, white 5%, transparent);
+    border: 1px solid color-mix(in oklch, white 9%, transparent);
+    box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent);
+  }
+
+  /**
+   * Recessed glass, for inputs.
+   *
+   * Tinted with black rather than white, and with no `saturate()`: a
+   * white-tinted translucent field over the glow picks the colour up and the
+   * whole form turns blue. Darkening what is behind keeps it glass without
+   * that.
+   */
+  .glass-inset {
+    position: relative;
+    background: color-mix(in oklch, black 42%, transparent);
+    border: 1px solid color-mix(in oklch, white 12%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, white 8%, transparent),
+      inset 0 2px 6px oklch(0 0 0 / 0.28);
+  }
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    .glass {
+      -webkit-backdrop-filter: blur(24px) saturate(120%);
+      backdrop-filter: blur(24px) saturate(120%);
+    }
+
+    .glass-inset {
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+    }
+  }
+
+  /* One soft highlight travelling across the surface. Barely there by design. */
+  .glass-sheen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in oklch, white 7%, transparent) 46%,
+      transparent 62%
+    );
   }
 }
 
@@ -144,4 +215,33 @@
 
 @utility animate-shake {
   animation: shake 400ms ease-in-out;
+}
+
+/* Slow drift for GlowBackdrop.tsx's two blobs. Reduce-motion rule above already freezes this. */
+@keyframes glow-drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(6%, 4%) scale(1.08);
+  }
+}
+
+@keyframes glow-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-5%, -6%) scale(1.05);
+  }
+}
+
+@utility animate-glow-drift-a {
+  animation: glow-drift-a 16s ease-in-out infinite;
+}
+
+@utility animate-glow-drift-b {
+  animation: glow-drift-b 20s ease-in-out infinite;
 }

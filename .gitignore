@@ -33,3 +33,6 @@ yarn.lock
 
 # Environment variables (Supabase URL/anon key) -- never commit real secrets
 .env
+
+# Visual brainstorming companion mockups
+.superpowers/

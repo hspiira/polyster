@@ -155,6 +155,12 @@ export const IconArrowDown = (p: IconProps) => (
   </Icon>
 )
 
+export const IconArrowUpRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7 17 17 7M8 7h9v9" />
+  </Icon>
+)
+
 export const IconRuler = (p: IconProps) => (
   <Icon {...p}>
     <path d="M3.5 8.5 8.5 3.5 20.5 15.5 15.5 20.5Z" />

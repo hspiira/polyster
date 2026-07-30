@@ -94,23 +94,8 @@ export function Reports() {
     <Screen title="Reports" back="/settings">
       <div class="space-y-5">
         <div class="rounded-card bg-gradient-to-br from-brand-700 to-brand-800 p-5 text-white shadow-raised">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <p class="text-xs font-medium uppercase tracking-wider opacity-80">Collected, 7 days</p>
-              <p class="mt-1 text-4xl font-semibold tabular-nums tracking-tight">
-                {formatMoney(collected.week)}
-              </p>
-            </div>
-            {/* The day-by-day breakdown of the same figure above it, never a
-                separate or estimated series. */}
-            <Sparkline
-              values={collected.trend}
-              filled
-              width={84}
-              height={36}
-              class="mt-1 shrink-0 text-white/90"
-            />
-          </div>
+          <p class="text-xs font-medium tracking-wide opacity-80">Collected, 7 days</p>
+          <p class="mt-1 text-3xl font-semibold tracking-tight">{formatMoney(collected.week)}</p>
           <div class="mt-4 flex gap-6 border-t border-white/20 pt-3 text-sm">
             <span>
               <span class="block opacity-80">30 days</span>

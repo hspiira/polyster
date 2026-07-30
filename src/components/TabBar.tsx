@@ -31,8 +31,8 @@ export function TabBar() {
     <nav
       class="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200/80 bg-white/85
              backdrop-blur-lg safe-bottom dark:border-stone-800 dark:bg-stone-900/85
-             supports-[backdrop-filter]:bg-white/70
-             dark:supports-[backdrop-filter]:bg-stone-900/70"
+             supports-backdrop-filter:bg-white/70
+             dark:supports-backdrop-filter:bg-stone-900/70"
       aria-label="Main"
     >
       <ul class="mx-auto flex max-w-lg">

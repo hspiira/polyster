@@ -215,11 +215,11 @@ function BalanceCard({ balance }: { balance: OrderBalance | null }) {
     <div
       class={`rounded-card p-5 text-white shadow-raised ${
         owing
-          ? 'bg-gradient-to-br from-amber-600 to-amber-700'
-          : 'bg-gradient-to-br from-emerald-600 to-emerald-700'
+          ? 'bg-linear-to-br from-amber-600 to-amber-700'
+          : 'bg-linear-to-br from-emerald-600 to-emerald-700'
       }`}
     >
-      <p class="text-xs font-medium uppercase tracking-wider opacity-80">
+      <p class="text-xs font-medium tracking-wide opacity-80">
         {owing ? 'Balance due' : overpaid ? 'Overpaid' : 'Fully paid'}
       </p>
       <p class="mt-1 text-3xl font-semibold tracking-tight">

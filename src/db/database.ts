@@ -122,7 +122,13 @@ export async function createDatabase(
   })
 
   await db.addCollections({
-    shops: { schema: shopSchema, migrationStrategies: {} },
+    shops: {
+      schema: shopSchema,
+      migrationStrategies: {
+        // v1 just relaxed `required` (supabase_auth_user_id is now optional); no shape change.
+        1: (doc) => doc,
+      },
+    },
     staff: {
       schema: staffSchema,
       migrationStrategies: {
@@ -165,4 +171,17 @@ export function getDatabase(): Promise<AppDatabase> {
     })
   }
   return dbPromise
+}
+
+/**
+ * Destroys every local collection.
+ *
+ * For handing a device on, and for the one recovery path that has nothing to
+ * verify against. A shop's local copy is the only copy until it syncs, so this
+ * is always presented as destructive. Callers reload afterwards -- the cached
+ * promise above would otherwise hand out a removed database.
+ */
+export async function wipeLocalDatabase(db: AppDatabase): Promise<void> {
+  await db.remove()
+  dbPromise = null
 }
