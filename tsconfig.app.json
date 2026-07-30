@@ -21,6 +21,13 @@
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
 
+    /* Type safety. `strict` is the point of using TypeScript at all -- without
+       strictNullChecks the nullable Postgres columns in src/db/schema.ts are
+       typed as guaranteed strings and nothing catches the difference. */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
