@@ -7,6 +7,7 @@ function input(over: Partial<EntryInput> = {}): EntryInput {
     authStatus: 'signed_out',
     provisioned: false,
     locked: true,
+    setupStarted: false,
     ...over,
   }
 }
@@ -60,5 +61,29 @@ describe('decideEntryScreen', () => {
 
   it('locks rather than landing when a provisioned device is signed out', () => {
     expect(decideEntryScreen(input({ authStatus: 'signed_out', provisioned: true }))).toBe('lock')
+  })
+
+  // Someone tapped through from the landing on a build that cannot send codes.
+  it('shows setup once it has been started, even with nothing provisioned', () => {
+    expect(decideEntryScreen(input({ setupStarted: true, provisioned: false }))).toBe('setup')
+  })
+
+  // The latch. Creating the owner makes `provisioned` true midway through, and
+  // without this the wizard is torn down before its last steps can render.
+  it('keeps setup up after the shop and staff exist, until it says it has finished', () => {
+    expect(decideEntryScreen(input({ setupStarted: true, provisioned: true, locked: true }))).toBe(
+      'setup',
+    )
+  })
+
+  it('leaves setup for the app once it reports finished', () => {
+    expect(
+      decideEntryScreen(input({ setupStarted: false, provisioned: true, locked: false })),
+    ).toBe('shell')
+  })
+
+  // A failure that must not be hidden behind a half-built wizard.
+  it('still reports a database failure while setup is running', () => {
+    expect(decideEntryScreen(input({ setupStarted: true, dbStatus: 'error' }))).toBe('fatal')
   })
 })

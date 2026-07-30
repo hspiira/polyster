@@ -13,7 +13,7 @@ import { useShop } from '../../state/ShopProvider'
 import { verifyPin } from '../../lib/pin'
 import { backoffMs } from '../../lib/lockPolicy'
 import { PinRecovery } from './PinRecovery'
-import { EntryQuietButton, EntryScreen } from './parts'
+import { EntryCentred, EntryQuietButton, EntryScreen } from './parts'
 import type { AuthState } from '../../lib/auth'
 
 export function LockScreen({ authStatus }: { authStatus: AuthState['status'] }) {
@@ -31,7 +31,7 @@ export function LockScreen({ authStatus }: { authStatus: AuthState['status'] }) 
 
   return (
     <EntryScreen>
-      <div class="flex flex-1 flex-col justify-center">
+      <EntryCentred>
         <div class="flex flex-col items-center text-center">
           <span
             class="flex size-14 items-center justify-center rounded-full border border-brand-400/40
@@ -71,7 +71,7 @@ export function LockScreen({ authStatus }: { authStatus: AuthState['status'] }) 
             you are back on.
           </p>
         )}
-      </div>
+      </EntryCentred>
     </EntryScreen>
   )
 }

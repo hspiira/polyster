@@ -5,7 +5,7 @@
 import { useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import { useAuth } from '../../../hooks/useAuth'
-import { EntryButton, EntryError, EntryField, EntryHeading, EntryInput } from '../parts'
+import { EntryButton, EntryError, EntryField, EntryForm, EntryHeading, EntryInput } from '../parts'
 
 export function PhoneStep({
   title = 'Your phone number',
@@ -37,8 +37,20 @@ export function PhoneStep({
   }
 
   return (
-    <form onSubmit={submit} class="flex flex-1 flex-col justify-center">
+    <EntryForm
+      onSubmit={submit}
+      actions={
+        <>
+          <EntryButton type="submit" disabled={busy}>
+            {busy ? 'Sending...' : 'Send code'}
+          </EntryButton>
+          {footer}
+        </>
+      }
+    >
       <EntryHeading title={title} body={body} />
+
+      {error && <EntryError>{error}</EntryError>}
 
       <EntryField label="Phone number">
         <EntryInput
@@ -51,14 +63,6 @@ export function PhoneStep({
           onInput={(e) => setPhone((e.target as HTMLInputElement).value)}
         />
       </EntryField>
-
-      {error && <EntryError>{error}</EntryError>}
-
-      <EntryButton type="submit" disabled={busy} class="mt-5">
-        {busy ? 'Sending...' : 'Send code'}
-      </EntryButton>
-
-      {footer}
-    </form>
+    </EntryForm>
   )
 }

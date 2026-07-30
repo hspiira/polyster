@@ -22,6 +22,7 @@ import { PhoneStep } from './steps/PhoneStep'
 import { CodeStep } from './steps/CodeStep'
 import {
   EntryButton,
+  EntryCentred,
   EntryDangerButton,
   EntryError,
   EntryHeading,
@@ -89,7 +90,7 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
     const confirming = stage === 'confirmPin'
     return (
       <EntryScreen>
-        <div class="flex flex-1 flex-col justify-center">
+        <EntryCentred>
           <EntryHeading
             centred
             title={confirming ? 'Type it again' : 'Choose a new PIN'}
@@ -128,7 +129,7 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
               }
             }}
           />
-        </div>
+        </EntryCentred>
       </EntryScreen>
     )
   }
@@ -136,7 +137,7 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
   if (stage === 'confirmReset') {
     return (
       <EntryScreen>
-        <div class="flex flex-1 flex-col justify-center">
+        <EntryCentred>
           <EntryHeading
             title="Remove this shop?"
             body="Everything recorded on this device goes with it. Anything that has not synced yet cannot be got back."
@@ -153,14 +154,14 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
             </EntryDangerButton>
             <EntryQuietButton onClick={() => setStage('choose')}>Cancel</EntryQuietButton>
           </div>
-        </div>
+        </EntryCentred>
       </EntryScreen>
     )
   }
 
   return (
     <EntryScreen>
-      <div class="flex flex-1 flex-col justify-center">
+      <EntryCentred>
         {/* reset_only has two quite different causes -- say which one it is. */}
         <EntryHeading
           title="Forgotten your PIN?"
@@ -196,7 +197,7 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
         <div class="mt-2">
           <EntryQuietButton onClick={onCancel}>Back</EntryQuietButton>
         </div>
-      </div>
+      </EntryCentred>
     </EntryScreen>
   )
 }

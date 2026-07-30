@@ -19,7 +19,7 @@ import { Landing } from './screens/entry/Landing'
 import { SignIn } from './screens/entry/SignIn'
 import { isSupabaseConfigured } from './lib/supabaseClient'
 import { LockScreen } from './screens/entry/LockScreen'
-import { SetupFlow } from './screens/setup/SetupFlow'
+import { SetupFlow } from './screens/entry/SetupFlow'
 import { Shell } from './screens/Shell'
 import { Logomark } from './components/Logomark'
 import { decideEntryScreen } from './lib/entryState'
@@ -48,21 +48,17 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
   const { shop, staff, activeStaff, setActiveStaff, loaded } = useShop()
   const replication = useReplication(db, auth.status === 'signed_in')
 
-  // Latched, not derived: creating the shop and first staff member makes
-  // `provisioned` true, and a plain condition would tear the wizard down
-  // mid-flow. It stays up until it says it has finished.
   const [setupRunning, setSetupRunning] = useState(false)
 
   const lock = useCallback(() => setActiveStaff(null), [setActiveStaff])
   useAutoLock(DEFAULT_LOCK_AFTER_MINUTES, lock)
 
-  const provisioned = Boolean(shop) && staff.length > 0
-
   const screen = decideEntryScreen({
     dbStatus: loaded ? 'ready' : 'loading',
     authStatus: auth.status,
-    provisioned: provisioned && !setupRunning,
+    provisioned: Boolean(shop) && staff.length > 0,
     locked: !activeStaff,
+    setupStarted: setupRunning,
   })
 
   if (screen === 'splash') return <Splash />

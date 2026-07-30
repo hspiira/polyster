@@ -20,9 +20,12 @@ export function Landing({ onContinue }: { onContinue: () => void }) {
     <main class="relative flex min-h-svh flex-col overflow-hidden bg-stone-950 px-6 text-stone-100">
       <GlowBackdrop />
 
-      <div class="safe-top relative z-10 flex items-center gap-2">
-        <Logomark size={28} class="text-brand-400" />
-        <span class="text-base font-semibold tracking-tight">Polyster</span>
+      {/* safe-top sets padding itself, so the design spacing goes on the child. */}
+      <div class="safe-top relative z-10">
+        <div class="flex items-center gap-2 pt-7">
+          <Logomark size={28} class="text-brand-400" />
+          <span class="text-base font-semibold tracking-tight">Polyster</span>
+        </div>
       </div>
 
       <div class="relative z-10 mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
@@ -39,33 +42,35 @@ export function Landing({ onContinue }: { onContinue: () => void }) {
         </p>
       </div>
 
-      <div class="safe-bottom relative z-10 mx-auto w-full max-w-sm">
-        {/*
-          A plain button, not the shared Button component: this is a one-off
-          glass treatment specific to this screen.
-        */}
-        <button
-          type="button"
-          onClick={onContinue}
-          class="flex w-full items-center justify-between gap-3 rounded-control border
-                 border-white/5 bg-white/6 py-1.5 pl-5 pr-1.5 text-white backdrop-blur-xl
-                 transition-transform active:scale-[0.98] active:bg-white/10"
-        >
-          <span class="text-base font-medium">Continue with your number</span>
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white">
-            <IconArrowUpRight size={18} />
-          </span>
-        </button>
-
-        {!install.isStandalone && install.canPrompt && (
+      <div class="safe-bottom relative z-10">
+        <div class="mx-auto w-full max-w-sm pb-9">
+          {/*
+            A plain button, not the shared Button component: glass shell with a
+            solid brand disc, which is the one saturated element on the screen.
+          */}
           <button
             type="button"
-            onClick={() => void install.prompt()}
-            class="mt-3 min-h-11 w-full text-center text-xs text-stone-400 active:text-stone-200"
+            onClick={onContinue}
+            class="glass glass-sheen flex w-full items-center justify-between gap-3 overflow-hidden
+                   rounded-control py-1.5 pl-5 pr-1.5 text-white transition-transform
+                   active:scale-[0.98]"
           >
-            Add to home screen
+            <span class="relative z-10 text-base font-medium">Continue with your number</span>
+            <span class="relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-500 text-white">
+              <IconArrowUpRight size={18} />
+            </span>
           </button>
-        )}
+
+          {!install.isStandalone && install.canPrompt && (
+            <button
+              type="button"
+              onClick={() => void install.prompt()}
+              class="mt-3 min-h-11 w-full text-center text-xs text-stone-400 active:text-stone-200"
+            >
+              Add to home screen
+            </button>
+          )}
+        </div>
       </div>
     </main>
   )

@@ -15,6 +15,14 @@ export interface EntryInput {
   /** A shop row and at least one staff row exist locally. */
   provisioned: boolean
   locked: boolean
+  /**
+   * The wizard is running and has not said it has finished.
+   *
+   * Latched rather than derived: creating the shop and first staff member
+   * makes `provisioned` true, and without this the wizard would be torn down
+   * mid-flow, before its last steps could render.
+   */
+  setupStarted: boolean
 }
 
 export function decideEntryScreen({
@@ -22,10 +30,12 @@ export function decideEntryScreen({
   authStatus,
   provisioned,
   locked,
+  setupStarted,
 }: EntryInput): EntryScreen {
   if (dbStatus === 'error') return 'fatal'
   if (dbStatus === 'loading' || authStatus === 'checking') return 'splash'
 
+  if (setupStarted) return 'setup'
   if (provisioned) return locked ? 'lock' : 'shell'
 
   // Verified but nothing set up yet: resume mid-setup rather than re-asking

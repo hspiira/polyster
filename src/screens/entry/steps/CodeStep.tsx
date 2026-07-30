@@ -9,7 +9,7 @@ import { useState } from 'preact/hooks'
 import { PinPad } from '../../../components/PinPad'
 import { useAuth } from '../../../hooks/useAuth'
 import { formatPhoneForDisplay, toE164 } from '../../../lib/phone'
-import { EntryHeading, EntryQuietButton } from '../parts'
+import { EntryCentred, EntryHeading, EntryQuietButton } from '../parts'
 
 export function CodeStep({
   phone,
@@ -27,7 +27,7 @@ export function CodeStep({
   const e164 = toE164(phone)
 
   return (
-    <div class="flex flex-1 flex-col justify-center">
+    <EntryCentred>
       <EntryHeading
         centred
         title="Enter the code"
@@ -52,6 +52,6 @@ export function CodeStep({
       <EntryQuietButton type="button" onClick={onResend} class="mt-7">
         Didn't get it? Send again
       </EntryQuietButton>
-    </div>
+    </EntryCentred>
   )
 }

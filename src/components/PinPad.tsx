@@ -176,8 +176,8 @@ function PadKey({
       disabled={disabled}
       onClick={onPress}
       class={cn(
-        'flex size-18 items-center justify-center rounded-full transition-transform',
-        'duration-75 active:scale-90 disabled:opacity-40',
+        'flex size-18 items-center justify-center overflow-hidden rounded-full',
+        'transition-transform duration-75 active:scale-90 disabled:opacity-40',
         // "Delete" is a word, so it cannot carry the digits' type size.
         ghost ? 'text-sm font-medium' : 'text-2xl font-normal',
         ghost
@@ -185,7 +185,7 @@ function PadKey({
             ? 'text-stone-300 active:bg-white/10'
             : 'text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
           : dark
-            ? 'border border-white/10 bg-white/5 text-stone-100 backdrop-blur-md active:bg-white/10'
+            ? 'glass glass-sheen text-stone-100'
             : `border border-stone-200/80 bg-white shadow-card active:bg-stone-100
                dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800`,
       )}
