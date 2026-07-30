@@ -219,7 +219,7 @@ function BalanceCard({ balance }: { balance: OrderBalance | null }) {
           : 'bg-linear-to-br from-emerald-600 to-emerald-700'
       }`}
     >
-      <p class="text-xs font-medium uppercase tracking-wider opacity-80">
+      <p class="text-xs font-medium tracking-wide opacity-80">
         {owing ? 'Balance due' : overpaid ? 'Overpaid' : 'Fully paid'}
       </p>
       <p class="mt-1 text-3xl font-semibold tracking-tight">

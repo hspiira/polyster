@@ -29,7 +29,10 @@
     Arial, sans-serif;
 
   --radius-card: 1rem;
-  --radius-control: 0.75rem;
+  /* Fully round: buttons, inputs and chips read as things you touch.
+     Textarea and search keep a boxed radius of their own -- see ui.tsx. */
+  --radius-control: 999px;
+  --radius-boxed: 0.75rem;
 
   /* Soft, low-spread shadows. Heavy drop shadows read as dated and cost
      paint time on cheap hardware. */

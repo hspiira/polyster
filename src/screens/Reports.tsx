@@ -75,7 +75,7 @@ export function Reports() {
     <Screen title="Reports" back="/settings">
       <div class="space-y-5">
         <div class="rounded-card bg-gradient-to-br from-brand-700 to-brand-800 p-5 text-white shadow-raised">
-          <p class="text-xs font-medium uppercase tracking-wider opacity-80">Collected, 7 days</p>
+          <p class="text-xs font-medium tracking-wide opacity-80">Collected, 7 days</p>
           <p class="mt-1 text-3xl font-semibold tracking-tight">{formatMoney(collected.week)}</p>
           <div class="mt-4 flex gap-6 border-t border-white/20 pt-3 text-sm">
             <span>
