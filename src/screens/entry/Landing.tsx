@@ -28,16 +28,23 @@ export function Landing({ onContinue }: { onContinue: () => void }) {
         </div>
       </div>
 
+      {/*
+        A deliberately narrow measure. The hero wraps to four short lines and
+        fills the screen, rather than sitting as two long ones in a lot of
+        empty space.
+      */}
       <div class="relative z-10 mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
-        <h1 class="text-balance tracking-tight">
-          <span class="block text-2xl font-normal leading-tight text-stone-300">
+        {/* An absolute width, not `ch`: ch resolves against the inherited font
+            size, not the display size these lines are actually set in. */}
+        <h1 class="max-w-[272px] tracking-tight">
+          <span class="block text-[30px] font-normal leading-[1.14] text-stone-400">
             Take orders and payments
           </span>
-          <span class="mt-1 block text-4xl font-bold leading-tight text-white">
+          <span class="mt-2.5 block text-[44px] font-bold leading-[1.06] text-white">
             even with no signal.
           </span>
         </h1>
-        <p class="mt-5 max-w-xs text-sm leading-relaxed text-stone-300">
+        <p class="mt-7 max-w-[280px] text-[15px] leading-relaxed text-stone-400">
           One account for the whole shop. You sign in with your phone number.
         </p>
       </div>

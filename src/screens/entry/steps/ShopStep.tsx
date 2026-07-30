@@ -27,7 +27,7 @@ export function ShopStep({ onCreated }: { onCreated: (shop: ShopDoc, yourName: s
     event.preventDefault()
 
     if (!name.trim()) {
-      setError('The shop needs a name -- clients see it in every message you send.')
+      setError('The shop needs a name — clients see it in every message you send.')
       return
     }
     if (!yourName.trim()) {

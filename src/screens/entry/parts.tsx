@@ -165,12 +165,10 @@ export function EntryQuietButton({ class: className, ...props }: JSX.IntrinsicEl
   )
 }
 
+/** Just words. A boxed alert on a dark screen shouts louder than the problem is. */
 export function EntryError({ children }: { children: ComponentChildren }) {
   return (
-    <p
-      role="alert"
-      class="mt-1 mb-4 rounded-control border border-red-500/30 bg-red-500/12 px-4 py-3 text-sm text-red-300 backdrop-blur-xl"
-    >
+    <p role="alert" class="mb-5 text-sm leading-relaxed text-red-400">
       {children}
     </p>
   )
