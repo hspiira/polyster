@@ -55,8 +55,8 @@ export function Screen({
     <div ref={swipeRef}>
       <header
         class={`sticky top-0 z-20 border-b ${BORDER} ${SURFACE} backdrop-blur-lg
-                supports-[backdrop-filter]:bg-white/75
-                dark:supports-[backdrop-filter]:bg-stone-900/75`}
+                supports-backdrop-filter:bg-white/75
+                dark:supports-backdrop-filter:bg-stone-900/75`}
       >
         <div class="mx-auto flex max-w-lg items-center gap-2 px-4 py-3">
           {back && (
@@ -276,7 +276,7 @@ export function Segmented<T extends string>({
       role="tablist"
       aria-label={label}
       class="flex gap-1 overflow-x-auto rounded-control bg-stone-200/70 p-1
-             dark:bg-stone-800/80 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+             dark:bg-stone-800/80 scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
       {options.map((option) => {
         const active = option.value === value
@@ -395,22 +395,25 @@ export function Chip({
   )
 }
 
-/** Circular initials, so a client list scans by shape as well as by reading. */
-export function Avatar({ name }: { name: string }) {
-  const initials = name
+/** First letter of up to two words, the way every avatar and initials chip in the app agree on. */
+export function getInitials(name: string): string {
+  return name
     .split(/\s+/)
     .slice(0, 2)
     .map((part) => part[0] ?? '')
     .join('')
     .toUpperCase()
+}
 
+/** Circular initials, so a client list scans by shape as well as by reading. */
+export function Avatar({ name }: { name: string }) {
   return (
     <span
       class="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-100
              text-sm font-semibold text-brand-800 dark:bg-brand-950 dark:text-brand-300"
       aria-hidden="true"
     >
-      {initials}
+      {getInitials(name)}
     </span>
   )
 }

@@ -39,14 +39,17 @@ export default defineConfig({
       // See ARCHITECTURE.md section 8 / pwa-research-notes.md section 1.
       scope: '/',
       manifest: {
-        name: 'Tailor & Rental Tracker',
-        short_name: 'Tailor Tracker',
+        name: 'Polyster',
+        short_name: 'Polyster',
         description: 'Offline-first order, measurement, and payment tracker for cloth tailoring and rental shops.',
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#111827',
+        // Approximates --color-brand-950 (see index.html's theme-color comment
+        // for why this can't just reference the token). Matches Landing.tsx's
+        // dark backdrop so the splash screen doesn't flash white before it.
+        background_color: '#0f1e52',
+        theme_color: '#0f1e52',
         icons: [
           {
             src: '/icons/icon-192.png',

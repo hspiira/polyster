@@ -14,6 +14,8 @@
  *    backspace on an empty pad is a key that does nothing.
  *  - **Failure shakes the dots and clears them.** Faster to read than an error
  *    you have to dismiss before retyping.
+ *
+ * `tone="dark"` is for StaffGate's fixed-dark screen; SetupFlow stays on the default `"light"`.
  */
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
@@ -31,6 +33,8 @@ export interface PinPadProps {
   /** Shown in place of the hint after `onComplete` rejects. */
   errorHint?: string
   busyHint?: string
+  /** @default "light" */
+  tone?: 'light' | 'dark'
 }
 
 export function PinPad({
@@ -38,6 +42,7 @@ export function PinPad({
   hint = 'Enter your PIN',
   errorHint = 'Wrong PIN, try again',
   busyHint = 'Checking...',
+  tone = 'light',
 }: PinPadProps) {
   const [pin, setPin] = useState('')
   const [failed, setFailed] = useState(false)
@@ -83,11 +88,19 @@ export function PinPad({
     })
   }
 
+  const dark = tone === 'dark'
+
   return (
     <div class="space-y-7">
       <p
         class={`text-center text-sm ${
-          failed ? 'text-red-600 dark:text-red-400' : 'text-stone-500 dark:text-stone-400'
+          failed
+            ? dark
+              ? 'text-red-400'
+              : 'text-red-600 dark:text-red-400'
+            : dark
+              ? 'text-stone-300'
+              : 'text-stone-500 dark:text-stone-400'
         }`}
         role={failed ? 'alert' : undefined}
       >
@@ -98,32 +111,46 @@ export function PinPad({
         class={`flex justify-center gap-3 ${failed ? 'animate-shake' : ''}`}
         aria-label={`${pin.length} of ${PIN_LENGTH} digits entered`}
       >
-        {Array.from({ length: PIN_LENGTH }, (_, index) => (
-          <span
-            key={index}
-            class={`size-3.5 rounded-full transition-all duration-150 ${
-              failed
-                ? 'bg-red-500'
-                : index < pin.length
-                  ? 'scale-110 bg-brand-700 dark:bg-brand-400'
-                  : 'bg-stone-300 dark:bg-stone-700'
-            }`}
-          />
-        ))}
+        {Array.from({ length: PIN_LENGTH }, (_, index) => {
+          const filled = index < pin.length
+          const glow = dark && filled && !failed
+          return (
+            <span
+              key={index}
+              class={`size-3.5 rounded-full transition-all duration-150 ${
+                failed
+                  ? 'bg-red-500'
+                  : filled
+                    ? dark
+                      ? 'scale-110 bg-brand-400'
+                      : 'scale-110 bg-brand-700 dark:bg-brand-400'
+                    : dark
+                      ? 'bg-white/20'
+                      : 'bg-stone-300 dark:bg-stone-700'
+              }`}
+              style={
+                glow
+                  ? { boxShadow: '0 0 8px color-mix(in oklch, var(--color-brand-400) 70%, transparent)' }
+                  : undefined
+              }
+            />
+          )
+        })}
       </div>
 
       <div class="grid grid-cols-3 justify-items-center gap-x-5 gap-y-4">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => (
-          <PadKey key={key} label={key} disabled={busy} onPress={() => press(key)} />
+          <PadKey key={key} label={key} tone={tone} disabled={busy} onPress={() => press(key)} />
         ))}
 
         {/* Empty cell keeps 0 centred without the delete key having to exist. */}
         <span />
-        <PadKey label="0" disabled={busy} onPress={() => press('0')} />
+        <PadKey label="0" tone={tone} disabled={busy} onPress={() => press('0')} />
         {pin.length > 0 ? (
           <PadKey
             label="Delete"
             ghost
+            tone={tone}
             disabled={busy}
             onPress={() => press('del')}
             icon={<IconBackspace size={24} />}
@@ -140,27 +167,35 @@ function PadKey({
   label,
   icon,
   ghost = false,
+  tone = 'light',
   disabled,
   onPress,
 }: {
   label: string
   icon?: ComponentChildren
   ghost?: boolean
+  tone?: 'light' | 'dark'
   disabled?: boolean
   onPress: () => void
 }) {
+  const dark = tone === 'dark'
+
   return (
     <button
       type="button"
       aria-label={label}
       disabled={disabled}
       onClick={onPress}
-      class={`flex size-[4.5rem] items-center justify-center rounded-full text-2xl font-normal
+      class={`flex size-18 items-center justify-center rounded-full text-2xl font-normal
               transition-transform duration-75 active:scale-90 disabled:opacity-40 ${
                 ghost
-                  ? 'text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
-                  : `border border-stone-200/80 bg-white shadow-card active:bg-stone-100
-                     dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800`
+                  ? dark
+                    ? 'text-stone-300 active:bg-white/10'
+                    : 'text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
+                  : dark
+                    ? 'border border-white/10 bg-white/5 text-stone-100 backdrop-blur-md active:bg-white/10'
+                    : `border border-stone-200/80 bg-white shadow-card active:bg-stone-100
+                       dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800`
               }`}
     >
       {icon ?? label}

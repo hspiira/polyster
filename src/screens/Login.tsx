@@ -44,7 +44,7 @@ export function Login({ controller, onBack }: LoginProps) {
   return (
     <main class="min-h-svh bg-stone-100 dark:bg-stone-950">
       <div class="mx-auto flex min-h-svh w-full max-w-sm flex-col px-6">
-        <div class="safe-top pt-3">
+        <div class="safe-top">
           <button
             type="button"
             onClick={onBack}

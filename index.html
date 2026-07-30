@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Tailor & Rental Tracker</title>
+    <title>Polyster</title>
     <meta name="description" content="Offline-first order, measurement, and payment tracker for cloth tailoring and rental shops." />
 
     <!-- Standard PWA icon, used by Chromium browsers via the manifest -->
@@ -15,11 +15,17 @@
       See ARCHITECTURE.md section 1 / pwa-research-notes.md section 1.
     -->
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <meta name="apple-mobile-web-app-title" content="Tailor Tracker" />
+    <meta name="apple-mobile-web-app-title" content="Polyster" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
-    <meta name="theme-color" content="#111827" />
+    <!--
+      Approximates --color-brand-950 from index.css. Manifest/theme-color
+      parsing doesn't reliably support oklch()/color-mix(), so this is a
+      plain hex stand-in for the same dark navy-blue, not a precise
+      conversion -- it only tints the OS status bar and PWA splash screen.
+    -->
+    <meta name="theme-color" content="#0f1e52" />
   </head>
   <body>
     <div id="app"></div>
