@@ -81,9 +81,33 @@ function Gate({
   const [setupRunning, setSetupRunning] = useState(false)
   const [setupFinished, setSetupFinished] = useState(false)
 
+  // Two guards, not one. `shops` and `staff` are independent RxDB queries with
+  // no guarantee they settle together, and a naive "staff.length === 0 right
+  // now" read can be true for reasons that have nothing to do with the shop
+  // actually having no staff:
+  //
+  //  1. Replication is still pulling. `staff` rows for a real shop with real
+  //     staff can lag its `shops` row by anywhere from milliseconds to
+  //     seconds on the connections this app targets. So this waits for
+  //     replication to stop actively syncing (finished, idle because there is
+  //     nothing to sync, or errored -- any of those mean waiting longer will
+  //     not help) before drawing any conclusion at all.
+  //  2. Even with nothing to wait on -- local-only mode, or a dev seed that
+  //     writes `shops` then `staff` in the same function -- the two queries
+  //     can still emit a render in between, a same-tick race rather than a
+  //     replication lag. A short debounce absorbs that: the timer is
+  //     cancelled the moment staff.length changes away from zero.
+  //
+  // Skipping either guard latched real shops with real staff into the setup
+  // wizard permanently, with no way out short of a reload. Caught by walking
+  // a dev seed rather than by any test -- fake-indexeddb has none of the
+  // timing that exposes it.
   useEffect(() => {
-    if (shop && staff.length === 0 && !setupFinished) setSetupRunning(true)
-  }, [shop, staff.length, setupFinished])
+    if (!shop || staff.length > 0 || setupFinished) return
+    if (replication.status === 'syncing') return
+    const timer = window.setTimeout(() => setSetupRunning(true), 350)
+    return () => window.clearTimeout(timer)
+  }, [shop, staff.length, setupFinished, replication.status])
 
   if (!shop) {
     return <WaitingForShop replication={replication} online={online} />
