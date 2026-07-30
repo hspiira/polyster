@@ -94,17 +94,28 @@ export function EntryField({ label, children }: { label: string; children: Compo
   )
 }
 
+/**
+ * The glass lives on a wrapper, not the input: `::before` does not render on
+ * a replaced element, so the sheen has nowhere to go otherwise.
+ *
+ * Focus brightens the rim rather than adding a coloured ring. Still clearly
+ * visible for keyboard use -- a contrast change, not a removed indicator.
+ */
 export function EntryInput({ class: className, ...props }: JSX.IntrinsicElements['input']) {
   return (
-    <input
-      {...props}
+    <span
       class={cn(
-        'glass-inset min-h-12 w-full rounded-control px-4.5 text-base text-white',
-        'outline-none transition-colors placeholder:text-stone-500',
-        'focus:border-brand-400/70 focus:ring-2 focus:ring-brand-400/25',
+        'glass-inset glass-sheen block overflow-hidden rounded-control',
+        'transition-colors focus-within:border-white/32',
         className,
       )}
-    />
+    >
+      <input
+        {...props}
+        class="relative z-10 min-h-13 w-full bg-transparent px-5 text-base text-white
+               outline-none placeholder:text-stone-500"
+      />
+    </span>
   )
 }
 
