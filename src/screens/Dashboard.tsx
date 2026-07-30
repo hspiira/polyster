@@ -228,8 +228,13 @@ function Stat({
         {icon}
         {label}
       </p>
+      {/* Bolder and bigger than a typical card stat, closer to the
+          weight a fitness app gives "144bpm" -- the outstanding figure
+          is the one number on this screen a shop actually needs at a
+          glance, so it should not compete with its own label for
+          attention. */}
       <p
-        class={`mt-1.5 text-[22px] font-semibold leading-tight tracking-tight ${
+        class={`mt-1.5 text-3xl font-semibold leading-none tabular-nums tracking-tight ${
           emphasis ? 'text-amber-700 dark:text-amber-400' : ''
         }`}
       >

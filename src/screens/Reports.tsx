@@ -10,13 +10,24 @@
  */
 import { useMemo } from 'preact/hooks'
 import { Card, InfoNote, Screen, SectionTitle } from '../components/ui'
+import { Sparkline } from '../components/Sparkline'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
 import { formatMoney } from '../lib/money'
 import { addDays, today } from '../lib/dates'
-import { STAGE_LABELS } from './orderStage'
+import { STAGE_LABELS, STAGE_TONES } from './orderStage'
 import { ORDER_STAGES } from '../db/schema'
+
+/** Bar-fill colours matching the Chip tones each stage already uses, so the
+ * same stage reads as the same colour on the dashboard, in a chip, and here. */
+const BAR_TONES: Record<(typeof STAGE_TONES)[keyof typeof STAGE_TONES], string> = {
+  neutral: 'bg-stone-400 dark:bg-stone-500',
+  good: 'bg-emerald-500',
+  warn: 'bg-amber-500',
+  bad: 'bg-red-500',
+  info: 'bg-brand-600',
+}
 
 export function Reports() {
   const { db, shop } = useCurrentShop()
@@ -44,6 +55,12 @@ export function Reports() {
     let month = 0
     let all = 0
 
+    // Also bucketed by day for the last 7, so the trend line under the
+    // headline figure is a breakdown of that same real total -- never a
+    // fabricated series drawn to fill the card.
+    const days = Array.from({ length: 7 }, (_, i) => addDays(now, i - 6))
+    const byDay = new Map(days.map((day) => [day, 0]))
+
     for (const doc of paymentDocs) {
       const payment = doc.toJSON()
       if (!orderIds.has(payment.order_id)) continue
@@ -51,8 +68,10 @@ export function Reports() {
       all += payment.amount
       if (day >= monthStart) month += payment.amount
       if (day >= weekStart) week += payment.amount
+      if (byDay.has(day)) byDay.set(day, (byDay.get(day) ?? 0) + payment.amount)
     }
-    return { week, month, all }
+
+    return { week, month, all, trend: days.map((day) => byDay.get(day) ?? 0) }
   }, [paymentDocs, orderIds, now])
 
   const outstanding = useMemo(() => {
@@ -80,11 +99,11 @@ export function Reports() {
           <div class="mt-4 flex gap-6 border-t border-white/20 pt-3 text-sm">
             <span>
               <span class="block opacity-80">30 days</span>
-              <span class="font-semibold">{formatMoney(collected.month)}</span>
+              <span class="font-semibold tabular-nums">{formatMoney(collected.month)}</span>
             </span>
             <span>
               <span class="block opacity-80">All time</span>
-              <span class="font-semibold">{formatMoney(collected.all)}</span>
+              <span class="font-semibold tabular-nums">{formatMoney(collected.all)}</span>
             </span>
           </div>
         </div>
@@ -106,22 +125,26 @@ export function Reports() {
         <section>
           <SectionTitle>Orders by stage</SectionTitle>
           <Card>
-            <ul class="space-y-2.5">
+            <ul class="space-y-3">
               {[...stageCounts].map(([stage, count]) => (
-                <li key={stage}>
-                  <div class="flex items-baseline justify-between text-sm">
-                    <span class="text-stone-600 dark:text-stone-300">{STAGE_LABELS[stage]}</span>
-                    <span class="font-semibold tabular-nums">{count}</span>
-                  </div>
-                  {/* A bar, not a chart. It makes the shape of the workload
+                <li key={stage} class="flex items-center gap-3">
+                  <span class="w-28 shrink-0 truncate text-sm text-stone-600 dark:text-stone-300">
+                    {STAGE_LABELS[stage]}
+                  </span>
+                  {/* A bar, not a chart -- makes the shape of the workload
                       readable at a glance without pulling in a chart library
-                      for five numbers. */}
-                  <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
+                      for five numbers. Coloured per stage tone, the same tone
+                      the chip for that stage uses everywhere else, so a stage
+                      is not one colour on the dashboard and another here. */}
+                  <div class="h-2 flex-1 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
                     <div
-                      class="h-full rounded-full bg-brand-600"
+                      class={`h-full rounded-full transition-[width] ${BAR_TONES[STAGE_TONES[stage]]}`}
                       style={{ width: `${(count / maxStage) * 100}%` }}
                     />
                   </div>
+                  <span class="w-6 shrink-0 text-right text-sm font-semibold tabular-nums">
+                    {count}
+                  </span>
                 </li>
               ))}
             </ul>
