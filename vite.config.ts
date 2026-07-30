@@ -5,6 +5,28 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    /**
+     * Belt and braces, not a fix for anything currently broken.
+     *
+     * `preact-iso` pulls in `preact-render-to-string`, so pnpm materialises a
+     * second peer-resolved copy of Preact on disk:
+     *
+     *   node_modules/.pnpm/preact@10.29.7/                              <- the app
+     *   node_modules/.pnpm/preact@10.29.7_preact-render-to-string@6.7.0 <- preact-iso
+     *
+     * Two Preact runtimes in one page breaks `preact/hooks`, which finds the
+     * other copy's renderer and throws "Cannot read properties of undefined
+     * (reading '__H')" -- a blank page with one console line.
+     *
+     * Measured, not assumed: this setting changes nothing today. The
+     * production bundle is byte-identical with and without it (same content
+     * hash), because Rollup already collapses the two. It is here so that
+     * staying collapsed is stated rather than incidental, since the duplicate
+     * on disk is real and a future plugin or resolver could pick differently.
+     */
+    dedupe: ['preact', 'preact/hooks', 'preact/jsx-runtime', 'preact/compat'],
+  },
   plugins: [
     preact(),
     tailwindcss(),
