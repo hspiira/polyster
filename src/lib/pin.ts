@@ -11,12 +11,12 @@
  * every device on the shop's account and sits in a Postgres row. Anyone who
  * reaches that row -- a stolen laptop still logged in, a mis-shared Supabase
  * password, a support session -- must not walk away with the PINs themselves,
- * because people reuse 4-digit numbers on phone locks and mobile money.
+ * because people reuse the same digits on phone locks and mobile money.
  *
- * ## Why a slow KDF for a 4-digit secret
+ * ## Why a slow KDF for a six-digit secret
  *
- * A 4-digit PIN is 10,000 candidates. Against a plain SHA-256 that is
- * exhausted faster than you can read this sentence. A deliberately slow KDF
+ * A six-digit PIN is a million candidates. Against a plain SHA-256 that is
+ * exhausted in well under a second on ordinary hardware. A deliberately slow KDF
  * does not make the keyspace bigger, but it turns an instant break into
  * something with a cost, and it costs the shop nothing: the PIN is verified
  * once when a staff member picks their name, not on every action.
@@ -67,21 +67,27 @@ const DERIVED_BITS = 256
 /** See the iteration-count discussion above. This wants measuring, not trusting. */
 export const DEFAULT_ITERATIONS = 210_000
 
-export const MIN_PIN_LENGTH = 4
-export const MAX_PIN_LENGTH = 6
+/**
+ * Fixed at six digits. Not a range.
+ *
+ * A fixed length is worth more than the flexibility it costs. It lets the pad
+ * submit itself the moment the last digit lands without the app having to
+ * store how long anyone's PIN is, and it removes the weakest option: at four
+ * digits the keyspace is 10,000, at six it is a hundred times that, for two
+ * extra taps on a number pad.
+ */
+export const PIN_LENGTH = 6
 
 export class InvalidPinError extends Error {}
 
 /**
- * Digits only, 4-6 of them. Rejecting non-digits is not arbitrary strictness:
+ * Exactly six digits. Rejecting non-digits is not arbitrary strictness:
  * the PIN entry UI is a number pad, so anything else means the value did not
  * come from where it should have.
  */
 export function assertValidPin(pin: string): void {
-  if (!new RegExp(`^\\d{${MIN_PIN_LENGTH},${MAX_PIN_LENGTH}}$`).test(pin)) {
-    throw new InvalidPinError(
-      `A PIN must be ${MIN_PIN_LENGTH} to ${MAX_PIN_LENGTH} digits.`,
-    )
+  if (!new RegExp(`^\\d{${PIN_LENGTH}}$`).test(pin)) {
+    throw new InvalidPinError(`A PIN must be exactly ${PIN_LENGTH} digits.`)
   }
 }
 

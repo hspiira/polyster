@@ -126,12 +126,18 @@ export async function createDatabase(
     staff: {
       schema: staffSchema,
       migrationStrategies: {
-        // v1 added pin_length. Existing rows keep it undefined rather than
-        // being guessed at: the PIN pad falls back to a confirm button when
-        // the length is unknown, and the value fills in the next time that
-        // person's PIN is set. Guessing 4 here would lock out anyone with a
-        // longer PIN.
+        // v1 added pin_length so the PIN pad could tell when a variable-length
+        // PIN was complete.
         1: (doc: StaffDoc) => doc,
+        // v2 removed it again: PINs are now fixed at six digits, so the length
+        // is a constant in the app rather than data. Dropping the field here
+        // keeps stored documents matching the schema -- ajv would reject them
+        // otherwise, and only in dev, which is the asymmetry this project has
+        // already been bitten by once.
+        2: (doc: StaffDoc & { pin_length?: number }) => {
+          const { pin_length: _removed, ...rest } = doc
+          return rest
+        },
       },
     },
     clients: { schema: clientSchema, migrationStrategies: {} },

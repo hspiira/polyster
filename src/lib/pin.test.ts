@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_ITERATIONS,
   InvalidPinError,
+  PIN_LENGTH,
   assertValidPin,
   hashPin,
   needsRehash,
@@ -15,16 +16,21 @@ import {
 const FAST = 1_000
 
 describe('assertValidPin', () => {
-  it.each(['1234', '000000', '9999'])('accepts %s', (pin) => {
+  it('is fixed at six digits', () => {
+    expect(PIN_LENGTH).toBe(6)
+  })
+
+  it.each(['123456', '000000', '999999'])('accepts %s', (pin) => {
     expect(() => assertValidPin(pin)).not.toThrow()
   })
 
   it.each([
-    ['123', 'too short'],
-    ['1234567', 'too long'],
-    ['12a4', 'not all digits'],
+    ['1234', 'four digits, which used to be allowed'],
+    ['12345', 'five digits'],
+    ['1234567', 'seven digits'],
+    ['12a456', 'not all digits'],
     ['', 'empty'],
-    ['12 4', 'contains a space'],
+    ['12 456', 'contains a space'],
   ])('rejects %s (%s)', (pin) => {
     expect(() => assertValidPin(pin)).toThrow(InvalidPinError)
   })
@@ -32,13 +38,13 @@ describe('assertValidPin', () => {
 
 describe('hashPin / verifyPin', () => {
   it('accepts the correct PIN', async () => {
-    const stored = await hashPin('1234', FAST)
-    expect(await verifyPin('1234', stored)).toBe(true)
+    const stored = await hashPin('123456', FAST)
+    expect(await verifyPin('123456', stored)).toBe(true)
   })
 
   it('rejects a wrong PIN', async () => {
-    const stored = await hashPin('1234', FAST)
-    expect(await verifyPin('4321', stored)).toBe(false)
+    const stored = await hashPin('123456', FAST)
+    expect(await verifyPin('654321', stored)).toBe(false)
   })
 
   it('rejects a PIN that is a prefix of the right one', async () => {
@@ -50,15 +56,15 @@ describe('hashPin / verifyPin', () => {
     // Per-hash random salt. Without it, two staff sharing a PIN would be
     // visibly identical in the database, and one cracked hash would break
     // every reuse of that PIN across every shop.
-    const a = await hashPin('1234', FAST)
-    const b = await hashPin('1234', FAST)
+    const a = await hashPin('123456', FAST)
+    const b = await hashPin('123456', FAST)
     expect(a).not.toBe(b)
-    expect(await verifyPin('1234', a)).toBe(true)
-    expect(await verifyPin('1234', b)).toBe(true)
+    expect(await verifyPin('123456', a)).toBe(true)
+    expect(await verifyPin('123456', b)).toBe(true)
   })
 
   it('records its own parameters in the stored string', async () => {
-    const stored = await hashPin('1234', FAST)
+    const stored = await hashPin('123456', FAST)
     const [algorithm, digest, iterations] = stored.split('$')
     expect(algorithm).toBe('pbkdf2')
     expect(digest).toBe('sha256')
@@ -67,7 +73,7 @@ describe('hashPin / verifyPin', () => {
   })
 
   it('refuses to hash a PIN that is not valid', async () => {
-    await expect(hashPin('12', FAST)).rejects.toThrow(InvalidPinError)
+    await expect(hashPin('1234', FAST)).rejects.toThrow(InvalidPinError)
   })
 
   it.each([
@@ -81,32 +87,32 @@ describe('hashPin / verifyPin', () => {
   ])('returns false rather than throwing for a stored hash that is %s', async (stored) => {
     // A corrupt pin_hash on one staff row must lock out that one person, not
     // crash the picker for everyone on the device.
-    await expect(verifyPin('1234', stored)).resolves.toBe(false)
+    await expect(verifyPin('123456', stored)).resolves.toBe(false)
   })
 
   it('returns false for a malformed PIN instead of throwing', async () => {
-    const stored = await hashPin('1234', FAST)
+    const stored = await hashPin('123456', FAST)
     await expect(verifyPin('not-a-pin', stored)).resolves.toBe(false)
   })
 })
 
 describe('needsRehash', () => {
   it('flags a hash made with fewer iterations than current policy', async () => {
-    const stored = await hashPin('1234', FAST)
+    const stored = await hashPin('123456', FAST)
     expect(needsRehash(stored)).toBe(true)
   })
 
   it('leaves a hash at current policy alone', async () => {
-    const stored = await hashPin('1234', FAST)
+    const stored = await hashPin('123456', FAST)
     expect(needsRehash(stored, FAST)).toBe(false)
   })
 
   it('still verifies a hash that needs rehashing', async () => {
     // Raising the iteration count must not lock anyone out. The parameters
     // come from the stored string, not from current policy.
-    const stored = await hashPin('1234', FAST)
+    const stored = await hashPin('123456', FAST)
     expect(needsRehash(stored, DEFAULT_ITERATIONS)).toBe(true)
-    expect(await verifyPin('1234', stored)).toBe(true)
+    expect(await verifyPin('123456', stored)).toBe(true)
   })
 
   it('flags an unparseable hash for replacement', () => {

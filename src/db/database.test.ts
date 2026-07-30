@@ -131,40 +131,6 @@ describe('database', () => {
     ).rejects.toThrow()
   })
 
-  it('accepts a staff row with a recorded pin_length, and one without', async () => {
-    // Both shapes are legitimate: rows written since 0002 carry the length so
-    // the PIN pad can submit itself, and rows predating it do not.
-    const db = await freshDatabase()
-    const base = {
-      shop_id: crypto.randomUUID(),
-      pin_hash: 'pbkdf2$sha256$1000$c2FsdA==$aGFzaA==',
-      role: 'staff' as const,
-      active: true,
-      created_at: new Date().toISOString(),
-    }
-
-    await db.staff.insert({ ...base, id: crypto.randomUUID(), name: 'With length', pin_length: 4 })
-    await db.staff.insert({ ...base, id: crypto.randomUUID(), name: 'Legacy row' })
-
-    expect(await db.staff.count().exec()).toBe(2)
-  })
-
-  it('rejects a pin_length outside the 4-6 range the PIN rules allow', async () => {
-    const db = await freshDatabase()
-    await expect(
-      db.staff.insert({
-        id: crypto.randomUUID(),
-        shop_id: crypto.randomUUID(),
-        name: 'Impossible',
-        pin_hash: 'pbkdf2$sha256$1000$c2FsdA==$aGFzaA==',
-        pin_length: 9,
-        role: 'staff',
-        active: true,
-        created_at: new Date().toISOString(),
-      }),
-    ).rejects.toThrow()
-  })
-
   it('declares a migrationStrategies map on every collection', async () => {
     const db = await freshDatabase()
     for (const [name, collection] of Object.entries(db.collections)) {

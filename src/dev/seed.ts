@@ -33,7 +33,7 @@ import type {
 } from '../db/schema'
 
 /** Every seeded PIN, so the staff gate is usable without hunting for it. */
-export const SEED_PIN = '1234'
+export const SEED_PIN = '123456'
 
 export class SeedRefused extends Error {}
 
@@ -90,11 +90,11 @@ export async function seed(db: AppDatabase): Promise<SeedResult> {
   const staff: StaffDoc[] = [
     {
       id: id(), shop_id: shop.id, name: 'Grace', pin_hash: pinHash,
-      pin_length: SEED_PIN.length, role: 'owner', active: true, created_at: now,
+      role: 'owner', active: true, created_at: now,
     },
     {
       id: id(), shop_id: shop.id, name: 'Joseph', pin_hash: pinHash,
-      pin_length: SEED_PIN.length, role: 'staff', active: true, created_at: now,
+      role: 'staff', active: true, created_at: now,
     },
   ]
   await db.staff.bulkInsert(staff)

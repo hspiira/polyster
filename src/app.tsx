@@ -7,7 +7,7 @@
  * auth, and screens/StaffGate.tsx for why the staff check comes last.
  */
 import { LocationProvider } from 'preact-iso'
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { useAuth } from './hooks/useAuth'
 import { useDatabase } from './hooks/useDatabase'
 import { useOnline } from './hooks/useOnline'
@@ -16,6 +16,7 @@ import { ShopProvider, useShop } from './state/ShopProvider'
 import { Landing } from './screens/Landing'
 import { Login } from './screens/Login'
 import { StaffGate } from './screens/StaffGate'
+import { SetupFlow } from './screens/setup/SetupFlow'
 import { Shell } from './screens/Shell'
 import { DevTools } from './dev/DevTools'
 import type { AuthController, AuthState } from './lib/auth'
@@ -68,10 +69,35 @@ function Gate({
   auth: AuthState
   replication: ReplicationStatus
 }) {
-  const { shop, activeStaff } = useShop()
+  const { shop, staff, activeStaff } = useShop()
+
+  // A shop with nobody in it has never been set up. Sending it to the staff
+  // picker would show an empty list whose only way out is a route the picker
+  // itself blocks -- which is exactly what used to happen.
+  //
+  // Latched rather than derived: creating the first staff member makes
+  // `staff.length === 0` false, and a plain condition would tear the wizard
+  // down on its second step. It stays up until it says it is finished.
+  const [setupRunning, setSetupRunning] = useState(false)
+  const [setupFinished, setSetupFinished] = useState(false)
+
+  useEffect(() => {
+    if (shop && staff.length === 0 && !setupFinished) setSetupRunning(true)
+  }, [shop, staff.length, setupFinished])
 
   if (!shop) {
     return <WaitingForShop replication={replication} online={online} />
+  }
+
+  if (setupRunning && !setupFinished) {
+    return (
+      <SetupFlow
+        onDone={() => {
+          setSetupFinished(true)
+          setSetupRunning(false)
+        }}
+      />
+    )
   }
 
   if (!activeStaff) {

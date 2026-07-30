@@ -1,9 +1,14 @@
 /**
- * Staff management (Phase 1 step 9).
+ * Staff management (Phase 1 step 9): the shop's people, after setup.
  *
  * Staff are deactivated, never deleted: `orders.created_by` and
  * `payments.recorded_by` point at these rows, and a departed employee's name
  * still has to render on the orders they took.
+ *
+ * Adding someone and changing a PIN both use the same pad as the staff gate,
+ * so a person's first encounter with a PIN looks like every later one. A
+ * number pad on one screen and a text field on the next is how a small app
+ * starts feeling like two.
  */
 import { useMemo, useState } from 'preact/hooks'
 import {
@@ -11,6 +16,7 @@ import {
   Button,
   Card,
   Chip,
+  EmptyState,
   ErrorNote,
   Field,
   InfoNote,
@@ -19,16 +25,16 @@ import {
   Segmented,
   Sheet,
 } from '../../components/ui'
+import { PinPad } from '../../components/PinPad'
 import { IconPlus, IconUsers } from '../../components/icons'
-import { EmptyState } from '../../components/ui'
 import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import { createStaff, setStaffActive, setStaffPin } from '../../db/writes'
-import { MAX_PIN_LENGTH, MIN_PIN_LENGTH, assertValidPin } from '../../lib/pin'
-import type { StaffRole } from '../../db/schema'
+import { PIN_LENGTH } from '../../lib/pin'
+import type { StaffDoc, StaffRole } from '../../db/schema'
 
 export function StaffSettings() {
-  const { db, shop } = useShop()
+  const { db, shop, activeStaff } = useShop()
 
   // Not filtered to active, unlike the picker -- this is where someone is
   // brought back after being deactivated by mistake.
@@ -41,7 +47,8 @@ export function StaffSettings() {
   const staff = useMemo(() => staffDocs.map((doc) => doc.toJSON()), [staffDocs])
 
   const [adding, setAdding] = useState(false)
-  const [resettingId, setResettingId] = useState<string | null>(null)
+  const [resetting, setResetting] = useState<StaffDoc | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   if (!shop) {
     return (
@@ -55,9 +62,23 @@ export function StaffSettings() {
     )
   }
 
+  const activeCount = staff.filter((member) => member.active).length
+
+  async function toggleActive(member: StaffDoc) {
+    // Deactivating the last active person would leave the shop with an empty
+    // picker on the next launch, which drops it back into the setup flow.
+    if (member.active && activeCount <= 1) {
+      setError('At least one person has to stay active, or nobody can use the app.')
+      return
+    }
+    setError(null)
+    await setStaffActive(db, member.id, !member.active)
+  }
+
   return (
     <Screen
       title="Staff"
+      subtitle={`${activeCount} active`}
       back="/settings"
       action={
         staff.length > 0 && (
@@ -68,6 +89,8 @@ export function StaffSettings() {
       }
     >
       <div class="space-y-4">
+        {error && <ErrorNote>{error}</ErrorNote>}
+
         {staff.length === 0 ? (
           <Card padded={false}>
             <EmptyState
@@ -84,12 +107,11 @@ export function StaffSettings() {
                 <li key={member.id} class="px-4 py-3">
                   <div class="flex items-center gap-3">
                     <Avatar name={member.name} />
-                    <span class="min-w-0 flex-1">
-                      <span class="flex items-center gap-2">
-                        <span class="truncate font-medium">{member.name}</span>
-                        {member.role === 'owner' && <Chip tone="info">Owner</Chip>}
-                        {!member.active && <Chip>Inactive</Chip>}
-                      </span>
+                    <span class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                      <span class="truncate font-medium">{member.name}</span>
+                      {member.role === 'owner' && <Chip tone="info">Owner</Chip>}
+                      {member.id === activeStaff?.id && <Chip tone="good">You</Chip>}
+                      {!member.active && <Chip>Inactive</Chip>}
                     </span>
                   </div>
 
@@ -98,7 +120,7 @@ export function StaffSettings() {
                       variant="secondary"
                       size="sm"
                       class="flex-1"
-                      onClick={() => setResettingId(resettingId === member.id ? null : member.id)}
+                      onClick={() => setResetting(member)}
                     >
                       Change PIN
                     </Button>
@@ -106,7 +128,7 @@ export function StaffSettings() {
                       variant={member.active ? 'danger' : 'secondary'}
                       size="sm"
                       class="flex-1"
-                      onClick={() => void setStaffActive(db, member.id, !member.active)}
+                      onClick={() => void toggleActive(member)}
                     >
                       {member.active ? 'Deactivate' : 'Reactivate'}
                     </Button>
@@ -124,33 +146,17 @@ export function StaffSettings() {
       </div>
 
       <AddStaffSheet open={adding} shopId={shop.id} onClose={() => setAdding(false)} />
-      <ChangePinSheet staffId={resettingId} onClose={() => setResettingId(null)} />
+      <ChangePinSheet member={resetting} onClose={() => setResetting(null)} />
     </Screen>
   )
 }
 
-function usePinValidation() {
-  const [pin, setPin] = useState('')
-  const [confirm, setConfirm] = useState('')
-
-  function problem(): string | null {
-    try {
-      assertValidPin(pin)
-    } catch {
-      return `A PIN must be ${MIN_PIN_LENGTH} to ${MAX_PIN_LENGTH} digits.`
-    }
-    if (pin !== confirm) return 'The two PINs do not match.'
-    return null
-  }
-
-  function reset() {
-    setPin('')
-    setConfirm('')
-  }
-
-  return { pin, setPin, confirm, setConfirm, problem, reset }
-}
-
+/**
+ * Name and role, then the PIN twice.
+ *
+ * Twice because a PIN cannot be revealed the way a password field can, and one
+ * mistyped digit locks that person out until someone else resets it.
+ */
 function AddStaffSheet({
   open,
   shopId,
@@ -162,161 +168,166 @@ function AddStaffSheet({
 }) {
   const { db, staff } = useShop()
   const [name, setName] = useState('')
-  // The first person added is almost always the owner.
+  // The first person added to a shop is almost always the owner.
   const [role, setRole] = useState<StaffRole>(staff.length === 0 ? 'owner' : 'staff')
+  const [phase, setPhase] = useState<'details' | 'pin' | 'confirm'>('details')
+  const [firstPin, setFirstPin] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const { pin, setPin, confirm, setConfirm, problem, reset } = usePinValidation()
 
-  async function submit(event: Event) {
-    event.preventDefault()
-    if (!name.trim()) {
-      setError('A name is needed.')
-      return
-    }
-    const pinProblem = problem()
-    if (pinProblem) {
-      setError(pinProblem)
-      return
-    }
-
-    setSaving(true)
+  function reset() {
+    setName('')
+    setPhase('details')
+    setFirstPin('')
     setError(null)
-    try {
-      await createStaff(db, shopId, { name, pin, role })
-      setName('')
-      reset()
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add this person.')
-    } finally {
-      setSaving(false)
-    }
+  }
+
+  function close() {
+    reset()
+    onClose()
   }
 
   return (
-    <Sheet open={open} title="Add a person" onClose={onClose}>
-      <form onSubmit={submit} class="space-y-4">
-        <Field label="Name">
-          <Input
-            autofocus
-            value={name}
-            onInput={(e) => setName((e.target as HTMLInputElement).value)}
+    <Sheet
+      open={open}
+      title={phase === 'details' ? 'Add a person' : `PIN for ${name}`}
+      onClose={close}
+    >
+      {phase === 'details' ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (!name.trim()) {
+              setError('A name is needed.')
+              return
+            }
+            setError(null)
+            setPhase('pin')
+          }}
+          class="space-y-4"
+        >
+          <Field label="Name">
+            <Input
+              autofocus
+              value={name}
+              onInput={(e) => setName((e.target as HTMLInputElement).value)}
+            />
+          </Field>
+
+          <Field label="Role" hint="Owner is a label for now, not a permission level.">
+            <Segmented
+              value={role}
+              options={[
+                { value: 'staff' as const, label: 'Staff' },
+                { value: 'owner' as const, label: 'Owner' },
+              ]}
+              onChange={setRole}
+              label="Role"
+            />
+          </Field>
+
+          {error && <ErrorNote>{error}</ErrorNote>}
+
+          <div class="flex gap-2 pt-1">
+            <Button variant="secondary" class="flex-1" type="button" onClick={close}>
+              Cancel
+            </Button>
+            <Button class="flex-1" type="submit">
+              Choose a PIN
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <div class="space-y-4 pb-2">
+          {error && <ErrorNote>{error}</ErrorNote>}
+          <PinPad
+            key={phase}
+            hint={
+              phase === 'confirm'
+                ? 'Type it again to confirm'
+                : `Choose ${PIN_LENGTH} digits for ${name}`
+            }
+            errorHint="Those did not match. Start again."
+            busyHint="Saving..."
+            onComplete={async (pin) => {
+              if (phase === 'pin') {
+                setFirstPin(pin)
+                setPhase('confirm')
+                return true
+              }
+              if (pin !== firstPin) {
+                setFirstPin('')
+                setPhase('pin')
+                setError('Those two PINs did not match. Choose one again.')
+                return false
+              }
+              try {
+                await createStaff(db, shopId, { name, pin, role })
+                close()
+                return true
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not add this person.')
+                setPhase('pin')
+                return false
+              }
+            }}
           />
-        </Field>
-
-        <Field label="Role">
-          <Segmented
-            value={role}
-            options={[
-              { value: 'staff' as const, label: 'Staff' },
-              { value: 'owner' as const, label: 'Owner' },
-            ]}
-            onChange={setRole}
-            label="Role"
-          />
-        </Field>
-
-        <PinFields pin={pin} confirm={confirm} onPin={setPin} onConfirm={setConfirm} />
-
-        {error && <ErrorNote>{error}</ErrorNote>}
-
-        <div class="flex gap-2 pt-1">
-          <Button variant="secondary" class="flex-1" type="button" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button class="flex-1" type="submit" disabled={saving}>
-            {saving ? 'Saving...' : 'Add'}
-          </Button>
         </div>
-      </form>
+      )}
     </Sheet>
   )
 }
 
-function ChangePinSheet({ staffId, onClose }: { staffId: string | null; onClose: () => void }) {
+function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose: () => void }) {
   const { db } = useShop()
+  const [phase, setPhase] = useState<'pin' | 'confirm'>('pin')
+  const [firstPin, setFirstPin] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const { pin, setPin, confirm, setConfirm, problem, reset } = usePinValidation()
 
-  async function submit(event: Event) {
-    event.preventDefault()
-    if (!staffId) return
-    const pinProblem = problem()
-    if (pinProblem) {
-      setError(pinProblem)
-      return
-    }
-
-    setSaving(true)
+  function close() {
+    setPhase('pin')
+    setFirstPin('')
     setError(null)
-    try {
-      await setStaffPin(db, staffId, pin)
-      reset()
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not change the PIN.')
-    } finally {
-      setSaving(false)
-    }
+    onClose()
   }
 
   return (
-    <Sheet open={staffId !== null} title="Set a new PIN" onClose={onClose}>
-      <form onSubmit={submit} class="space-y-4">
-        <PinFields pin={pin} confirm={confirm} onPin={setPin} onConfirm={setConfirm} />
+    <Sheet
+      open={member !== null}
+      title={member ? `New PIN for ${member.name}` : 'New PIN'}
+      onClose={close}
+    >
+      <div class="space-y-4 pb-2">
         {error && <ErrorNote>{error}</ErrorNote>}
-        <div class="flex gap-2 pt-1">
-          <Button variant="secondary" class="flex-1" type="button" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button class="flex-1" type="submit" disabled={saving}>
-            {saving ? 'Saving...' : 'Set PIN'}
-          </Button>
-        </div>
-      </form>
+        <PinPad
+          key={phase}
+          hint={phase === 'confirm' ? 'Type it again to confirm' : `Choose ${PIN_LENGTH} digits`}
+          errorHint="Those did not match. Start again."
+          busyHint="Saving..."
+          onComplete={async (pin) => {
+            if (!member) return false
+            if (phase === 'pin') {
+              setFirstPin(pin)
+              setPhase('confirm')
+              return true
+            }
+            if (pin !== firstPin) {
+              setFirstPin('')
+              setPhase('pin')
+              setError('Those two PINs did not match. Choose one again.')
+              return false
+            }
+            try {
+              await setStaffPin(db, member.id, pin)
+              close()
+              return true
+            } catch (err) {
+              setError(err instanceof Error ? err.message : 'Could not change the PIN.')
+              setPhase('pin')
+              return false
+            }
+          }}
+        />
+      </div>
     </Sheet>
-  )
-}
-
-function PinFields({
-  pin,
-  confirm,
-  onPin,
-  onConfirm,
-}: {
-  pin: string
-  confirm: string
-  onPin: (value: string) => void
-  onConfirm: (value: string) => void
-}) {
-  // inputmode numeric rather than type="number": a PIN is a string of digits,
-  // not a quantity, and a number input strips leading zeros.
-  const digitsOnly = (value: string) => value.replace(/\D/g, '').slice(0, MAX_PIN_LENGTH)
-
-  return (
-    <div class="flex gap-3">
-      <div class="flex-1">
-        <Field label="PIN" hint={`${MIN_PIN_LENGTH}-${MAX_PIN_LENGTH} digits`}>
-          <Input
-            inputmode="numeric"
-            autocomplete="off"
-            value={pin}
-            onInput={(e) => onPin(digitsOnly((e.target as HTMLInputElement).value))}
-          />
-        </Field>
-      </div>
-      <div class="flex-1">
-        <Field label="Confirm">
-          <Input
-            inputmode="numeric"
-            autocomplete="off"
-            value={confirm}
-            onInput={(e) => onConfirm(digitsOnly((e.target as HTMLInputElement).value))}
-          />
-        </Field>
-      </div>
-    </div>
   )
 }
