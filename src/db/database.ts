@@ -12,6 +12,7 @@
  */
 import { createRxDatabase, addRxPlugin, type RxCollection, type RxDatabase } from 'rxdb'
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
 import {
   shopSchema,
   staffSchema,
@@ -47,6 +48,38 @@ export type Collections = {
 export type AppDatabase = RxDatabase<Collections>
 
 export const DATABASE_NAME = 'tailor_tracker'
+
+/**
+ * Schema migrations.
+ *
+ * Every collection passes a `migrationStrategies` map, empty while all schemas
+ * are still at `version: 0`. The empty maps are not decoration -- they are the
+ * pattern being established while it is free.
+ *
+ * The failure this prevents is specific and bad. Once this app is installed on
+ * a shop's phone, that phone holds the only copy of any work done offline.
+ * Bumping a schema version without a strategy for the version below it makes
+ * `addCollections()` throw on that device, and the app cannot open the
+ * database that holds the shop's orders. It is not a data-loss bug on paper --
+ * the rows are still in IndexedDB -- but it is one in practice, because the
+ * only thing that can read them is the app that now refuses to start.
+ *
+ * So: when you bump a `version` in schema.ts, add the matching strategy here
+ * in the same commit. A strategy is a function from the old document shape to
+ * the new one; returning `null` drops the document.
+ *
+ *     orders: {
+ *       schema: orderSchema,           // version: 1
+ *       migrationStrategies: {
+ *         1: (doc) => ({ ...doc, deposit_required: false }),
+ *       },
+ *     }
+ *
+ * The number is the version being migrated *to*. Test it: `database.test.ts`
+ * has a case that opens a collection at v0, writes a document, reopens it at
+ * v1, and asserts the document survived.
+ */
+addRxPlugin(RxDBMigrationSchemaPlugin)
 
 let dbPromise: Promise<AppDatabase> | null = null
 
@@ -89,14 +122,14 @@ export async function createDatabase(
   })
 
   await db.addCollections({
-    shops: { schema: shopSchema },
-    staff: { schema: staffSchema },
-    clients: { schema: clientSchema },
-    measurement_fields: { schema: measurementFieldSchema },
-    measurement_profiles: { schema: measurementProfileSchema },
-    orders: { schema: orderSchema },
-    payments: { schema: paymentSchema },
-    order_stage_history: { schema: orderStageHistorySchema },
+    shops: { schema: shopSchema, migrationStrategies: {} },
+    staff: { schema: staffSchema, migrationStrategies: {} },
+    clients: { schema: clientSchema, migrationStrategies: {} },
+    measurement_fields: { schema: measurementFieldSchema, migrationStrategies: {} },
+    measurement_profiles: { schema: measurementProfileSchema, migrationStrategies: {} },
+    orders: { schema: orderSchema, migrationStrategies: {} },
+    payments: { schema: paymentSchema, migrationStrategies: {} },
+    order_stage_history: { schema: orderStageHistorySchema, migrationStrategies: {} },
   })
 
   return db

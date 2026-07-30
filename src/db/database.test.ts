@@ -13,6 +13,9 @@
  * that do not satisfy their own schema.
  */
 import { afterEach, describe, expect, it } from 'vitest'
+import { createRxDatabase, type RxJsonSchema } from 'rxdb'
+import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
+import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv'
 import { createDatabase, type AppDatabase } from './database'
 import { REPLICATED_TABLES } from './replication'
 
@@ -126,5 +129,100 @@ describe('database', () => {
         method: 'cash',
       }),
     ).rejects.toThrow()
+  })
+
+  it('declares a migrationStrategies map on every collection', async () => {
+    const db = await freshDatabase()
+    for (const [name, collection] of Object.entries(db.collections)) {
+      expect(
+        collection.migrationStrategies,
+        `${name} has no migrationStrategies -- a version bump would fail to open ` +
+          'the database on devices holding existing data',
+      ).toBeDefined()
+    }
+  })
+})
+
+/**
+ * Proves the migration plumbing works before anyone needs it. Once this app is
+ * on a shop's phone, that phone holds the only copy of work done offline: a
+ * version bump that cannot open the existing store is a data-loss bug in
+ * practice, even though the rows are technically still in IndexedDB.
+ *
+ * This uses a throwaway collection rather than a real one so it keeps testing
+ * the mechanism after the app's own schemas move past v0.
+ */
+describe('schema migration', () => {
+  // dev-mode is registered globally by the suite above and refuses a storage
+  // without a validator, so this mirrors what createDatabase() builds.
+  const open = (name: string) =>
+    createRxDatabase({
+      name,
+      storage: wrappedValidateAjvStorage({ storage: getRxStorageDexie() }),
+      multiInstance: false,
+    })
+
+  interface WidgetV0 {
+    id: string
+    label: string
+  }
+  interface WidgetV1 extends WidgetV0 {
+    retired: boolean
+  }
+
+  const v0: RxJsonSchema<WidgetV0> = {
+    version: 0,
+    primaryKey: 'id',
+    type: 'object',
+    properties: { id: { type: 'string', maxLength: 36 }, label: { type: 'string' } },
+    required: ['id', 'label'],
+  }
+
+  const v1: RxJsonSchema<WidgetV1> = {
+    ...v0,
+    version: 1,
+    properties: { ...v0.properties, retired: { type: 'boolean' } },
+    required: ['id', 'label', 'retired'],
+  }
+
+  it('carries existing documents across a version bump', async () => {
+    const name = `migration_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    const before = await open(name)
+    await before.addCollections({ widgets: { schema: v0, migrationStrategies: {} } })
+    await before.collections.widgets?.insert({ id: 'w1', label: 'Kitenge' })
+    await before.close()
+
+    const after = await open(name)
+    await after.addCollections({
+      widgets: {
+        schema: v1,
+        migrationStrategies: {
+          // The key is the version being migrated *to*.
+          1: (doc: WidgetV0) => ({ ...doc, retired: false }),
+        },
+      },
+    })
+
+    const migrated = await after.collections.widgets?.findOne('w1').exec()
+    expect(migrated?.toJSON()).toMatchObject({ id: 'w1', label: 'Kitenge', retired: false })
+
+    await after.remove()
+  })
+
+  it('fails to open when a version is bumped with no strategy for it', async () => {
+    // The exact failure this file exists to keep out of a shop's phone.
+    const name = `migration_gap_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    const before = await open(name)
+    await before.addCollections({ widgets: { schema: v0, migrationStrategies: {} } })
+    await before.collections.widgets?.insert({ id: 'w1', label: 'Kitenge' })
+    await before.close()
+
+    const after = await open(name)
+    await expect(
+      after.addCollections({ widgets: { schema: v1, migrationStrategies: {} } }),
+    ).rejects.toThrow()
+
+    await after.remove()
   })
 })
