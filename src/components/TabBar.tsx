@@ -2,13 +2,21 @@ import { useLocation } from 'preact-iso'
 import { IconHome, IconMoney, IconOrders, IconPlus, IconUsers } from './icons'
 
 /**
- * Bottom navigation: four labelled destinations, split two-and-two, with the
- * create action centred between them.
+ * Bottom navigation: a floating pill inset from the left, right and bottom
+ * edges, rather than a bar welded to the bottom edge.
  *
  * Bottom rather than top because the top of a modern handset is out of thumb
- * reach one-handed. Four labels is the ceiling -- past that they shrink below
- * legibility on a narrow screen. Settings therefore lives in the status strip
- * rather than here, and the centre button is an action, not a fifth label.
+ * reach one-handed. Four destinations is the ceiling -- past that, labels
+ * shrink below legibility on a narrow screen. Settings therefore lives in the
+ * status strip rather than here, and the centre button is an action, not a
+ * fifth destination.
+ *
+ * Only the active tab carries a label, as a filled pill; the other three are
+ * bare icons at a fixed 44px square. That is the point of the change -- the
+ * label appears exactly once on screen instead of competing with the
+ * screen's own title -- and it is why the bar's items are not equal width:
+ * the active pill sizes to its own content ("Reports" is the long case)
+ * while its neighbours stay fixed, so the layout is flex, not a grid.
  *
  * The centre action sits *in* the bar rather than raised above it. Raised, it
  * overhung the bar's top edge in its own stacking context, and on the order
@@ -42,22 +50,30 @@ export function TabBar() {
   if (isFullScreenTask(path)) return null
 
   return (
-    <nav class="fixed inset-x-0 bottom-0 z-30 bg-white safe-bottom dark:bg-stone-900" aria-label="Main">
-      <div class="mx-auto flex max-w-lg items-stretch">
+    <nav
+      class="fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30
+             flex justify-center px-4"
+      aria-label="Main"
+    >
+      <div
+        class="flex w-full max-w-lg items-center justify-between gap-1 rounded-full
+               border border-stone-200/80 bg-white/85 p-2 backdrop-blur-lg
+               dark:border-stone-800 dark:bg-stone-900/85
+               supports-backdrop-filter:bg-white/70
+               dark:supports-backdrop-filter:bg-stone-900/70"
+      >
         {TABS.slice(0, 2).map((tab) => (
           <Tab key={tab.href} {...tab} active={isActive(path, tab.href)} />
         ))}
 
-        <span class="flex w-16 shrink-0 items-center justify-center">
-          <a
-            href="/orders/new"
-            aria-label="Take an order"
-            class="flex size-11 items-center justify-center rounded-full bg-brand-700
-                   text-white transition-transform active:scale-95 dark:bg-brand-600"
-          >
-            <IconPlus size={24} />
-          </a>
-        </span>
+        <a
+          href="/orders/new"
+          aria-label="Take an order"
+          class="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-700
+                 text-white transition-transform active:scale-95 dark:bg-brand-600"
+        >
+          <IconPlus size={22} />
+        </a>
 
         {TABS.slice(2).map((tab) => (
           <Tab key={tab.href} {...tab} active={isActive(path, tab.href)} />
@@ -82,12 +98,17 @@ function Tab({
     <a
       href={href}
       aria-current={active ? 'page' : undefined}
-      class={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 pt-1 transition-colors ${
-        active ? 'text-brand-700 dark:text-brand-300' : 'text-stone-500 dark:text-stone-400'
-      }`}
+      class={`flex shrink-0 items-center justify-center gap-1.5 rounded-full
+              transition-colors ${
+                active
+                  ? 'h-11 bg-brand-100 px-3.5 text-brand-800 dark:bg-brand-950 dark:text-brand-300'
+                  : 'size-11 text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
+              }`}
     >
-      <Icon size={22} stroke-width={active ? 2.1 : 1.75} />
-      <span class={`text-[11px] ${active ? 'font-semibold' : ''}`}>{label}</span>
+      <Icon size={20} stroke-width={active ? 2.1 : 1.75} />
+      {/* Kept in the DOM either way for assistive tech; hidden visually when
+          inactive so the label reads exactly once on screen. */}
+      <span class={active ? 'text-[13px] font-semibold' : 'sr-only'}>{label}</span>
     </a>
   )
 }

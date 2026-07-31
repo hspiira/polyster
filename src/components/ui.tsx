@@ -98,7 +98,11 @@ export function Screen({
         </div>
       </header>
 
-      <div class="mx-auto w-full max-w-lg px-4 pb-28">{children}</div>
+      {/* TabBar floats now (1rem inset + its own ~60px height, on top of the
+          safe area), so this clears it directly rather than a flat guess. */}
+      <div class="mx-auto w-full max-w-lg px-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+        {children}
+      </div>
     </div>
   )
 }
