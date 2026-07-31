@@ -134,21 +134,6 @@ export function EntryButton({ class: className, ...props }: JSX.IntrinsicElement
   )
 }
 
-/** Secondary action that still needs to look like a control. */
-export function EntryGlassButton({ class: className, ...props }: JSX.IntrinsicElements['button']) {
-  return (
-    <button
-      {...props}
-      class={cn(
-        'glass glass-sheen min-h-13 w-full overflow-hidden rounded-control px-4',
-        'text-[15px] font-medium text-white transition-transform active:scale-[0.98]',
-        'disabled:pointer-events-none disabled:opacity-40',
-        className,
-      )}
-    />
-  )
-}
-
 /** Destructive, for the one path that removes local data. */
 export function EntryDangerButton({ class: className, ...props }: JSX.IntrinsicElements['button']) {
   return (

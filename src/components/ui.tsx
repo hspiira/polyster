@@ -386,6 +386,16 @@ const CHIP_TONES = {
 
 export type ChipTone = keyof typeof CHIP_TONES
 
+/** Accent-bar fills, keyed by the same tones `Chip` uses, so one stage is one
+ *  colour in a chip and on a bar. `Reports`' local BAR_TONES folds into this in S4. */
+export const ACCENT_TONES: Record<ChipTone, string> = {
+  neutral: 'bg-stone-300 dark:bg-stone-600',
+  good: 'bg-emerald-500',
+  warn: 'bg-amber-500',
+  bad: 'bg-red-500',
+  info: 'bg-brand-600',
+}
+
 export function Chip({
   tone = 'neutral',
   children,
@@ -413,12 +423,15 @@ export function getInitials(name: string): string {
     .toUpperCase()
 }
 
-/** Circular initials, so a client list scans by shape as well as by reading. */
-export function Avatar({ name }: { name: string }) {
+/** Circular initials, so a list scans by shape as well as by reading. */
+export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
   return (
     <span
-      class="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-100
-             text-sm font-semibold text-brand-800 dark:bg-brand-950 dark:text-brand-300"
+      class={cn(
+        'flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold',
+        'text-brand-800 dark:bg-brand-950 dark:text-brand-300',
+        size === 'sm' ? 'size-7 text-[11px]' : 'size-10 text-sm',
+      )}
       aria-hidden="true"
     >
       {getInitials(name)}
@@ -455,6 +468,103 @@ export function ListRow({
 export function RowList({ children }: { children: ComponentChildren }) {
   return (
     <ul class="divide-y divide-stone-100 dark:divide-stone-800">{children}</ul>
+  )
+}
+
+/**
+ * A titled card with an optional count, subtitle and footer link. Names the
+ * SectionTitle + Card + RowList composite repeated across four screens.
+ */
+export function SectionCard({
+  title,
+  count,
+  subtitle,
+  footer,
+  children,
+}: {
+  title: string
+  count?: number
+  subtitle?: string
+  footer?: ComponentChildren
+  children: ComponentChildren
+}) {
+  return (
+    <section class={`overflow-hidden rounded-card border ${BORDER} ${SURFACE} shadow-card`}>
+      <div class="px-4 pt-3.5 pb-2.5">
+        <h2 class="flex items-baseline gap-1.5 text-sm font-semibold tracking-tight">
+          {title}
+          {count !== undefined && (
+            <span class={`text-xs font-normal ${TEXT_MUTED}`}>· {count}</span>
+          )}
+        </h2>
+        {subtitle && <p class={`mt-0.5 text-xs ${TEXT_MUTED}`}>{subtitle}</p>}
+      </div>
+      {children}
+      {footer}
+    </section>
+  )
+}
+
+/**
+ * A tappable row with a leading tone-coloured bar. Its own anchor rather than a
+ * ListRow wrapper, because the bar has to sit flush against the card edge.
+ */
+export function AccentRow({
+  href,
+  tone = 'neutral',
+  trailing,
+  children,
+}: {
+  href: string
+  tone?: ChipTone
+  trailing?: ComponentChildren
+  children: ComponentChildren
+}) {
+  return (
+    <a
+      href={href}
+      class={`flex items-stretch gap-3 pr-4 transition-colors active:bg-stone-100
+              dark:active:bg-stone-800 ${TAP}`}
+    >
+      <span class={`w-[3px] shrink-0 rounded-r-full ${ACCENT_TONES[tone]}`} aria-hidden="true" />
+      <span class="min-w-0 flex-1 py-2.5">{children}</span>
+      {trailing && <span class="flex shrink-0 items-center py-2.5">{trailing}</span>}
+    </a>
+  )
+}
+
+/** A large tabular figure. `money` is the only toned variant -- see index.css. */
+export function StatValue({
+  value,
+  tone = 'default',
+}: {
+  value: string
+  tone?: 'default' | 'money'
+}) {
+  return (
+    <p
+      class={cn(
+        'text-3xl font-semibold leading-none tabular-nums tracking-tight',
+        tone === 'money' && 'text-amber-700 dark:text-amber-400',
+      )}
+    >
+      {value}
+    </p>
+  )
+}
+
+/** A card's one labelled way out. Used instead of an overflow menu (spec N10). */
+export function MoreLink({ href, children }: { href: string; children: ComponentChildren }) {
+  return (
+    <a
+      href={href}
+      class={`flex items-center justify-between gap-2 border-t ${BORDER} px-4 text-sm
+              font-medium text-brand-700 transition-colors active:bg-stone-100
+              dark:text-brand-300 dark:active:bg-stone-800 ${TAP}`}
+    >
+      {children}
+      <IconChevronRight size={16} class="shrink-0" />
+    </a>
   )
 }
 

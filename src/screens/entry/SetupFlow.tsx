@@ -5,17 +5,21 @@
  * Supabase credentials, or a device with no signal, skips straight to the shop
  * and claims the number later (spec E3).
  *
- * No back arrow anywhere -- each step is a history entry, so swipe on iOS and
- * the system gesture on Android both step back (useWizardSteps).
+ * No back arrow anywhere. Each step is a history entry, so Android's system
+ * back steps back; an installed PWA has no edge-swipe of its own, so the app
+ * supplies one (useSwipeBack), limited to the steps stepAllowsBack permits.
  */
 import { useState } from 'preact/hooks'
-import type { ComponentChildren } from 'preact'
+import type { ComponentChildren, RefObject } from 'preact'
 import { GlowBackdrop } from '../../components/GlowBackdrop'
 import { useWizardSteps } from '../../hooks/useWizardSteps'
+import { useSwipeBack } from '../../hooks/useSwipeBack'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { useAuth } from '../../hooks/useAuth'
 import { useShop } from '../../state/ShopProvider'
 import { isSupabaseConfigured } from '../../lib/supabaseClient'
+import { COUNTED_SETUP_STEPS, SETUP_STEPS, stepAllowsBack } from '../../lib/setupSteps'
+import type { SetupStep } from '../../lib/setupSteps'
 import { cn } from '../../lib/cn'
 import { PhoneStep } from './steps/PhoneStep'
 import { CodeStep } from './steps/CodeStep'
@@ -26,12 +30,6 @@ import { InstallStep } from './InstallStep'
 import { EntryQuietButton } from './parts'
 import type { ShopDoc, StaffDoc } from '../../db/schema'
 
-const STEPS = ['phone', 'code', 'shop', 'pin', 'measure', 'install'] as const
-type Step = (typeof STEPS)[number]
-
-/** The install epilogue is not part of creating a shop, so it is not a segment. */
-const COUNTED_STEPS = 5
-
 export function SetupFlow({ onDone }: { onDone: () => void }) {
   const { state: auth } = useAuth()
   const { setActiveStaff } = useShop()
@@ -40,7 +38,12 @@ export function SetupFlow({ onDone }: { onDone: () => void }) {
   // A build with no Supabase credentials cannot send a code, so it must not
   // offer to. Already verified means the number is done.
   const canVerify = isSupabaseConfigured() && auth.status !== 'signed_in'
-  const { step, goTo, replaceWith } = useWizardSteps<Step>(STEPS, canVerify ? 'phone' : 'shop')
+  const { step, canGoBack, goTo, replaceWith, goBack } = useWizardSteps<SetupStep>(
+    SETUP_STEPS,
+    canVerify ? 'phone' : 'shop',
+  )
+
+  const swipeRef = useSwipeBack(canGoBack && stepAllowsBack(step) ? goBack : undefined)
 
   const [phone, setPhone] = useState('')
   const [shop, setShop] = useState<ShopDoc | null>(null)
@@ -59,7 +62,7 @@ export function SetupFlow({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <Frame index={STEPS.indexOf(step)}>
+    <Frame index={SETUP_STEPS.indexOf(step)} contentRef={swipeRef}>
       {step === 'phone' && (
         <PhoneStep
           onSent={(sent) => {
@@ -83,7 +86,9 @@ export function SetupFlow({ onDone }: { onDone: () => void }) {
           onCreated={(created, name) => {
             setShop(created)
             setYourName(name)
-            goTo('pin')
+            // Replace, not push: the shop row now exists, and resubmitting
+            // this step would create a second one.
+            replaceWith('pin')
           }}
         />
       )}
@@ -110,7 +115,16 @@ export function SetupFlow({ onDone }: { onDone: () => void }) {
   )
 }
 
-function Frame({ index, children }: { index: number; children: ComponentChildren }) {
+function Frame({
+  index,
+  contentRef,
+  children,
+}: {
+  index: number
+  /** The step slides under the swipe; the progress bar is chrome and stays put. */
+  contentRef: RefObject<HTMLDivElement>
+  children: ComponentChildren
+}) {
   return (
     <main class="relative flex min-h-svh flex-col overflow-hidden bg-stone-950 px-6 text-stone-100">
       <GlowBackdrop />
@@ -120,9 +134,9 @@ function Frame({ index, children }: { index: number; children: ComponentChildren
         <div class="flex justify-center pb-7 pt-8">
           <div
             class="flex w-26 gap-1.5"
-            aria-label={`Step ${Math.min(index + 1, COUNTED_STEPS)} of ${COUNTED_STEPS}`}
+            aria-label={`Step ${Math.min(index + 1, COUNTED_SETUP_STEPS)} of ${COUNTED_SETUP_STEPS}`}
           >
-            {Array.from({ length: COUNTED_STEPS }, (_, i) => (
+            {Array.from({ length: COUNTED_SETUP_STEPS }, (_, i) => (
               <span
                 key={i}
                 class={cn(
@@ -136,7 +150,9 @@ function Frame({ index, children }: { index: number; children: ComponentChildren
       </header>
 
       <div class="safe-bottom relative z-10 flex flex-1 flex-col">
-        <div class="mx-auto flex w-full max-w-sm flex-1 flex-col pb-10">{children}</div>
+        <div ref={contentRef} class="mx-auto flex w-full max-w-sm flex-1 flex-col pb-10">
+          {children}
+        </div>
       </div>
     </main>
   )
