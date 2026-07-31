@@ -622,33 +622,48 @@ export function MoreLink({ href, children }: { href: string; children: Component
   )
 }
 
+/**
+ * A screen (or section) with nothing in it yet.
+ *
+ * No box around the illustration and no card around the whole thing (spec
+ * A11/A1) -- artwork sits directly on the page, the way it would in the
+ * reference apps this shell follows.
+ *
+ * `spacious` opts into filling the room a whole empty screen actually has,
+ * centring in it rather than sitting padded from the top. It is a prop
+ * rather than the default because half the call sites are one section on an
+ * otherwise busy page (a client's empty order history, a staff screen with a
+ * footnote below) -- giving those the same vertical reach as a blank Today
+ * would shove real content around it out of view for no reason.
+ */
 export function EmptyState({
-  icon,
+  illustration,
   title,
   description,
   action,
+  spacious = false,
 }: {
-  icon?: ComponentChildren
+  illustration?: ComponentChildren
   title: string
   description: string
   action?: ComponentChildren
+  spacious?: boolean
 }) {
   return (
-    <div class="px-6 py-12 text-center">
-      {icon && (
-        <div
-          class={cn(
-            'mx-auto mb-3 flex size-14 items-center justify-center rounded-card',
-            RECESSED,
-            'text-stone-500 dark:text-stone-400',
-          )}
-        >
-          {icon}
-        </div>
+    <div
+      class={cn(
+        'flex flex-col items-center justify-center px-6 text-center',
+        spacious ? 'min-h-[60svh] py-10' : 'py-8',
       )}
-      <p class="font-semibold">{title}</p>
-      <p class={`mx-auto mt-1 max-w-xs text-sm ${TEXT_MUTED}`}>{description}</p>
-      {action && <div class="mt-5 flex justify-center">{action}</div>}
+    >
+      {illustration && (
+        <div class="mb-5 text-stone-400 dark:text-stone-600">{illustration}</div>
+      )}
+      <p class="text-xl font-semibold tracking-tight">{title}</p>
+      <p class={`mx-auto mt-2 max-w-xs text-[15px] leading-relaxed ${TEXT_MUTED}`}>
+        {description}
+      </p>
+      {action && <div class="mt-6 flex justify-center">{action}</div>}
     </div>
   )
 }

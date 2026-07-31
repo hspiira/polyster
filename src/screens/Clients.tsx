@@ -31,7 +31,8 @@ import {
   Textarea,
 } from '../components/ui'
 import { BookSwitch } from '../components/BookSwitch'
-import { IconPlus, IconUsers } from '../components/icons'
+import { IconPlus } from '../components/icons'
+import { IllustrationBook, IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { createClient } from '../db/writes'
@@ -84,28 +85,27 @@ export function Clients() {
           )}
 
           {clients.length === 0 && (
-            <Card padded={false}>
-              <EmptyState
-                icon={<IconUsers size={26} />}
-                title="No clients yet"
-                description="Add the first client and their measurements, then you can take an order for them."
-                action={
-                  <Button onClick={() => setAdding(true)}>
-                    <IconPlus size={18} /> Add a client
-                  </Button>
-                }
-              />
-            </Card>
+            <EmptyState
+              spacious
+              illustration={<IllustrationBook size={112} />}
+              title="No clients yet"
+              description="Add the first client and their measurements, then you can take an order for them."
+              action={
+                <Button onClick={() => setAdding(true)}>
+                  <IconPlus size={18} /> Add a client
+                </Button>
+              }
+            />
           )}
 
           {clients.length > 0 && matches.length === 0 && (
-            <Card padded={false}>
-              <EmptyState
-                title="No matches"
-                description={`Nothing found for "${search.trim()}". Check the spelling, or add them as a new client.`}
-                action={<Button onClick={() => setAdding(true)}>Add a client</Button>}
-              />
-            </Card>
+            <EmptyState
+              spacious
+              illustration={<IllustrationSearch size={112} />}
+              title="No matches"
+              description={`Nothing found for "${search.trim()}". Check the spelling, or add them as a new client.`}
+              action={<Button onClick={() => setAdding(true)}>Add a client</Button>}
+            />
           )}
 
           {matches.length > 0 && (

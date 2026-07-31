@@ -29,10 +29,10 @@ import {
   IconAlert,
   IconCheck,
   IconEdit,
-  IconOrders,
   IconPlus,
   IconWhatsApp,
 } from '../components/icons'
+import { IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeBalance, type OrderBalance } from '../db/balances'
@@ -79,18 +79,17 @@ export function OrderDetail() {
   if (!order) {
     return (
       <Screen title="Order" back="/orders">
-        <Card padded={false}>
-          <EmptyState
-            icon={<IconOrders size={26} />}
-            title="Order not found"
-            description="It may have been removed, or this device has not synced it yet."
-            action={
-              <a href="/orders">
-                <Button variant="secondary">Back to orders</Button>
-              </a>
-            }
-          />
-        </Card>
+        <EmptyState
+          spacious
+          illustration={<IllustrationSearch size={112} />}
+          title="Order not found"
+          description="It may have been removed, or this device has not synced it yet."
+          action={
+            <a href="/orders">
+              <Button variant="secondary">Back to orders</Button>
+            </a>
+          }
+        />
       </Screen>
     )
   }

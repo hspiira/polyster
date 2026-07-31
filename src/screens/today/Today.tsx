@@ -8,7 +8,6 @@ import { useMemo } from 'preact/hooks'
 import {
   AccentRow,
   Button,
-  Card,
   Chip,
   EmptyState,
   MoreLink,
@@ -17,7 +16,8 @@ import {
   Skeleton,
   StatValue,
 } from '../../components/ui'
-import { IconOrders, IconPlus } from '../../components/icons'
+import { IconPlus } from '../../components/icons'
+import { IllustrationOrders } from '../../components/illustrations'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { useRxQuery, useRxQueryStatus } from '../../hooks/useRxQuery'
 import { observeShopBalances } from '../../db/balances'
@@ -120,20 +120,19 @@ export function Today({ online, auth, replication }: TodayProps) {
           auth={auth}
           replication={replication}
         />
-        <Card padded={false}>
-          <EmptyState
-            icon={<IconOrders size={26} />}
-            title="Nothing on yet"
-            description="Once you take an order, what is due and what is owed shows up here."
-            action={
-              <a href="/orders/new">
-                <Button>
-                  <IconPlus size={18} /> Take the first order
-                </Button>
-              </a>
-            }
-          />
-        </Card>
+        <EmptyState
+          spacious
+          illustration={<IllustrationOrders size={128} />}
+          title="Nothing on yet"
+          description="Once you take an order, what is due and what is owed shows up here."
+          action={
+            <a href="/orders/new">
+              <Button>
+                <IconPlus size={18} /> Take the first order
+              </Button>
+            </a>
+          }
+        />
       </Screen>
     )
   }

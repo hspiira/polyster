@@ -23,7 +23,12 @@ import {
   Sheet,
   Textarea,
 } from '../components/ui'
-import { IconEdit, IconOrders, IconPlus, IconRuler, IconUsers } from '../components/icons'
+import { IconEdit, IconPlus } from '../components/icons'
+import {
+  IllustrationMeasure,
+  IllustrationOrders,
+  IllustrationSearch,
+} from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { saveMeasurements, updateClient } from '../db/writes'
@@ -55,18 +60,17 @@ export function ClientDetail() {
   if (!client) {
     return (
       <Screen title="Client" back="/clients">
-        <Card padded={false}>
-          <EmptyState
-            icon={<IconUsers size={26} />}
-            title="Client not found"
-            description="They may have been removed, or this device has not synced them yet."
-            action={
-              <a href="/clients">
-                <Button variant="secondary">Back to clients</Button>
-              </a>
-            }
-          />
-        </Card>
+        <EmptyState
+          spacious
+          illustration={<IllustrationSearch size={112} />}
+          title="Client not found"
+          description="They may have been removed, or this device has not synced them yet."
+          action={
+            <a href="/clients">
+              <Button variant="secondary">Back to clients</Button>
+            </a>
+          }
+        />
       </Screen>
     )
   }
@@ -120,18 +124,16 @@ export function ClientDetail() {
           </SectionTitle>
 
           {orders.length === 0 ? (
-            <Card padded={false}>
-              <EmptyState
-                icon={<IconOrders size={26} />}
-                title="No orders yet"
-                description={`Nothing has been ordered by ${client.name} so far.`}
-                action={
-                  <a href={`/orders/new?client=${client.id}`}>
-                    <Button>Take an order</Button>
-                  </a>
-                }
-              />
-            </Card>
+            <EmptyState
+              illustration={<IllustrationOrders size={72} />}
+              title="No orders yet"
+              description={`Nothing has been ordered by ${client.name} so far.`}
+              action={
+                <a href={`/orders/new?client=${client.id}`}>
+                  <Button>Take an order</Button>
+                </a>
+              }
+            />
           ) : (
             <Card padded={false}>
               <RowList>
@@ -285,18 +287,16 @@ function Measurements({ clientId }: { clientId: string }) {
     return (
       <section>
         <SectionTitle>Measurements</SectionTitle>
-        <Card padded={false}>
-          <EmptyState
-            icon={<IconRuler size={26} />}
-            title="No measurement fields set up"
-            description="Choose the measurements you actually take: chest and waist, or bust and hip, or whatever your work needs."
-            action={
-              <a href="/settings/measurements">
-                <Button variant="secondary">Set them up</Button>
-              </a>
-            }
-          />
-        </Card>
+        <EmptyState
+          illustration={<IllustrationMeasure size={72} />}
+          title="No measurement fields set up"
+          description="Choose the measurements you actually take: chest and waist, or bust and hip, or whatever your work needs."
+          action={
+            <a href="/settings/measurements">
+              <Button variant="secondary">Set them up</Button>
+            </a>
+          }
+        />
       </section>
     )
   }

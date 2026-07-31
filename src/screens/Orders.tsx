@@ -38,7 +38,7 @@ import {
   Segmented,
 } from '../components/ui'
 import { BookSwitch } from '../components/BookSwitch'
-import { IconOrders } from '../components/icons'
+import { IllustrationOrders } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
@@ -168,14 +168,15 @@ export function Orders() {
           <ScopeBar label={scopeLabel(scope)} count={rows.length} />
         )}
 
-        <Card padded={false}>
-          {rows.length === 0 ? (
-            <EmptyState
-              icon={<IconOrders size={26} />}
-              title={emptyTitle(scope)}
-              description={emptyDescription(scope)}
-            />
-          ) : (
+        {rows.length === 0 ? (
+          <EmptyState
+            spacious
+            illustration={<IllustrationOrders size={112} />}
+            title={emptyTitle(scope)}
+            description={emptyDescription(scope)}
+          />
+        ) : (
+          <Card padded={false}>
             <RowList>
               {rows.map((row) => (
                 <li key={`${row.order.id}-${row.kind}`}>
@@ -183,8 +184,8 @@ export function Orders() {
                 </li>
               ))}
             </RowList>
-          )}
-        </Card>
+          </Card>
+        )}
       </div>
     </Screen>
   )
