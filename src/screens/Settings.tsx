@@ -9,7 +9,6 @@ import {
 } from '../components/ui'
 import {
   IconDownload,
-  IconMoney,
   IconRuler,
   IconSettings,
   IconUsers,
@@ -70,21 +69,6 @@ export function Settings() {
                 </ListRow>
               </li>
             ))}
-            <li>
-              <ListRow
-                href="/reports"
-                leading={
-                  <span class="flex size-9 items-center justify-center rounded-[0.65rem] bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
-                    <IconMoney size={18} />
-                  </span>
-                }
-              >
-                <span class="block font-medium">Reports</span>
-                <span class="block truncate text-sm text-stone-500 dark:text-stone-400">
-                  Collected, outstanding, and stage counts
-                </span>
-              </ListRow>
-            </li>
           </RowList>
         </Card>
 

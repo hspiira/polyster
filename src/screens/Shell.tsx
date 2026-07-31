@@ -16,6 +16,8 @@
 import { Route, Router } from 'preact-iso'
 import { TabBar } from '../components/TabBar'
 import { SyncBadge } from '../components/SyncBadge'
+import { Avatar } from '../components/ui'
+import { IconSettings } from '../components/icons'
 import { useShop } from '../state/ShopProvider'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
@@ -41,19 +43,25 @@ interface ShellProps {
 }
 
 export function Shell({ online, auth, replication }: ShellProps) {
-  const { activeStaff, shop } = useShop()
+  const { activeStaff } = useShop()
 
   return (
     <div class="min-h-svh bg-stone-100 dark:bg-stone-950">
       <div class="safe-top bg-white dark:bg-stone-900">
         <div class="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-1.5">
           <SyncBadge online={online} auth={auth} replication={replication} />
-          {activeStaff && (
-            <span class="truncate text-xs text-stone-500 dark:text-stone-400">
-              {activeStaff.name}
-              {shop && <span class="text-stone-400 dark:text-stone-600"> · {shop.name}</span>}
-            </span>
-          )}
+          {/* One control, not two: the avatar says who is working, the gear says
+              what tapping does, and both go to the same place. */}
+          <a
+            href="/settings"
+            aria-label="Settings"
+            class="-mr-1 flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2
+                   text-stone-500 transition-colors active:bg-stone-100
+                   dark:text-stone-400 dark:active:bg-stone-800"
+          >
+            {activeStaff && <Avatar name={activeStaff.name} size="sm" />}
+            <IconSettings size={16} />
+          </a>
         </div>
       </div>
 
