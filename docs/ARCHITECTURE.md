@@ -170,6 +170,20 @@ Unsynced work that nobody knows about is the worst failure this design can produ
 A replication error is surfaced and never thrown. Sync failing is a normal condition for this app, not an exception.
 
 
+## 9a. The visual system: fills, not lines
+
+The shell's surfaces are separated from the page by their fill and nothing else. No borders, no shadows, and a radius (`--radius-card`, 2px) small enough to read as a cut edge rather than a rounded tile. Page is stone-100/950, raised surfaces are white/stone-900, recessed controls are stone-200/800. Tokens and the full list of consequences are in the header of `src/index.css`.
+
+Four things follow from it that are easy to mistake for bugs:
+
+- **Row lists have no dividers.** Padding separates rows. `Clients` keeps its avatar column because on a list of similar-looking text rows, padding alone is not enough.
+- **Inputs have no resting border.** They are a recessed fill. The focus ring stays, because it is the only indicator a keyboard user has.
+- **Sticky headers are page-coloured.** The Shell's status strip and each `Screen`'s header are both the page colour with no border, so they read as one quiet block and surfaces scroll away behind the page rather than behind a floating bar.
+- **The entry flow is exempt.** It is a fixed dark glass world (spec E6) and keeps `--radius-control`'s full pill plus its own `rounded-xl` on notes. Changing `--radius-control` would square off the landing screen and the PIN pad.
+
+Muted text is stone-500, not stone-400. stone-400 on the stone-100 page is roughly 2.3:1, which fails AA, and this app is documented as used outdoors in direct sun. Quiet stops short of unreadable.
+
+
 ## 10. Corrections folded in at build time
 
 Recorded so the earlier documents can still be read without being misleading.

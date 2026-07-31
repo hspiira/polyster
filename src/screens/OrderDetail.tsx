@@ -23,6 +23,7 @@ import {
   SectionTitle,
   Segmented,
   Sheet,
+  StatValue,
 } from '../components/ui'
 import {
   IconAlert,
@@ -173,7 +174,7 @@ export function OrderDetail() {
               )}
             </dl>
             {order.notes && (
-              <p class="mt-3 whitespace-pre-wrap border-t border-stone-100 pt-3 text-sm text-stone-600 dark:border-stone-800 dark:text-stone-300">
+              <p class="mt-4 whitespace-pre-wrap text-sm text-stone-600 dark:text-stone-300">
                 {order.notes}
               </p>
             )}
@@ -204,39 +205,46 @@ export function OrderDetail() {
   )
 }
 
-/** The answer to the question asked at the counter, sized accordingly. */
+/**
+ * The answer to the question asked at the counter, sized accordingly.
+ *
+ * A plain surface with one large figure, not a saturated gradient panel. The
+ * amount carries the colour -- amber for outstanding, which is the one thing
+ * amber is reserved for -- and the card carries none.
+ */
 function BalanceCard({ balance }: { balance: OrderBalance | null }) {
-  if (!balance) return <Card><div class="h-16" /></Card>
+  if (!balance) return <Card><div class="h-20" /></Card>
 
   const owing = balance.balance > 0
   const overpaid = balance.balance < 0
+  const paidFraction = Math.min(
+    1,
+    Math.max(0, balance.amount_paid / (balance.price_total || 1)),
+  )
 
   return (
-    <div
-      class={`rounded-card p-5 text-white shadow-raised ${
-        owing
-          ? 'bg-linear-to-br from-amber-600 to-amber-700'
-          : 'bg-linear-to-br from-emerald-600 to-emerald-700'
-      }`}
-    >
-      <p class="text-xs font-medium tracking-wide opacity-80">
+    <Card>
+      <p class="text-xs font-medium text-stone-500 dark:text-stone-400">
         {owing ? 'Balance due' : overpaid ? 'Overpaid' : 'Fully paid'}
       </p>
-      <p class="mt-1 text-3xl font-semibold tracking-tight">
-        {owing ? formatMoney(balance.balance) : formatMoney(Math.abs(balance.balance))}
-      </p>
-      <p class="mt-1.5 text-sm opacity-90">
-        {formatMoney(balance.amount_paid)} paid of {formatMoney(balance.price_total)}
-      </p>
-      <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-white/25">
-        <div
-          class="h-full rounded-full bg-white transition-[width] duration-500"
-          style={{
-            width: `${Math.min(100, Math.max(0, (balance.amount_paid / (balance.price_total || 1)) * 100))}%`,
-          }}
+      <div class="mt-1.5">
+        <StatValue
+          value={formatMoney(Math.abs(balance.balance))}
+          tone={owing ? 'money' : 'default'}
         />
       </div>
-    </div>
+      <p class="mt-2 text-sm text-stone-500 dark:text-stone-400">
+        {formatMoney(balance.amount_paid)} paid of {formatMoney(balance.price_total)}
+      </p>
+      <div class="mt-3 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
+        <div
+          class={`h-full rounded-full transition-[width] duration-500 ${
+            owing ? 'bg-amber-500' : 'bg-emerald-500'
+          }`}
+          style={{ width: `${paidFraction * 100}%` }}
+        />
+      </div>
+    </Card>
   )
 }
 
@@ -360,9 +368,9 @@ function PaymentsSection({
             No payments recorded yet.
           </p>
         ) : (
-          <ul class="divide-y divide-stone-100 dark:divide-stone-800">
+          <ul>
             {payments.map((payment) => (
-              <li key={payment.id} class="flex items-center justify-between gap-3 px-4 py-3">
+              <li key={payment.id} class="flex items-center justify-between gap-3 px-4 py-3.5">
                 <span class="min-w-0">
                   <span class="block font-medium">{formatMoney(payment.amount)}</span>
                   <span class="block truncate text-xs text-stone-500 dark:text-stone-400">
@@ -398,8 +406,8 @@ function PaymentsSection({
             <button
               type="button"
               onClick={() => setAmount(String(balance.balance))}
-              class="w-full rounded-control border border-dashed border-brand-400
-                     bg-brand-50 px-3 py-2.5 text-sm text-brand-800 dark:border-brand-700
+              class="min-h-11 w-full rounded-control bg-brand-100 px-3 text-sm
+                     font-medium text-brand-800 active:bg-brand-200
                      dark:bg-brand-950 dark:text-brand-300"
             >
               Pay the full balance, {formatMoney(balance.balance)}

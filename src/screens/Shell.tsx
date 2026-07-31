@@ -47,20 +47,25 @@ export function Shell({ online, auth, replication }: ShellProps) {
 
   return (
     <div class="min-h-svh bg-stone-100 dark:bg-stone-950">
-      <div class="safe-top bg-white dark:bg-stone-900">
-        <div class="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-1.5">
+      {/*
+        Page-coloured and unbordered, so this and the Screen header below it read
+        as one quiet block rather than two stacked bars. Nothing here is a
+        surface; the first surface on any screen is its content.
+      */}
+      <div class="safe-top">
+        <div class="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 pt-2.5 pb-1">
           <SyncBadge online={online} auth={auth} replication={replication} />
           {/* One control, not two: the avatar says who is working, the gear says
               what tapping does, and both go to the same place. */}
           <a
             href="/settings"
             aria-label="Settings"
-            class="-mr-1 flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2
-                   text-stone-500 transition-colors active:bg-stone-100
+            class="-mr-2 flex min-h-9 items-center gap-2 rounded-control px-2
+                   text-stone-500 transition-colors active:bg-stone-200
                    dark:text-stone-400 dark:active:bg-stone-800"
           >
+            <IconSettings size={17} />
             {activeStaff && <Avatar name={activeStaff.name} size="sm" />}
-            <IconSettings size={16} />
           </a>
         </div>
       </div>

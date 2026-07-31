@@ -202,8 +202,8 @@ function PadKey({
           : dark
             ? // No sheen: eighteen keys each catching a highlight reads as noise, not material.
               'glass-flat text-stone-100'
-            : `border border-stone-200/80 bg-white shadow-card active:bg-stone-100
-               dark:border-stone-800 dark:bg-stone-900 dark:active:bg-stone-800`,
+            : `bg-stone-200 active:bg-stone-300
+               dark:bg-stone-800 dark:active:bg-stone-700`,
       )}
     >
       {label}

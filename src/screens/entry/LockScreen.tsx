@@ -66,7 +66,7 @@ export function LockScreen({ authStatus }: { authStatus: AuthState['status'] }) 
         </div>
 
         {authStatus === 'offline_stale' && (
-          <p class="mt-6 rounded-card border border-amber-500/30 bg-amber-500/12 px-4 py-3 text-xs leading-relaxed text-amber-300">
+          <p class="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/12 px-4 py-3 text-xs leading-relaxed text-amber-300">
             Working offline -- sync is paused. Everything you record is saved here and sends when
             you are back on.
           </p>

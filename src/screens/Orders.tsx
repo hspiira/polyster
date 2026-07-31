@@ -4,30 +4,60 @@
  * Defaults to open work. A shop's list of everything ever made grows forever
  * and is almost never the question being asked on the shop floor -- "what is
  * outstanding" is.
+ *
+ * ## The scope lives in the URL, not in local state
+ *
+ * Today links here four ways -- `?filter=overdue|today|week|out` from a
+ * bucket's "See all", and `?due=YYYY-MM-DD` from a day-strip cell. While the
+ * scope was `useState('open')` every one of those links silently landed on
+ * Open, so a shop tapping "See all 6 overdue" got a different list with no
+ * indication anything had been ignored. Reading it from the URL also makes the
+ * back button behave: changing a segment is a navigation, so backing out of a
+ * filter returns to the previous one.
+ *
+ * Due-based scopes reuse `todayModel`'s bucketing rather than re-deriving it.
+ * Two implementations of "overdue" would drift, and the first symptom would be
+ * a card saying 6 opening a list of 5.
  */
-import { useMemo, useState } from 'preact/hooks'
+import { useMemo } from 'preact/hooks'
+import { useLocation } from 'preact-iso'
 import {
   Card,
   Chip,
   EmptyState,
-  Fab,
   ListRow,
   RowList,
   Screen,
   Segmented,
 } from '../components/ui'
-import { IconOrders, IconPlus } from '../components/icons'
+import { IconOrders } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
 import { formatMoney } from '../lib/money'
-import { dueBucket, formatDueDate } from '../lib/dates'
+import { dueBucket, formatDate, formatDueDate, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
-import type { OrderDoc, OrderStage } from '../db/schema'
+import {
+  OPEN_STAGES,
+  buildBuckets,
+  pickupRows,
+  rowsDueOn,
+  type DueRow,
+} from './today/todayModel'
 
-type Filter = 'open' | 'ready' | 'overdue' | 'owing' | 'all'
+/** Scopes the segmented control offers. */
+type Segment = 'open' | 'overdue' | 'ready' | 'owing' | 'all'
 
-const FILTERS: readonly { value: Filter; label: string }[] = [
+/**
+ * Scopes only reachable by link, from Today. They are not segments: eight
+ * segments would be unreadable at 390px, and `Segmented` documents five as its
+ * ceiling. They render as a context bar with a way back to the segments.
+ */
+type LinkedScope = 'today' | 'week' | 'out'
+
+type Scope = Segment | LinkedScope | { due: string }
+
+const SEGMENTS: readonly { value: Segment; label: string }[] = [
   { value: 'open', label: 'Open' },
   { value: 'overdue', label: 'Overdue' },
   { value: 'ready', label: 'Ready' },
@@ -35,12 +65,35 @@ const FILTERS: readonly { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
 ]
 
-/** Stages that still need something doing. */
-const OPEN_STAGES: readonly OrderStage[] = ['measured', 'in_progress', 'ready']
+const SEGMENT_VALUES = SEGMENTS.map((segment) => segment.value)
+const LINKED_SCOPES: readonly LinkedScope[] = ['today', 'week', 'out']
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/** Unrecognised parameters fall back to Open rather than showing nothing. */
+function readScope(query: Record<string, string>): Scope {
+  const params = new URLSearchParams(query)
+
+  const due = params.get('due')
+  if (due && ISO_DATE.test(due)) return { due }
+
+  const filter = params.get('filter')
+  if (filter && (SEGMENT_VALUES as readonly string[]).includes(filter)) return filter as Segment
+  if (filter && (LINKED_SCOPES as readonly string[]).includes(filter)) return filter as LinkedScope
+
+  return 'open'
+}
+
+function isSegment(scope: Scope): scope is Segment {
+  return typeof scope === 'string' && (SEGMENT_VALUES as readonly string[]).includes(scope)
+}
 
 export function Orders() {
   const { db, shop } = useCurrentShop()
-  const [filter, setFilter] = useState<Filter>('open')
+  const location = useLocation()
+  const now = today()
+
+  const scope = readScope(location.query as Record<string, string>)
 
   const orderDocs = useRxQuery(
     () => db.orders.find({ selector: { shop_id: shop.id }, sort: [{ pickup_due_date: 'asc' }] }).$,
@@ -54,114 +107,180 @@ export function Orders() {
   )
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
+  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
   const clientNames = useMemo(
     () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
     [clientDocs],
   )
 
-  const orders = useMemo(() => {
-    const all = orderDocs.map((doc) => doc.toJSON())
-    switch (filter) {
-      case 'all':
-        return all
-      case 'open':
-        return all.filter((o) => OPEN_STAGES.includes(o.stage))
-      case 'ready':
-        return all.filter((o) => o.stage === 'ready')
-      case 'overdue':
-        return all.filter(
-          (o) => OPEN_STAGES.includes(o.stage) && dueBucket(o.pickup_due_date) === 'overdue',
-        )
-      case 'owing':
-        return all.filter((o) => (balances.get(o.id)?.balance ?? 0) > 0)
+  const rows = useMemo(() => {
+    if (typeof scope === 'object') {
+      return rowsDueOn(orders, clientNames, balances, scope.due)
     }
-  }, [orderDocs, filter, balances])
+
+    if (scope === 'overdue' || scope === 'today' || scope === 'week' || scope === 'out') {
+      const buckets = buildBuckets(orders, clientNames, balances, now)
+      if (scope === 'overdue') return buckets.overdue
+      if (scope === 'today') return buckets.dueToday
+      if (scope === 'week') return buckets.dueThisWeek
+      return buckets.outOnRental
+    }
+
+    const all = pickupRows(orders, clientNames, balances)
+    switch (scope) {
+      case 'open':
+        return all.filter((row) => OPEN_STAGES.includes(row.order.stage))
+      case 'ready':
+        return all.filter((row) => row.order.stage === 'ready')
+      case 'owing':
+        return all.filter((row) => row.outstanding > 0)
+      case 'all':
+        // Newest first. Every other scope is a question about what is coming
+        // up; "All" is a question about history, and history reads backwards.
+        return [...all].reverse()
+    }
+  }, [orders, clientNames, balances, scope, now])
 
   return (
-    <>
-      <Screen title="Orders">
-        <div class="space-y-4">
-          <Segmented value={filter} options={FILTERS} onChange={setFilter} label="Filter orders" />
+    <Screen title="Orders">
+      <div class="space-y-4">
+        {isSegment(scope) ? (
+          <Segmented
+            value={scope}
+            options={SEGMENTS}
+            onChange={(value) => location.route(`/orders?filter=${value}`)}
+            label="Filter orders"
+          />
+        ) : (
+          <ScopeBar label={scopeLabel(scope)} count={rows.length} />
+        )}
 
-          {orders.length === 0 ? (
-            <Card padded={false}>
-              <EmptyState
-                icon={<IconOrders size={26} />}
-                title={emptyTitle(filter)}
-                description={emptyDescription(filter)}
-              />
-            </Card>
+        <Card padded={false}>
+          {rows.length === 0 ? (
+            <EmptyState
+              icon={<IconOrders size={26} />}
+              title={emptyTitle(scope)}
+              description={emptyDescription(scope)}
+            />
           ) : (
-            <Card padded={false}>
-              <RowList>
-                {orders.map((order) => (
-                  <li key={order.id}>
-                    <OrderRow
-                      order={order}
-                      clientName={clientNames.get(order.client_id)}
-                      outstanding={balances.get(order.id)?.balance ?? 0}
-                    />
-                  </li>
-                ))}
-              </RowList>
-            </Card>
+            <RowList>
+              {rows.map((row) => (
+                <li key={`${row.order.id}-${row.kind}`}>
+                  <OrderRow row={row} />
+                </li>
+              ))}
+            </RowList>
           )}
-        </div>
-      </Screen>
-
-      <Fab href="/orders/new" label="New order" icon={<IconPlus size={24} />} />
-    </>
+        </Card>
+      </div>
+    </Screen>
   )
 }
 
-function emptyTitle(filter: Filter): string {
-  if (filter === 'open') return 'No open orders'
-  if (filter === 'overdue') return 'Nothing overdue'
-  if (filter === 'owing') return 'Everything is paid'
-  if (filter === 'ready') return 'Nothing waiting for collection'
-  return 'No orders yet'
+/** What a linked scope is showing, and the way back to the segments. */
+function ScopeBar({ label, count }: { label: string; count: number }) {
+  return (
+    <div class="flex items-center justify-between gap-3 rounded-card bg-white px-4 py-2.5 dark:bg-stone-900">
+      <p class="min-w-0 truncate text-sm">
+        <span class="font-semibold">{label}</span>
+        <span class="text-stone-500 dark:text-stone-400"> · {count}</span>
+      </p>
+      <a
+        href="/orders"
+        class="-mr-2 flex min-h-9 shrink-0 items-center rounded-control px-2 text-xs
+               font-semibold text-brand-700 active:bg-stone-100 dark:text-brand-300
+               dark:active:bg-stone-800"
+      >
+        Clear
+      </a>
+    </div>
+  )
 }
 
-function emptyDescription(filter: Filter): string {
-  if (filter === 'open') {
-    return 'Everything is picked up or returned. Switch the filter to see finished work.'
+function scopeLabel(scope: Exclude<Scope, Segment>): string {
+  if (typeof scope === 'object') return `Due ${formatDate(scope.due)}`
+  if (scope === 'today') return 'Due today'
+  if (scope === 'week') return 'Due this week'
+  return 'Out on rental'
+}
+
+function emptyTitle(scope: Scope): string {
+  if (typeof scope === 'object') return 'Nothing due that day'
+  switch (scope) {
+    case 'open':
+      return 'No open orders'
+    case 'overdue':
+      return 'Nothing overdue'
+    case 'owing':
+      return 'Everything is paid'
+    case 'ready':
+      return 'Nothing waiting for collection'
+    case 'today':
+      return 'Nothing due today'
+    case 'week':
+      return 'Nothing due this week'
+    case 'out':
+      return 'Nothing out on rental'
+    case 'all':
+      return 'No orders yet'
   }
-  if (filter === 'overdue') return 'Every open order is still within its due date.'
-  if (filter === 'owing') return 'No order has an outstanding balance.'
-  if (filter === 'ready') return 'Nothing is finished and waiting for a client right now.'
-  return 'Take an order and it will appear here.'
 }
 
-function OrderRow({
-  order,
-  clientName,
-  outstanding,
-}: {
-  order: OrderDoc
-  clientName: string | undefined
-  outstanding: number
-}) {
-  const stillDue = order.stage !== 'picked_up' && order.stage !== 'returned'
-  const overdue = stillDue && dueBucket(order.pickup_due_date) === 'overdue'
+function emptyDescription(scope: Scope): string {
+  if (typeof scope === 'object') return 'No pickups or returns fall on that date.'
+  switch (scope) {
+    case 'open':
+      return 'Everything is picked up or returned. Switch the filter to see finished work.'
+    case 'overdue':
+      return 'Every open order is still within its due date.'
+    case 'owing':
+      return 'No order has an outstanding balance.'
+    case 'ready':
+      return 'Nothing is finished and waiting for a client right now.'
+    case 'today':
+      return 'Nothing is due out or back today.'
+    case 'week':
+      return 'Nothing falls in the next seven days.'
+    case 'out':
+      return 'Every rental is back in the shop.'
+    case 'all':
+      return 'Take an order and it will appear here.'
+  }
+}
+
+function OrderRow({ row }: { row: DueRow }) {
+  const { order } = row
+  // A return row is overdue on its own date even though the order has been
+  // picked up, which is exactly the case that used to be invisible (finding T1).
+  const stillDue = row.kind === 'return' || (order.stage !== 'picked_up' && order.stage !== 'returned')
+  const overdue = stillDue && dueBucket(row.dueDate) === 'overdue'
 
   return (
     <ListRow
       href={`/orders/${order.id}`}
       trailing={<Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>}
     >
-      <span class="block truncate font-medium">{order.item_description}</span>
+      <span class="block truncate font-medium">
+        {order.item_description}
+        {row.kind === 'return' && (
+          <span class="font-normal text-stone-500 dark:text-stone-400"> · return</span>
+        )}
+      </span>
       <span class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-stone-500 dark:text-stone-400">
-        <span class="truncate">{clientName ?? 'Unknown client'}</span>
+        <span class="truncate">{row.clientName}</span>
         <span aria-hidden="true">·</span>
         <span class={overdue ? 'font-medium text-red-600 dark:text-red-400' : ''}>
-          {formatDueDate(order.pickup_due_date)}
+          {formatDueDate(row.dueDate)}
         </span>
+        {row.outstanding > 0 && (
+          <>
+            <span aria-hidden="true">·</span>
+            <span class="font-medium text-amber-700 dark:text-amber-400">
+              {formatMoney(row.outstanding)} due
+            </span>
+          </>
+        )}
       </span>
-      {outstanding > 0 && (
-        <span class="mt-0.5 block text-sm font-medium text-amber-700 dark:text-amber-400">
-          {formatMoney(outstanding)} outstanding
-        </span>
-      )}
     </ListRow>
   )
 }

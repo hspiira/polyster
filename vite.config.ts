@@ -5,6 +5,21 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    /**
+     * Vite does not read `PORT` on its own -- it defaults to 5173 and, when
+     * that is taken, quietly increments to 5174. Anything that assigns a port
+     * out of band and then opens that URL gets a blank page, because the server
+     * is somewhere else. Honouring `PORT` makes the assignment authoritative.
+     *
+     * `strictPort` so a clash fails loudly rather than drifting to a port
+     * nobody is watching. Only applied when `PORT` is set, so a plain
+     * `pnpm dev` keeps Vite's own find-the-next-free-port behaviour.
+     */
+    ...(process.env.PORT
+      ? { port: Number(process.env.PORT), strictPort: true }
+      : {}),
+  },
   resolve: {
     /**
      * Belt and braces, not a fix for anything currently broken.

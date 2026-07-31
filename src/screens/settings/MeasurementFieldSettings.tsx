@@ -152,7 +152,7 @@ export function MeasurementFieldSettings() {
           </Card>
         ) : (
           <Card padded={false}>
-            <ul class="divide-y divide-stone-100 dark:divide-stone-800">
+            <ul>
               {fields.map((field, index) => (
                 <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
                   <span class="min-w-0 flex-1 pl-1">

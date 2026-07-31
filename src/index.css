@@ -10,6 +10,25 @@
  * Amber is reserved for "money outstanding" and nothing else.
  *
  * No web fonts: the system stack is instant and free on a metered connection.
+ *
+ * ## Surfaces: fills, not lines
+ *
+ * A surface is separated from the page by its fill and nothing else. No
+ * border, no shadow, and a radius small enough to read as a cut edge rather
+ * than a rounded tile. Page is stone-100/950, surfaces are white/stone-900,
+ * recessed controls are stone-100/800. That is the whole system.
+ *
+ * Consequences, so they are not rediscovered as bugs:
+ *  - Row lists have no dividers. Padding separates rows; on Clients the
+ *    avatar column carries the scan.
+ *  - Inputs have no resting border. They are a recessed fill, and the only
+ *    ring they ever draw is the focus ring, which stays for accessibility.
+ *  - Sticky headers are page-coloured, so a surface scrolling under one
+ *    disappears behind the page rather than behind a floating bar.
+ *
+ * `--radius-control` stays a full pill. It is shared with the entry flow,
+ * which is a separate fixed dark world with its own rules (spec E6), and
+ * squaring it there was not asked for.
  */
 @theme {
   --color-brand-950: color-mix(in oklch, #12309e 55%, black);
@@ -28,17 +47,13 @@
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
 
-  --radius-card: 1rem;
+  /* A cut edge, not a rounded tile. Small enough to read as square at arm's
+     length, large enough not to look like a rendering mistake up close. */
+  --radius-card: 0.125rem;
+  --radius-boxed: 0.125rem;
   /* Fully round: buttons, inputs and chips read as things you touch.
-     Textarea and search keep a boxed radius of their own -- see ui.tsx. */
+     Shared with the entry flow -- see the note above before changing it. */
   --radius-control: 999px;
-  --radius-boxed: 0.75rem;
-
-  /* Soft, low-spread shadows. Heavy drop shadows read as dated and cost
-     paint time on cheap hardware. */
-  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 3px oklch(0 0 0 / 0.06);
-  --shadow-raised: 0 4px 12px oklch(0 0 0 / 0.08), 0 1px 3px oklch(0 0 0 / 0.06);
-  --shadow-sheet: 0 -8px 32px oklch(0 0 0 / 0.16);
 }
 
 @layer base {

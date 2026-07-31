@@ -527,3 +527,107 @@ describe('capRows', () => {
     expect(capRows([], 4)).toEqual({ rows: [], hidden: 0 })
   })
 })
+
+import { pickupRows, rowsDueOn } from './todayModel'
+
+// These back the order list's `?due=` and stage-based scopes. They exist so the
+// list a day-strip cell opens is derived by the same rule that produced the
+// number on the cell.
+describe('rowsDueOn', () => {
+  it('returns open pickups falling on the date', () => {
+    const rows = rowsDueOn(
+      [
+        order({ id: 'a', pickup_due_date: TODAY }),
+        order({ id: 'b', pickup_due_date: '2026-08-05' }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(rows.map((row) => [row.order.id, row.kind])).toEqual([['a', 'pickup']])
+  })
+
+  it('returns rentals due back on the date, marked as returns', () => {
+    const rows = rowsDueOn(
+      [
+        order({
+          id: 'out',
+          order_type: 'rental',
+          stage: 'picked_up',
+          pickup_due_date: '2026-07-20',
+          return_due_date: TODAY,
+        }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(rows.map((row) => [row.order.id, row.kind, row.dueDate])).toEqual([
+      ['out', 'return', TODAY],
+    ])
+  })
+
+  // The early exit for open stages is the subtle part: an order still in the
+  // shop is counted by its pickup date only, never twice.
+  it('counts an open rental by its pickup date alone', () => {
+    const rental = order({
+      id: 'open-rental',
+      order_type: 'rental',
+      stage: 'ready',
+      pickup_due_date: TODAY,
+      return_due_date: TODAY,
+    })
+    const rows = rowsDueOn([rental], NAMES, NO_BALANCES, TODAY)
+    expect(rows.map((row) => row.kind)).toEqual(['pickup'])
+  })
+
+  it('excludes a picked-up rental with no return date', () => {
+    const rows = rowsDueOn(
+      [order({ id: 'no-return', order_type: 'rental', stage: 'picked_up' })],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(rows).toEqual([])
+  })
+
+  it('excludes finished work entirely', () => {
+    const rows = rowsDueOn(
+      [order({ id: 'done', stage: 'picked_up', pickup_due_date: TODAY })],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(rows).toEqual([])
+  })
+})
+
+describe('pickupRows', () => {
+  it('maps every order to a pickup row regardless of stage', () => {
+    const rows = pickupRows(
+      [order({ id: 'a' }), order({ id: 'b', stage: 'returned' })],
+      NAMES,
+      NO_BALANCES,
+    )
+    expect(rows.map((row) => [row.order.id, row.kind])).toEqual([
+      ['a', 'pickup'],
+      ['b', 'pickup'],
+    ])
+  })
+
+  it('clamps an overpayment to zero rather than showing a negative', () => {
+    const balances = new Map<string, OrderBalance>([
+      [
+        'a',
+        {
+          order_id: 'a',
+          price_total: 100_000,
+          amount_paid: 120_000,
+          balance: -20_000,
+          fully_paid: true,
+        },
+      ],
+    ])
+    expect(pickupRows([order({ id: 'a' })], NAMES, balances)[0]?.outstanding).toBe(0)
+  })
+})
