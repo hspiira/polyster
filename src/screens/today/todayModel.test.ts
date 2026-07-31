@@ -74,3 +74,203 @@ describe('heroSegments', () => {
     ])
   })
 })
+
+import { buildBuckets } from './todayModel'
+import type { OrderBalance } from '../../db/balances'
+import type { OrderDoc } from '../../db/schema'
+
+const TODAY = '2026-07-31'
+
+function order(overrides: Partial<OrderDoc> & { id: string }): OrderDoc {
+  return {
+    shop_id: 'shop-1',
+    client_id: 'client-1',
+    order_type: 'tailor_made',
+    item_description: 'Navy suit',
+    stage: 'in_progress',
+    price_total: 100_000,
+    pickup_due_date: TODAY,
+    created_at: '2026-07-01T00:00:00.000Z',
+    updated_at: '2026-07-01T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+const NAMES = new Map([['client-1', 'Achen Josephine']])
+const NO_BALANCES = new Map<string, OrderBalance>()
+
+describe('buildBuckets', () => {
+  it('buckets open pickups by due date and drops anything further out', () => {
+    const buckets = buildBuckets(
+      [
+        order({ id: 'late', pickup_due_date: '2026-07-28' }),
+        order({ id: 'today', pickup_due_date: TODAY }),
+        order({ id: 'week', pickup_due_date: '2026-08-03' }),
+        order({ id: 'later', pickup_due_date: '2026-09-01' }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+
+    expect(buckets.overdue.map((row) => row.order.id)).toEqual(['late'])
+    expect(buckets.dueToday.map((row) => row.order.id)).toEqual(['today'])
+    expect(buckets.dueThisWeek.map((row) => row.order.id)).toEqual(['week'])
+    expect(buckets.outOnRental).toEqual([])
+  })
+
+  it('excludes finished work from the pickup buckets', () => {
+    const buckets = buildBuckets(
+      [
+        order({ id: 'gone', stage: 'picked_up', pickup_due_date: '2026-07-20' }),
+        order({ id: 'back', stage: 'returned', pickup_due_date: '2026-07-20' }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(buckets.overdue).toEqual([])
+  })
+
+  // T1: this is the case that appears on no screen today.
+  it('puts an overdue rental return in Overdue, marked as a return', () => {
+    const buckets = buildBuckets(
+      [
+        order({
+          id: 'tux',
+          order_type: 'rental',
+          stage: 'picked_up',
+          pickup_due_date: '2026-07-10',
+          return_due_date: '2026-07-29',
+        }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+
+    expect(buckets.overdue).toHaveLength(1)
+    expect(buckets.overdue[0]?.kind).toBe('return')
+    expect(buckets.overdue[0]?.dueDate).toBe('2026-07-29')
+    expect(buckets.outOnRental).toEqual([])
+  })
+
+  it('puts a return due today on Out on rental, not in Due today', () => {
+    const buckets = buildBuckets(
+      [
+        order({
+          id: 'gown',
+          order_type: 'rental',
+          stage: 'picked_up',
+          return_due_date: TODAY,
+        }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+
+    expect(buckets.dueToday).toEqual([])
+    expect(buckets.outOnRental.map((row) => row.order.id)).toEqual(['gown'])
+  })
+
+  it('puts a future return on Out on rental', () => {
+    const buckets = buildBuckets(
+      [
+        order({
+          id: 'gown',
+          order_type: 'rental',
+          stage: 'picked_up',
+          return_due_date: '2026-09-15',
+        }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(buckets.outOnRental.map((row) => row.order.id)).toEqual(['gown'])
+  })
+
+  it('ignores a picked-up rental with no return date', () => {
+    const buckets = buildBuckets(
+      [order({ id: 'gown', order_type: 'rental', stage: 'picked_up' })],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(buckets.outOnRental).toEqual([])
+    expect(buckets.overdue).toEqual([])
+  })
+
+  // OrderForm rejects this, so it can only arrive by replication from another
+  // client. Overdue is the honest reading of a return date already in the past.
+  it('buckets a return date earlier than its pickup date as overdue', () => {
+    const buckets = buildBuckets(
+      [
+        order({
+          id: 'muddle',
+          order_type: 'rental',
+          stage: 'picked_up',
+          pickup_due_date: '2026-07-25',
+          return_due_date: '2026-07-20',
+        }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(buckets.overdue.map((row) => row.order.id)).toEqual(['muddle'])
+  })
+
+  it('ignores a return date on a non-rental order', () => {
+    const buckets = buildBuckets(
+      [order({ id: 'suit', stage: 'picked_up', return_due_date: '2026-07-20' })],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(buckets.overdue).toEqual([])
+    expect(buckets.outOnRental).toEqual([])
+  })
+
+  it('sorts each bucket by the date it is due on', () => {
+    const buckets = buildBuckets(
+      [
+        order({ id: 'b', pickup_due_date: '2026-07-25' }),
+        order({ id: 'a', pickup_due_date: '2026-07-20' }),
+      ],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(buckets.overdue.map((row) => row.order.id)).toEqual(['a', 'b'])
+  })
+
+  it('carries the client name and the outstanding balance', () => {
+    const balances = new Map<string, OrderBalance>([
+      ['today', { order_id: 'today', price_total: 100_000, amount_paid: 40_000, balance: 60_000, fully_paid: false }],
+    ])
+    const buckets = buildBuckets([order({ id: 'today' })], NAMES, balances, TODAY)
+
+    expect(buckets.dueToday[0]?.clientName).toBe('Achen Josephine')
+    expect(buckets.dueToday[0]?.outstanding).toBe(60_000)
+  })
+
+  it('falls back for a client that has not synced, rather than hiding the row', () => {
+    const buckets = buildBuckets(
+      [order({ id: 'today', client_id: 'missing' })],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(buckets.dueToday[0]?.clientName).toBe('Unknown client')
+  })
+
+  it('reports an overpaid order as owing nothing', () => {
+    const balances = new Map<string, OrderBalance>([
+      ['today', { order_id: 'today', price_total: 100_000, amount_paid: 120_000, balance: -20_000, fully_paid: true }],
+    ])
+    const buckets = buildBuckets([order({ id: 'today' })], NAMES, balances, TODAY)
+    expect(buckets.dueToday[0]?.outstanding).toBe(0)
+  })
+})
