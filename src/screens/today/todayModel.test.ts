@@ -465,6 +465,45 @@ describe('buildMoneySummary', () => {
     expect(summary.outstanding).toBe(60_000)
   })
 
+  it('counts all distinct clients owing even when rows are capped', () => {
+    const summary = buildMoneySummary(
+      [
+        order({ id: 'a', client_id: 'client-1' }),
+        order({ id: 'b', client_id: 'client-2' }),
+        order({ id: 'c', client_id: 'client-3' }),
+        order({ id: 'd', client_id: 'client-4' }),
+        order({ id: 'e', client_id: 'client-1' }),
+      ],
+      NAMES,
+      new Map([
+        balance('a', 50_000),
+        balance('b', 40_000),
+        balance('c', 30_000),
+        balance('d', 20_000),
+        balance('e', 10_000),
+      ]),
+      2,
+    )
+    expect(summary.rows).toHaveLength(2)
+    expect(summary.clientCount).toBe(4)
+    expect(summary.outstanding).toBe(150_000)
+  })
+
+  it('respects the default limit of 3 when not specified', () => {
+    const summary = buildMoneySummary(
+      [
+        order({ id: 'a' }),
+        order({ id: 'b' }),
+        order({ id: 'c' }),
+        order({ id: 'd' }),
+      ],
+      NAMES,
+      new Map([balance('a', 40_000), balance('b', 30_000), balance('c', 20_000), balance('d', 10_000)]),
+    )
+    expect(summary.rows).toHaveLength(3)
+    expect(summary.outstanding).toBe(100_000)
+  })
+
   it('reports nothing owed on an empty shop', () => {
     const summary = buildMoneySummary([], NAMES, NO_BALANCES)
     expect(summary).toEqual({ outstanding: 0, clientCount: 0, rows: [] })
