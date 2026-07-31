@@ -352,6 +352,16 @@ describe('buildDayStrip', () => {
     expect(cells[2]?.count).toBe(2)
   })
 
+  it('includes work on the last day of the seven-day window', () => {
+    const cells = buildDayStrip([order({ id: 'a', pickup_due_date: '2026-08-06' })], TODAY)
+    expect(cells[6]?.count).toBe(1)
+  })
+
+  it('ignores work on the first day past the seven-day window', () => {
+    const cells = buildDayStrip([order({ id: 'a', pickup_due_date: '2026-08-07' })], TODAY)
+    expect(cells.every((cell) => cell.count === 0)).toBe(true)
+  })
+
   it('ignores work outside the seven-day window', () => {
     const cells = buildDayStrip([order({ id: 'a', pickup_due_date: '2026-09-30' })], TODAY)
     expect(cells.every((cell) => cell.count === 0)).toBe(true)
