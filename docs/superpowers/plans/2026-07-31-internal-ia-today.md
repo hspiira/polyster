@@ -31,11 +31,16 @@ a Reports tab, Settings moves to the Shell's status strip, and `Fab` is deleted.
 - **No uppercase text treatment** anywhere unless explicitly asked for
   (entry spec E12).
 - **Minimum tap target is `min-h-11`** (the `TAP` constant in `ui.tsx`).
-- **New code comments: 1–2 lines maximum.** Longer rationale goes in the spec,
-  not the source.
-- **Never assert `Intl` output in a test.** `formatMoney()` renders through
-  `Intl.NumberFormat('en-UG', ...)`; its exact string is platform-dependent.
-  Compare against `formatMoney(n)`, never against a literal like `'USh 240,000'`.
+- **Comment length: a multi-line doc header at the top of a file is expected**
+  (every existing file has one — see `schema.ts`, `balances.ts`, `ui.tsx`).
+  **Comments inside a function, or beside a line, are capped at 1–2 lines.**
+  Longer rationale goes in the spec, not the source.
+- **Never assert `formatMoney()` output in a test.** It renders through
+  `Intl.NumberFormat('en-UG', { style: 'currency' })`, whose symbol and
+  grouping are ICU-build dependent. Compare against `formatMoney(n)`, never
+  against a literal like `'USh 240,000'`. Narrow weekday names **are** asserted
+  — they are stable for `en-GB` and catch off-by-one errors in the seven-day
+  window.
 - **Tests are `.ts` only.** `vitest.config.ts` sets
   `include: ['src/**/*.test.ts']` with `environment: 'node'` and no Preact
   preset, so there is no component-test harness. Presentational tasks gate on
