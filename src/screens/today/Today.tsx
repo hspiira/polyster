@@ -24,6 +24,7 @@ import { observeShopBalances } from '../../db/balances'
 import { formatMoney } from '../../lib/money'
 import { formatDueDate, today } from '../../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from '../orderStage'
+import type { FilterScope } from '../Orders'
 import { Hero } from './Hero'
 import { DayStrip } from './DayStrip'
 import {
@@ -180,7 +181,7 @@ function Bucket({
 }: {
   title: string
   tone: 'bad' | 'warn' | 'neutral' | 'info'
-  filter: string
+  filter: FilterScope
   rows: DueRow[]
 }) {
   if (rows.length === 0) return null

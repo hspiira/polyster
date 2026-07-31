@@ -57,6 +57,9 @@ type LinkedScope = 'today' | 'week' | 'out'
 
 type Scope = Segment | LinkedScope | { due: string }
 
+/** The `filter=` values Orders accepts (a `due=` link uses a different param). */
+export type FilterScope = Segment | LinkedScope
+
 const SEGMENTS: readonly { value: Segment; label: string }[] = [
   { value: 'open', label: 'Open' },
   { value: 'overdue', label: 'Overdue' },
@@ -135,8 +138,8 @@ export function Orders() {
       case 'owing':
         return all.filter((row) => row.outstanding > 0)
       case 'all':
-        // Newest first. Every other scope is a question about what is coming
-        // up; "All" is a question about history, and history reads backwards.
+        // Furthest-due first: reverses the pickup_due_date-ascending sort,
+        // not creation order.
         return [...all].reverse()
     }
   }, [orders, clientNames, balances, scope, now])

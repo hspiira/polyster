@@ -416,7 +416,7 @@ export type ChipTone = keyof typeof CHIP_TONES
 /** Accent-bar fills, keyed by the same tones `Chip` uses, so one stage is one
  *  colour in a chip and on a bar. `Reports`' local BAR_TONES folds into this in S4. */
 export const ACCENT_TONES: Record<ChipTone, string> = {
-  neutral: 'bg-stone-300 dark:bg-stone-600',
+  neutral: 'bg-stone-400 dark:bg-stone-500',
   good: 'bg-emerald-500',
   warn: 'bg-amber-500',
   bad: 'bg-red-500',

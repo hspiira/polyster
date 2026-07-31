@@ -48,7 +48,7 @@ export function Settings() {
   const { controller } = useAuth()
 
   return (
-    <Screen title="Settings" subtitle={shop?.name}>
+    <Screen title="Settings" subtitle={shop?.name} back="/">
       <div class="space-y-5">
         <Card padded={false}>
           <RowList>
