@@ -28,6 +28,21 @@ content, plus two spec corrections the S1 final review left owing.
 | A10 | **Other screens keep the thin status strip.** | The grown header is a home-screen affordance. Repeating it on every screen would cost a third of the viewport to say something the user already knows. |
 | A11 | **`EmptyState` loses its card and its icon box.** Content centres in the space actually available, not in a box at the top of it. | Closes A1. |
 | A12 | **Translucency is now shell-wide, not entry-only.** The floating nav and sticky headers sit on translucent, blurred surfaces. | Explicitly requested. Narrows entry-spec E6, which confined `.glass` to the entry flow — see Corrections. |
+| A13 | **The nav shrinks to three: Today · ＋ · Book.** | Four destinations plus an action was still a slab of choices. Three is the reference's shape and leaves the bar genuinely small. |
+| A14 | **Orders and Clients merge behind "Book"**, one destination with a segmented Orders \| Clients control at the top. | They are the same kind of thing: reference lists you look things up in. "Book" is the shop's own word — the order book. Cost: Clients is one tap deeper than it was. |
+| A15 | **Reports and Settings leave the nav entirely** and hang off the Today profile header. | Reports is a weekly question and Settings is rare; neither earns permanent thumb real estate. A9's header is the door. |
+| A16 | **Empty states get purpose-drawn line illustrations** in `icons.tsx`' existing stroke language — inline SVG, `currentColor`, one brand accent. | Chosen over duotone spots on cost: this app refuses web fonts because it runs on cheap phones over metered data, and that reasoning applies to artwork. Line art in the existing language is ~1–2KB each, themes for free, and needs no dark-mode palette. |
+
+### A14 in implementation: no new route
+
+`Book` is **not** a new URL. `/orders` and `/clients` both keep working and both
+render the same shell with its segmented control preselected. The tab points at
+`/orders` and reads as active for both paths.
+
+Doing it this way costs nothing and preserves every existing deep link — Today's
+"See all" links, `?due=` and `?filter=` params, order-detail → client, and
+`/orders/new?client=<id>`. A new `/book` route would have orphaned all of them
+for no gain.
 
 ## Corrections to the S1 spec
 
@@ -38,13 +53,28 @@ These were owed from the S1 final review and are settled here rather than left.
 - **N13's amber rule has an exception.** Amber is reserved for money outstanding, but `Chip tone="warn"` and the stale-backup panel in `BackupSettings` use amber for warning. The rule is: amber-as-*figure* means money; amber-as-*chip-or-panel* means caution. S4 should either honour that split or change the offenders.
 - **The app-wide visual change in `942760c`** — `--radius-card` 1rem→2px, all `--shadow-*` tokens deleted, borders and dividers removed — has no decision record. It is coherent and it ships, but S2–S4 will each re-litigate radius and dividers unless it gets one. **Still owed. Not resolved here.**
 
+## Consequences
+
+Stated plainly, because these remove things that work today.
+
+1. **Clients is one tap deeper.** It was a destination; it is now a segment. The
+   "phone rings, look someone up" job costs one extra tap. Watch this — if it
+   turns out to be the most-used path, A14 is wrong.
+2. **Reports loses its tab**, one working day after gaining it. It is now behind
+   the Today profile header. S1's own N3 called that tab the weakest decision in
+   the spec, so this is that prediction landing.
+3. **Nothing in the nav says "Settings".** It is behind an avatar. The `TabBar`
+   comment's argument about untrained users applies here and is being overruled
+   on the grounds that Settings is rare, not that the argument is wrong.
+
 ## Scope
 
-`TabBar.tsx`, `Shell.tsx`, `ui.tsx` (`Screen`, `EmptyState`), `Today.tsx`, and the
-title props on `Clients`, `Orders` and `Reports`. No schema change, no new
-queries, no model change. Nothing in `src/screens/today/todayModel.ts` moves.
+`TabBar.tsx`, `Shell.tsx`, `ui.tsx` (`Screen`, `EmptyState`), `Today.tsx`,
+`Orders.tsx`, `Clients.tsx`, a new illustration module, and the title props on
+the tab roots. No schema change, no new queries, no model change, **no new
+routes**. Nothing in `src/screens/today/todayModel.ts` moves.
 
 ## Not in scope
 
-Order and client screen layouts (S2, S3), the settings sub-screens (S4), and the
-`942760c` decision record above.
+Order-detail and client-detail layouts (S2, S3), the settings sub-screens (S4),
+and the `942760c` decision record above.
