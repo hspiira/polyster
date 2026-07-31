@@ -233,6 +233,17 @@ describe('buildBuckets', () => {
     expect(buckets.outOnRental).toEqual([])
   })
 
+  it('ignores a returned rental even with an overdue return date', () => {
+    const buckets = buildBuckets(
+      [order({ id: 'back', order_type: 'rental', stage: 'returned', return_due_date: '2026-07-20' })],
+      NAMES,
+      NO_BALANCES,
+      TODAY,
+    )
+    expect(buckets.overdue).toEqual([])
+    expect(buckets.outOnRental).toEqual([])
+  })
+
   it('sorts each bucket by the date it is due on', () => {
     const buckets = buildBuckets(
       [
