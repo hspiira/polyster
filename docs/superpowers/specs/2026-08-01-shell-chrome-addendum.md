@@ -34,7 +34,7 @@ content, plus two spec corrections the S1 final review left owing.
 | A16 | **Empty states get purpose-drawn line illustrations** in `icons.tsx`' existing stroke language — inline SVG, `currentColor`, one brand accent. | Chosen over duotone spots on cost: this app refuses web fonts because it runs on cheap phones over metered data, and that reasoning applies to artwork. Line art in the existing language is ~1–2KB each, themes for free, and needs no dark-mode palette. |
 
 | A17 | **The Today header is two lines, bounded by the avatar's height.** Line 1 is the greeting; line 2 is the shop name. | Three lines (greeting, shop, sync) cannot sit inside a 44px avatar without the block reading as ragged against it. |
-| A18 | **Sync moves to a tone-coloured indicator on the right of the header** — green synced, amber offline or waiting, red erroring, grey local-only. It is status, not a link. | A signal-bars glyph reads as connection strength without a caption, which frees line 2 for the shop name entirely and removes the dot. Satisfies ARCHITECTURE §9 — sync stays visible on the home screen — without spending a line of text on it. |
+| A18 | **Line 2 carries a tone dot plus one of two things: the shop name when sync is healthy, the sync label when it is not.** | *Amended after implementation.* The original A18 called for a signal-bars glyph with no caption, freeing line 2 for the shop name permanently. Built and rejected: a bars glyph reads as connection strength, and this app's sync states are not strengths — "working offline", "sync paused", and "local only, no account" are three different conditions with three different user responses, and ARCHITECTURE §9 requires the state be readable, not merely indicated. The shipped degrade says nothing when there is nothing to say and says the actual problem when there is. |
 | A19 | **Reports regains its row in Settings**, and keeps the contextual link on Today's money card. | A18 takes the header button that A15 gave it. The money card's link cannot stand alone because that card only renders when something is outstanding. The Settings row was removed in S1 Task 9 *because* Reports had become a tab; that reasoning died with A15, so the row comes back. |
 
 ### A14 in implementation: no new route
@@ -70,11 +70,18 @@ Stated plainly, because these remove things that work today.
 3. **Nothing in the nav says "Settings".** It is behind an avatar. The `TabBar`
    comment's argument about untrained users applies here and is being overruled
    on the grounds that Settings is rare, not that the argument is wrong.
-4. **Sync state is no longer readable in words on Today.** A18 reduces it to a
-   coloured glyph there. `SyncBadge`'s own note argues staff must learn what
-   fine looks like in order to notice when it changes — a colour still does
-   that, but less explicitly than a sentence. The full worded badge survives
-   unchanged on every other screen, so the wording is one tap away.
+4. **Reports was orphaned between A15 and A19.** A15 took its tab; the Settings
+   row had already gone in S1 Task 9 *because* it had become a tab. For a while
+   the only door was Today's money card, which renders only when something is
+   outstanding — so a shop with nothing owed could not reach Reports at all.
+   A19 restores the Settings row. Worth remembering as the cost of moving a
+   destination twice in two days.
+5. **Today trades the sync sentence for the shop name while sync is healthy.**
+   Under amended A18 the words come back the moment there is a problem, so
+   `SyncBadge`'s argument — that staff must know what fine looks like to notice
+   when it changes — is served by the dot in the healthy case and by the label
+   in every other case. The full worded badge survives unchanged on every other
+   screen.
 
 ## Scope
 
