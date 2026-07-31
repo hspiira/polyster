@@ -1,9 +1,16 @@
 /**
- * The order list (Phase 1 step 5).
+ * The order list (Phase 1 step 5), and one of Book's two sections.
  *
  * Defaults to open work. A shop's list of everything ever made grows forever
  * and is almost never the question being asked on the shop floor -- "what is
  * outstanding" is.
+ *
+ * ## Book, not a route of its own
+ *
+ * The nav's "Book" tab points here (spec A14). `BookSwitch` renders above the
+ * scope filter so a shop can flip to Clients without leaving the tab; `/orders`
+ * itself is untouched, so every existing link into it -- Today's "See all",
+ * `?due=`, `?filter=` -- still lands exactly where it did.
  *
  * ## The scope lives in the URL, not in local state
  *
@@ -30,6 +37,7 @@ import {
   Screen,
   Segmented,
 } from '../components/ui'
+import { BookSwitch } from '../components/BookSwitch'
 import { IconOrders } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
@@ -147,6 +155,8 @@ export function Orders() {
   return (
     <Screen title="Orders">
       <div class="space-y-4">
+        <BookSwitch active="orders" />
+
         {isSegment(scope) ? (
           <Segmented
             value={scope}

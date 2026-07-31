@@ -1,22 +1,24 @@
 import { useLocation } from 'preact-iso'
-import { IconHome, IconMoney, IconOrders, IconPlus, IconUsers } from './icons'
+import { IconHome, IconOrders, IconPlus } from './icons'
 
 /**
  * Bottom navigation: a floating pill inset from the left, right and bottom
  * edges, rather than a bar welded to the bottom edge.
  *
  * Bottom rather than top because the top of a modern handset is out of thumb
- * reach one-handed. Four destinations is the ceiling -- past that, labels
- * shrink below legibility on a narrow screen. Settings therefore lives in the
- * status strip rather than here, and the centre button is an action, not a
- * fifth destination.
+ * reach one-handed. The bar holds exactly three items -- Today, the create
+ * action, and Book -- per spec A13. Orders and Clients merged behind Book
+ * (A14: one tab, two routes, no new URL -- see Orders.tsx and Clients.tsx for
+ * the segmented control that switches between them in place). Reports and
+ * Settings left the bar entirely (A15) and, until a later task wires them to
+ * the Today profile header, are reachable only by URL.
  *
- * Only the active tab carries a label, as a filled pill; the other three are
- * bare icons at a fixed 44px square. That is the point of the change -- the
+ * Only the active tab carries a label, as a filled pill; the inactive one is
+ * a bare icon at a fixed 44px square. That is the point of the change -- the
  * label appears exactly once on screen instead of competing with the
  * screen's own title -- and it is why the bar's items are not equal width:
- * the active pill sizes to its own content ("Reports" is the long case)
- * while its neighbours stay fixed, so the layout is flex, not a grid.
+ * the active pill sizes to its own content while its neighbour stays fixed,
+ * so the layout is flex, not a grid.
  *
  * The centre action sits *in* the bar rather than raised above it. Raised, it
  * overhung the bar's top edge in its own stacking context, and on the order
@@ -24,16 +26,38 @@ import { IconHome, IconMoney, IconOrders, IconPlus, IconUsers } from './icons'
  * button's own rectangle navigated to a new order instead of submitting. Flat
  * and laid out normally, that class of overlap cannot happen at all.
  */
-const TABS = [
-  { href: '/', label: 'Today', Icon: IconHome },
-  { href: '/clients', label: 'Clients', Icon: IconUsers },
-  { href: '/orders', label: 'Orders', Icon: IconOrders },
-  { href: '/reports', label: 'Reports', Icon: IconMoney },
-] as const
+interface TabDef {
+  href: string
+  label: string
+  Icon: (props: { size?: number; 'stroke-width'?: number }) => preact.JSX.Element
+  /**
+   * Path prefixes that count as this tab being active. Book owns two --
+   * `/orders` and `/clients` -- because merging the destinations (A14) did
+   * not merge their routes; either one has to light up the same tab.
+   */
+  prefixes: readonly string[]
+}
 
-function isActive(currentPath: string, href: string): boolean {
-  if (href === '/') return currentPath === '/'
-  return currentPath === href || currentPath.startsWith(`${href}/`)
+const TODAY_TAB: TabDef = { href: '/', label: 'Today', Icon: IconHome, prefixes: ['/'] }
+
+/**
+ * "Book" rather than "Orders" -- the shop's own word for the order book, and
+ * the name for what used to be two destinations. There is no dedicated book
+ * icon (see icons.tsx' doc header on bundle size); `IconOrders` is the
+ * closest fit since the order book is the primary sense of the merge.
+ */
+const BOOK_TAB: TabDef = {
+  href: '/orders',
+  label: 'Book',
+  Icon: IconOrders,
+  prefixes: ['/orders', '/clients'],
+}
+
+function isActive(currentPath: string, prefixes: readonly string[]): boolean {
+  return prefixes.some((prefix) => {
+    if (prefix === '/') return currentPath === '/'
+    return currentPath === prefix || currentPath.startsWith(`${prefix}/`)
+  })
 }
 
 /**
@@ -62,9 +86,12 @@ export function TabBar() {
                supports-backdrop-filter:bg-white/70
                dark:supports-backdrop-filter:bg-stone-900/70"
       >
-        {TABS.slice(0, 2).map((tab) => (
-          <Tab key={tab.href} {...tab} active={isActive(path, tab.href)} />
-        ))}
+        <Tab
+          href={TODAY_TAB.href}
+          label={TODAY_TAB.label}
+          Icon={TODAY_TAB.Icon}
+          active={isActive(path, TODAY_TAB.prefixes)}
+        />
 
         <a
           href="/orders/new"
@@ -75,9 +102,12 @@ export function TabBar() {
           <IconPlus size={22} />
         </a>
 
-        {TABS.slice(2).map((tab) => (
-          <Tab key={tab.href} {...tab} active={isActive(path, tab.href)} />
-        ))}
+        <Tab
+          href={BOOK_TAB.href}
+          label={BOOK_TAB.label}
+          Icon={BOOK_TAB.Icon}
+          active={isActive(path, BOOK_TAB.prefixes)}
+        />
       </div>
     </nav>
   )

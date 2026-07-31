@@ -1,10 +1,17 @@
 /**
- * Client list, search, and add (Phase 1 step 4).
+ * Client list, search, and add (Phase 1 step 4), and Book's other section.
  *
  * Search filters in memory rather than through an RxDB query. A shop has
  * hundreds of clients, not millions, and the whole list is already local -- so
  * it is instant, offline by construction, and matches on phone number as well
  * as name, which is how a shop looks someone up when the phone rings.
+ *
+ * ## Book, not a route of its own
+ *
+ * The nav's "Book" tab reads as active here too (spec A14, via `TabBar`'s two
+ * prefixes), even though it points at `/orders`. `BookSwitch` renders above
+ * everything else so a shop can flip back to Orders without leaving the tab;
+ * `/clients` itself, and every link into it, is unchanged.
  */
 import { useMemo, useState } from 'preact/hooks'
 import {
@@ -23,6 +30,7 @@ import {
   Sheet,
   Textarea,
 } from '../components/ui'
+import { BookSwitch } from '../components/BookSwitch'
 import { IconPlus, IconUsers } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
@@ -65,6 +73,8 @@ export function Clients() {
         }
       >
         <div class="space-y-4">
+          <BookSwitch active="clients" />
+
           {clients.length > 0 && (
             <SearchInput
               placeholder="Search by name or phone"
