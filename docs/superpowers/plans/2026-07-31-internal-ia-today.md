@@ -988,7 +988,9 @@ Expected: PASS, 40 tests total.
 - [ ] **Step 5: Run the full suite and commit**
 
 Run: `pnpm verify`
-Expected: typecheck clean, all tests pass (94 pre-existing + 40 new = 134), build succeeds.
+Expected: typecheck clean, all tests pass (165 pre-existing + 40 new = 205), build succeeds.
+(The README's "94 tests" is stale — it predates the entry-flow work. Verified 165
+at this plan's start commit.)
 
 ```bash
 git add src/screens/today/todayModel.ts src/screens/today/todayModel.test.ts
@@ -1157,7 +1159,7 @@ export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md'
 - [ ] **Step 4: Verify**
 
 Run: `pnpm verify`
-Expected: typecheck clean, 134 tests pass, build succeeds. `Fab` is still
+Expected: typecheck clean, 205 tests pass, build succeeds. `Fab` is still
 exported and still used — it is removed in Task 10.
 
 - [ ] **Step 5: Commit**
@@ -1277,7 +1279,7 @@ export function DayStrip({ cells }: { cells: readonly DayCell[] }) {
 - [ ] **Step 3: Verify**
 
 Run: `pnpm verify`
-Expected: typecheck clean, 134 tests pass, build succeeds. Both components are
+Expected: typecheck clean, 205 tests pass, build succeeds. Both components are
 unreferenced so far, which is fine — `Today.tsx` picks them up in Task 7.
 
 - [ ] **Step 4: Commit**
@@ -1561,7 +1563,7 @@ rm src/screens/Dashboard.tsx
 - [ ] **Step 3: Verify**
 
 Run: `pnpm verify`
-Expected: typecheck clean, 134 tests pass, build succeeds. A `tsc` error naming
+Expected: typecheck clean, 205 tests pass, build succeeds. A `tsc` error naming
 `Dashboard` means a second import was missed — `grep -rn "Dashboard" src/` finds it.
 
 - [ ] **Step 4: Check it in a browser**
@@ -1701,7 +1703,7 @@ at the top and use `JSX.Element`.
 - [ ] **Step 2: Verify**
 
 Run: `pnpm verify`
-Expected: typecheck clean, 134 tests pass, build succeeds.
+Expected: typecheck clean, 205 tests pass, build succeeds.
 
 - [ ] **Step 3: Check it in a browser**
 
@@ -1765,7 +1767,7 @@ Delete the entire `<li>` containing the `/reports` `ListRow` (the block starting
 - [ ] **Step 3: Verify**
 
 Run: `pnpm verify`
-Expected: typecheck clean, 134 tests pass, build succeeds. An unused-import
+Expected: typecheck clean, 205 tests pass, build succeeds. An unused-import
 error on `IconMoney` means Step 2's second half was missed.
 
 - [ ] **Step 4: Check it in a browser**
@@ -1974,7 +1976,7 @@ now.
 - [ ] **Step 5: Verify**
 
 Run: `pnpm verify`
-Expected: typecheck clean, 134 tests pass, build succeeds. A `tsc` error naming
+Expected: typecheck clean, 205 tests pass, build succeeds. A `tsc` error naming
 `Fab` means a call site was missed — `grep -rn "Fab" src/` finds it.
 
 - [ ] **Step 6: Check it in a browser**
@@ -2001,7 +2003,7 @@ into its header, since the centre tab routes to /orders/new."
 
 ## Final verification
 
-- [ ] Run `pnpm verify` — typecheck clean, 134 tests pass, production build succeeds.
+- [ ] Run `pnpm verify` — typecheck clean, 205 tests pass, production build succeeds.
 - [ ] Run `grep -rn "Dashboard\|Fab" src/` — no results.
 - [ ] Walk the app at 390×844 in both light and dark mode: Today → a bucket row →
   an order → back; Today → a day cell → Orders → Clear; every tab; the status
