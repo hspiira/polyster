@@ -10,6 +10,10 @@
  * Dark mode is supported throughout via `prefers-color-scheme`, because a shop
  * phone follows the owner's system setting and a hard-coded white app is
  * blinding at night.
+ *
+ * Surfaces are fills, not lines: no borders, no shadows, a near-square radius.
+ * The reasoning and the consequences are recorded in index.css. Anything here
+ * that wants a hairline to do its job is a sign the spacing is wrong.
  */
 import type { ComponentChildren, JSX } from 'preact'
 import { useEffect } from 'preact/hooks'
@@ -22,8 +26,18 @@ export { cn }
 /** Minimum comfortable tap target. Below this, mis-taps become common. */
 const TAP = 'min-h-11'
 
+/** A raised surface: the only thing that separates it from the page. */
 const SURFACE = 'bg-white dark:bg-stone-900'
-const BORDER = 'border-stone-200/80 dark:border-stone-800'
+/** The page itself. Sticky chrome uses this so surfaces vanish behind it. */
+const PAGE = 'bg-stone-100 dark:bg-stone-950'
+/**
+ * A recessed surface: inputs, tracks, tiles.
+ *
+ * stone-200 rather than stone-100 because a recessed control has to be visible
+ * both on a white surface and directly on the stone-100 page -- `SearchInput`
+ * does the latter, and a stone-100 field on a stone-100 page is invisible.
+ */
+const RECESSED = 'bg-stone-200 dark:bg-stone-800'
 const TEXT_MUTED = 'text-stone-500 dark:text-stone-400'
 
 // ------------------------------------------------------------------ layout
@@ -33,6 +47,11 @@ const TEXT_MUTED = 'text-stone-500 dark:text-stone-400'
  *
  * The title stays visible while the content scrolls, which matters on a long
  * order list where it is otherwise easy to lose track of where you are.
+ *
+ * The header is page-coloured and unblurred rather than a floating bar. It sits
+ * directly under the Shell's status strip, which is also page-coloured, so the
+ * two read as one quiet block instead of two stacked bars with a hairline
+ * between them. Surfaces scrolling under it disappear behind the page.
  *
  * Passing `back` gets both a chevron and an edge-swipe gesture, because in an
  * installed PWA there is no browser chrome and no system back swipe -- see
@@ -56,32 +75,30 @@ export function Screen({
 
   return (
     <div ref={swipeRef}>
-      <header
-        class={`sticky top-0 z-20 border-b ${BORDER} ${SURFACE} backdrop-blur-lg
-                supports-backdrop-filter:bg-white/75
-                dark:supports-backdrop-filter:bg-stone-900/75`}
-      >
-        <div class="mx-auto flex max-w-lg items-center gap-2 px-4 py-3">
+      <header class={`sticky top-0 z-20 ${PAGE}`}>
+        <div class="mx-auto flex max-w-lg items-center gap-2 px-4 pt-1 pb-3">
           {back && (
             <a
               href={back}
               aria-label="Back"
-              class={`-ml-2 flex size-10 shrink-0 items-center justify-center rounded-full
-                      text-stone-600 active:bg-stone-100 dark:text-stone-300
+              class={`-ml-2.5 flex size-10 shrink-0 items-center justify-center rounded-full
+                      text-stone-500 active:bg-stone-200 dark:text-stone-400
                       dark:active:bg-stone-800`}
             >
               <IconChevronLeft size={22} />
             </a>
           )}
           <div class="min-w-0 flex-1">
-            <h1 class="truncate text-lg font-semibold tracking-tight">{title}</h1>
-            {subtitle && <p class={`truncate text-xs ${TEXT_MUTED}`}>{subtitle}</p>}
+            <h1 class="truncate text-[22px] font-semibold leading-tight tracking-tight">
+              {title}
+            </h1>
+            {subtitle && <p class={`mt-0.5 truncate text-xs ${TEXT_MUTED}`}>{subtitle}</p>}
           </div>
           {action}
         </div>
       </header>
 
-      <div class="mx-auto w-full max-w-lg px-4 pt-4 pb-28">{children}</div>
+      <div class="mx-auto w-full max-w-lg px-4 pb-28">{children}</div>
     </div>
   )
 }
@@ -96,12 +113,7 @@ export function Card({
   padded?: boolean
 }) {
   return (
-    <div
-      class={`rounded-card border ${BORDER} ${SURFACE} shadow-card
-              ${padded ? 'p-4' : ''} ${className ?? ''}`}
-    >
-      {children}
-    </div>
+    <div class={cn('rounded-card', SURFACE, padded && 'p-4', className)}>{children}</div>
   )
 }
 
@@ -128,14 +140,14 @@ type ButtonProps = JSX.IntrinsicElements['button'] & {
   block?: boolean
 }
 
+/** Fills only. A secondary button is a quieter fill, never an outline. */
 const BUTTON_VARIANTS = {
-  primary:
-    'bg-brand-700 text-white shadow-card active:bg-brand-800 dark:bg-brand-600 dark:active:bg-brand-700',
+  primary: 'bg-brand-700 text-white active:bg-brand-800 dark:bg-brand-600 dark:active:bg-brand-700',
   secondary:
-    'border border-stone-300 bg-white text-stone-800 active:bg-stone-100 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:active:bg-stone-700',
+    'bg-stone-200 text-stone-800 active:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:active:bg-stone-700',
   danger:
-    'border border-red-300 bg-white text-red-700 active:bg-red-50 dark:border-red-900 dark:bg-stone-800 dark:text-red-400',
-  ghost: 'text-stone-600 active:bg-stone-100 dark:text-stone-300 dark:active:bg-stone-800',
+    'bg-red-100 text-red-700 active:bg-red-200 dark:bg-red-950 dark:text-red-300 dark:active:bg-red-900',
+  ghost: 'text-stone-600 active:bg-stone-200 dark:text-stone-300 dark:active:bg-stone-800',
 } as const
 
 export function Button({
@@ -159,12 +171,11 @@ export function Button({
 }
 
 /**
- * Floating action button for a screen's single most likely action.
- *
- * Sits above the tab bar and clear of the home indicator. One per screen --
- * two floating buttons is a menu, and a menu belongs in the flow.
+ * A screen header's action. Small, labelled by text where it fits, so a
+ * create action does not need a floating button competing with the tab bar's
+ * centre action (spec N12 -- `Fab` was deleted, deliberately).
  */
-export function Fab({
+export function HeaderAction({
   href,
   onClick,
   label,
@@ -173,25 +184,31 @@ export function Fab({
   href?: string
   onClick?: () => void
   label: string
-  icon: ComponentChildren
+  icon?: ComponentChildren
 }) {
-  // Offset clears the tab bar and the home indicator beneath it.
-  const style = `fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-20 flex
-                 size-14 items-center justify-center rounded-full bg-brand-700 text-white
-                 shadow-raised transition-transform active:scale-95
-                 dark:bg-brand-600`
+  const inner = (
+    <>
+      {icon}
+      {label}
+    </>
+  )
+  const style = cn(
+    'flex shrink-0 items-center gap-1 rounded-control px-3 text-sm font-semibold',
+    'text-brand-700 active:bg-stone-200 dark:text-brand-300 dark:active:bg-stone-800',
+    TAP,
+  )
 
   if (href) {
     return (
-      <a href={href} aria-label={label} class={style}>
-        {icon}
+      <a href={href} class={style}>
+        {inner}
       </a>
     )
   }
 
   return (
-    <button type="button" aria-label={label} onClick={onClick} class={style}>
-      {icon}
+    <button type="button" onClick={onClick} class={cn(style, '-mr-2')}>
+      {inner}
     </button>
   )
 }
@@ -225,12 +242,19 @@ export function Field({
   )
 }
 
-const CONTROL_BASE = `w-full border border-stone-300 bg-white
-                 text-base text-stone-900 outline-none transition-colors
-                 placeholder:text-stone-400
-                 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20
-                 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100
-                 dark:placeholder:text-stone-500`
+/**
+ * A recessed fill with no resting border. The focus ring stays: it is the only
+ * thing telling a keyboard or screen-reader user where they are, and dropping
+ * it to satisfy "no lines" would be a real accessibility regression rather
+ * than a style choice.
+ */
+const CONTROL_BASE = cn(
+  'w-full border-0 text-base text-stone-900 outline-none transition-colors',
+  RECESSED,
+  'placeholder:text-stone-400',
+  'focus:ring-2 focus:ring-inset focus:ring-brand-600',
+  'dark:text-stone-100 dark:placeholder:text-stone-500',
+)
 
 /** Pill fields need the extra horizontal padding or the text sits on the curve. */
 const CONTROL = cn(CONTROL_BASE, 'rounded-control px-4.5')
@@ -283,8 +307,11 @@ export function Segmented<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      class="flex gap-1 overflow-x-auto rounded-control bg-stone-200/70 p-1
-             dark:bg-stone-800/80 scrollbar-none [&::-webkit-scrollbar]:hidden"
+      class={cn(
+        'flex gap-1 overflow-x-auto rounded-control p-1',
+        RECESSED,
+        'scrollbar-none [&::-webkit-scrollbar]:hidden',
+      )}
     >
       {options.map((option) => {
         const active = option.value === value
@@ -295,10 +322,10 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(option.value)}
-            class={`min-h-9 shrink-0 rounded-[0.55rem] px-3 text-sm font-medium
+            class={`min-h-9 shrink-0 rounded-control px-3.5 text-sm font-medium
                     transition-colors ${
                       active
-                        ? 'bg-white text-stone-900 shadow-card dark:bg-stone-700 dark:text-white'
+                        ? 'bg-white text-stone-900 dark:bg-stone-600 dark:text-white'
                         : 'text-stone-600 dark:text-stone-400'
                     }`}
           >
@@ -357,13 +384,13 @@ export function Sheet({
       />
       <div
         class={`absolute inset-x-0 bottom-0 max-h-[88svh] animate-sheet-in overflow-y-auto
-                rounded-t-3xl ${SURFACE} shadow-sheet safe-bottom`}
+                rounded-card ${SURFACE} safe-bottom`}
       >
         {/* Grab handle. Purely a signal that this is dismissable -- dragging
             is not implemented, and pretending otherwise would be worse. */}
         <div class="sticky top-0 z-10 flex flex-col items-center bg-inherit pt-2.5">
           <span class="h-1 w-9 rounded-full bg-stone-300 dark:bg-stone-600" />
-          <h2 class="w-full px-5 pt-3 pb-2 text-base font-semibold">{title}</h2>
+          <h2 class="w-full px-5 pt-3 pb-2 text-lg font-semibold tracking-tight">{title}</h2>
         </div>
         <div class="px-5 pt-1 pb-5">{children}</div>
       </div>
@@ -374,10 +401,10 @@ export function Sheet({
 // ------------------------------------------------------------------ display
 
 const CHIP_TONES = {
-  // Ringed rather than filled. A chip filled with stone-100 vanishes against
-  // the stone-100 page background, which is where the dashboard puts them.
-  neutral:
-    'bg-stone-100 text-stone-700 ring-1 ring-inset ring-stone-300/70 dark:bg-stone-800 dark:text-stone-300 dark:ring-stone-700',
+  // stone-200 rather than stone-100 so the fill alone carries it. A chip filled
+  // with stone-100 vanishes against the stone-100 page, which is what the ring
+  // this replaced was compensating for.
+  neutral: 'bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300',
   good: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   warn: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300',
   bad: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
@@ -454,21 +481,25 @@ export function ListRow({
   return (
     <a
       href={href}
-      class="flex items-center gap-3 px-4 py-3 transition-colors active:bg-stone-100
+      class="flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-stone-100
              dark:active:bg-stone-800"
     >
       {leading}
       <span class="min-w-0 flex-1">{children}</span>
-      {trailing ?? <IconChevronRight size={18} class="shrink-0 text-stone-400" />}
+      {trailing ?? <IconChevronRight size={18} class="shrink-0 text-stone-300 dark:text-stone-600" />}
     </a>
   )
 }
 
-/** Rows inside a Card, hairline-separated. Use with `padded={false}`. */
+/**
+ * Rows inside a Card. Use with `padded={false}`.
+ *
+ * No dividers: row padding does the separating. On a list where every row is a
+ * wall of similar text that would be too little, which is why `Clients` keeps
+ * its avatar column -- the shapes carry the scan the hairlines used to.
+ */
 export function RowList({ children }: { children: ComponentChildren }) {
-  return (
-    <ul class="divide-y divide-stone-100 dark:divide-stone-800">{children}</ul>
-  )
+  return <ul>{children}</ul>
 }
 
 /**
@@ -489,12 +520,12 @@ export function SectionCard({
   children: ComponentChildren
 }) {
   return (
-    <section class={`overflow-hidden rounded-card border ${BORDER} ${SURFACE} shadow-card`}>
-      <div class="px-4 pt-3.5 pb-2.5">
-        <h2 class="flex items-baseline gap-1.5 text-sm font-semibold tracking-tight">
+    <section class={`overflow-hidden rounded-card ${SURFACE}`}>
+      <div class="px-4 pt-4 pb-1">
+        <h2 class="flex items-baseline gap-1.5 text-[15px] font-semibold tracking-tight">
           {title}
           {count !== undefined && (
-            <span class={`text-xs font-normal ${TEXT_MUTED}`}>· {count}</span>
+            <span class={`text-xs font-normal ${TEXT_MUTED}`}>{count}</span>
           )}
         </h2>
         {subtitle && <p class={`mt-0.5 text-xs ${TEXT_MUTED}`}>{subtitle}</p>}
@@ -558,7 +589,7 @@ export function MoreLink({ href, children }: { href: string; children: Component
   return (
     <a
       href={href}
-      class={`flex items-center justify-between gap-2 border-t ${BORDER} px-4 text-sm
+      class={`flex items-center justify-between gap-2 px-4 pb-1 text-sm
               font-medium text-brand-700 transition-colors active:bg-stone-100
               dark:text-brand-300 dark:active:bg-stone-800 ${TAP}`}
     >
@@ -583,8 +614,11 @@ export function EmptyState({
     <div class="px-6 py-12 text-center">
       {icon && (
         <div
-          class="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl
-                 bg-stone-200/70 text-stone-500 dark:bg-stone-800 dark:text-stone-400"
+          class={cn(
+            'mx-auto mb-3 flex size-14 items-center justify-center rounded-card',
+            RECESSED,
+            'text-stone-500 dark:text-stone-400',
+          )}
         >
           {icon}
         </div>
@@ -600,8 +634,8 @@ export function ErrorNote({ children }: { children: ComponentChildren }) {
   return (
     <p
       role="alert"
-      class="flex gap-2 rounded-control border border-red-200 bg-red-50 px-3 py-2.5
-             text-sm text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300"
+      class="flex gap-2 rounded-card bg-red-100 px-3.5 py-2.5
+             text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
     >
       {children}
     </p>

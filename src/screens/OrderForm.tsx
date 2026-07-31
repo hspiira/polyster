@@ -253,12 +253,19 @@ export function OrderForm() {
           </div>
         </Card>
 
-        {/* Pinned above the tab bar so it is reachable without scrolling back
-            past every field. */}
+        {/*
+          Pinned to the bottom edge so it is reachable without scrolling back
+          past every field.
+
+          `bottom-0`, not `bottom-14`: the tab bar hides itself on this route
+          (see TabBar.isFullScreenTask), so there is nothing beneath to clear.
+          The old offset was a guess at the bar's height that stopped being
+          true, and the tab bar's centre action ended up overlapping the submit
+          button.
+        */}
         <div
-          class="fixed inset-x-0 bottom-14 z-20 border-t border-stone-200/80 bg-white/90
-                 px-4 py-3 backdrop-blur-lg safe-bottom dark:border-stone-800
-                 dark:bg-stone-900/90"
+          class="fixed inset-x-0 bottom-0 z-20 bg-white px-4 pt-3 dark:bg-stone-900
+                 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         >
           <div class="mx-auto flex max-w-lg gap-2">
             <Button

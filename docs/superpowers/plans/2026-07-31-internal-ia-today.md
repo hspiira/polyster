@@ -1789,6 +1789,28 @@ Reports is a tab now, so its Settings row goes."
 
 ### Task 10: Order-list parameters, and `Fab` is deleted
 
+> **Done, 2026-07-31**, with three deviations, all recorded in the code:
+>
+> 1. The scope is derived from the URL rather than held in state and synced to
+>    it, so changing a segment is a navigation and the back button steps through
+>    filter history. Unrecognised values fall back to Open.
+> 2. Due-based scopes (`overdue`, `today`, `week`, `out`, `due=`) reuse
+>    `todayModel`'s `buildBuckets` and a new `rowsDueOn`, rather than
+>    re-deriving the rules in `Orders.tsx`. Two implementations of "overdue"
+>    would drift, and the first symptom would be a card reading 6 that opens a
+>    list of 5. `out` is a fifth linked scope the plan did not list; Today links
+>    to it from the Out-on-rental card.
+> 3. `Fab` is replaced by a `HeaderAction` primitive rather than each screen
+>    hand-rolling a header button, since `Clients` is not the last screen that
+>    will want one.
+>
+> The raised centre tab from Task 8 was also flattened into the bar. Raised, it
+> sat in its own stacking context above the order form's pinned action bar and
+> covered part of "Create order": a tap inside the submit button's own rectangle
+> navigated to a new order instead of submitting. The tab bar now also hides
+> itself on `/orders/new` and `/orders/:id/edit`, so that class of overlap
+> cannot recur. Verified by hit-testing at 375x812.
+
 **Files:**
 - Modify: `src/screens/Orders.tsx`
 - Modify: `src/screens/Clients.tsx`
@@ -1805,7 +1827,7 @@ Reports is a tab now, so its Settings row goes."
 control — seven segments would be too narrow to hit. When one of those, or
 `due`, is active, a dismissible line names it instead.
 
-- [ ] **Step 1: Read the parameters in `Orders.tsx`**
+- [x] **Step 1: Read the parameters in `Orders.tsx`**
 
 Add `import { useLocation } from 'preact-iso'` and widen the filter type:
 
@@ -1963,7 +1985,7 @@ Extend `emptyTitle` and `emptyDescription` with the three new cases:
   if (filter === 'out') return 'No rental is currently with a client.'
 ```
 
-- [ ] **Step 2: Remove `Fab` from `Orders.tsx`**
+- [x] **Step 2: Remove `Fab` from `Orders.tsx`**
 
 Delete the `<Fab href="/orders/new" label="New order" icon={<IconPlus size={24} />} />`
 element. That leaves the `<>...</>` fragment wrapping a single `<Screen>`, so
@@ -1973,7 +1995,7 @@ unwrap it and return the `<Screen>` directly. Remove **both** `Fab` and
 which `EmptyState` still uses. The centre tab from Task 8 is the create action
 now.
 
-- [ ] **Step 3: Give `Clients.tsx` a header action instead of a `Fab`**
+- [x] **Step 3: Give `Clients.tsx` a header action instead of a `Fab`**
 
 Delete the `{clients.length > 0 && (<Fab ... />)}` block and give `Screen` an
 action, so adding a client is still possible once the empty state is gone:
@@ -1992,18 +2014,18 @@ action, so adding a client is still possible once the empty state is gone:
 
 Remove `Fab` from the imports; keep `IconPlus`.
 
-- [ ] **Step 4: Delete `Fab` from `ui.tsx`**
+- [x] **Step 4: Delete `Fab` from `ui.tsx`**
 
 Remove the whole `Fab` function and its doc comment. Nothing should reference it
 now.
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `pnpm verify`
 Expected: typecheck clean, 205 tests pass, build succeeds. A `tsc` error naming
 `Fab` means a call site was missed — `grep -rn "Fab" src/` finds it.
 
-- [ ] **Step 6: Check it in a browser**
+- [x] **Step 6: Check it in a browser**
 
 Run: `pnpm dev` at 390×844, seeded. Confirm:
 - A day cell on Today opens `/orders?due=...` and lists that day's work, with
@@ -2013,7 +2035,7 @@ Run: `pnpm dev` at 390×844, seeded. Confirm:
 - Clients' header "Add" opens the new-client sheet.
 - No floating button remains anywhere.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/screens/Orders.tsx src/screens/Clients.tsx src/components/ui.tsx

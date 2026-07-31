@@ -40,10 +40,10 @@ export function BackupSettings() {
     <Screen title="Backup" back="/settings">
       <div class="space-y-5">
         <div
-          class={`rounded-card p-5 shadow-card ${
+          class={`rounded-card p-4 ${
             stale
-              ? 'bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200'
-              : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200'
+              ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+              : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
           }`}
         >
           <div class="flex items-center gap-2 text-sm font-medium">

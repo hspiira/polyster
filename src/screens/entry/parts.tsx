@@ -170,8 +170,12 @@ export function EntryError({ children }: { children: ComponentChildren }) {
   )
 }
 
+/**
+ * rounded-xl rather than rounded-card: the entry flow is a separate world with
+ * a softer radius, and --radius-card is now near-square for the shell.
+ */
 export function EntryNote({ children }: { children: ComponentChildren }) {
   return (
-    <p class="glass rounded-card px-4 py-3.5 text-sm leading-relaxed text-stone-300">{children}</p>
+    <p class="glass rounded-xl px-4 py-3.5 text-sm leading-relaxed text-stone-300">{children}</p>
   )
 }

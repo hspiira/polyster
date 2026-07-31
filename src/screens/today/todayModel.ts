@@ -192,6 +192,51 @@ export function buildDayStrip(orders: readonly OrderDoc[], from: string): DayCel
   })
 }
 
+/**
+ * Every row of work falling on one date: open pickups due that day, plus
+ * rentals due back that day.
+ *
+ * This is the same rule `buildDayStrip` counts with, exported so the order list
+ * a day cell links to cannot disagree with the number on the cell. A cell
+ * reading 3 that opens a list of 5 is worse than no cell at all.
+ */
+export function rowsDueOn(
+  orders: readonly OrderDoc[],
+  clientNames: ReadonlyMap<string, string>,
+  balances: ReadonlyMap<string, OrderBalance>,
+  date: string,
+): DueRow[] {
+  const rows: DueRow[] = []
+
+  for (const order of orders) {
+    if (OPEN_STAGES.includes(order.stage)) {
+      if (order.pickup_due_date === date) {
+        rows.push(toRow(order, 'pickup', order.pickup_due_date, clientNames, balances))
+      }
+      continue
+    }
+    if (isOutOnRental(order) && order.return_due_date === date) {
+      rows.push(toRow(order, 'return', order.return_due_date as string, clientNames, balances))
+    }
+  }
+
+  return rows
+}
+
+/**
+ * Orders as plain pickup rows, for the order list's stage-based filters, which
+ * are about what an order *is* rather than when it is due.
+ */
+export function pickupRows(
+  orders: readonly OrderDoc[],
+  clientNames: ReadonlyMap<string, string>,
+  balances: ReadonlyMap<string, OrderBalance>,
+): DueRow[] {
+  return orders.map((order) =>
+    toRow(order, 'pickup', order.pickup_due_date, clientNames, balances),
+  )
+}
+
 export interface OwingRow {
   order: OrderDoc
   clientName: string

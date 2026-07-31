@@ -90,22 +90,28 @@ export function Reports() {
   const maxStage = Math.max(1, ...stageCounts.values())
 
   return (
-    <Screen title="Reports" back="/settings">
+    // No back chevron: Reports is a tab root, like Today, Clients and Orders.
+    // It kept `back="/settings"` after Settings stopped linking to it, so both
+    // the chevron and the edge-swipe threw you into a screen you had not
+    // come from.
+    <Screen title="Reports">
       <div class="space-y-5">
-        <div class="rounded-card bg-linear-to-br from-brand-700 to-brand-800 p-5 text-white shadow-raised">
-          <p class="text-xs font-medium tracking-wide opacity-80">Collected, 7 days</p>
-          <p class="mt-1 text-3xl font-semibold tracking-tight">{formatMoney(collected.week)}</p>
-          <div class="mt-4 flex gap-6 border-t border-white/20 pt-3 text-sm">
+        <Card>
+          <p class="text-xs font-medium text-stone-500 dark:text-stone-400">Collected, 7 days</p>
+          <p class="mt-1.5 text-3xl font-semibold tabular-nums tracking-tight">
+            {formatMoney(collected.week)}
+          </p>
+          <div class="mt-4 flex gap-8 text-sm">
             <span>
-              <span class="block opacity-80">30 days</span>
+              <span class="block text-xs text-stone-500 dark:text-stone-400">30 days</span>
               <span class="font-semibold tabular-nums">{formatMoney(collected.month)}</span>
             </span>
             <span>
-              <span class="block opacity-80">All time</span>
+              <span class="block text-xs text-stone-500 dark:text-stone-400">All time</span>
               <span class="font-semibold tabular-nums">{formatMoney(collected.all)}</span>
             </span>
           </div>
-        </div>
+        </Card>
 
         <section>
           <SectionTitle>Outstanding</SectionTitle>
@@ -147,7 +153,7 @@ export function Reports() {
                 </li>
               ))}
             </ul>
-            <div class="mt-3 flex items-baseline justify-between border-t border-stone-100 pt-3 text-sm dark:border-stone-800">
+            <div class="mt-4 flex items-baseline justify-between text-sm">
               <span class="text-stone-600 dark:text-stone-300">Total</span>
               <span class="font-semibold tabular-nums">{orders.length}</span>
             </div>

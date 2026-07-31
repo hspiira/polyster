@@ -117,7 +117,7 @@ export function StaffSettings() {
           </Card>
         ) : (
           <Card padded={false}>
-            <ul class="divide-y divide-stone-100 dark:divide-stone-800">
+            <ul>
               {staff.map((member) => (
                 <li key={member.id} class="px-4 py-3">
                   <div class="flex items-center gap-3">

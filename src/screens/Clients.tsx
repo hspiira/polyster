@@ -14,6 +14,7 @@ import {
   EmptyState,
   ErrorNote,
   Field,
+  HeaderAction,
   Input,
   ListRow,
   RowList,
@@ -21,7 +22,6 @@ import {
   SearchInput,
   Sheet,
   Textarea,
-  Fab,
 } from '../components/ui'
 import { IconPlus, IconUsers } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
@@ -56,6 +56,13 @@ export function Clients() {
       <Screen
         title="Clients"
         subtitle={clients.length > 0 ? `${clients.length} in total` : undefined}
+        // In the header rather than floating: the tab bar's centre button is
+        // already this app's one floating action, and two is a menu (spec N12).
+        action={
+          clients.length > 0 ? (
+            <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />
+          ) : undefined
+        }
       >
         <div class="space-y-4">
           {clients.length > 0 && (
@@ -109,10 +116,6 @@ export function Clients() {
           )}
         </div>
       </Screen>
-
-      {clients.length > 0 && (
-        <Fab label="Add a client" onClick={() => setAdding(true)} icon={<IconPlus size={24} />} />
-      )}
 
       <AddClientSheet open={adding} onClose={() => setAdding(false)} />
     </>
