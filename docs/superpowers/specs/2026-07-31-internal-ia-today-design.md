@@ -79,7 +79,7 @@ should be back in the shop and is not needs doing.
 | N9 | Rental returns are bucketed. Overdue returns join **Overdue**, marked as returns; the rest get an **Out on rental** card. | Deferring to S2; a separate Rentals tab | Closes T1. Overdue is already the screen's alarm; a second alarm elsewhere splits attention. |
 | N10 | No overflow (`···`) menus | Copying the reference material's per-card menus | There are no per-card settings in this app. A menu with nothing in it is worse than no menu. Cards get one explicit labelled link. |
 | N11 | All derivation moves to a pure `src/screens/todayModel.ts`, tested | Keeping it in the component | Matches the `orderStage.ts` + `orderStage.test.ts` pattern already in `src/screens/`. `X8` names Today's bucketing as one of the two things most worth pinning down. |
-| N12 | `Fab` is removed from the codebase | Keeping it alongside the centre tab | Two floating create actions is a menu. The centre tab supersedes it on both screens that mount it. |
+| N12 | `Fab` is removed from the codebase. The centre tab supersedes it on `Orders`; **`Clients` gains an "Add" button in its `Screen` header instead.** | Keeping it alongside the centre tab; letting the centre tab serve both | Two floating create actions is a menu. But the centre tab routes to `/orders/new`, and `Clients`' FAB opens an add-client `Sheet` — deleting it outright would leave no way to add a client except the empty state, which disappears as soon as there is one client. `Screen` already has an `action` slot. |
 | N13 | Amber stays reserved for money outstanding | Using amber for the "due today" bucket fill | The rule is stated in `index.css` and is what makes the outstanding figure unmissable. Due-today gets amber only on its accent bar and count, never on a figure. |
 
 ## Navigation
@@ -98,10 +98,14 @@ should be back in the shop and is not needs doing.
 └──────────────────────────────────────────┘
 ```
 
-- The status strip gains, on the right, a gear linking to `/settings` and the
-  existing `Avatar` for the active staff member. `SyncBadge` keeps the left.
-  The avatar is decorative and also links to `/settings` — it is not a second
-  destination.
+- The status strip gains, on the right, **one** control: a pill containing the
+  active staff member's `Avatar` and a gear, linking to `/settings` and labelled
+  "Settings". One target rather than two adjacent ones that do the same thing.
+  `SyncBadge` keeps the left. `Avatar` needs a `size` prop — its fixed `size-10`
+  is too tall for the strip's `py-1.5`.
+- The strip's current "staff name · shop name" text is **removed**. The avatar's
+  initials carry who is active, Today's greeting carries the name, and the shop
+  name is in Settings. One identity per device (E4) is what makes that safe.
 - The centre button links to `/orders/new`. It is a brand-filled circle raised
   above the bar's top edge, clearing the home indicator via the existing
   `safe-bottom` handling.
@@ -186,9 +190,17 @@ A zero count renders as a dot, not a `0` — a row of zeroes reads as breakage.
 Three, in order, each hidden when empty: **Overdue** (red), **Due today**
 (amber), **Due this week** (neutral). Membership is `dueBucket()` over
 `pickup_due_date` for orders in `measured | in_progress | ready`, unchanged
-from today, **plus** rentals at `picked_up` whose `return_due_date` falls in the
-same bucket (N9). A return-derived row is labelled as a return and shows its
-`return_due_date`, so the two kinds are never confused.
+from today, **plus** rentals at `picked_up` whose `return_due_date` is
+**overdue** — those and only those (N9). A return that is not yet overdue goes
+to Out on rental instead, so "items that are out" has exactly one home and
+Overdue stays the screen's single alarm.
+
+A return-derived row is labelled as a return and shows its `return_due_date`,
+so the two kinds are never confused.
+
+*(An earlier draft of this section said returns join whichever bucket they fall
+into. That contradicted N9 and would have split rental awareness across four
+places.)*
 
 Rows show the item description, the client name, the stage as a `Chip`, and the
 outstanding balance when above zero. Four rows, then `See all n ›` into
@@ -294,7 +306,9 @@ Stated plainly, because these remove things that work today.
    here too — the mitigation is that the gear is on every screen rather than
    one, and is a gear rather than an avatar alone.
 2. **`Fab` is deleted**, and with it the pattern of a per-screen floating
-   action. Any screen later wanting one has to make the case again.
+   action. Any screen later wanting one has to make the case again. `Clients`'
+   create action moves into its header, which is a smaller and less obvious
+   target than a floating button was.
 3. **The stage mix leaves Today.** A shop that used the chip row to see "four
    in progress" at a glance now goes to Reports for it.
 4. **Today no longer shows every due order.** Four per bucket, then a link. A
