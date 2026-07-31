@@ -580,7 +580,7 @@ export function AccentRow({
       class={`flex items-stretch gap-3 pr-4 transition-colors active:bg-stone-100
               dark:active:bg-stone-800 ${TAP}`}
     >
-      <span class={`w-[3px] shrink-0 rounded-r-full ${ACCENT_TONES[tone]}`} aria-hidden="true" />
+      <span class={`w-0.75 shrink-0 rounded-r-full ${ACCENT_TONES[tone]}`} aria-hidden="true" />
       <span class="min-w-0 flex-1 py-2.5">{children}</span>
       {trailing && <span class="flex shrink-0 items-center py-2.5">{trailing}</span>}
     </a>

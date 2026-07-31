@@ -33,6 +33,10 @@ content, plus two spec corrections the S1 final review left owing.
 | A15 | **Reports and Settings leave the nav entirely** and hang off the Today profile header. | Reports is a weekly question and Settings is rare; neither earns permanent thumb real estate. A9's header is the door. |
 | A16 | **Empty states get purpose-drawn line illustrations** in `icons.tsx`' existing stroke language — inline SVG, `currentColor`, one brand accent. | Chosen over duotone spots on cost: this app refuses web fonts because it runs on cheap phones over metered data, and that reasoning applies to artwork. Line art in the existing language is ~1–2KB each, themes for free, and needs no dark-mode palette. |
 
+| A17 | **The Today header is two lines, bounded by the avatar's height.** Line 1 is the greeting; line 2 is the shop name. | Three lines (greeting, shop, sync) cannot sit inside a 44px avatar without the block reading as ragged against it. |
+| A18 | **Sync moves to a tone-coloured indicator on the right of the header** — green synced, amber offline or waiting, red erroring, grey local-only. It is status, not a link. | A signal-bars glyph reads as connection strength without a caption, which frees line 2 for the shop name entirely and removes the dot. Satisfies ARCHITECTURE §9 — sync stays visible on the home screen — without spending a line of text on it. |
+| A19 | **Reports regains its row in Settings**, and keeps the contextual link on Today's money card. | A18 takes the header button that A15 gave it. The money card's link cannot stand alone because that card only renders when something is outstanding. The Settings row was removed in S1 Task 9 *because* Reports had become a tab; that reasoning died with A15, so the row comes back. |
+
 ### A14 in implementation: no new route
 
 `Book` is **not** a new URL. `/orders` and `/clients` both keep working and both
@@ -66,6 +70,11 @@ Stated plainly, because these remove things that work today.
 3. **Nothing in the nav says "Settings".** It is behind an avatar. The `TabBar`
    comment's argument about untrained users applies here and is being overruled
    on the grounds that Settings is rare, not that the argument is wrong.
+4. **Sync state is no longer readable in words on Today.** A18 reduces it to a
+   coloured glyph there. `SyncBadge`'s own note argues staff must learn what
+   fine looks like in order to notice when it changes — a colour still does
+   that, but less explicitly than a sentence. The full worded badge survives
+   unchanged on every other screen, so the wording is one tap away.
 
 ## Scope
 
