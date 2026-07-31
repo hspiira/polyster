@@ -62,7 +62,7 @@ export function Clients() {
   return (
     <>
       <Screen
-        title="Clients"
+        label="Clients"
         subtitle={clients.length > 0 ? `${clients.length} in total` : undefined}
         // In the header rather than floating: the tab bar's centre button is
         // already this app's one floating action, and two is a menu (spec N12).

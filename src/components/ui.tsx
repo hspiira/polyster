@@ -59,12 +59,21 @@ const TEXT_MUTED = 'text-stone-500 dark:text-stone-400'
  */
 export function Screen({
   title,
+  label,
   subtitle,
   back,
   action,
   children,
 }: {
-  title: string
+  /** Visible page heading, for pushed screens. Omit on a tab root and pass `label` instead. */
+  title?: string
+  /**
+   * The accessible name for a tab root, which renders no visible heading
+   * (spec A8) -- the active tab already carries that label once, so a title
+   * on screen would say it again. The `h1` still needs a name for screen
+   * readers and the document outline, just not one anyone sees.
+   */
+  label?: string
   subtitle?: string
   /** Href for the back chevron and the edge-swipe. Omit on the tab roots. */
   back?: string
@@ -72,6 +81,7 @@ export function Screen({
   children: ComponentChildren
 }) {
   const swipeRef = useSwipeBack(back)
+  const heading = title ?? label
 
   return (
     <div ref={swipeRef}>
@@ -89,9 +99,16 @@ export function Screen({
             </a>
           )}
           <div class="min-w-0 flex-1">
-            <h1 class="truncate text-[22px] font-semibold leading-tight tracking-tight">
-              {title}
-            </h1>
+            {heading && (
+              <h1
+                class={cn(
+                  'truncate text-[22px] font-semibold leading-tight tracking-tight',
+                  !title && 'sr-only',
+                )}
+              >
+                {heading}
+              </h1>
+            )}
             {subtitle && <p class={`mt-0.5 truncate text-xs ${TEXT_MUTED}`}>{subtitle}</p>}
           </div>
           {action}
@@ -455,13 +472,15 @@ export function getInitials(name: string): string {
 }
 
 /** Circular initials, so a list scans by shape as well as by reading. */
-export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
   return (
     <span
       class={cn(
         'flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold',
         'text-brand-800 dark:bg-brand-950 dark:text-brand-300',
-        size === 'sm' ? 'size-7 text-[11px]' : 'size-10 text-sm',
+        size === 'sm' && 'size-7 text-[11px]',
+        size === 'md' && 'size-10 text-sm',
+        size === 'lg' && 'size-11 text-base',
       )}
       aria-hidden="true"
     >

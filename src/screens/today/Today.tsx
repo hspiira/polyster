@@ -25,8 +25,11 @@ import { formatMoney } from '../../lib/money'
 import { formatDueDate, today } from '../../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from '../orderStage'
 import type { FilterScope } from '../Orders'
+import type { AuthState } from '../../lib/auth'
+import type { ReplicationStatus } from '../../hooks/useReplication'
 import { Hero } from './Hero'
 import { DayStrip } from './DayStrip'
+import { ProfileHeader } from './ProfileHeader'
 import {
   buildBuckets,
   buildDayStrip,
@@ -39,9 +42,17 @@ import {
 /** Rows shown per bucket before the "See all" link takes over. */
 const ROW_CAP = 4
 
-export function Today() {
+interface TodayProps {
+  online: boolean
+  auth: AuthState
+  replication: ReplicationStatus
+}
+
+export function Today({ online, auth, replication }: TodayProps) {
   const { db, shop, activeStaff } = useCurrentShop()
   const now = today()
+  const greetingText = greeting(activeStaff?.name)
+  const firstName = activeStaff?.name.split(/\s+/)[0]
 
   const { value: orderDocs, loaded } = useRxQueryStatus(
     () => db.orders.find({ selector: { shop_id: shop.id }, sort: [{ pickup_due_date: 'asc' }] }).$,
@@ -80,7 +91,14 @@ export function Today() {
 
   if (!loaded) {
     return (
-      <Screen title="Today">
+      <Screen label="Today">
+        <ProfileHeader
+          name={firstName}
+          greeting={greetingText}
+          online={online}
+          auth={auth}
+          replication={replication}
+        />
         <div class="space-y-5">
           <Skeleton class="h-16 w-3/4" />
           <Skeleton class="h-16 w-full" />
@@ -92,7 +110,14 @@ export function Today() {
 
   if (orders.length === 0) {
     return (
-      <Screen title="Today">
+      <Screen label="Today">
+        <ProfileHeader
+          name={firstName}
+          greeting={greetingText}
+          online={online}
+          auth={auth}
+          replication={replication}
+        />
         <Card padded={false}>
           <EmptyState
             icon={<IconOrders size={26} />}
@@ -112,8 +137,15 @@ export function Today() {
   }
 
   return (
-    <Screen title="Today">
-      <Hero segments={segments} greeting={greeting(activeStaff?.name)} />
+    <Screen label="Today">
+      <ProfileHeader
+        name={firstName}
+        greeting={greetingText}
+        online={online}
+        auth={auth}
+        replication={replication}
+      />
+      <Hero segments={segments} />
       <DayStrip cells={cells} />
 
       <div class="space-y-4">

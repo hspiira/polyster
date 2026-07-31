@@ -153,7 +153,7 @@ export function Orders() {
   }, [orders, clientNames, balances, scope, now])
 
   return (
-    <Screen title="Orders">
+    <Screen label="Orders">
       <div class="space-y-4">
         <BookSwitch active="orders" />
 
