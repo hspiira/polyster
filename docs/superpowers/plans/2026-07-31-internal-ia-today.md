@@ -1810,9 +1810,9 @@ control — seven segments would be too narrow to hit. When one of those, or
 Add `import { useLocation } from 'preact-iso'` and widen the filter type:
 
 ```tsx
-type Filter = 'open' | 'ready' | 'overdue' | 'owing' | 'all' | 'today' | 'week'
+type Filter = 'open' | 'ready' | 'overdue' | 'owing' | 'all' | 'today' | 'week' | 'out'
 
-/** Values the segmented control offers. `today` and `week` arrive by link only. */
+/** Values the segmented control offers. `today`, `week` and `out` arrive by link only. */
 const FILTERS: readonly { value: Filter; label: string }[] = [
   { value: 'open', label: 'Open' },
   { value: 'overdue', label: 'Overdue' },
@@ -1826,10 +1826,25 @@ const SEGMENTED_VALUES: readonly Filter[] = ['open', 'overdue', 'ready', 'owing'
 function isFilter(value: string | null): value is Filter {
   return (
     value !== null &&
-    ['open', 'ready', 'overdue', 'owing', 'all', 'today', 'week'].includes(value)
+    ['open', 'ready', 'overdue', 'owing', 'all', 'today', 'week', 'out'].includes(value)
+  )
+}
+
+/** A rental that is out and has a date it is due back on. Mirrors todayModel's rule. */
+function isOutOnRental(order: OrderDoc): boolean {
+  return (
+    order.order_type === 'rental' &&
+    order.stage === 'picked_up' &&
+    typeof order.return_due_date === 'string' &&
+    order.return_due_date.length > 0
   )
 }
 ```
+
+`OrderDoc` is already imported by this file. **`overdue` must count overdue rental
+returns as well as overdue pickups**, and **`out` is a new value** — without both,
+Today's "See all" links land on lists that do not contain the rows they came from.
+That mismatch is the reason this task grew; see the ledger entry under Task 7.
 
 Inside the component, replace `const [filter, setFilter] = useState<Filter>('open')`
 with:
@@ -1868,10 +1883,16 @@ and add `due` and `override` to its dependency array:
         return all.filter((o) => OPEN_STAGES.includes(o.stage))
       case 'ready':
         return all.filter((o) => o.stage === 'ready')
+      // Overdue means both kinds of lateness: a garment not yet handed over,
+      // and a rental not yet brought back. Today's Overdue bucket holds both.
       case 'overdue':
         return all.filter(
-          (o) => OPEN_STAGES.includes(o.stage) && dueBucket(o.pickup_due_date) === 'overdue',
+          (o) =>
+            (OPEN_STAGES.includes(o.stage) && dueBucket(o.pickup_due_date) === 'overdue') ||
+            (isOutOnRental(o) && dueBucket(o.return_due_date as string) === 'overdue'),
         )
+      case 'out':
+        return all.filter(isOutOnRental)
       case 'today':
         return all.filter(
           (o) => OPEN_STAGES.includes(o.stage) && dueBucket(o.pickup_due_date) === 'today',
@@ -1925,18 +1946,21 @@ const LINKED_LABELS: Record<Filter, string> = {
   all: 'all orders',
   today: 'orders due today',
   week: 'orders due this week',
+  out: 'rentals out',
 }
 ```
 
-Extend `emptyTitle` and `emptyDescription` with the two new cases:
+Extend `emptyTitle` and `emptyDescription` with the three new cases:
 
 ```tsx
   if (filter === 'today') return 'Nothing due today'
   if (filter === 'week') return 'Nothing due this week'
+  if (filter === 'out') return 'Nothing out on rental'
 ```
 ```tsx
   if (filter === 'today') return 'No open order has today as its due date.'
   if (filter === 'week') return 'No open order falls in the next seven days.'
+  if (filter === 'out') return 'No rental is currently with a client.'
 ```
 
 - [ ] **Step 2: Remove `Fab` from `Orders.tsx`**
