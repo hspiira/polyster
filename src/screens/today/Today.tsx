@@ -124,7 +124,7 @@ export function Today() {
           <Bucket
             title="Out on rental"
             tone="info"
-            filter="open"
+            filter="out"
             rows={buckets.outOnRental}
           />
         )}
