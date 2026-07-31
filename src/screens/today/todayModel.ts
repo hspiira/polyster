@@ -5,7 +5,7 @@
  * harness -- the same reason orderStage.ts exists. Nothing here imports Preact
  * or RxDB.
  */
-import { dueBucket } from '../../lib/dates'
+import { addDays, dueBucket } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import type { OrderBalance } from '../../db/balances'
 import type { OrderStage, OrderDoc } from '../../db/schema'
@@ -138,4 +138,56 @@ export function buildBuckets(
   }
 
   return buckets
+}
+
+export interface DayCell {
+  /** YYYY-MM-DD. */
+  date: string
+  weekdayInitial: string
+  dayOfMonth: number
+  count: number
+  /** '' when empty, '99+' above the cap, otherwise the count. */
+  countLabel: string
+  isToday: boolean
+}
+
+const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'narrow' })
+
+/** Local Date from a YYYY-MM-DD string, the way dates.ts does it. */
+function toLocalDate(isoDate: string): Date {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  return new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1)
+}
+
+function countLabelFor(count: number): string {
+  if (count === 0) return ''
+  return count > 99 ? '99+' : String(count)
+}
+
+/**
+ * Seven days from `from`, each carrying the work outstanding on it: open
+ * pickups plus rental returns. Informational -- the buckets organise the
+ * screen, not this (spec N5, N6).
+ */
+export function buildDayStrip(orders: readonly OrderDoc[], from: string): DayCell[] {
+  const counts = new Map<string, number>()
+  const bump = (date: string) => counts.set(date, (counts.get(date) ?? 0) + 1)
+
+  for (const order of orders) {
+    if (OPEN_STAGES.includes(order.stage)) bump(order.pickup_due_date)
+    else if (isOutOnRental(order)) bump(order.return_due_date as string)
+  }
+
+  return Array.from({ length: 7 }, (_, offset) => {
+    const date = addDays(from, offset)
+    const count = counts.get(date) ?? 0
+    return {
+      date,
+      weekdayInitial: WEEKDAY.format(toLocalDate(date)),
+      dayOfMonth: toLocalDate(date).getDate(),
+      count,
+      countLabel: countLabelFor(count),
+      isToday: offset === 0,
+    }
+  })
 }

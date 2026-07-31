@@ -285,3 +285,94 @@ describe('buildBuckets', () => {
     expect(buckets.dueToday[0]?.outstanding).toBe(0)
   })
 })
+
+import { buildDayStrip } from './todayModel'
+
+describe('buildDayStrip', () => {
+  it('returns seven cells rolling forward from today', () => {
+    const cells = buildDayStrip([], TODAY)
+    expect(cells).toHaveLength(7)
+    expect(cells[0]?.date).toBe('2026-07-31')
+    expect(cells[0]?.isToday).toBe(true)
+    expect(cells[6]?.date).toBe('2026-08-06')
+    expect(cells[6]?.isToday).toBe(false)
+  })
+
+  it('labels each cell with its weekday initial and day of month', () => {
+    const cells = buildDayStrip([], TODAY)
+    // 2026-07-31 is a Friday.
+    expect(cells[0]?.weekdayInitial).toBe('F')
+    expect(cells[0]?.dayOfMonth).toBe(31)
+    expect(cells[1]?.dayOfMonth).toBe(1)
+  })
+
+  it('counts open pickups on their due day', () => {
+    const cells = buildDayStrip(
+      [
+        order({ id: 'a', pickup_due_date: TODAY }),
+        order({ id: 'b', pickup_due_date: TODAY }),
+        order({ id: 'c', pickup_due_date: '2026-08-02' }),
+      ],
+      TODAY,
+    )
+    expect(cells[0]?.count).toBe(2)
+    expect(cells[2]?.count).toBe(1)
+  })
+
+  it('counts rental returns as work on the day they are due back', () => {
+    const cells = buildDayStrip(
+      [
+        order({
+          id: 'tux',
+          order_type: 'rental',
+          stage: 'picked_up',
+          pickup_due_date: '2026-07-01',
+          return_due_date: '2026-08-02',
+        }),
+      ],
+      TODAY,
+    )
+    expect(cells[2]?.count).toBe(1)
+  })
+
+  it('counts a pickup and a return falling on the same day together', () => {
+    const cells = buildDayStrip(
+      [
+        order({ id: 'a', pickup_due_date: '2026-08-02' }),
+        order({
+          id: 'tux',
+          order_type: 'rental',
+          stage: 'picked_up',
+          pickup_due_date: '2026-07-01',
+          return_due_date: '2026-08-02',
+        }),
+      ],
+      TODAY,
+    )
+    expect(cells[2]?.count).toBe(2)
+  })
+
+  it('ignores work outside the seven-day window', () => {
+    const cells = buildDayStrip([order({ id: 'a', pickup_due_date: '2026-09-30' })], TODAY)
+    expect(cells.every((cell) => cell.count === 0)).toBe(true)
+  })
+
+  it('ignores overdue work, which the buckets already carry', () => {
+    const cells = buildDayStrip([order({ id: 'a', pickup_due_date: '2026-07-01' })], TODAY)
+    expect(cells.every((cell) => cell.count === 0)).toBe(true)
+  })
+
+  // A row of zeroes reads as breakage, so an empty day has no number at all.
+  it('renders an empty day as a blank label, not a zero', () => {
+    expect(buildDayStrip([], TODAY)[0]?.countLabel).toBe('')
+  })
+
+  it('caps the label at 99+ because three digits do not fit the cell', () => {
+    const many = Array.from({ length: 120 }, (_, i) =>
+      order({ id: `o-${i}`, pickup_due_date: TODAY }),
+    )
+    const cells = buildDayStrip(many, TODAY)
+    expect(cells[0]?.count).toBe(120)
+    expect(cells[0]?.countLabel).toBe('99+')
+  })
+})
