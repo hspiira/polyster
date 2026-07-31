@@ -95,6 +95,7 @@ export function Today({ online, auth, replication }: TodayProps) {
         <ProfileHeader
           name={firstName}
           greeting={greetingText}
+          shopName={shop.name}
           online={online}
           auth={auth}
           replication={replication}
@@ -114,6 +115,7 @@ export function Today({ online, auth, replication }: TodayProps) {
         <ProfileHeader
           name={firstName}
           greeting={greetingText}
+          shopName={shop.name}
           online={online}
           auth={auth}
           replication={replication}
@@ -141,6 +143,7 @@ export function Today({ online, auth, replication }: TodayProps) {
       <ProfileHeader
         name={firstName}
         greeting={greetingText}
+        shopName={shop.name}
         online={online}
         auth={auth}
         replication={replication}

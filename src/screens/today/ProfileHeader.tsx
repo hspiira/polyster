@@ -10,14 +10,16 @@
  * they sit side by side instead.
  */
 import { Avatar } from '../../components/ui'
-import { SyncBadge } from '../../components/SyncBadge'
+import { describe, SYNC_DOT_TONES } from '../../components/SyncBadge'
 import { IconChart } from '../../components/icons'
+import { cn } from '../../lib/cn'
 import type { AuthState } from '../../lib/auth'
 import type { ReplicationStatus } from '../../hooks/useReplication'
 
 export function ProfileHeader({
   name,
   greeting,
+  shopName,
   online,
   auth,
   replication,
@@ -25,10 +27,19 @@ export function ProfileHeader({
   /** First name only, or undefined with no active staff -- see Today.tsx. */
   name?: string
   greeting: string
+  /** Shown in place of the sync label when sync is healthy. Degrades quietly
+   *  to the sync label itself if there is no shop name to show. */
+  shopName?: string
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
 }) {
+  // Reuses SyncBadge's own tone logic rather than re-deriving it: a problem
+  // outranks identity, so the shop name only replaces the sync line when sync
+  // itself has nothing to report.
+  const { label, tone } = describe(online, auth, replication)
+  const line2 = tone === 'good' && shopName ? shopName : label
+
   return (
     <div class="mb-6 flex items-center justify-between gap-3 pt-1">
       <a
@@ -38,11 +49,14 @@ export function ProfileHeader({
       >
         {name && <Avatar name={name} size="lg" />}
         <span class="min-w-0">
-          <span class="block truncate text-lg leading-tight font-semibold tracking-tight">
+          {/* Custom leading rather than the text-lg/text-xs defaults: those
+              set the block a few px taller than the 44px avatar next to it. */}
+          <span class="block truncate text-[18px]/[20px] font-semibold tracking-tight">
             {greeting}
           </span>
-          <span class="mt-0.5 block">
-            <SyncBadge online={online} auth={auth} replication={replication} />
+          <span class="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px]/[16px] text-stone-500 dark:text-stone-400">
+            <span class={cn('size-2 shrink-0 rounded-full', SYNC_DOT_TONES[tone])} aria-hidden="true" />
+            <span class="truncate">{line2}</span>
           </span>
         </span>
       </a>
