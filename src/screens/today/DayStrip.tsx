@@ -2,6 +2,7 @@
  * Seven days of workload. Informational: a cell links out to the order list
  * for that day rather than filtering this screen (spec N7).
  */
+import { formatDate } from '../../lib/dates'
 import { cn } from '../../lib/cn'
 import type { DayCell } from './todayModel'
 
@@ -12,7 +13,7 @@ export function DayStrip({ cells }: { cells: readonly DayCell[] }) {
         <a
           key={cell.date}
           href={`/orders?due=${cell.date}`}
-          aria-label={`${cell.count} due on ${cell.date}`}
+          aria-label={cell.count === 0 ? `Nothing due on ${formatDate(cell.date)}` : `${cell.count} due on ${formatDate(cell.date)}`}
           class={cn(
             'flex min-h-16 flex-1 flex-col items-center justify-center gap-0.5 rounded-boxed',
             'transition-colors active:bg-stone-200 dark:active:bg-stone-800',
