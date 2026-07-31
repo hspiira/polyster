@@ -9,6 +9,7 @@ import {
 } from '../components/ui'
 import {
   IconDownload,
+  IconMoney,
   IconRuler,
   IconSettings,
   IconUsers,
@@ -40,6 +41,12 @@ const SECTIONS = [
     label: 'Backup',
     hint: 'Download a copy of everything',
     Icon: IconDownload,
+  },
+  {
+    href: '/reports',
+    label: 'Reports',
+    hint: 'Collected, outstanding, and stage counts',
+    Icon: IconMoney,
   },
 ] as const
 
