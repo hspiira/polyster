@@ -20,7 +20,7 @@ import { useShop } from '../state/ShopProvider'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
 
-import { Dashboard } from './Dashboard'
+import { Today } from './today/Today'
 import { Clients } from './Clients'
 import { ClientDetail } from './ClientDetail'
 import { Orders } from './Orders'
@@ -59,7 +59,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
 
       <main>
         <Router>
-          <Route path="/" component={Dashboard} />
+          <Route path="/" component={Today} />
           <Route path="/clients" component={Clients} />
           <Route path="/clients/:id" component={ClientDetail} />
           <Route path="/orders" component={Orders} />
