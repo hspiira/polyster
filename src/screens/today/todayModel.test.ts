@@ -386,3 +386,105 @@ describe('buildDayStrip', () => {
     expect(cells[0]?.countLabel).toBe('99+')
   })
 })
+
+import { buildMoneySummary, capRows } from './todayModel'
+
+function balance(id: string, owed: number): [string, OrderBalance] {
+  return [
+    id,
+    { order_id: id, price_total: 100_000, amount_paid: 100_000 - owed, balance: owed, fully_paid: owed <= 0 },
+  ]
+}
+
+describe('buildMoneySummary', () => {
+  it('totals what is outstanding across the shop', () => {
+    const summary = buildMoneySummary(
+      [order({ id: 'a' }), order({ id: 'b' })],
+      NAMES,
+      new Map([balance('a', 60_000), balance('b', 40_000)]),
+    )
+    expect(summary.outstanding).toBe(100_000)
+  })
+
+  it('excludes fully paid and overpaid orders from the total', () => {
+    const summary = buildMoneySummary(
+      [order({ id: 'a' }), order({ id: 'b' }), order({ id: 'c' })],
+      NAMES,
+      new Map([balance('a', 60_000), balance('b', 0), balance('c', -5_000)]),
+    )
+    expect(summary.outstanding).toBe(60_000)
+    expect(summary.rows.map((row) => row.order.id)).toEqual(['a'])
+  })
+
+  it('counts the distinct clients owing, not the orders', () => {
+    const summary = buildMoneySummary(
+      [
+        order({ id: 'a', client_id: 'client-1' }),
+        order({ id: 'b', client_id: 'client-1' }),
+        order({ id: 'c', client_id: 'client-2' }),
+      ],
+      NAMES,
+      new Map([balance('a', 10_000), balance('b', 10_000), balance('c', 10_000)]),
+    )
+    expect(summary.clientCount).toBe(2)
+  })
+
+  // Money owed on a garment still being made is normal. Money owed on one
+  // already collected is what a shop chases, so it sorts first.
+  it('puts collected orders first, then sorts by amount owed', () => {
+    const summary = buildMoneySummary(
+      [
+        order({ id: 'making-big', stage: 'in_progress' }),
+        order({ id: 'collected-small', stage: 'picked_up' }),
+        order({ id: 'collected-big', stage: 'picked_up' }),
+      ],
+      NAMES,
+      new Map([
+        balance('making-big', 90_000),
+        balance('collected-small', 10_000),
+        balance('collected-big', 50_000),
+      ]),
+    )
+    expect(summary.rows.map((row) => row.order.id)).toEqual([
+      'collected-big',
+      'collected-small',
+      'making-big',
+    ])
+    expect(summary.rows[0]?.collected).toBe(true)
+    expect(summary.rows[2]?.collected).toBe(false)
+  })
+
+  it('limits the rows it returns', () => {
+    const summary = buildMoneySummary(
+      [order({ id: 'a' }), order({ id: 'b' }), order({ id: 'c' })],
+      NAMES,
+      new Map([balance('a', 30_000), balance('b', 20_000), balance('c', 10_000)]),
+      2,
+    )
+    expect(summary.rows).toHaveLength(2)
+    expect(summary.outstanding).toBe(60_000)
+  })
+
+  it('reports nothing owed on an empty shop', () => {
+    const summary = buildMoneySummary([], NAMES, NO_BALANCES)
+    expect(summary).toEqual({ outstanding: 0, clientCount: 0, rows: [] })
+  })
+})
+
+describe('capRows', () => {
+  it('returns everything when under the limit', () => {
+    expect(capRows([1, 2, 3], 4)).toEqual({ rows: [1, 2, 3], hidden: 0 })
+  })
+
+  it('trims to the limit and reports how many are hidden', () => {
+    expect(capRows([1, 2, 3, 4, 5, 6], 4)).toEqual({ rows: [1, 2, 3, 4], hidden: 2 })
+  })
+
+  it('handles an exact fit', () => {
+    expect(capRows([1, 2], 2)).toEqual({ rows: [1, 2], hidden: 0 })
+  })
+
+  it('handles an empty list', () => {
+    expect(capRows([], 4)).toEqual({ rows: [], hidden: 0 })
+  })
+})

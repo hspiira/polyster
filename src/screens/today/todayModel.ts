@@ -191,3 +191,63 @@ export function buildDayStrip(orders: readonly OrderDoc[], from: string): DayCel
     }
   })
 }
+
+export interface OwingRow {
+  order: OrderDoc
+  clientName: string
+  outstanding: number
+  /** Already out of the shop -- these are the ones worth chasing. */
+  collected: boolean
+}
+
+export interface MoneySummary {
+  outstanding: number
+  clientCount: number
+  rows: OwingRow[]
+}
+
+/**
+ * What the shop is owed, and by whom. Collected-but-unpaid sorts first because
+ * an unpaid garment still on the bench is normal and one already gone is not.
+ */
+export function buildMoneySummary(
+  orders: readonly OrderDoc[],
+  clientNames: ReadonlyMap<string, string>,
+  balances: ReadonlyMap<string, OrderBalance>,
+  limit = 3,
+): MoneySummary {
+  const owing: OwingRow[] = []
+  const clients = new Set<string>()
+  let outstanding = 0
+
+  for (const order of orders) {
+    const owed = balances.get(order.id)?.balance ?? 0
+    if (owed <= 0) continue
+
+    outstanding += owed
+    clients.add(order.client_id)
+    owing.push({
+      order,
+      clientName: clientNames.get(order.client_id) ?? 'Unknown client',
+      outstanding: owed,
+      collected: !OPEN_STAGES.includes(order.stage),
+    })
+  }
+
+  owing.sort((a, b) => {
+    if (a.collected !== b.collected) return a.collected ? -1 : 1
+    return b.outstanding - a.outstanding
+  })
+
+  return { outstanding, clientCount: clients.size, rows: owing.slice(0, limit) }
+}
+
+export interface CappedRows<T> {
+  rows: T[]
+  hidden: number
+}
+
+/** Today shows a few rows per section, never all of them (spec N8). */
+export function capRows<T>(rows: readonly T[], limit: number): CappedRows<T> {
+  return { rows: rows.slice(0, limit), hidden: Math.max(0, rows.length - limit) }
+}
