@@ -57,36 +57,69 @@ const TEXT_MUTED = 'text-stone-500 dark:text-stone-400'
  * installed PWA there is no browser chrome and no system back swipe -- see
  * hooks/useSwipeBack.ts.
  */
+/**
+ * Exactly one of `title` or `label` is required -- never both omitted, which
+ * used to compile and render no `h1` at all. `subtitle` rides along with
+ * `title` only: it modifies a visible heading, and an orphaned subtitle over
+ * a `label`-only tab root (which shows no heading) has nothing to modify.
+ */
+type ScreenHeading =
+  | {
+      /** Visible page heading, for pushed screens. */
+      title: string
+      /** A muted line under `title`. Only makes sense once there is a title to sit under. */
+      subtitle?: string
+      label?: never
+    }
+  | {
+      /**
+       * The accessible name for a tab root, which renders no visible heading
+       * (spec A8) -- the active tab already carries that label once, so a title
+       * on screen would say it again. The `h1` still needs a name for screen
+       * readers and the document outline, just not one anyone sees.
+       */
+      label: string
+      title?: never
+      subtitle?: never
+    }
+
 export function Screen({
   title,
   label,
   subtitle,
   back,
   action,
+  subheader,
   children,
-}: {
-  /** Visible page heading, for pushed screens. Omit on a tab root and pass `label` instead. */
-  title?: string
-  /**
-   * The accessible name for a tab root, which renders no visible heading
-   * (spec A8) -- the active tab already carries that label once, so a title
-   * on screen would say it again. The `h1` still needs a name for screen
-   * readers and the document outline, just not one anyone sees.
-   */
-  label?: string
-  subtitle?: string
+}: ScreenHeading & {
   /** Href for the back chevron and the edge-swipe. Omit on the tab roots. */
   back?: string
   action?: ComponentChildren
+  /**
+   * Extra sticky content below the heading row, e.g. Book's Orders/Clients
+   * switch -- stays in place while `children` scrolls, rather than the switch
+   * itself needing to re-implement stickiness.
+   */
+  subheader?: ComponentChildren
   children: ComponentChildren
 }) {
   const swipeRef = useSwipeBack(back)
   const heading = title ?? label
+  // A label-only tab root with no back chevron and no action renders nothing
+  // visible in this row (the h1 is sr-only) -- collapse its padding instead of
+  // reserving ~16px of sticky space for nothing. A subheader still counts as
+  // something to show, so the row keeps its top clearance for it.
+  const rowHasContent = Boolean(back || title || action)
 
   return (
     <div ref={swipeRef}>
       <header class={`sticky top-0 z-20 ${PAGE}`}>
-        <div class="mx-auto flex max-w-lg items-center gap-2 px-4 pt-1 pb-3">
+        <div
+          class={cn(
+            'mx-auto flex max-w-lg items-center gap-2 px-4',
+            rowHasContent ? 'pt-1 pb-3' : subheader ? 'pt-1' : 'py-0',
+          )}
+        >
           {back && (
             <a
               href={back}
@@ -99,20 +132,19 @@ export function Screen({
             </a>
           )}
           <div class="min-w-0 flex-1">
-            {heading && (
-              <h1
-                class={cn(
-                  'truncate text-[22px] font-semibold leading-tight tracking-tight',
-                  !title && 'sr-only',
-                )}
-              >
-                {heading}
-              </h1>
-            )}
+            <h1
+              class={cn(
+                'truncate text-[22px] font-semibold leading-tight tracking-tight',
+                !title && 'sr-only',
+              )}
+            >
+              {heading}
+            </h1>
             {subtitle && <p class={`mt-0.5 truncate text-xs ${TEXT_MUTED}`}>{subtitle}</p>}
           </div>
           {action}
         </div>
+        {subheader && <div class="mx-auto max-w-lg px-4 pb-3">{subheader}</div>}
       </header>
 
       {/* TabBar floats now (1rem inset + its own ~60px height, on top of the
@@ -647,6 +679,7 @@ export function EmptyState({
   title: string
   description: string
   action?: ComponentChildren
+  /** `true` centres and fills a whole empty screen; `false` (default) sits compact, for one empty section on an otherwise busy page. */
   spacious?: boolean
 }) {
   return (

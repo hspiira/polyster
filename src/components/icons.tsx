@@ -56,6 +56,15 @@ export const IconOrders = (p: IconProps) => (
   </Icon>
 )
 
+/** Three dots. Opens the sheet of everything that is not a tab. */
+export const IconMore = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="5" cy="12" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+  </Icon>
+)
+
 export const IconSettings = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="3" />

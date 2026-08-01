@@ -12,6 +12,18 @@ export type SyncTone = 'good' | 'waiting' | 'bad' | 'neutral'
 /** The dot colour for each tone -- exported so other renderings of the same
  *  sync state (Today's profile header) use the same colours rather than a
  *  second guess at what "waiting" should look like. */
+/**
+ * Ring colours for the same tones, used by Today's profile header where sync
+ * shows as a ring around the avatar rather than a dot beside a label. A ring
+ * is a box-shadow, so it draws outside the avatar without changing layout.
+ */
+export const SYNC_RING_TONES: Record<SyncTone, string> = {
+  good: 'ring-emerald-500',
+  waiting: 'ring-amber-500',
+  bad: 'ring-red-500',
+  neutral: 'ring-stone-400',
+}
+
 export const SYNC_DOT_TONES: Record<SyncTone, string> = {
   good: 'bg-emerald-500',
   waiting: 'bg-amber-500',

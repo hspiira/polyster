@@ -17,7 +17,8 @@ import {
 import { useShop } from '../state/ShopProvider'
 import { useAuth } from '../hooks/useAuth'
 
-const SECTIONS = [
+/** Also rendered by Today's More sheet (A26), so the strings live in one place. */
+export const SECTIONS = [
   {
     href: '/settings/shop',
     label: 'Shop details',
