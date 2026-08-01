@@ -20,6 +20,11 @@ import { IconHome, IconOrders, IconPlus } from './icons'
  * the active pill sizes to its own content while its neighbour stays fixed,
  * so the layout is flex, not a grid.
  *
+ * The pill itself is content-sized and centred, so it breathes in and out by
+ * the few pixels between "Today" and "Book" as you move between tabs. It is
+ * deliberately not viewport-width: three items stretched across 512px read as
+ * three unrelated buttons rather than one control.
+ *
  * The centre action sits *in* the bar rather than raised above it. Raised, it
  * overhung the bar's top edge in its own stacking context, and on the order
  * form it covered part of the "Create order" button: a tap inside the submit
@@ -79,8 +84,11 @@ export function TabBar() {
              flex justify-center px-4"
       aria-label="Main"
     >
+      {/* Sized by its contents, not by the viewport: `w-full` with
+          `justify-between` stretched the pill to 512px and pushed three items
+          to its edges. `max-w-full` is the only width constraint it needs. */}
       <div
-        class="flex w-full max-w-lg items-center justify-between gap-1 rounded-full
+        class="flex max-w-full items-center gap-2 rounded-full
                border border-stone-200/80 bg-white/85 p-2 backdrop-blur-lg
                dark:border-stone-800 dark:bg-stone-900/85
                supports-backdrop-filter:bg-white/70
