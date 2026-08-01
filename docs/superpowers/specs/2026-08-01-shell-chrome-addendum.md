@@ -42,6 +42,33 @@ content, plus two spec corrections the S1 final review left owing.
 | A24 | **A colour-only status indicator carries an `sr-only` text equivalent.** The ring in A18 is paired with the worded sync label, hidden visually. | Colour alone is not a signal a screen-reader user can perceive, and Today is the one screen with no worded `SyncBadge`. Without this, Today is the single place in the app where the sync state is unavailable to assistive tech. |
 | A23 | **The Book switch belongs in `Screen`'s sticky header, not its scrolling content**, and is rendered as anchors rather than tab roles. | Scrolled forty rows into Orders, the switch had left the screen — and the nav's Book tab routes to `/orders`, where you already are, so Clients became a scroll-then-tap. It is cross-route navigation, so it wants anchors with `aria-current`, not `role="tab"` with no `tabpanel`. |
 
+## Reversal: A13, A14 and A15 are withdrawn
+
+Seen running, the Book merge produced **two stacked segmented rows** on
+`/orders` — the Orders|Clients switch A14 required, sitting directly above the
+Open|Overdue|Ready|Owing|All filter Orders already had. That is roughly 160px of
+pill chrome before any content, on the screen a shop uses most.
+
+A14's own consequence note said to watch whether Clients being one tap deeper
+turned out wrong. It did, and worse than predicted: the cost was not a tap, it
+was a permanent second row of tabs on the busiest screen.
+
+| # | Decision | Replaces |
+|---|---|---|
+| A25 | **Unmerge. The nav carries four destinations: Today · Clients · ＋ · Orders.** `BookSwitch` is deleted and `Screen`'s `subheader` slot goes unused by these screens. | A13, A14 |
+| A26 | **Today's header button becomes "More", opening a bottom sheet** listing Reports and the settings pages. It replaces the Reports button A15 put there. | A15 |
+| A27 | **Buttons are monochrome.** Black-on-white and white-on-black, no brand fill, until colour is added back deliberately. **Status colour is unaffected** — red overdue, amber money outstanding, and the sync ring's four tones all stay, because those encode meaning rather than emphasis. | — |
+
+Four labelled destinations plus an action was the S1 arrangement, which A13
+shrank to three. The difference now is A6: only the active tab carries a label,
+so four items cost four icons and one word rather than four words. The
+legibility ceiling `TabBar` documents was about four *labels*, and that is no
+longer what is on screen.
+
+`Screen`'s `subheader` slot survives A25 even with no caller. It is a general
+facility, S2 and S3 are likely to want it for their own sticky controls, and
+removing it would mean re-deriving it later.
+
 ### A18 went round three times. Recording why, so it stays settled.
 
 1. **Signal-bars glyph, no caption; line 2 free for the shop name.** Rejected
