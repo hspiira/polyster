@@ -14,6 +14,7 @@ function pad2(value: number): string {
 }
 
 export function generateOrderReference(now: Date = new Date()): string {
+  // Use UTC intentionally (differs from dates.ts local-day convention). Order refs taken after local midnight show previous day's prefix.
   const prefix = pad2(now.getUTCDate()) + pad2(now.getUTCMonth() + 1)
 
   const bytes = crypto.getRandomValues(new Uint8Array(SUFFIX_LENGTH))
