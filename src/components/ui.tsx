@@ -59,12 +59,21 @@ const TEXT_MUTED = 'text-stone-500 dark:text-stone-400'
  */
 export function Screen({
   title,
+  label,
   subtitle,
   back,
   action,
   children,
 }: {
-  title: string
+  /** Visible page heading, for pushed screens. Omit on a tab root and pass `label` instead. */
+  title?: string
+  /**
+   * The accessible name for a tab root, which renders no visible heading
+   * (spec A8) -- the active tab already carries that label once, so a title
+   * on screen would say it again. The `h1` still needs a name for screen
+   * readers and the document outline, just not one anyone sees.
+   */
+  label?: string
   subtitle?: string
   /** Href for the back chevron and the edge-swipe. Omit on the tab roots. */
   back?: string
@@ -72,6 +81,7 @@ export function Screen({
   children: ComponentChildren
 }) {
   const swipeRef = useSwipeBack(back)
+  const heading = title ?? label
 
   return (
     <div ref={swipeRef}>
@@ -89,16 +99,27 @@ export function Screen({
             </a>
           )}
           <div class="min-w-0 flex-1">
-            <h1 class="truncate text-[22px] font-semibold leading-tight tracking-tight">
-              {title}
-            </h1>
+            {heading && (
+              <h1
+                class={cn(
+                  'truncate text-[22px] font-semibold leading-tight tracking-tight',
+                  !title && 'sr-only',
+                )}
+              >
+                {heading}
+              </h1>
+            )}
             {subtitle && <p class={`mt-0.5 truncate text-xs ${TEXT_MUTED}`}>{subtitle}</p>}
           </div>
           {action}
         </div>
       </header>
 
-      <div class="mx-auto w-full max-w-lg px-4 pb-28">{children}</div>
+      {/* TabBar floats now (1rem inset + its own ~60px height, on top of the
+          safe area), so this clears it directly rather than a flat guess. */}
+      <div class="mx-auto w-full max-w-lg px-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+        {children}
+      </div>
     </div>
   )
 }
@@ -416,7 +437,7 @@ export type ChipTone = keyof typeof CHIP_TONES
 /** Accent-bar fills, keyed by the same tones `Chip` uses, so one stage is one
  *  colour in a chip and on a bar. `Reports`' local BAR_TONES folds into this in S4. */
 export const ACCENT_TONES: Record<ChipTone, string> = {
-  neutral: 'bg-stone-300 dark:bg-stone-600',
+  neutral: 'bg-stone-400 dark:bg-stone-500',
   good: 'bg-emerald-500',
   warn: 'bg-amber-500',
   bad: 'bg-red-500',
@@ -451,13 +472,15 @@ export function getInitials(name: string): string {
 }
 
 /** Circular initials, so a list scans by shape as well as by reading. */
-export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
   return (
     <span
       class={cn(
         'flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold',
         'text-brand-800 dark:bg-brand-950 dark:text-brand-300',
-        size === 'sm' ? 'size-7 text-[11px]' : 'size-10 text-sm',
+        size === 'sm' && 'size-7 text-[11px]',
+        size === 'md' && 'size-10 text-sm',
+        size === 'lg' && 'size-11 text-base',
       )}
       aria-hidden="true"
     >
@@ -557,7 +580,7 @@ export function AccentRow({
       class={`flex items-stretch gap-3 pr-4 transition-colors active:bg-stone-100
               dark:active:bg-stone-800 ${TAP}`}
     >
-      <span class={`w-[3px] shrink-0 rounded-r-full ${ACCENT_TONES[tone]}`} aria-hidden="true" />
+      <span class={`w-0.75 shrink-0 rounded-r-full ${ACCENT_TONES[tone]}`} aria-hidden="true" />
       <span class="min-w-0 flex-1 py-2.5">{children}</span>
       {trailing && <span class="flex shrink-0 items-center py-2.5">{trailing}</span>}
     </a>
@@ -599,33 +622,48 @@ export function MoreLink({ href, children }: { href: string; children: Component
   )
 }
 
+/**
+ * A screen (or section) with nothing in it yet.
+ *
+ * No box around the illustration and no card around the whole thing (spec
+ * A11/A1) -- artwork sits directly on the page, the way it would in the
+ * reference apps this shell follows.
+ *
+ * `spacious` opts into filling the room a whole empty screen actually has,
+ * centring in it rather than sitting padded from the top. It is a prop
+ * rather than the default because half the call sites are one section on an
+ * otherwise busy page (a client's empty order history, a staff screen with a
+ * footnote below) -- giving those the same vertical reach as a blank Today
+ * would shove real content around it out of view for no reason.
+ */
 export function EmptyState({
-  icon,
+  illustration,
   title,
   description,
   action,
+  spacious = false,
 }: {
-  icon?: ComponentChildren
+  illustration?: ComponentChildren
   title: string
   description: string
   action?: ComponentChildren
+  spacious?: boolean
 }) {
   return (
-    <div class="px-6 py-12 text-center">
-      {icon && (
-        <div
-          class={cn(
-            'mx-auto mb-3 flex size-14 items-center justify-center rounded-card',
-            RECESSED,
-            'text-stone-500 dark:text-stone-400',
-          )}
-        >
-          {icon}
-        </div>
+    <div
+      class={cn(
+        'flex flex-col items-center justify-center px-6 text-center',
+        spacious ? 'min-h-[60svh] py-10' : 'py-8',
       )}
-      <p class="font-semibold">{title}</p>
-      <p class={`mx-auto mt-1 max-w-xs text-sm ${TEXT_MUTED}`}>{description}</p>
-      {action && <div class="mt-5 flex justify-center">{action}</div>}
+    >
+      {illustration && (
+        <div class="mb-5 text-stone-400 dark:text-stone-600">{illustration}</div>
+      )}
+      <p class="text-xl font-semibold tracking-tight">{title}</p>
+      <p class={`mx-auto mt-2 max-w-xs text-[15px] leading-relaxed ${TEXT_MUTED}`}>
+        {description}
+      </p>
+      {action && <div class="mt-6 flex justify-center">{action}</div>}
     </div>
   )
 }

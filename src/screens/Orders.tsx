@@ -1,9 +1,16 @@
 /**
- * The order list (Phase 1 step 5).
+ * The order list (Phase 1 step 5), and one of Book's two sections.
  *
  * Defaults to open work. A shop's list of everything ever made grows forever
  * and is almost never the question being asked on the shop floor -- "what is
  * outstanding" is.
+ *
+ * ## Book, not a route of its own
+ *
+ * The nav's "Book" tab points here (spec A14). `BookSwitch` renders above the
+ * scope filter so a shop can flip to Clients without leaving the tab; `/orders`
+ * itself is untouched, so every existing link into it -- Today's "See all",
+ * `?due=`, `?filter=` -- still lands exactly where it did.
  *
  * ## The scope lives in the URL, not in local state
  *
@@ -30,7 +37,8 @@ import {
   Screen,
   Segmented,
 } from '../components/ui'
-import { IconOrders } from '../components/icons'
+import { BookSwitch } from '../components/BookSwitch'
+import { IllustrationOrders } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
@@ -56,6 +64,9 @@ type Segment = 'open' | 'overdue' | 'ready' | 'owing' | 'all'
 type LinkedScope = 'today' | 'week' | 'out'
 
 type Scope = Segment | LinkedScope | { due: string }
+
+/** The `filter=` values Orders accepts (a `due=` link uses a different param). */
+export type FilterScope = Segment | LinkedScope
 
 const SEGMENTS: readonly { value: Segment; label: string }[] = [
   { value: 'open', label: 'Open' },
@@ -135,15 +146,17 @@ export function Orders() {
       case 'owing':
         return all.filter((row) => row.outstanding > 0)
       case 'all':
-        // Newest first. Every other scope is a question about what is coming
-        // up; "All" is a question about history, and history reads backwards.
+        // Furthest-due first: reverses the pickup_due_date-ascending sort,
+        // not creation order.
         return [...all].reverse()
     }
   }, [orders, clientNames, balances, scope, now])
 
   return (
-    <Screen title="Orders">
+    <Screen label="Orders">
       <div class="space-y-4">
+        <BookSwitch active="orders" />
+
         {isSegment(scope) ? (
           <Segmented
             value={scope}
@@ -155,14 +168,15 @@ export function Orders() {
           <ScopeBar label={scopeLabel(scope)} count={rows.length} />
         )}
 
-        <Card padded={false}>
-          {rows.length === 0 ? (
-            <EmptyState
-              icon={<IconOrders size={26} />}
-              title={emptyTitle(scope)}
-              description={emptyDescription(scope)}
-            />
-          ) : (
+        {rows.length === 0 ? (
+          <EmptyState
+            spacious
+            illustration={<IllustrationOrders size={112} />}
+            title={emptyTitle(scope)}
+            description={emptyDescription(scope)}
+          />
+        ) : (
+          <Card padded={false}>
             <RowList>
               {rows.map((row) => (
                 <li key={`${row.order.id}-${row.kind}`}>
@@ -170,8 +184,8 @@ export function Orders() {
                 </li>
               ))}
             </RowList>
-          )}
-        </Card>
+          </Card>
+        )}
       </div>
     </Screen>
   )

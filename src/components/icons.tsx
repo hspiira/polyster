@@ -63,6 +63,12 @@ export const IconSettings = (p: IconProps) => (
   </Icon>
 )
 
+export const IconChart = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 20V11M12 20V4M20 20v-6" />
+  </Icon>
+)
+
 export const IconPlus = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 5v14M5 12h14" />

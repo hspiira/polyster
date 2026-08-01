@@ -8,7 +8,6 @@ import { useMemo } from 'preact/hooks'
 import {
   AccentRow,
   Button,
-  Card,
   Chip,
   EmptyState,
   MoreLink,
@@ -17,15 +16,20 @@ import {
   Skeleton,
   StatValue,
 } from '../../components/ui'
-import { IconOrders, IconPlus } from '../../components/icons'
+import { IconPlus } from '../../components/icons'
+import { IllustrationOrders } from '../../components/illustrations'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { useRxQuery, useRxQueryStatus } from '../../hooks/useRxQuery'
 import { observeShopBalances } from '../../db/balances'
 import { formatMoney } from '../../lib/money'
 import { formatDueDate, today } from '../../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from '../orderStage'
+import type { FilterScope } from '../Orders'
+import type { AuthState } from '../../lib/auth'
+import type { ReplicationStatus } from '../../hooks/useReplication'
 import { Hero } from './Hero'
 import { DayStrip } from './DayStrip'
+import { ProfileHeader } from './ProfileHeader'
 import {
   buildBuckets,
   buildDayStrip,
@@ -38,9 +42,17 @@ import {
 /** Rows shown per bucket before the "See all" link takes over. */
 const ROW_CAP = 4
 
-export function Today() {
+interface TodayProps {
+  online: boolean
+  auth: AuthState
+  replication: ReplicationStatus
+}
+
+export function Today({ online, auth, replication }: TodayProps) {
   const { db, shop, activeStaff } = useCurrentShop()
   const now = today()
+  const greetingText = greeting(activeStaff?.name)
+  const firstName = activeStaff?.name.split(/\s+/)[0]
 
   const { value: orderDocs, loaded } = useRxQueryStatus(
     () => db.orders.find({ selector: { shop_id: shop.id }, sort: [{ pickup_due_date: 'asc' }] }).$,
@@ -79,7 +91,15 @@ export function Today() {
 
   if (!loaded) {
     return (
-      <Screen title="Today">
+      <Screen label="Today">
+        <ProfileHeader
+          name={firstName}
+          greeting={greetingText}
+          shopName={shop.name}
+          online={online}
+          auth={auth}
+          replication={replication}
+        />
         <div class="space-y-5">
           <Skeleton class="h-16 w-3/4" />
           <Skeleton class="h-16 w-full" />
@@ -91,28 +111,43 @@ export function Today() {
 
   if (orders.length === 0) {
     return (
-      <Screen title="Today">
-        <Card padded={false}>
-          <EmptyState
-            icon={<IconOrders size={26} />}
-            title="Nothing on yet"
-            description="Once you take an order, what is due and what is owed shows up here."
-            action={
-              <a href="/orders/new">
-                <Button>
-                  <IconPlus size={18} /> Take the first order
-                </Button>
-              </a>
-            }
-          />
-        </Card>
+      <Screen label="Today">
+        <ProfileHeader
+          name={firstName}
+          greeting={greetingText}
+          shopName={shop.name}
+          online={online}
+          auth={auth}
+          replication={replication}
+        />
+        <EmptyState
+          spacious
+          illustration={<IllustrationOrders size={128} />}
+          title="Nothing on yet"
+          description="Once you take an order, what is due and what is owed shows up here."
+          action={
+            <a href="/orders/new">
+              <Button>
+                <IconPlus size={18} /> Take the first order
+              </Button>
+            </a>
+          }
+        />
       </Screen>
     )
   }
 
   return (
-    <Screen title="Today">
-      <Hero segments={segments} greeting={greeting(activeStaff?.name)} />
+    <Screen label="Today">
+      <ProfileHeader
+        name={firstName}
+        greeting={greetingText}
+        shopName={shop.name}
+        online={online}
+        auth={auth}
+        replication={replication}
+      />
+      <Hero segments={segments} />
       <DayStrip cells={cells} />
 
       <div class="space-y-4">
@@ -180,7 +215,7 @@ function Bucket({
 }: {
   title: string
   tone: 'bad' | 'warn' | 'neutral' | 'info'
-  filter: string
+  filter: FilterScope
   rows: DueRow[]
 }) {
   if (rows.length === 0) return null

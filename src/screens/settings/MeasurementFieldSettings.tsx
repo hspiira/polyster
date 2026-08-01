@@ -20,13 +20,8 @@ import {
   Screen,
   Sheet,
 } from '../../components/ui'
-import {
-  IconArrowDown,
-  IconArrowUp,
-  IconPlus,
-  IconRuler,
-  IconTrash,
-} from '../../components/icons'
+import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '../../components/icons'
+import { IllustrationMeasure } from '../../components/illustrations'
 import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import {
@@ -121,35 +116,34 @@ export function MeasurementFieldSettings() {
     >
       <div class="space-y-4">
         {fields.length === 0 ? (
-          <Card padded={false}>
-            <EmptyState
-              icon={<IconRuler size={26} />}
-              title="No fields yet"
-              description="Add the measurements you actually take. The client form is built from this list, so only what is here will be asked for."
-              action={
-                <div class="flex flex-col gap-2">
-                  <Button
-                    onClick={() =>
-                      void Promise.all(
-                        SUGGESTIONS.map((s, i) =>
-                          createMeasurementField(db, shop.id, {
-                            label: s.label,
-                            unit: s.unit,
-                            display_order: i,
-                          }),
-                        ),
-                      )
-                    }
-                  >
-                    Start with common ones
-                  </Button>
-                  <Button variant="secondary" onClick={() => setAdding(true)}>
-                    Add one myself
-                  </Button>
-                </div>
-              }
-            />
-          </Card>
+          <EmptyState
+            spacious
+            illustration={<IllustrationMeasure size={112} />}
+            title="No fields yet"
+            description="Add the measurements you actually take. The client form is built from this list, so only what is here will be asked for."
+            action={
+              <div class="flex flex-col gap-2">
+                <Button
+                  onClick={() =>
+                    void Promise.all(
+                      SUGGESTIONS.map((s, i) =>
+                        createMeasurementField(db, shop.id, {
+                          label: s.label,
+                          unit: s.unit,
+                          display_order: i,
+                        }),
+                      ),
+                    )
+                  }
+                >
+                  Start with common ones
+                </Button>
+                <Button variant="secondary" onClick={() => setAdding(true)}>
+                  Add one myself
+                </Button>
+              </div>
+            }
+          />
         ) : (
           <Card padded={false}>
             <ul>

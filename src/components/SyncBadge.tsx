@@ -7,6 +7,18 @@ interface SyncBadgeProps {
   replication: ReplicationStatus
 }
 
+export type SyncTone = 'good' | 'waiting' | 'bad' | 'neutral'
+
+/** The dot colour for each tone -- exported so other renderings of the same
+ *  sync state (Today's profile header) use the same colours rather than a
+ *  second guess at what "waiting" should look like. */
+export const SYNC_DOT_TONES: Record<SyncTone, string> = {
+  good: 'bg-emerald-500',
+  waiting: 'bg-amber-500',
+  bad: 'bg-red-500',
+  neutral: 'bg-stone-400',
+}
+
 /**
  * A single honest line about whether this device's work has reached the
  * server, with a status dot that can be read without reading.
@@ -17,13 +29,6 @@ interface SyncBadgeProps {
  */
 export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
   const { label, tone } = describe(online, auth, replication)
-
-  const dots = {
-    good: 'bg-emerald-500',
-    waiting: 'bg-amber-500',
-    bad: 'bg-red-500',
-    neutral: 'bg-stone-400',
-  } as const
 
   const text = {
     good: 'text-emerald-700 dark:text-emerald-400',
@@ -36,20 +41,25 @@ export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
     <span class={`inline-flex min-w-0 items-center gap-1.5 text-xs ${text[tone]}`}>
       <span class="relative flex size-2 shrink-0">
         {tone === 'waiting' && (
-          <span class={`absolute inline-flex size-full animate-ping rounded-full ${dots[tone]} opacity-60`} />
+          <span
+            class={`absolute inline-flex size-full animate-ping rounded-full ${SYNC_DOT_TONES[tone]} opacity-60`}
+          />
         )}
-        <span class={`relative inline-flex size-2 rounded-full ${dots[tone]}`} />
+        <span class={`relative inline-flex size-2 rounded-full ${SYNC_DOT_TONES[tone]}`} />
       </span>
       <span class="truncate">{label}</span>
     </span>
   )
 }
 
-function describe(
+/** The single source of truth for what each sync state means. Today's profile
+ *  header reuses this rather than re-deriving tone from `online`/`auth`/
+ *  `replication` a second time. */
+export function describe(
   online: boolean,
   auth: AuthState,
   replication: ReplicationStatus,
-): { label: string; tone: 'good' | 'waiting' | 'bad' | 'neutral' } {
+): { label: string; tone: SyncTone } {
   if (auth.status === 'local_only') {
     return { label: 'Local only', tone: 'neutral' }
   }

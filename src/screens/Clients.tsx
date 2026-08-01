@@ -1,10 +1,17 @@
 /**
- * Client list, search, and add (Phase 1 step 4).
+ * Client list, search, and add (Phase 1 step 4), and Book's other section.
  *
  * Search filters in memory rather than through an RxDB query. A shop has
  * hundreds of clients, not millions, and the whole list is already local -- so
  * it is instant, offline by construction, and matches on phone number as well
  * as name, which is how a shop looks someone up when the phone rings.
+ *
+ * ## Book, not a route of its own
+ *
+ * The nav's "Book" tab reads as active here too (spec A14, via `TabBar`'s two
+ * prefixes), even though it points at `/orders`. `BookSwitch` renders above
+ * everything else so a shop can flip back to Orders without leaving the tab;
+ * `/clients` itself, and every link into it, is unchanged.
  */
 import { useMemo, useState } from 'preact/hooks'
 import {
@@ -23,7 +30,9 @@ import {
   Sheet,
   Textarea,
 } from '../components/ui'
-import { IconPlus, IconUsers } from '../components/icons'
+import { BookSwitch } from '../components/BookSwitch'
+import { IconPlus } from '../components/icons'
+import { IllustrationBook, IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { createClient } from '../db/writes'
@@ -54,7 +63,7 @@ export function Clients() {
   return (
     <>
       <Screen
-        title="Clients"
+        label="Clients"
         subtitle={clients.length > 0 ? `${clients.length} in total` : undefined}
         // In the header rather than floating: the tab bar's centre button is
         // already this app's one floating action, and two is a menu (spec N12).
@@ -65,6 +74,8 @@ export function Clients() {
         }
       >
         <div class="space-y-4">
+          <BookSwitch active="clients" />
+
           {clients.length > 0 && (
             <SearchInput
               placeholder="Search by name or phone"
@@ -74,28 +85,27 @@ export function Clients() {
           )}
 
           {clients.length === 0 && (
-            <Card padded={false}>
-              <EmptyState
-                icon={<IconUsers size={26} />}
-                title="No clients yet"
-                description="Add the first client and their measurements, then you can take an order for them."
-                action={
-                  <Button onClick={() => setAdding(true)}>
-                    <IconPlus size={18} /> Add a client
-                  </Button>
-                }
-              />
-            </Card>
+            <EmptyState
+              spacious
+              illustration={<IllustrationBook size={112} />}
+              title="No clients yet"
+              description="Add the first client and their measurements, then you can take an order for them."
+              action={
+                <Button onClick={() => setAdding(true)}>
+                  <IconPlus size={18} /> Add a client
+                </Button>
+              }
+            />
           )}
 
           {clients.length > 0 && matches.length === 0 && (
-            <Card padded={false}>
-              <EmptyState
-                title="No matches"
-                description={`Nothing found for "${search.trim()}". Check the spelling, or add them as a new client.`}
-                action={<Button onClick={() => setAdding(true)}>Add a client</Button>}
-              />
-            </Card>
+            <EmptyState
+              spacious
+              illustration={<IllustrationSearch size={112} />}
+              title="No matches"
+              description={`Nothing found for "${search.trim()}". Check the spelling, or add them as a new client.`}
+              action={<Button onClick={() => setAdding(true)}>Add a client</Button>}
+            />
           )}
 
           {matches.length > 0 && (

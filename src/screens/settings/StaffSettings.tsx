@@ -26,7 +26,8 @@ import {
   Sheet,
 } from '../../components/ui'
 import { PinPad } from '../../components/PinPad'
-import { IconPlus, IconUsers } from '../../components/icons'
+import { IconPlus } from '../../components/icons'
+import { IllustrationBook } from '../../components/illustrations'
 import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import { useAuth } from '../../hooks/useAuth'
@@ -107,14 +108,12 @@ export function StaffSettings() {
         )}
 
         {staff.length === 0 ? (
-          <Card padded={false}>
-            <EmptyState
-              icon={<IconUsers size={26} />}
-              title="No one added yet"
-              description="Add yourself first, even if you work alone. Your name is what gets recorded against the orders you take."
-              action={<Button onClick={() => setAdding(true)}>Add the first person</Button>}
-            />
-          </Card>
+          <EmptyState
+            illustration={<IllustrationBook size={72} />}
+            title="No one added yet"
+            description="Add yourself first, even if you work alone. Your name is what gets recorded against the orders you take."
+            action={<Button onClick={() => setAdding(true)}>Add the first person</Button>}
+          />
         ) : (
           <Card padded={false}>
             <ul>

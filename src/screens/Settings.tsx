@@ -9,6 +9,7 @@ import {
 } from '../components/ui'
 import {
   IconDownload,
+  IconMoney,
   IconRuler,
   IconSettings,
   IconUsers,
@@ -41,6 +42,12 @@ const SECTIONS = [
     hint: 'Download a copy of everything',
     Icon: IconDownload,
   },
+  {
+    href: '/reports',
+    label: 'Reports',
+    hint: 'Collected, outstanding, and stage counts',
+    Icon: IconMoney,
+  },
 ] as const
 
 export function Settings() {
@@ -48,7 +55,7 @@ export function Settings() {
   const { controller } = useAuth()
 
   return (
-    <Screen title="Settings" subtitle={shop?.name}>
+    <Screen title="Settings" subtitle={shop?.name} back="/">
       <div class="space-y-5">
         <Card padded={false}>
           <RowList>
