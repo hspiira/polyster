@@ -2,9 +2,41 @@
 -- 2026-08-01-order-units-and-schema-pass-model.md for rationale on every
 -- decision below. Sections referenced in comments are that document's.
 --
--- Run this against a scratch Supabase project first and check the four
+-- Run this against a scratch Supabase project first and check the
 -- assertions in task-3-brief.md / task-3-report.md before applying it
 -- anywhere real data lives. Not written to be idempotent/rerunnable.
+--
+-- Wrapped in an explicit transaction: supabase db push and the SQL editor
+-- both supply an implicit one, but this file drops two columns of money
+-- data, and anyone running it via `psql -f` without ON_ERROR_STOP would
+-- otherwise get a partial apply on failure. The rollback guarantee should
+-- not depend on how the file is invoked.
+begin;
+
+
+-- ============================================================
+-- 0. Pre-flight. Fail loudly before touching anything if an assumption
+--    the rest of this file depends on does not hold.
+-- ============================================================
+
+-- 0001_init.sql:232 allows `amount numeric(12,2) check (amount > 0)`, so a
+-- sub-unit amount like 0.25 is legal today. Section 5 below converts it with
+-- round(amount)::bigint, which for 0.25 is 0 -- and the new
+-- payments_amount_minor_check (amount_minor > 0) would then reject it,
+-- aborting mid-migration. Surface that as an explicit, named failure here
+-- rather than let it happen as an opaque constraint violation three steps
+-- later: a sub-unit payment is a data problem worth seeing, not one to round
+-- away silently.
+do $$
+begin
+  if exists (
+    select 1 from payments
+    where round(amount)::bigint <= 0 and _deleted = false
+  ) then
+    raise exception
+      'payments contains a non-deleted row whose amount rounds to <= 0 minor units -- resolve before running this migration';
+  end if;
+end $$;
 
 
 -- ============================================================
@@ -313,6 +345,24 @@ alter table orders alter column reference set not null;
 --    see model doc section 9, open item 2.
 -- ============================================================
 
+-- order_balances (0001_init.sql:402-413) has a hard catalogue dependency on
+-- orders.price_total and payments.amount -- Postgres tracks views' column
+-- references and refuses to drop a column they use. It also cannot be
+-- replaced in place further down: `create or replace view` may only append
+-- columns, and the new column list reorders/renames/removes several
+-- (price_total -> stage as position 3, amount_paid -> amount_paid_minor,
+-- etc). Dropping it here, plainly, is what lets both the column drops below
+-- and the later `create or replace view` succeed. Do NOT rewrite this as
+-- `drop column ... cascade`: cascade would drop the view silently and leave
+-- the replacement further down still wrongly shaped against a view that no
+-- longer exists to be "replaced".
+drop view if exists order_balances;
+
+-- Model doc section 5: catalogue_item_id moves to order_units (see that
+-- table's own column, "Phase 2. Moved off orders"). Dropped here, after the
+-- view above, in case a future view revision ever references it.
+alter table orders drop column catalogue_item_id;
+
 alter table orders add column price_total_minor bigint not null default 0;
 update orders set price_total_minor = round(price_total)::bigint;
 alter table orders add constraint orders_price_total_minor_check
@@ -364,3 +414,5 @@ where o._deleted = false;
 -- ============================================================
 
 alter publication supabase_realtime add table order_units, message_log;
+
+commit;
