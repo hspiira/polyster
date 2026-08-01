@@ -10,7 +10,7 @@
  * they sit side by side instead.
  */
 import { Avatar } from '../../components/ui'
-import { describe, SYNC_DOT_TONES } from '../../components/SyncBadge'
+import { describe, SYNC_RING_TONES } from '../../components/SyncBadge'
 import { IconChart } from '../../components/icons'
 import { cn } from '../../lib/cn'
 import type { AuthState } from '../../lib/auth'
@@ -38,7 +38,10 @@ export function ProfileHeader({
   // outranks identity, so the shop name only replaces the sync line when sync
   // itself has nothing to report.
   const { label, tone } = describe(online, auth, replication)
-  const line2 = tone === 'good' && shopName ? shopName : label
+  // Line 2 is the shop's name. Sync moved to the ring around the avatar, so it
+  // no longer competes for the line -- falling back to the label only when
+  // there is no shop name to show.
+  const line2 = shopName ?? label
 
   return (
     <div class="mb-6 flex items-center justify-between gap-3 pt-1">
@@ -47,17 +50,31 @@ export function ProfileHeader({
         class="-ml-1 flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-control py-1 pr-2 pl-1
                transition-colors active:bg-stone-200 dark:active:bg-stone-800"
       >
-        {name && <Avatar name={name} size="lg" />}
+        {name && (
+          // The ring is a box-shadow, so it draws outside the 44px avatar
+          // without changing the layout the text block is fitted to.
+          <span
+            class={cn(
+              'inline-flex shrink-0 rounded-full ring-2 ring-offset-2',
+              'ring-offset-stone-100 dark:ring-offset-stone-950',
+              SYNC_RING_TONES[tone],
+            )}
+          >
+            <Avatar name={name} size="lg" />
+          </span>
+        )}
         <span class="min-w-0">
           {/* Custom leading rather than the text-lg/text-xs defaults: those
               set the block a few px taller than the 44px avatar next to it. */}
           <span class="block truncate text-[18px]/[20px] font-semibold tracking-tight">
             {greeting}
           </span>
-          <span class="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px]/[16px] text-stone-500 dark:text-stone-400">
-            <span class={cn('size-2 shrink-0 rounded-full', SYNC_DOT_TONES[tone])} aria-hidden="true" />
-            <span class="truncate">{line2}</span>
+          <span class="mt-0.5 block truncate text-[12px]/[16px] text-stone-500 dark:text-stone-400">
+            {line2}
           </span>
+          {/* The ring carries sync by colour alone, which no screen reader can
+              use. This is the only place the state is spoken on Today. */}
+          <span class="sr-only">{label}</span>
         </span>
       </a>
 
