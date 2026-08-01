@@ -1,18 +1,22 @@
 import { useLocation } from 'preact-iso'
-import { IconHome, IconOrders, IconPlus } from './icons'
+import { IconHome, IconOrders, IconPlus, IconUsers } from './icons'
 
 /**
  * Bottom navigation: a floating pill inset from the left, right and bottom
  * edges, rather than a bar welded to the bottom edge.
  *
  * Bottom rather than top because the top of a modern handset is out of thumb
- * reach one-handed. The bar holds exactly three items -- Today, the create
- * action, and Book -- per spec A13. Orders and Clients merged behind Book
- * (A14: one tab, two routes, no new URL -- see Orders.tsx and Clients.tsx for
- * the segmented control that switches between them in place). Reports and
- * Settings left the bar entirely (A15): Reports is reachable from a row in
- * Settings and from Today's profile header, and Settings from the profile
- * header's identity block.
+ * reach one-handed. Four destinations -- Today, Clients, Orders -- plus the
+ * create action between them (A25).
+ *
+ * Four was the ceiling this file used to argue against, and the argument was
+ * about four *labels* at 390px. That is no longer what is on screen: only the
+ * active tab is labelled (A6), so four items cost four icons and one word.
+ *
+ * Orders and Clients were briefly merged behind one "Book" tab (A13/A14). It
+ * shipped two stacked segmented rows on /orders -- the Orders|Clients switch
+ * above the filter row Orders already had -- so the merge is withdrawn. Reports
+ * and Settings are reached from the More sheet in Today's profile header.
  *
  * Only the active tab carries a label, as a filled pill; the inactive one is
  * a bare icon at a fixed 44px square. That is the point of the change -- the
@@ -36,34 +40,23 @@ interface TabDef {
   href: string
   label: string
   Icon: (props: { size?: number; 'stroke-width'?: number }) => preact.JSX.Element
-  /**
-   * Path prefixes that count as this tab being active. Book owns two --
-   * `/orders` and `/clients` -- because merging the destinations (A14) did
-   * not merge their routes; either one has to light up the same tab.
-   */
-  prefixes: readonly string[]
+  /** Path prefix that counts as this tab being active. */
+  prefix: string
 }
 
-const TODAY_TAB: TabDef = { href: '/', label: 'Today', Icon: IconHome, prefixes: ['/'] }
+/** Left of the create action, then right of it. */
+const LEADING_TABS: readonly TabDef[] = [
+  { href: '/', label: 'Today', Icon: IconHome, prefix: '/' },
+  { href: '/clients', label: 'Clients', Icon: IconUsers, prefix: '/clients' },
+]
 
-/**
- * "Book" rather than "Orders" -- the shop's own word for the order book, and
- * the name for what used to be two destinations. There is no dedicated book
- * icon (see icons.tsx' doc header on bundle size); `IconOrders` is the
- * closest fit since the order book is the primary sense of the merge.
- */
-const BOOK_TAB: TabDef = {
-  href: '/orders',
-  label: 'Book',
-  Icon: IconOrders,
-  prefixes: ['/orders', '/clients'],
-}
+const TRAILING_TABS: readonly TabDef[] = [
+  { href: '/orders', label: 'Orders', Icon: IconOrders, prefix: '/orders' },
+]
 
-function isActive(currentPath: string, prefixes: readonly string[]): boolean {
-  return prefixes.some((prefix) => {
-    if (prefix === '/') return currentPath === '/'
-    return currentPath === prefix || currentPath.startsWith(`${prefix}/`)
-  })
+function isActive(currentPath: string, prefix: string): boolean {
+  if (prefix === '/') return currentPath === '/'
+  return currentPath === prefix || currentPath.startsWith(`${prefix}/`)
 }
 
 /**
@@ -95,28 +88,23 @@ export function TabBar() {
                supports-backdrop-filter:bg-white/70
                dark:supports-backdrop-filter:bg-stone-900/70"
       >
-        <Tab
-          href={TODAY_TAB.href}
-          label={TODAY_TAB.label}
-          Icon={TODAY_TAB.Icon}
-          active={isActive(path, TODAY_TAB.prefixes)}
-        />
+        {LEADING_TABS.map((tab) => (
+          <Tab key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
+        ))}
 
         <a
           href="/orders/new"
           aria-label="Take an order"
-          class="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-700
-                 text-white transition-transform active:scale-95 dark:bg-brand-600"
+          class="flex size-11 shrink-0 items-center justify-center rounded-full bg-stone-900
+                 text-white transition-transform active:scale-95
+                 dark:bg-white dark:text-stone-900"
         >
           <IconPlus size={22} />
         </a>
 
-        <Tab
-          href={BOOK_TAB.href}
-          label={BOOK_TAB.label}
-          Icon={BOOK_TAB.Icon}
-          active={isActive(path, BOOK_TAB.prefixes)}
-        />
+        {TRAILING_TABS.map((tab) => (
+          <Tab key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
+        ))}
       </div>
     </nav>
   )
@@ -127,12 +115,7 @@ function Tab({
   label,
   Icon,
   active,
-}: {
-  href: string
-  label: string
-  Icon: (props: { size?: number; 'stroke-width'?: number }) => preact.JSX.Element
-  active: boolean
-}) {
+}: TabDef & { active: boolean }) {
   return (
     <a
       href={href}
@@ -140,7 +123,7 @@ function Tab({
       class={`flex shrink-0 items-center justify-center gap-1.5 rounded-full
               transition-colors ${
                 active
-                  ? 'h-11 bg-brand-100 px-3.5 text-brand-800 dark:bg-brand-950 dark:text-brand-300'
+                  ? 'h-11 bg-stone-900 px-3.5 text-white dark:bg-white dark:text-stone-900'
                   : 'size-11 text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
               }`}
     >
