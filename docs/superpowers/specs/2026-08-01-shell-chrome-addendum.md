@@ -34,12 +34,35 @@ content, plus two spec corrections the S1 final review left owing.
 | A16 | **Empty states get purpose-drawn line illustrations** in `icons.tsx`' existing stroke language — inline SVG, `currentColor`, one brand accent. | Chosen over duotone spots on cost: this app refuses web fonts because it runs on cheap phones over metered data, and that reasoning applies to artwork. Line art in the existing language is ~1–2KB each, themes for free, and needs no dark-mode palette. |
 
 | A17 | **The Today header is two lines, bounded by the avatar's height.** Line 1 is the greeting; line 2 is the shop name. | Three lines (greeting, shop, sync) cannot sit inside a 44px avatar without the block reading as ragged against it. |
-| A18 | **Line 2 carries a tone dot plus one of two things: the shop name when sync is healthy, the sync label when it is not.** | *Amended after implementation.* The original A18 called for a signal-bars glyph with no caption, freeing line 2 for the shop name permanently. Built and rejected: a bars glyph reads as connection strength, and this app's sync states are not strengths — "working offline", "sync paused", and "local only, no account" are three different conditions with three different user responses, and ARCHITECTURE §9 requires the state be readable, not merely indicated. The shipped degrade says nothing when there is nothing to say and says the actual problem when there is. |
+| A18 | **Sync is a coloured ring around the avatar; line 2 is the shop name, always.** Green synced, amber offline or syncing, red erroring, grey local-only. | *Third revision — see below.* |
 | A19 | **Reports regains its row in Settings**, and keeps the contextual link on Today's money card. | A18 takes the header button that A15 gave it. The money card's link cannot stand alone because that card only renders when something is outstanding. The Settings row was removed in S1 Task 9 *because* Reports had become a tab; that reasoning died with A15, so the row comes back. |
 | A20 | **A screen with two doors takes its back chevron from the deeper one.** Reports is reached from Settings and from Today's money card; its `back` points at `/settings`, matching its four sibling settings sub-screens. | A chevron is not history — it is a declared parent. Pointing it at the shallower door strands anyone who arrived by the deeper one, which is the more deliberate journey. |
 | A21 | **`Screen` requires exactly one of `title` or `label`** — never neither. `label` is the visually-hidden form used by tab roots under A8. | With no component-test harness, the type is the only thing that can enforce A8's accessibility contract. Two independently optional props let a screen render no heading at all and still compile. |
 | A22 | **A title-less tab root carries no subtitle either.** Anything worth saying goes into the screen's content, not its chrome. | A8 removed the heading but left `subtitle` available, and `Clients` shipped a muted "N in total" floating with no heading above it. A subtitle is a modifier on a title; with no title it is an orphan. |
+| A24 | **A colour-only status indicator carries an `sr-only` text equivalent.** The ring in A18 is paired with the worded sync label, hidden visually. | Colour alone is not a signal a screen-reader user can perceive, and Today is the one screen with no worded `SyncBadge`. Without this, Today is the single place in the app where the sync state is unavailable to assistive tech. |
 | A23 | **The Book switch belongs in `Screen`'s sticky header, not its scrolling content**, and is rendered as anchors rather than tab roles. | Scrolled forty rows into Orders, the switch had left the screen — and the nav's Book tab routes to `/orders`, where you already are, so Clients became a scroll-then-tap. It is cross-route navigation, so it wants anchors with `aria-current`, not `role="tab"` with no `tabpanel`. |
+
+### A18 went round three times. Recording why, so it stays settled.
+
+1. **Signal-bars glyph, no caption; line 2 free for the shop name.** Rejected
+   before building. A bars glyph reads as connection *strength*, and this app's
+   sync states are not strengths — "working offline", "sync paused" and "local
+   only, no account" are three conditions wanting three different responses.
+   ARCHITECTURE §9 asks for the state to be readable, not merely indicated.
+2. **Tone dot plus a degrading line 2** — shop name when healthy, sync label
+   when not. Built and shipped. Honest, but it meant a shop only saw its own
+   name while nothing was wrong, and the sync problem it replaced it with
+   rendered in the same muted grey as the name it displaced.
+3. **Ring on the avatar; line 2 always the shop name.** Current.
+
+What changed between 1 and 3 was not taste but a fact: `Shell.tsx` renders the
+fully-worded `SyncBadge` on **every screen except Today**. So the words are one
+tap away, and §9 is satisfied across the app rather than on each screen
+separately. That is a weaker guarantee than revision 1 was defending, and it is
+the right one — a ring is glanceable, a sentence is not, and the sentence still
+exists everywhere it can.
+
+A24 covers what the ring cannot do on its own.
 
 ### A14 in implementation: no new route
 
@@ -80,12 +103,15 @@ Stated plainly, because these remove things that work today.
    outstanding — so a shop with nothing owed could not reach Reports at all.
    A19 restores the Settings row. Worth remembering as the cost of moving a
    destination twice in two days.
-5. **Today trades the sync sentence for the shop name while sync is healthy.**
-   Under amended A18 the words come back the moment there is a problem, so
-   `SyncBadge`'s argument — that staff must know what fine looks like to notice
-   when it changes — is served by the dot in the healthy case and by the label
-   in every other case. The full worded badge survives unchanged on every other
-   screen.
+5. **Today no longer states the sync condition in words to a sighted user.**
+   Under A18's third revision the ring carries it by colour and nothing else.
+   `SyncBadge`'s own note argues staff must learn what fine looks like in order
+   to notice when it changes; a ring does that, but it cannot distinguish
+   "offline" from "sync paused" the way a sentence can. The mitigation is that
+   the worded badge renders on every screen except Today, so the sentence is
+   one tap away — and A24 keeps it available to assistive tech on Today itself.
+   If a shop misses a week-long stale sync because of this, A18 is wrong and
+   the dot-plus-label version is the fallback.
 
 ## Scope
 
