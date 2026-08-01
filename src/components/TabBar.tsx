@@ -10,8 +10,9 @@ import { IconHome, IconOrders, IconPlus } from './icons'
  * action, and Book -- per spec A13. Orders and Clients merged behind Book
  * (A14: one tab, two routes, no new URL -- see Orders.tsx and Clients.tsx for
  * the segmented control that switches between them in place). Reports and
- * Settings left the bar entirely (A15) and, until a later task wires them to
- * the Today profile header, are reachable only by URL.
+ * Settings left the bar entirely (A15): Reports is reachable from a row in
+ * Settings and from Today's profile header, and Settings from the profile
+ * header's identity block.
  *
  * Only the active tab carries a label, as a filled pill; the inactive one is
  * a bare icon at a fixed 44px square. That is the point of the change -- the

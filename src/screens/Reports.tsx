@@ -90,10 +90,10 @@ export function Reports() {
   const maxStage = Math.max(1, ...stageCounts.values())
 
   return (
-    // Pushed rather than a tab root (spec A15): Reports left the nav and is
-    // now only reachable from Today's profile header, so `back` always
-    // means Today.
-    <Screen title="Reports" back="/">
+    // Pushed rather than a tab root (spec A15), reachable from a Settings row
+    // and from Today's profile header -- `back` matches the four sibling
+    // settings sub-screens rather than assuming either entry point.
+    <Screen title="Reports" back="/settings">
       <div class="space-y-5">
         <Card>
           <p class="text-xs font-medium text-stone-500 dark:text-stone-400">Collected, 7 days</p>

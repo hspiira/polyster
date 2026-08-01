@@ -64,7 +64,7 @@ export function Clients() {
     <>
       <Screen
         label="Clients"
-        subtitle={clients.length > 0 ? `${clients.length} in total` : undefined}
+        subheader={<BookSwitch active="clients" />}
         // In the header rather than floating: the tab bar's centre button is
         // already this app's one floating action, and two is a menu (spec N12).
         action={
@@ -74,8 +74,6 @@ export function Clients() {
         }
       >
         <div class="space-y-4">
-          <BookSwitch active="clients" />
-
           {clients.length > 0 && (
             <SearchInput
               placeholder="Search by name or phone"

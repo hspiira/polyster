@@ -153,10 +153,8 @@ export function Orders() {
   }, [orders, clientNames, balances, scope, now])
 
   return (
-    <Screen label="Orders">
+    <Screen label="Orders" subheader={<BookSwitch active="orders" />}>
       <div class="space-y-4">
-        <BookSwitch active="orders" />
-
         {isSegment(scope) ? (
           <Segmented
             value={scope}
