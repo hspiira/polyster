@@ -193,9 +193,15 @@ type ButtonProps = JSX.IntrinsicElements['button'] & {
   block?: boolean
 }
 
-/** Fills only. A secondary button is a quieter fill, never an outline. */
+/**
+ * Fills only -- a secondary button is a quieter fill, never an outline -- and
+ * monochrome, per A27. Colour returns to buttons deliberately or not at all;
+ * status colour (overdue red, money amber, the sync ring) is untouched because
+ * it encodes meaning rather than emphasis.
+ */
 const BUTTON_VARIANTS = {
-  primary: 'bg-brand-700 text-white active:bg-brand-800 dark:bg-brand-600 dark:active:bg-brand-700',
+  primary:
+    'bg-stone-900 text-white active:bg-stone-800 dark:bg-white dark:text-stone-900 dark:active:bg-stone-200',
   secondary:
     'bg-stone-200 text-stone-800 active:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:active:bg-stone-700',
   danger:
@@ -247,7 +253,7 @@ export function HeaderAction({
   )
   const style = cn(
     'flex shrink-0 items-center gap-1 rounded-control px-3 text-sm font-semibold',
-    'text-brand-700 active:bg-stone-200 dark:text-brand-300 dark:active:bg-stone-800',
+    'text-stone-900 active:bg-stone-200 dark:text-white dark:active:bg-stone-800',
     TAP,
   )
 
@@ -645,8 +651,8 @@ export function MoreLink({ href, children }: { href: string; children: Component
     <a
       href={href}
       class={`flex items-center justify-between gap-2 px-4 pb-1 text-sm
-              font-medium text-brand-700 transition-colors active:bg-stone-100
-              dark:text-brand-300 dark:active:bg-stone-800 ${TAP}`}
+              font-medium text-stone-900 transition-colors active:bg-stone-100
+              dark:text-white dark:active:bg-stone-800 ${TAP}`}
     >
       {children}
       <IconChevronRight size={16} class="shrink-0" />
