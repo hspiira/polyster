@@ -178,8 +178,9 @@ export interface NewOrderInput {
 
 /**
  * Every order carries at least one unit. A single-item order (the only kind
- * this form creates) gets exactly one, at position 0, mirroring the order's
- * own description and price.
+ * this form creates) gets exactly one, at position 0. `summary` and
+ * `price_total_minor` are derived from that unit via recalculateOrder once it
+ * exists, not set directly here -- see invariant 1.
  */
 export async function createOrder(
   db: AppDatabase,
@@ -198,6 +199,8 @@ export async function createOrder(
     order_type: input.order_type,
     reference: generateOrderReference(),
     currency: shop?.currency ?? DEFAULT_CURRENCY,
+    // Placeholders only, to satisfy the schema's required fields before the
+    // unit exists -- recalculateOrder below overwrites both.
     summary: description,
     stage: 'measured',
     price_total_minor: input.price_total_minor,
@@ -238,14 +241,22 @@ export async function createOrder(
     updated_at: timestamp,
   })
 
-  return doc
+  // recalculateOrder is the only writer of summary/price_total_minor
+  // (invariant 1); the values above are placeholders it now replaces.
+  await recalculateOrder(db, doc.id)
+
+  const saved = await db.orders.findOne(doc.id).exec()
+  if (!saved) throw new Error('Order was created but could not be reloaded.')
+  return saved.toJSON()
 }
 
 /**
- * Patches the order's header fields only. `summary` and `price_total_minor`
- * are unit caches now (invariant 1), so the description and price this form
- * still collects are routed through updateOrderUnit on the order's one unit,
- * which recalculates for us.
+ * Patches the order's header fields, then routes the description and price
+ * through updateOrderUnit on the order's one unit. This form assumes exactly
+ * one unit -- true of every order it creates -- and throws otherwise, so a
+ * future multi-unit order can't have its total silently overwritten by an
+ * edit that only touched unit 0. Task 10: replace this with a real item list
+ * once multi-item orders are editable.
  */
 export async function updateOrder(
   db: AppDatabase,
@@ -255,6 +266,17 @@ export async function updateOrder(
   const doc = await db.orders.findOne(orderId).exec()
   if (!doc) throw new Error('That order no longer exists on this device.')
 
+  // Looked up and validated before any patch lands, same discipline as
+  // setOrderAdjustment: a failure here must leave nothing written.
+  const units = await db.order_units
+    .find({ selector: { order_id: orderId }, sort: [{ position: 'asc' }] })
+    .exec()
+  const [firstUnit] = units
+  if (!firstUnit) throw new Error('That order has no items to update.')
+  if (units.length > 1) {
+    throw new Error('This form edits single-item orders only.')
+  }
+
   await doc.patch({
     client_id: input.client_id,
     order_type: input.order_type,
@@ -263,11 +285,6 @@ export async function updateOrder(
     notes: input.notes?.trim() || undefined,
     updated_at: now(),
   })
-
-  const [firstUnit] = await db.order_units
-    .find({ selector: { order_id: orderId }, sort: [{ position: 'asc' }] })
-    .exec()
-  if (!firstUnit) throw new Error('That order has no items to update.')
 
   await updateOrderUnit(db, firstUnit.id, {
     item_description: input.item_description,

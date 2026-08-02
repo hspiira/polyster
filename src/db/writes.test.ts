@@ -4,7 +4,9 @@ import {
   addOrderUnit,
   buildSummary,
   removeOrderUnit,
+  reorderOrderUnits,
   setOrderAdjustment,
+  setUnitDone,
   updateOrderUnit,
 } from './writes'
 
@@ -102,5 +104,23 @@ describe('recalculateOrder', () => {
   it('refuses an adjustment that would drive the total negative', async () => {
     const { db, orderId } = await orderWithUnits([45000])
     await expect(setOrderAdjustment(db, orderId, -50000, 'too much')).rejects.toThrow()
+  })
+
+  it('recalculates summary after a reorder changes the leading unit', async () => {
+    const { db, orderId, unitIds } = await orderWithUnits([45000, 80000, 30000])
+
+    await reorderOrderUnits(db, orderId, [unitIds[1]!, unitIds[0]!, unitIds[2]!])
+
+    expect((await db.orders.findOne(orderId).exec())?.summary).toBe('Gomesi +2')
+  })
+
+  it('lets setUnitDone toggle done without changing price_total_minor', async () => {
+    const { db, orderId, unitIds } = await orderWithUnits([45000, 80000])
+    const before = (await db.orders.findOne(orderId).exec())?.price_total_minor
+
+    await setUnitDone(db, unitIds[0]!, true)
+
+    expect((await db.order_units.findOne(unitIds[0]!).exec())?.done).toBe(true)
+    expect((await db.orders.findOne(orderId).exec())?.price_total_minor).toBe(before)
   })
 })
