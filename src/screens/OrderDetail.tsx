@@ -39,6 +39,7 @@ import { observeBalance, type OrderBalance } from '../db/balances'
 import { changeOrderStage, logMessage, recordPayment, voidPayment } from '../db/writes'
 import {
   PAYMENT_METHODS,
+  type MessageTemplate,
   type OrderDoc,
   type PaymentDoc,
   type PaymentMethod,
@@ -566,9 +567,20 @@ function WhatsAppSection({
 }
 
 /**
+ * Only 'balance_reminder' is a reminder -- a 'stage_update' (e.g. "ready for
+ * pickup") is routine progress, not a chase, and labelling it "Reminder sent"
+ * would tell staff the client had been chased about money when they had not.
+ */
+const MESSAGE_SENT_LABEL: Record<MessageTemplate, string> = {
+  balance_reminder: 'Reminder sent',
+  stage_update: 'Update sent',
+  custom: 'Message sent',
+}
+
+/**
  * Shows when a message was last sent for this order, and by whom if
- * attributed. "Reminder sent" -- never "notified" -- because a wa.me link
- * only records that the shop opened WhatsApp, not that WhatsApp delivered it.
+ * attributed. Never "notified" -- because a wa.me link only records that the
+ * shop opened WhatsApp, not that WhatsApp delivered it.
  */
 function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc[] }) {
   const { db } = useCurrentShop()
@@ -584,7 +596,7 @@ function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc
 
   return (
     <p class="mt-3 text-xs text-stone-500 dark:text-stone-400">
-      Reminder sent {formatDateTime(latest.sent_at)}
+      {MESSAGE_SENT_LABEL[latest.template]} {formatDateTime(latest.sent_at)}
       {sender ? ` by ${sender}` : ''}
     </p>
   )
