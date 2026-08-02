@@ -18,6 +18,7 @@ import {
   InfoNote,
   Input,
   Screen,
+  SectionTitle,
   Sheet,
 } from '../../components/ui'
 import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '../../components/icons'
@@ -26,6 +27,7 @@ import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import {
   createMeasurementField,
+  reactivateMeasurementField,
   retireMeasurementField,
   reorderMeasurementFields,
 } from '../../db/writes'
@@ -51,18 +53,20 @@ export function MeasurementFieldSettings() {
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
-  // Retiring no longer soft-deletes, so this list must filter active fields
-  // itself to keep a retired field from lingering here unremoved.
   const fieldDocs = useRxQuery(
     () =>
       db.measurement_fields.find({
-        selector: { shop_id: shop?.id ?? '__none__', active: { $ne: false } },
+        selector: { shop_id: shop?.id ?? '__none__' },
         sort: [{ display_order: 'asc' }],
       }).$,
     [db, shop?.id],
     [],
   )
   const fields = useMemo(() => fieldDocs.map((doc) => doc.toJSON()), [fieldDocs])
+  // Retired fields stay visible here (with a restore control) rather than
+  // vanishing, since nothing elsewhere lets a shop see or undo a retirement.
+  const activeFields = useMemo(() => fields.filter((field) => field.active !== false), [fields])
+  const retiredFields = useMemo(() => fields.filter((field) => field.active === false), [fields])
 
   if (!shop) {
     return (
@@ -93,7 +97,7 @@ export function MeasurementFieldSettings() {
   }
 
   async function move(index: number, direction: -1 | 1) {
-    const next = [...fields]
+    const next = [...activeFields]
     const target = index + direction
     const a = next[index]
     const b = next[target]
@@ -147,49 +151,85 @@ export function MeasurementFieldSettings() {
             }
           />
         ) : (
-          <Card padded={false}>
-            <ul>
-              {fields.map((field, index) => (
-                <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
-                  <span class="min-w-0 flex-1 pl-1">
-                    <span class="block truncate font-medium">{field.label}</span>
-                    {field.unit && (
-                      <span class="block text-xs text-stone-500 dark:text-stone-400">
-                        {field.unit}
+          <>
+            {activeFields.length > 0 && (
+              <Card padded={false}>
+                <ul>
+                  {activeFields.map((field, index) => (
+                    <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
+                      <span class="min-w-0 flex-1 pl-1">
+                        <span class="block truncate font-medium">{field.label}</span>
+                        {field.unit && (
+                          <span class="block text-xs text-stone-500 dark:text-stone-400">
+                            {field.unit}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Move ${field.label} up`}
-                    disabled={index === 0}
-                    onClick={() => void move(index, -1)}
-                  >
-                    <IconArrowUp size={18} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Move ${field.label} down`}
-                    disabled={index === fields.length - 1}
-                    onClick={() => void move(index, 1)}
-                  >
-                    <IconArrowDown size={18} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="text-red-600 dark:text-red-400"
-                    aria-label={`Remove ${field.label}`}
-                    onClick={() => void retireMeasurementField(db, field.id)}
-                  >
-                    <IconTrash size={18} />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </Card>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Move ${field.label} up`}
+                        disabled={index === 0}
+                        onClick={() => void move(index, -1)}
+                      >
+                        <IconArrowUp size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Move ${field.label} down`}
+                        disabled={index === activeFields.length - 1}
+                        onClick={() => void move(index, 1)}
+                      >
+                        <IconArrowDown size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="text-red-600 dark:text-red-400"
+                        aria-label={`Remove ${field.label}`}
+                        onClick={() => void retireMeasurementField(db, field.id)}
+                      >
+                        <IconTrash size={18} />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            {retiredFields.length > 0 && (
+              <div>
+                <SectionTitle>Retired</SectionTitle>
+                <Card padded={false}>
+                  <ul>
+                    {retiredFields.map((field) => (
+                      <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
+                        <span class="min-w-0 flex-1 pl-1">
+                          <span class="block truncate text-stone-500 dark:text-stone-400">
+                            {field.label}
+                          </span>
+                          {field.unit && (
+                            <span class="block text-xs text-stone-400 dark:text-stone-500">
+                              {field.unit}
+                            </span>
+                          )}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Restore ${field.label}`}
+                          onClick={() => void reactivateMeasurementField(db, field.id)}
+                        >
+                          Restore
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              </div>
+            )}
+          </>
         )}
 
         {fields.length > 0 && (

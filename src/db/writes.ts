@@ -164,10 +164,17 @@ export async function retireMeasurementField(db: AppDatabase, fieldId: string): 
   await doc?.patch({ active: false, updated_at: now() })
 }
 
+/** Undoes retireMeasurementField -- a field can be brought back into new forms. */
+export async function reactivateMeasurementField(db: AppDatabase, fieldId: string): Promise<void> {
+  const doc = await db.measurement_fields.findOne(fieldId).exec()
+  await doc?.patch({ active: true, updated_at: now() })
+}
+
 /**
  * Copies a client's saved profile onto one order unit's frozen snapshot.
  * Explicit and one-way: a later edit to the client's profile must never
- * reach back and rewrite this unit.
+ * reach back and rewrite this unit. A no-op with no profile yet, rather than
+ * overwriting a unit's real values with an empty one.
  */
 export async function copyMeasurementsFromClient(
   db: AppDatabase,
@@ -175,7 +182,8 @@ export async function copyMeasurementsFromClient(
   clientId: string,
 ): Promise<void> {
   const profile = await db.measurement_profiles.findOne({ selector: { client_id: clientId } }).exec()
-  await updateOrderUnit(db, unitId, { measurements: profile?.toJSON().values ?? {} })
+  if (!profile) return
+  await updateOrderUnit(db, unitId, { measurements: profile.toJSON().values })
 }
 
 /**

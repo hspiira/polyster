@@ -9,6 +9,7 @@ import {
   createClient,
   createMeasurementField,
   createOrder,
+  reactivateMeasurementField,
   recordPayment,
   removeOrderUnit,
   reorderOrderUnits,
@@ -336,6 +337,23 @@ describe('measurement fields', () => {
     const [raw] = await db.measurement_fields.storageInstance.findDocumentsById([field.id], true)
     expect(raw?._deleted).toBe(false)
   })
+
+  it('reactivateMeasurementField undoes a retirement, values untouched throughout', async () => {
+    const db = await freshDatabase()
+    const client = await createClient(db, shopId, { name: 'Mrs. Okello' })
+    const field = await createMeasurementField(db, shopId, { label: 'Chest', display_order: 0 })
+    await saveMeasurements(db, client.id, { [field.id]: 40 })
+
+    await retireMeasurementField(db, field.id)
+    expect((await db.measurement_fields.findOne(field.id).exec())?.active).toBe(false)
+
+    await reactivateMeasurementField(db, field.id)
+
+    const found = await db.measurement_fields.findOne(field.id).exec()
+    expect(found?.active).toBe(true)
+    const profile = await db.measurement_profiles.findOne({ selector: { client_id: client.id } }).exec()
+    expect(profile?.values).toEqual({ [field.id]: 40 })
+  })
 })
 
 describe('unit measurements', () => {
@@ -359,6 +377,16 @@ describe('unit measurements', () => {
 
     const unit = await db.order_units.findOne(unitId).exec()
     expect(unit?.measurements).toEqual({ chest: 88 })
+  })
+
+  it('copyMeasurementsFromClient is a no-op when the client has no profile yet', async () => {
+    const { db, clientId, unitId } = await unitWithMeasurements({ chest: 72 })
+
+    await copyMeasurementsFromClient(db, unitId, clientId)
+
+    // A missing profile must never overwrite a unit's real values with {}.
+    const unit = await db.order_units.findOne(unitId).exec()
+    expect(unit?.measurements).toEqual({ chest: 72 })
   })
 
   it('saveUnitMeasurementsToClient pushes the snapshot up without automatic sync either way', async () => {
