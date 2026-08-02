@@ -34,7 +34,7 @@ import { IllustrationOrders } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
-import { formatMoney } from '../lib/money'
+import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDueDate, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
 import {
@@ -136,7 +136,7 @@ export function Orders() {
       case 'ready':
         return all.filter((row) => row.order.stage === 'ready')
       case 'owing':
-        return all.filter((row) => row.outstanding > 0)
+        return all.filter((row) => row.outstanding_minor > 0)
       case 'all':
         // Furthest-due first: reverses the pickup_due_date-ascending sort,
         // not creation order.
@@ -265,7 +265,7 @@ function OrderRow({ row }: { row: DueRow }) {
       trailing={<Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>}
     >
       <span class="block truncate font-medium">
-        {order.item_description}
+        {order.summary}
         {row.kind === 'return' && (
           <span class="font-normal text-stone-500 dark:text-stone-400"> · return</span>
         )}
@@ -276,11 +276,11 @@ function OrderRow({ row }: { row: DueRow }) {
         <span class={overdue ? 'font-medium text-red-600 dark:text-red-400' : ''}>
           {formatDueDate(row.dueDate)}
         </span>
-        {row.outstanding > 0 && (
+        {row.outstanding_minor > 0 && (
           <>
             <span aria-hidden="true">·</span>
             <span class="font-medium text-amber-700 dark:text-amber-400">
-              {formatMoney(row.outstanding)} due
+              {formatMinor(row.outstanding_minor, order.currency)} due
             </span>
           </>
         )}

@@ -38,7 +38,7 @@ import { useRxQuery } from '../hooks/useRxQuery'
 import { observeBalance, type OrderBalance } from '../db/balances'
 import { changeOrderStage, recordPayment, voidPayment } from '../db/writes'
 import { PAYMENT_METHODS, type OrderDoc, type PaymentDoc, type PaymentMethod } from '../db/schema'
-import { formatMoney, parseMoney } from '../lib/money'
+import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate } from '../lib/dates'
 import { balanceReminder, suggestedMessage, waLink } from '../lib/whatsapp'
 import {
@@ -111,7 +111,7 @@ export function OrderDetail() {
 
   return (
     <Screen
-      title={order.item_description}
+      title={order.summary}
       subtitle={client?.name}
       back="/orders"
       action={
@@ -128,7 +128,7 @@ export function OrderDetail() {
       <div class="space-y-5">
         {error && <ErrorNote>{error}</ErrorNote>}
 
-        <BalanceCard balance={balance} />
+        <BalanceCard balance={balance} currency={order.currency} />
 
         <section>
           <SectionTitle>Progress</SectionTitle>
@@ -182,6 +182,7 @@ export function OrderDetail() {
 
         <PaymentsSection
           orderId={orderId}
+          currency={order.currency}
           balance={balance}
           payments={payments}
           onError={setError}
@@ -211,14 +212,20 @@ export function OrderDetail() {
  * amount carries the colour -- amber for outstanding, which is the one thing
  * amber is reserved for -- and the card carries none.
  */
-function BalanceCard({ balance }: { balance: OrderBalance | null }) {
+function BalanceCard({
+  balance,
+  currency,
+}: {
+  balance: OrderBalance | null
+  currency: string
+}) {
   if (!balance) return <Card><div class="h-20" /></Card>
 
-  const owing = balance.balance > 0
-  const overpaid = balance.balance < 0
+  const owing = balance.balance_minor > 0
+  const overpaid = balance.balance_minor < 0
   const paidFraction = Math.min(
     1,
-    Math.max(0, balance.amount_paid / (balance.price_total || 1)),
+    Math.max(0, balance.amount_paid_minor / (balance.price_total_minor || 1)),
   )
 
   return (
@@ -228,12 +235,13 @@ function BalanceCard({ balance }: { balance: OrderBalance | null }) {
       </p>
       <div class="mt-1.5">
         <StatValue
-          value={formatMoney(Math.abs(balance.balance))}
+          value={formatMinor(Math.abs(balance.balance_minor), currency)}
           tone={owing ? 'money' : 'default'}
         />
       </div>
       <p class="mt-2 text-sm text-stone-500 dark:text-stone-400">
-        {formatMoney(balance.amount_paid)} paid of {formatMoney(balance.price_total)}
+        {formatMinor(balance.amount_paid_minor, currency)} paid of{' '}
+        {formatMinor(balance.price_total_minor, currency)}
       </p>
       <div class="mt-3 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
         <div
@@ -306,11 +314,13 @@ function StageTrack({
 
 function PaymentsSection({
   orderId,
+  currency,
   balance,
   payments,
   onError,
 }: {
   orderId: string
+  currency: string
   balance: OrderBalance | null
   payments: PaymentDoc[]
   onError: (message: string | null) => void
@@ -325,7 +335,7 @@ function PaymentsSection({
 
   async function submit(event: Event) {
     event.preventDefault()
-    const parsed = parseMoney(amount)
+    const parsed = parseToMinor(amount, currency)
     if (parsed === null || parsed <= 0) {
       setFormError('Enter an amount greater than zero.')
       return
@@ -334,7 +344,7 @@ function PaymentsSection({
     setSaving(true)
     setFormError(null)
     try {
-      await recordPayment(db, orderId, { amount: parsed, method, notes }, activeStaff?.id)
+      await recordPayment(db, orderId, { amount_minor: parsed, method, notes }, activeStaff?.id)
       setAmount('')
       setNotes('')
       setAdding(false)
@@ -371,7 +381,7 @@ function PaymentsSection({
             {payments.map((payment) => (
               <li key={payment.id} class="flex items-center justify-between gap-3 px-4 py-3.5">
                 <span class="min-w-0">
-                  <span class="block font-medium">{formatMoney(payment.amount)}</span>
+                  <span class="block font-medium">{formatMinor(payment.amount_minor, currency)}</span>
                   <span class="block truncate text-xs text-stone-500 dark:text-stone-400">
                     {PAYMENT_METHOD_LABELS[payment.method]} · {formatDateTime(payment.payment_date)}
                   </span>
@@ -401,15 +411,15 @@ function PaymentsSection({
 
       <Sheet open={adding} title="Record a payment" onClose={() => setAdding(false)}>
         <form onSubmit={submit} class="space-y-4">
-          {balance && balance.balance > 0 && (
+          {balance && balance.balance_minor > 0 && (
             <button
               type="button"
-              onClick={() => setAmount(String(balance.balance))}
+              onClick={() => setAmount(String(fromMinorUnits(balance.balance_minor, currency)))}
               class="min-h-11 w-full rounded-control bg-brand-100 px-3 text-sm
                      font-medium text-brand-800 active:bg-brand-200
                      dark:bg-brand-950 dark:text-brand-300"
             >
-              Pay the full balance, {formatMoney(balance.balance)}
+              Pay the full balance, {formatMinor(balance.balance_minor, currency)}
             </button>
           )}
 
@@ -479,7 +489,7 @@ function WhatsAppSection({
   const context = { shopName, clientName, order, balance }
   const statusLink = waLink(phone, suggestedMessage(context))
   const reminderLink = waLink(phone, balanceReminder(context))
-  const showReminder = overdue && balance.balance > 0 && reminderLink
+  const showReminder = overdue && balance.balance_minor > 0 && reminderLink
 
   if (!statusLink) {
     return (

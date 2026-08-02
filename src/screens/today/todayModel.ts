@@ -6,7 +6,7 @@
  * or RxDB.
  */
 import { addDays, dueBucket } from '../../lib/dates'
-import { formatMoney } from '../../lib/money'
+import { formatMinor } from '../../lib/money'
 import type { OrderBalance } from '../../db/balances'
 import type { OrderStage, OrderDoc } from '../../db/schema'
 
@@ -24,7 +24,9 @@ export interface HeroCounts {
   late: number
   dueToday: number
   dueThisWeek: number
-  outstanding: number
+  outstanding_minor: number
+  /** For formatting `outstanding_minor`, which sums across orders -- the shop's, not any one order's. */
+  currency: string
 }
 
 /**
@@ -51,9 +53,12 @@ export function heroSegments(counts: HeroCounts): HeroSegment[] {
     segments.push({ text: 'Nothing due today', tone: 'strong' })
   }
 
-  if (counts.outstanding > 0) {
+  if (counts.outstanding_minor > 0) {
     segments.push({ text: ' and ', tone: 'muted' })
-    segments.push({ text: `${formatMoney(counts.outstanding)} owed`, tone: 'money' })
+    segments.push({
+      text: `${formatMinor(counts.outstanding_minor, counts.currency)} owed`,
+      tone: 'money',
+    })
   }
 
   return segments
@@ -67,7 +72,7 @@ export interface DueRow {
   /** Whichever date put this row in its bucket. */
   dueDate: string
   /** Clamped at zero so an overpayment never shows as a negative. */
-  outstanding: number
+  outstanding_minor: number
 }
 
 export interface TodayBuckets {
@@ -89,7 +94,7 @@ function toRow(
     clientName: clientNames.get(order.client_id) ?? 'Unknown client',
     kind,
     dueDate,
-    outstanding: Math.max(0, balances.get(order.id)?.balance ?? 0),
+    outstanding_minor: Math.max(0, balances.get(order.id)?.balance_minor ?? 0),
   }
 }
 
@@ -240,13 +245,13 @@ export function pickupRows(
 export interface OwingRow {
   order: OrderDoc
   clientName: string
-  outstanding: number
+  outstanding_minor: number
   /** Already out of the shop -- these are the ones worth chasing. */
   collected: boolean
 }
 
 export interface MoneySummary {
-  outstanding: number
+  outstanding_minor: number
   clientCount: number
   rows: OwingRow[]
 }
@@ -263,28 +268,28 @@ export function buildMoneySummary(
 ): MoneySummary {
   const owing: OwingRow[] = []
   const clients = new Set<string>()
-  let outstanding = 0
+  let outstanding_minor = 0
 
   for (const order of orders) {
-    const owed = balances.get(order.id)?.balance ?? 0
+    const owed = balances.get(order.id)?.balance_minor ?? 0
     if (owed <= 0) continue
 
-    outstanding += owed
+    outstanding_minor += owed
     clients.add(order.client_id)
     owing.push({
       order,
       clientName: clientNames.get(order.client_id) ?? 'Unknown client',
-      outstanding: owed,
+      outstanding_minor: owed,
       collected: !OPEN_STAGES.includes(order.stage),
     })
   }
 
   owing.sort((a, b) => {
     if (a.collected !== b.collected) return a.collected ? -1 : 1
-    return b.outstanding - a.outstanding
+    return b.outstanding_minor - a.outstanding_minor
   })
 
-  return { outstanding, clientCount: clients.size, rows: owing.slice(0, limit) }
+  return { outstanding_minor, clientCount: clients.size, rows: owing.slice(0, limit) }
 }
 
 export interface CappedRows<T> {

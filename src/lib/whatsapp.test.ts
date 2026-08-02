@@ -51,7 +51,8 @@ describe('suggestedMessage', () => {
     shopName: 'Kampala Tailors',
     clientName: 'Amina',
     order: {
-      item_description: 'navy two-piece suit',
+      currency: 'UGX',
+      summary: 'navy two-piece suit',
       stage: 'ready' as const,
       pickup_due_date: '2026-08-14',
     },
@@ -59,17 +60,17 @@ describe('suggestedMessage', () => {
 
   const owing: OrderBalance = {
     order_id: 'o1',
-    price_total: 250000,
-    amount_paid: 100000,
-    balance: 150000,
+    price_total_minor: 250000,
+    amount_paid_minor: 100000,
+    balance_minor: 150000,
     fully_paid: false,
   }
 
   const settled: OrderBalance = {
     order_id: 'o1',
-    price_total: 250000,
-    amount_paid: 250000,
-    balance: 0,
+    price_total_minor: 250000,
+    amount_paid_minor: 250000,
+    balance_minor: 0,
     fully_paid: true,
   }
 

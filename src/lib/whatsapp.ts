@@ -7,7 +7,7 @@
  *
  * This is also the one part of the app that deliberately leaves the app.
  */
-import { formatMoney } from './money'
+import { formatMinor } from './money'
 import { formatDate } from './dates'
 import type { OrderDoc } from '../db/schema'
 import type { OrderBalance } from '../db/balances'
@@ -48,7 +48,9 @@ export function waLink(phone: string | undefined, message: string): string | nul
 interface MessageContext {
   shopName: string
   clientName: string
-  order: Pick<OrderDoc, 'item_description' | 'stage' | 'pickup_due_date'>
+  // currency travels with the order (snapshotted at creation) rather than a
+  // hardcoded constant, so messages read correctly outside the default shop.
+  order: Pick<OrderDoc, 'summary' | 'stage' | 'pickup_due_date' | 'currency'>
   balance: OrderBalance
 }
 
@@ -60,8 +62,9 @@ interface MessageContext {
  * will stop using.
  */
 export function suggestedMessage({ shopName, clientName, order, balance }: MessageContext): string {
-  const item = order.item_description
-  const outstanding = balance.balance > 0 ? formatMoney(balance.balance) : null
+  const item = order.summary
+  const outstanding =
+    balance.balance_minor > 0 ? formatMinor(balance.balance_minor, order.currency) : null
 
   switch (order.stage) {
     case 'ready':
@@ -92,6 +95,9 @@ export function suggestedMessage({ shopName, clientName, order, balance }: Messa
         `Hello ${clientName}, we have your measurements for the ${item} at ${shopName}. ` +
         `It is due on ${formatDate(order.pickup_due_date)}.`
       )
+
+    case 'cancelled':
+      return `Hello ${clientName}, your ${item} order at ${shopName} has been cancelled. Please get in touch with any questions.`
   }
 }
 
@@ -103,7 +109,7 @@ export function balanceReminder({
   balance,
 }: MessageContext): string {
   return (
-    `Hello ${clientName}, this is a reminder from ${shopName} about your ${order.item_description}. ` +
-    `A balance of ${formatMoney(balance.balance)} is outstanding. Thank you.`
+    `Hello ${clientName}, this is a reminder from ${shopName} about your ${order.summary}. ` +
+    `A balance of ${formatMinor(balance.balance_minor, order.currency)} is outstanding. Thank you.`
   )
 }

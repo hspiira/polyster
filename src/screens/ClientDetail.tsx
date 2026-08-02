@@ -32,7 +32,7 @@ import {
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { saveMeasurements, updateClient } from '../db/writes'
-import { formatMoney } from '../lib/money'
+import { formatMinor } from '../lib/money'
 import { formatDueDate } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
 
@@ -145,9 +145,9 @@ export function ClientDetail() {
                         <Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>
                       }
                     >
-                      <span class="block truncate font-medium">{order.item_description}</span>
+                      <span class="block truncate font-medium">{order.summary}</span>
                       <span class="block text-sm text-stone-500 dark:text-stone-400">
-                        {formatMoney(order.price_total)} · due{' '}
+                        {formatMinor(order.price_total_minor, order.currency)} · due{' '}
                         {formatDueDate(order.pickup_due_date)}
                       </span>
                     </ListRow>

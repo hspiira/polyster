@@ -28,7 +28,7 @@ import { createOrder, updateOrder, type NewOrderInput } from '../db/writes'
 import { ORDER_TYPES, type OrderType } from '../db/schema'
 import { ORDER_TYPE_LABELS } from './orderStage'
 import { addDays, today } from '../lib/dates'
-import { parseMoney } from '../lib/money'
+import { fromMinorUnits, parseToMinor } from '../lib/money'
 
 interface Draft {
   client_id: string
@@ -90,8 +90,8 @@ export function OrderForm() {
     setDraft({
       client_id: order.client_id,
       order_type: order.order_type,
-      item_description: order.item_description,
-      price_total: String(order.price_total),
+      item_description: order.summary,
+      price_total: String(fromMinorUnits(order.price_total_minor, order.currency)),
       pickup_due_date: order.pickup_due_date,
       return_due_date: order.return_due_date ?? '',
       notes: order.notes ?? '',
@@ -99,11 +99,15 @@ export function OrderForm() {
     setLoaded(true)
   }, [isEdit, loaded, orderDoc])
 
+  // The order's own snapshotted currency once one is in scope (editing);
+  // otherwise the shop's, since no order exists yet to snapshot from.
+  const currency = orderDoc?.toJSON().currency ?? shop.currency
+
   function validate(): NewOrderInput | string {
     if (!draft.client_id) return 'Choose which client this order is for.'
     if (!draft.item_description.trim()) return 'Describe the item, so it can be told apart later.'
 
-    const price = parseMoney(draft.price_total)
+    const price = parseToMinor(draft.price_total, currency)
     if (price === null) return 'Enter the price as a number.'
 
     if (!draft.pickup_due_date) return 'A pickup date is needed.'
@@ -115,7 +119,7 @@ export function OrderForm() {
       client_id: draft.client_id,
       order_type: draft.order_type,
       item_description: draft.item_description,
-      price_total: price,
+      price_total_minor: price,
       pickup_due_date: draft.pickup_due_date,
       ...(draft.return_due_date ? { return_due_date: draft.return_due_date } : {}),
       ...(draft.notes.trim() ? { notes: draft.notes } : {}),
@@ -276,7 +280,7 @@ export function OrderForm() {
             >
               Cancel
             </Button>
-            <Button class="flex-[2]" type="submit" disabled={saving}>
+            <Button class="flex-2" type="submit" disabled={saving}>
               {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create order'}
             </Button>
           </div>

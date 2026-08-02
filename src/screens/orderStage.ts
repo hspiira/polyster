@@ -11,6 +11,7 @@ export const STAGE_LABELS: Record<OrderStage, string> = {
   ready: 'Ready',
   picked_up: 'Picked up',
   returned: 'Returned',
+  cancelled: 'Cancelled',
 }
 
 export const STAGE_TONES: Record<OrderStage, ChipTone> = {
@@ -19,6 +20,9 @@ export const STAGE_TONES: Record<OrderStage, ChipTone> = {
   ready: 'good',
   picked_up: 'neutral',
   returned: 'neutral',
+  // The one stage that is an adverse outcome rather than progress or a plain
+  // finish, so it gets the tone none of the others use.
+  cancelled: 'bad',
 }
 
 export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
@@ -41,6 +45,9 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
  * is. Showing every stage for every type would put a button on screen that
  * makes no sense for the order in front of you, which is how bad data gets
  * entered.
+ *
+ * 'cancelled' is deliberately absent from every flow: it is a terminal exit
+ * reachable from any stage, not a rung between 'ready' and 'picked_up'.
  */
 const FLOWS: Record<OrderType, readonly OrderStage[]> = {
   tailor_made: ['measured', 'in_progress', 'ready', 'picked_up'],

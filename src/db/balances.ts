@@ -20,40 +20,26 @@ import type { OrderDoc, PaymentDoc } from './schema'
 
 export interface OrderBalance {
   order_id: string
-  price_total: number
-  amount_paid: number
-  /** price_total - amount_paid. Negative means the client overpaid. */
-  balance: number
+  price_total_minor: number
+  amount_paid_minor: number
+  /** price_total_minor - amount_paid_minor. Negative means the client overpaid. */
+  balance_minor: number
   fully_paid: boolean
-}
-
-/**
- * Money arrives as `numeric(12, 2)`. Summing those as floats accumulates
- * error (0.1 + 0.2 being the canonical example), so sums are done in minor
- * units -- integers -- and converted back once.
- */
-function toMinorUnits(amount: number): number {
-  return Math.round(amount * 100)
-}
-
-function fromMinorUnits(minor: number): number {
-  return minor / 100
 }
 
 /** Pure calculation. Given an order and its payments, what is owed. */
 export function calculateBalance(
-  order: Pick<OrderDoc, 'id' | 'price_total'>,
-  payments: readonly Pick<PaymentDoc, 'amount'>[],
+  order: Pick<OrderDoc, 'id' | 'price_total_minor'>,
+  payments: readonly Pick<PaymentDoc, 'amount_minor'>[],
 ): OrderBalance {
-  const totalMinor = toMinorUnits(order.price_total)
-  const paidMinor = payments.reduce((sum, p) => sum + toMinorUnits(p.amount), 0)
+  const paidMinor = payments.reduce((sum, p) => sum + p.amount_minor, 0)
 
   return {
     order_id: order.id,
-    price_total: fromMinorUnits(totalMinor),
-    amount_paid: fromMinorUnits(paidMinor),
-    balance: fromMinorUnits(totalMinor - paidMinor),
-    fully_paid: paidMinor >= totalMinor,
+    price_total_minor: order.price_total_minor,
+    amount_paid_minor: paidMinor,
+    balance_minor: order.price_total_minor - paidMinor,
+    fully_paid: paidMinor >= order.price_total_minor,
   }
 }
 
