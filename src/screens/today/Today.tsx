@@ -160,7 +160,7 @@ export function Today({ online, auth, replication }: TodayProps) {
   }
 
   return (
-    <Screen label="Today">
+    <Screen label="Today" wide>
       <ProfileHeader
         name={firstName}
         greeting={greetingText}
@@ -172,7 +172,17 @@ export function Today({ online, auth, replication }: TodayProps) {
       <Hero segments={segments} />
       <DayStrip cells={cells} />
 
-      <div class="space-y-4">
+      {/*
+        One prioritised column on a phone: overdue first, because that is what
+        the day is decided by. On a desktop the same sections sit two-up --
+        the order still reads left-to-right, top-to-bottom, but a shop with
+        work in every bucket stops needing to scroll to see it.
+
+        `items-start` so a short column does not stretch to match a long one,
+        and `[&>*]:break-inside-avoid` is not needed because this is a grid,
+        not columns -- each section stays whole by construction.
+      */}
+      <div class="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
         <Bucket title="Overdue" tone="bad" filter="overdue" rows={buckets.overdue} />
         <Bucket title="Due today" tone="warn" filter="today" rows={buckets.dueToday} />
         <Bucket title="Due this week" tone="neutral" filter="week" rows={buckets.dueThisWeek} />
