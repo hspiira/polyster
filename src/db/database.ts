@@ -41,6 +41,7 @@ import {
 import { DEFAULT_CURRENCY } from '../lib/money'
 import { generateOrderReference } from '../lib/orderReference'
 import { DEFAULT_LOCK_AFTER_MINUTES } from '../lib/lockPolicy'
+import { backfillOrderUnits } from './backfill'
 
 // Collections keyed exactly as the Supabase tableName they replicate
 // against (see REPLICATED_TABLES in ./replication.ts) -- keep these in sync.
@@ -300,6 +301,14 @@ export async function createDatabase(
     order_units: { schema: orderUnitSchema, migrationStrategies: {} },
     message_log: { schema: messageLogSchema, migrationStrategies: {} },
   })
+
+  try {
+    await backfillOrderUnits(db)
+  } catch (error) {
+    // A repair failure must never stop a shop's phone from opening the
+    // database holding its only copy of the day's work.
+    console.error('[db] backfillOrderUnits failed:', error)
+  }
 
   return db
 }
