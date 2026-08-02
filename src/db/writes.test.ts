@@ -3,10 +3,12 @@ import { createDatabase, type AppDatabase } from './database'
 import {
   addOrderUnit,
   buildSummary,
+  createOrder,
   removeOrderUnit,
   reorderOrderUnits,
   setOrderAdjustment,
   setUnitDone,
+  updateOrder,
   updateOrderUnit,
 } from './writes'
 
@@ -122,5 +124,82 @@ describe('recalculateOrder', () => {
 
     expect((await db.order_units.findOne(unitIds[0]!).exec())?.done).toBe(true)
     expect((await db.orders.findOne(orderId).exec())?.price_total_minor).toBe(before)
+  })
+})
+
+describe('createOrder', () => {
+  // The exact path the critical finding was about: a second writer of the
+  // cache that stores the raw description instead of deriving it.
+  it('derives summary from the unit rather than storing the raw description', async () => {
+    const db = await freshDatabase()
+
+    const order = await createOrder(db, crypto.randomUUID(), {
+      client_id: crypto.randomUUID(),
+      order_type: 'tailor_made',
+      item_description: 'Kanzu, navy',
+      price_total_minor: 45000,
+      pickup_due_date: '2026-08-12',
+    })
+
+    expect(order.summary).toBe('Kanzu')
+    expect(order.price_total_minor).toBe(45000)
+
+    const units = await db.order_units.find({ selector: { order_id: order.id } }).exec()
+    expect(units).toHaveLength(1)
+    expect(units[0]?.item_description).toBe('Kanzu, navy')
+    expect(units[0]?.price_minor).toBe(45000)
+  })
+})
+
+describe('updateOrder', () => {
+  it('lands no header changes when it rejects the multi-unit guard', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    await addOrderUnit(db, orderId, { item_description: 'Gomesi, gold trim', price_minor: 80000 })
+
+    const before = await db.orders.findOne(orderId).exec()
+    const originalClientId = before?.client_id
+    const originalPickupDate = before?.pickup_due_date
+    const originalNotes = before?.notes
+
+    await expect(
+      updateOrder(db, orderId, {
+        client_id: crypto.randomUUID(),
+        order_type: 'tailor_made',
+        item_description: 'New description',
+        price_total_minor: 999,
+        pickup_due_date: '2030-01-01',
+        notes: 'should not land',
+      }),
+    ).rejects.toThrow()
+
+    const after = await db.orders.findOne(orderId).exec()
+    expect(after?.client_id).toBe(originalClientId)
+    expect(after?.pickup_due_date).toBe(originalPickupDate)
+    expect(after?.notes).toBe(originalNotes)
+  })
+
+  it('refuses a multi-unit order and leaves its units untouched', async () => {
+    const { db, orderId, unitIds } = await orderWithUnits([45000])
+    const secondUnit = await addOrderUnit(db, orderId, {
+      item_description: 'Gomesi, gold trim',
+      price_minor: 80000,
+    })
+
+    await expect(
+      updateOrder(db, orderId, {
+        client_id: crypto.randomUUID(),
+        order_type: 'tailor_made',
+        item_description: 'New description',
+        price_total_minor: 999,
+        pickup_due_date: '2030-01-01',
+      }),
+    ).rejects.toThrow()
+
+    const firstUnit = await db.order_units.findOne(unitIds[0]!).exec()
+    const secondUnitAfter = await db.order_units.findOne(secondUnit.id).exec()
+    expect(firstUnit?.item_description).toBe('Kanzu, navy')
+    expect(firstUnit?.price_minor).toBe(45000)
+    expect(secondUnitAfter?.item_description).toBe('Gomesi, gold trim')
+    expect(secondUnitAfter?.price_minor).toBe(80000)
   })
 })
