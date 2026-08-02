@@ -371,6 +371,18 @@ export function OrderForm() {
       })
     }
 
+    // Mirrors the check setOrderAdjustment makes before it patches, one level
+    // up: nothing is written until everything checkable has been checked, so
+    // a discount larger than the subtotal never leaves an order half-written.
+    const subtotal = validatedUnits.reduce((sum, unit) => sum + unit.price_minor, 0)
+    if (subtotal + adjustmentMinor < 0) {
+      return {
+        scope: 'header',
+        field: 'adjustment_amount',
+        message: 'That discount is larger than the order total.',
+      }
+    }
+
     return {
       header: {
         client_id: header.client_id,
@@ -405,7 +417,14 @@ export function OrderForm() {
         // final length while these writes are in flight.
         for (const unit of result.units) {
           if (unit.id) continue
-          await addOrderUnit(db, orderId, unit)
+          const added = await addOrderUnit(db, orderId, unit)
+          // Recorded into the draft immediately, not just used locally here:
+          // if a later step in this save throws, retrying must see this unit
+          // as already persisted and route it through updateOrderUnit, not
+          // addOrderUnit a second time.
+          setUnits((current) =>
+            current.map((draft) => (draft.key === unit.key ? { ...draft, id: added.id } : draft)),
+          )
         }
         for (const unit of result.units) {
           if (!unit.id) continue

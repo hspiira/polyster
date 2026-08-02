@@ -290,48 +290,6 @@ export async function createOrder(
   return saved.toJSON()
 }
 
-/**
- * Patches the order's header fields, then routes the description and price
- * through updateOrderUnit on the order's one unit. This form assumes exactly
- * one unit -- true of every order it creates -- and throws otherwise, so a
- * future multi-unit order can't have its total silently overwritten by an
- * edit that only touched unit 0. Task 10: replace this with a real item list
- * once multi-item orders are editable.
- */
-export async function updateOrder(
-  db: AppDatabase,
-  orderId: string,
-  input: NewOrderInput,
-): Promise<void> {
-  const doc = await db.orders.findOne(orderId).exec()
-  if (!doc) throw new Error('That order no longer exists on this device.')
-
-  // Looked up and validated before any patch lands, same discipline as
-  // setOrderAdjustment: a failure here must leave nothing written.
-  const units = await db.order_units
-    .find({ selector: { order_id: orderId }, sort: [{ position: 'asc' }] })
-    .exec()
-  const [firstUnit] = units
-  if (!firstUnit) throw new Error('That order has no items to update.')
-  if (units.length > 1) {
-    throw new Error('This form edits single-item orders only.')
-  }
-
-  await doc.patch({
-    client_id: input.client_id,
-    order_type: input.order_type,
-    pickup_due_date: input.pickup_due_date,
-    return_due_date: input.return_due_date || undefined,
-    notes: input.notes?.trim() || undefined,
-    updated_at: now(),
-  })
-
-  await updateOrderUnit(db, firstUnit.id, {
-    item_description: input.item_description,
-    price_minor: input.price_total_minor,
-  })
-}
-
 export interface OrderHeaderInput {
   client_id: string
   order_type: OrderType
@@ -341,9 +299,10 @@ export interface OrderHeaderInput {
 }
 
 /**
- * Task 10: the multi-unit form's header save. Touches only client, type,
- * dates and notes -- never a unit, never price_total_minor or summary -- so
- * it works regardless of how many units the order has, unlike updateOrder.
+ * The order form's header save. Touches only client, type, dates and notes --
+ * never a unit, never price_total_minor or summary -- so it works regardless
+ * of how many units the order has, unlike the single-item updater this
+ * replaced.
  */
 export async function updateOrderHeader(
   db: AppDatabase,

@@ -21,7 +21,7 @@ import {
   saveUnitMeasurementsToClient,
   setOrderAdjustment,
   setUnitDone,
-  updateOrder,
+  updateOrderHeader,
   updateOrderUnit,
   voidPayment,
 } from './writes'
@@ -179,49 +179,34 @@ describe('createOrder', () => {
   })
 })
 
-describe('updateOrder', () => {
-  it('lands no header changes when it rejects the multi-unit guard', async () => {
-    const { db, orderId } = await orderWithUnits([45000])
-    await addOrderUnit(db, orderId, { item_description: 'Gomesi, gold trim', price_minor: 80000 })
-
-    const before = await db.orders.findOne(orderId).exec()
-    const originalClientId = before?.client_id
-    const originalPickupDate = before?.pickup_due_date
-    const originalNotes = before?.notes
-
-    await expect(
-      updateOrder(db, orderId, {
-        client_id: crypto.randomUUID(),
-        order_type: 'tailor_made',
-        item_description: 'New description',
-        price_total_minor: 999,
-        pickup_due_date: '2030-01-01',
-        notes: 'should not land',
-      }),
-    ).rejects.toThrow()
-
-    const after = await db.orders.findOne(orderId).exec()
-    expect(after?.client_id).toBe(originalClientId)
-    expect(after?.pickup_due_date).toBe(originalPickupDate)
-    expect(after?.notes).toBe(originalNotes)
-  })
-
-  it('refuses a multi-unit order and leaves its units untouched', async () => {
+describe('updateOrderHeader', () => {
+  // updateOrder used to refuse this outright (the guard this replaces);
+  // updateOrderHeader's whole point is that a multi-unit order's header is
+  // still editable, precisely because it never goes near a unit.
+  it('patches header fields on a multi-unit order without touching its units, price or summary', async () => {
     const { db, orderId, unitIds } = await orderWithUnits([45000])
     const secondUnit = await addOrderUnit(db, orderId, {
       item_description: 'Gomesi, gold trim',
       price_minor: 80000,
     })
+    const before = await db.orders.findOne(orderId).exec()
+    const originalTotal = before?.price_total_minor
+    const originalSummary = before?.summary
+    const newClientId = crypto.randomUUID()
 
-    await expect(
-      updateOrder(db, orderId, {
-        client_id: crypto.randomUUID(),
-        order_type: 'tailor_made',
-        item_description: 'New description',
-        price_total_minor: 999,
-        pickup_due_date: '2030-01-01',
-      }),
-    ).rejects.toThrow()
+    await updateOrderHeader(db, orderId, {
+      client_id: newClientId,
+      order_type: 'tailor_made',
+      pickup_due_date: '2030-01-01',
+      notes: 'should land',
+    })
+
+    const after = await db.orders.findOne(orderId).exec()
+    expect(after?.client_id).toBe(newClientId)
+    expect(after?.pickup_due_date).toBe('2030-01-01')
+    expect(after?.notes).toBe('should land')
+    expect(after?.price_total_minor).toBe(originalTotal)
+    expect(after?.summary).toBe(originalSummary)
 
     const firstUnit = await db.order_units.findOne(unitIds[0]!).exec()
     const secondUnitAfter = await db.order_units.findOne(secondUnit.id).exec()
