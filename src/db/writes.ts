@@ -308,7 +308,8 @@ const TERMINAL_STAGE_TIMESTAMP_FIELD: Partial<Record<OrderStage, keyof OrderDoc>
  * so the two can never disagree. `extraPatch` folds a caller's own fields
  * (e.g. cancelOrder's reason) into that same single patch, for the same
  * reason: two patches invite a crash between them leaving one written and not
- * the other.
+ * the other. Spread before this function's own fields, so a caller can never
+ * override the stage or its timestamp, by accident or otherwise.
  */
 export async function changeOrderStage(
   db: AppDatabase,
@@ -337,10 +338,10 @@ export async function changeOrderStage(
   const timestampField = TERMINAL_STAGE_TIMESTAMP_FIELD[toStage]
 
   await doc.patch({
+    ...extraPatch,
     stage: toStage,
     updated_at: timestamp,
     ...(timestampField ? { [timestampField]: timestamp } : {}),
-    ...extraPatch,
   })
 }
 

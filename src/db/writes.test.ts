@@ -223,6 +223,22 @@ describe('changeOrderStage', () => {
     expect(order?.picked_up_at).toBeTruthy()
     expect(order?.returned_at).toBeUndefined()
   })
+
+  it('never lets an extraPatch override the stage or its timestamp', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+
+    await changeOrderStage(db, orderId, 'cancelled', undefined, {
+      // A malicious or careless caller trying to smuggle its own stage and
+      // timestamp through -- this must lose to the function's own fields.
+      stage: 'ready',
+      cancelled_at: '2000-01-01T00:00:00.000Z',
+    })
+
+    const order = await db.orders.findOne(orderId).exec()
+    expect(order?.stage).toBe('cancelled')
+    expect(order?.cancelled_at).not.toBe('2000-01-01T00:00:00.000Z')
+    expect(order?.cancelled_at).toBeTruthy()
+  })
 })
 
 describe('cancelOrder', () => {
