@@ -14,6 +14,7 @@ import { useLocation, useRoute } from 'preact-iso'
 import {
   Button,
   Card,
+  cn,
   DataRow,
   EmptyState,
   ErrorNote,
@@ -38,7 +39,7 @@ import { IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeBalance, type OrderBalance } from '../db/balances'
-import { changeOrderStage, logMessage, recordPayment, voidPayment } from '../db/writes'
+import { changeOrderStage, logMessage, recordPayment, setUnitDone, voidPayment } from '../db/writes'
 import {
   PAYMENT_METHODS,
   type MessageTemplate,
@@ -179,6 +180,10 @@ export function OrderDetail() {
           </Card>
         </section>
 
+        <MoneyBlock order={order} balance={balance} currency={order.currency} />
+
+        <ItemsSection orderId={orderId} currency={order.currency} onError={setError} />
+
         <section>
           <SectionTitle>Details</SectionTitle>
           <Card>
@@ -295,6 +300,123 @@ function BalanceCard({
         />
       </div>
     </Card>
+  )
+}
+
+/**
+ * Subtotal, adjustment, total, paid and balance as separate lines (Task 10).
+ * A rental deposit is held rather than earned, so it is shown apart from the
+ * balance and never folded into any of the figures above it.
+ */
+function MoneyBlock({
+  order,
+  balance,
+  currency,
+}: {
+  order: OrderDoc
+  balance: OrderBalance | null
+  currency: string
+}) {
+  if (!balance) return null
+
+  const subtotal = order.price_total_minor - order.price_adjustment_minor
+  const adjustment = order.price_adjustment_minor
+
+  return (
+    <section>
+      <SectionTitle>Money</SectionTitle>
+      <Card>
+        <dl>
+          <DataRow label="Subtotal">{formatMinor(subtotal, currency)}</DataRow>
+          {adjustment !== 0 && (
+            <DataRow label={order.adjustment_reason ?? (adjustment < 0 ? 'Discount' : 'Extra charge')}>
+              {adjustment < 0 ? '-' : '+'}
+              {formatMinor(Math.abs(adjustment), currency)}
+            </DataRow>
+          )}
+          <DataRow label="Total">{formatMinor(order.price_total_minor, currency)}</DataRow>
+          <DataRow label="Paid">{formatMinor(balance.amount_paid_minor, currency)}</DataRow>
+          <DataRow label="Balance">{formatMinor(balance.balance_minor, currency)}</DataRow>
+        </dl>
+        {order.rental_deposit_minor > 0 && (
+          <p class="mt-3 border-t border-stone-100 pt-3 text-sm text-stone-600 dark:border-stone-800 dark:text-stone-300">
+            Deposit held: <span class="font-medium">{formatMinor(order.rental_deposit_minor, currency)}</span>
+            {order.deposit_refunded_at
+              ? ` -- refunded ${formatDate(order.deposit_refunded_at)}`
+              : ' -- held, not part of the balance above'}
+          </p>
+        )}
+      </Card>
+    </section>
+  )
+}
+
+/** The unit list, with a per-unit done tick (Task 10). */
+function ItemsSection({
+  orderId,
+  currency,
+  onError,
+}: {
+  orderId: string
+  currency: string
+  onError: (message: string | null) => void
+}) {
+  const { db } = useCurrentShop()
+  const unitDocs = useRxQuery(
+    () => db.order_units.find({ selector: { order_id: orderId }, sort: [{ position: 'asc' }] }).$,
+    [db, orderId],
+    [],
+  )
+  const units = useMemo(() => unitDocs.map((doc) => doc.toJSON()), [unitDocs])
+
+  if (units.length === 0) return null
+
+  async function toggle(unitId: string, done: boolean): Promise<void> {
+    onError(null)
+    try {
+      await setUnitDone(db, unitId, done)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not update that item.')
+    }
+  }
+
+  return (
+    <section>
+      <SectionTitle>Items</SectionTitle>
+      <Card padded={false}>
+        <ul>
+          {units.map((unit) => (
+            <li key={unit.id} class="flex items-center gap-3 px-4 py-3.5">
+              <button
+                type="button"
+                aria-pressed={unit.done}
+                aria-label={unit.done ? `Mark ${unit.item_description} not done` : `Mark ${unit.item_description} done`}
+                onClick={() => void toggle(unit.id, !unit.done)}
+                class={cn(
+                  'flex size-7 shrink-0 items-center justify-center rounded-full transition-colors',
+                  unit.done
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-stone-200 text-transparent dark:bg-stone-700',
+                )}
+              >
+                <IconCheck size={14} />
+              </button>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate font-medium">{unit.item_description}</span>
+                {unit.wearer_name && (
+                  <span class="block text-xs text-stone-500 dark:text-stone-400">
+                    For {unit.wearer_name}
+                  </span>
+                )}
+              </span>
+              <span class="shrink-0 text-sm font-medium tabular-nums">
+                {formatMinor(unit.price_minor, currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </section>
   )
 }
 

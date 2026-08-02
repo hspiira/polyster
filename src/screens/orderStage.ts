@@ -3,7 +3,7 @@
  * reads as "in_progress" on one screen and "In progress" on another.
  */
 import type { ChipTone } from '../components/ui'
-import type { OrderStage, OrderType, PaymentMethod } from '../db/schema'
+import type { FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
   measured: 'Measured',
@@ -36,6 +36,11 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   mobile_money: 'Mobile money',
   bank: 'Bank',
   other: 'Other',
+}
+
+export const FABRIC_SOURCE_LABELS: Record<FabricSource, string> = {
+  client: "Client's own fabric",
+  shop: "Shop's fabric",
 }
 
 /**

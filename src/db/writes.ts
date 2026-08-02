@@ -126,6 +126,7 @@ export async function createMeasurementField(
     unit?: string
     display_order: number
     field_type?: MeasurementFieldType
+    group_label?: string
   },
 ): Promise<MeasurementFieldDoc> {
   const timestamp = now()
@@ -141,6 +142,7 @@ export async function createMeasurementField(
     created_at: timestamp,
     updated_at: timestamp,
     ...(input.unit?.trim() ? { unit: input.unit.trim() } : {}),
+    ...(input.group_label?.trim() ? { group_label: input.group_label.trim() } : {}),
   }
   await db.measurement_fields.insert(doc)
   return doc
@@ -327,6 +329,37 @@ export async function updateOrder(
   await updateOrderUnit(db, firstUnit.id, {
     item_description: input.item_description,
     price_minor: input.price_total_minor,
+  })
+}
+
+export interface OrderHeaderInput {
+  client_id: string
+  order_type: OrderType
+  pickup_due_date: string
+  return_due_date?: string
+  notes?: string
+}
+
+/**
+ * Task 10: the multi-unit form's header save. Touches only client, type,
+ * dates and notes -- never a unit, never price_total_minor or summary -- so
+ * it works regardless of how many units the order has, unlike updateOrder.
+ */
+export async function updateOrderHeader(
+  db: AppDatabase,
+  orderId: string,
+  input: OrderHeaderInput,
+): Promise<void> {
+  const doc = await db.orders.findOne(orderId).exec()
+  if (!doc) throw new Error('That order no longer exists on this device.')
+
+  await doc.patch({
+    client_id: input.client_id,
+    order_type: input.order_type,
+    pickup_due_date: input.pickup_due_date,
+    return_due_date: input.return_due_date || undefined,
+    notes: input.notes?.trim() || undefined,
+    updated_at: now(),
   })
 }
 
@@ -725,7 +758,12 @@ export async function createShop(
 export async function updateShop(
   db: AppDatabase,
   shopId: string,
-  input: { name: string; whatsapp_number?: string },
+  input: {
+    name: string
+    whatsapp_number?: string
+    currency?: string
+    lock_after_minutes?: number
+  },
 ): Promise<void> {
   const doc = await db.shops.findOne(shopId).exec()
   if (!doc) throw new Error('Shop record not found on this device.')
@@ -733,5 +771,9 @@ export async function updateShop(
   await doc.patch({
     name: input.name.trim(),
     whatsapp_number: input.whatsapp_number?.trim() || undefined,
+    ...(input.currency ? { currency: input.currency } : {}),
+    ...(input.lock_after_minutes !== undefined
+      ? { lock_after_minutes: input.lock_after_minutes }
+      : {}),
   })
 }
