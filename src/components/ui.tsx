@@ -17,6 +17,7 @@
  */
 import type { ComponentChildren, JSX } from 'preact'
 import { useEffect } from 'preact/hooks'
+import { useLocation } from 'preact-iso'
 import { IconChevronLeft, IconChevronRight, IconSearch } from './icons'
 import { useSwipeBack } from '../hooks/useSwipeBack'
 import { cn } from '../lib/cn'
@@ -90,6 +91,7 @@ export function Screen({
   back,
   action,
   subheader,
+  wide = false,
   children,
 }: ScreenHeading & {
   /** Href for the back chevron and the edge-swipe. Omit on the tab roots. */
@@ -101,9 +103,15 @@ export function Screen({
    * itself needing to re-implement stickiness.
    */
   subheader?: ComponentChildren
+  /**
+   * Use the wide measure. For screens whose desktop form is a table or a
+   * multi-column record rather than prose -- see CONTAINER_WIDE.
+   */
+  wide?: boolean
   children: ComponentChildren
 }) {
   const swipeRef = useSwipeBack(back)
+  const measure = wide ? CONTAINER_WIDE : CONTAINER
   const heading = title ?? label
   // A label-only tab root with no back chevron and no action renders nothing
   // visible in this row (the h1 is sr-only) -- collapse its padding instead of
@@ -116,7 +124,8 @@ export function Screen({
       <header class={`sticky top-0 z-20 ${PAGE}`}>
         <div
           class={cn(
-            'mx-auto flex max-w-lg items-center gap-2 px-4',
+            measure,
+            'flex items-center gap-2 px-4',
             rowHasContent ? 'pt-1 pb-3' : subheader ? 'pt-1' : 'py-0',
           )}
         >
@@ -144,12 +153,14 @@ export function Screen({
           </div>
           {action}
         </div>
-        {subheader && <div class="mx-auto max-w-lg px-4 pb-3">{subheader}</div>}
+        {subheader && <div class={cn(measure, 'px-4 pb-3')}>{subheader}</div>}
       </header>
 
       {/* TabBar floats now (1rem inset + its own ~60px height, on top of the
           safe area), so this clears it directly rather than a flat guess. */}
-      <div class="mx-auto w-full max-w-lg px-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+      {/* Bottom clearance is for the tab bar, which only exists below lg --
+          above it the side rail takes over and the padding is dead space. */}
+      <div class={cn(measure, 'px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-10')}>
         {children}
       </div>
     </div>
@@ -185,17 +196,171 @@ export function SectionTitle({
   )
 }
 
+/**
+ * The shared content measure.
+ *
+ * A phone is one column and stays one column. Wider viewports get a wider
+ * measure rather than a phone-shaped ribbon centred in grey -- but only up to
+ * a point: past roughly 48rem a line of body text stops being comfortable to
+ * read, so the growth stops there and the extra room goes to layout (two
+ * panes, multi-column sections) rather than to longer lines.
+ */
+export const CONTAINER = 'mx-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl'
+
+/**
+ * The measure for screens whose desktop form is a table or a multi-column
+ * record, not prose. Reading comfort caps a text column at ~48rem; a row of
+ * eight attributes has no such limit and is worse for being cramped.
+ */
+export const CONTAINER_WIDE = 'mx-auto w-full max-w-lg md:max-w-2xl lg:max-w-none lg:px-2 xl:max-w-7xl'
+
+// ------------------------------------------------------------- data tables
+
+/**
+ * A desktop data table. Renders from `lg` up only -- below it the same records
+ * are a card list, because a seven-column table at 390px is a horizontal
+ * scroll nobody wins.
+ */
+export function DataTable({
+  columns,
+  children,
+}: {
+  columns: readonly { label: string; align?: 'right' }[]
+  children: ComponentChildren
+}) {
+  return (
+    <div class="hidden overflow-hidden rounded-card bg-white lg:block dark:bg-stone-900">
+      <table class="w-full border-collapse text-left text-sm">
+        <thead>
+          <tr class="border-b border-stone-200 dark:border-stone-800">
+            {columns.map((column) => (
+              <th
+                key={column.label}
+                scope="col"
+                class={cn(
+                  'px-4 py-3 text-xs font-medium text-stone-500 dark:text-stone-400',
+                  column.align === 'right' && 'text-right',
+                )}
+              >
+                {column.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  )
+}
+
+/** A table row that navigates. The whole row is the target, not a cell in it. */
+export function DataRowLink({
+  href,
+  children,
+}: {
+  href: string
+  children: ComponentChildren
+}) {
+  const { route } = useLocation()
+  return (
+    <tr
+      onClick={() => route(href)}
+      class="cursor-pointer border-b border-stone-100 transition-colors last:border-0
+             hover:bg-stone-50 dark:border-stone-800/70 dark:hover:bg-stone-800/50"
+    >
+      {children}
+    </tr>
+  )
+}
+
+export function Td({
+  children,
+  align,
+  muted,
+  class: className,
+}: {
+  children: ComponentChildren
+  align?: 'right'
+  muted?: boolean
+  class?: string
+}) {
+  return (
+    <td
+      class={cn(
+        'px-4 py-3.5 align-middle',
+        align === 'right' && 'text-right',
+        muted && TEXT_MUTED,
+        className,
+      )}
+    >
+      {children}
+    </td>
+  )
+}
+
+/**
+ * A row of figures above a record, the way an inventory page leads with on
+ * hand / to be delivered / to be ordered. Scannable before anything is read.
+ */
+export function StatStrip({ children }: { children: ComponentChildren }) {
+  return <div class="grid grid-cols-2 gap-3 md:grid-cols-3">{children}</div>
+}
+
+export function StatTile({
+  label,
+  children,
+  tone,
+}: {
+  label: string
+  children: ComponentChildren
+  tone?: 'money' | 'alert'
+}) {
+  return (
+    <div class="rounded-card bg-white px-4 py-3.5 dark:bg-stone-900">
+      <p class={cn('text-xs font-medium', TEXT_MUTED)}>{label}</p>
+      <p
+        class={cn(
+          'mt-1 text-xl font-semibold tabular-nums tracking-tight',
+          tone === 'money' && 'text-amber-700 dark:text-amber-400',
+          tone === 'alert' && 'text-red-600 dark:text-red-400',
+        )}
+      >
+        {children}
+      </p>
+    </div>
+  )
+}
+
 // ----------------------------------------------------------------- buttons
 
-type ButtonProps = JSX.IntrinsicElements['button'] & {
+type ButtonBase = {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
   size?: 'md' | 'sm'
   block?: boolean
 }
 
-/** Fills only. A secondary button is a quieter fill, never an outline. */
+type ButtonProps = ButtonBase & JSX.IntrinsicElements['button'] & { linkTo?: never }
+
+/**
+ * `linkTo` renders an anchor that looks like a button.
+ *
+ * It exists so navigation actions stop being written as `<a><Button/></a>`.
+ * Interactive content cannot descend from an anchor: the nesting is invalid
+ * HTML, and it costs a keyboard user two tab stops and a screen-reader user a
+ * control announced inside a link.
+ */
+type ButtonLinkProps = ButtonBase &
+  Omit<JSX.IntrinsicElements['a'], 'href'> & { linkTo: string }
+
+/**
+ * Fills only -- a secondary button is a quieter fill, never an outline -- and
+ * monochrome, per A27. Colour returns to buttons deliberately or not at all;
+ * status colour (overdue red, money amber, the sync ring) is untouched because
+ * it encodes meaning rather than emphasis.
+ */
 const BUTTON_VARIANTS = {
-  primary: 'bg-brand-700 text-white active:bg-brand-800 dark:bg-brand-600 dark:active:bg-brand-700',
+  primary:
+    'bg-stone-900 text-white active:bg-stone-800 dark:bg-white dark:text-stone-900 dark:active:bg-stone-200',
   secondary:
     'bg-stone-200 text-stone-800 active:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:active:bg-stone-700',
   danger:
@@ -203,24 +368,28 @@ const BUTTON_VARIANTS = {
   ghost: 'text-stone-600 active:bg-stone-200 dark:text-stone-300 dark:active:bg-stone-800',
 } as const
 
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  block = false,
-  class: className,
-  ...props
-}: ButtonProps) {
-  return (
-    <button
-      {...props}
-      class={`inline-flex items-center justify-center gap-2 rounded-control
-              font-medium transition-[transform,background-color] duration-100
-              active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40
-              ${size === 'sm' ? 'min-h-9 px-3 text-sm' : `${TAP} px-4 text-[15px]`}
-              ${block ? 'w-full' : ''}
-              ${BUTTON_VARIANTS[variant]} ${className ?? ''}`}
-    />
+export function Button(props: ButtonProps | ButtonLinkProps) {
+  const { variant = 'primary', size = 'md', block = false, class: className } = props
+
+  const classes = cn(
+    'inline-flex items-center justify-center gap-2 rounded-control',
+    'font-medium transition-[transform,background-color] duration-100',
+    'active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40',
+    size === 'sm' ? 'min-h-9 px-3 text-sm' : `${TAP} px-4 text-[15px]`,
+    block && 'w-full',
+    BUTTON_VARIANTS[variant],
+    className,
   )
+
+  if (props.linkTo) {
+    const { linkTo, variant: _v, size: _s, block: _b, class: _c, ...rest } = props
+    return <a {...rest} href={linkTo} class={classes} />
+  }
+
+  // Narrowed by hand: `linkTo?: never` does not discriminate the union well
+  // enough for TypeScript to keep anchor-only attributes out of the rest.
+  const { variant: _v, size: _s, block: _b, class: _c, linkTo: _l, ...rest } = props as ButtonProps
+  return <button {...rest} class={classes} />
 }
 
 /**
@@ -247,7 +416,7 @@ export function HeaderAction({
   )
   const style = cn(
     'flex shrink-0 items-center gap-1 rounded-control px-3 text-sm font-semibold',
-    'text-brand-700 active:bg-stone-200 dark:text-brand-300 dark:active:bg-stone-800',
+    'text-stone-900 active:bg-stone-200 dark:text-white dark:active:bg-stone-800',
     TAP,
   )
 
@@ -645,8 +814,8 @@ export function MoreLink({ href, children }: { href: string; children: Component
     <a
       href={href}
       class={`flex items-center justify-between gap-2 px-4 pb-1 text-sm
-              font-medium text-brand-700 transition-colors active:bg-stone-100
-              dark:text-brand-300 dark:active:bg-stone-800 ${TAP}`}
+              font-medium text-stone-900 transition-colors active:bg-stone-100
+              dark:text-white dark:active:bg-stone-800 ${TAP}`}
     >
       {children}
       <IconChevronRight size={16} class="shrink-0" />

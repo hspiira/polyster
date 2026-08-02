@@ -12,8 +12,8 @@ import { useMemo } from 'preact/hooks'
 import { Card, InfoNote, Screen, SectionTitle } from '../components/ui'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
-import { formatMoney } from '../lib/money'
+import { observeShopBalances, signedAmountMinor } from '../db/balances'
+import { formatMinor } from '../lib/money'
 import { addDays, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
 import { ORDER_STAGES } from '../db/schema'
@@ -64,22 +64,32 @@ export function Reports() {
       const payment = doc.toJSON()
       if (!orderIds.has(payment.order_id)) continue
       const day = payment.payment_date.slice(0, 10)
-      all += payment.amount
-      if (day >= monthStart) month += payment.amount
-      if (day >= weekStart) week += payment.amount
-      if (byDay.has(day)) byDay.set(day, (byDay.get(day) ?? 0) + payment.amount)
+      // Signed by kind: a refund is money going back out, so counting it as
+      // collected would overstate every figure on this screen.
+      const amount = signedAmountMinor(payment)
+      all += amount
+      if (day >= monthStart) month += amount
+      if (day >= weekStart) week += amount
+      if (byDay.has(day)) byDay.set(day, (byDay.get(day) ?? 0) + amount)
     }
 
     return { week, month, all, trend: days.map((day) => byDay.get(day) ?? 0) }
   }, [paymentDocs, orderIds, now])
 
   const outstanding = useMemo(() => {
-    const owing = [...balances.values()].filter((balance) => balance.balance > 0)
+    // A cancelled order still carries a balance but is not chased for money,
+    // so it is excluded from this aggregate rather than from calculateBalance.
+    const cancelledIds = new Set(
+      orders.filter((order) => order.stage === 'cancelled').map((order) => order.id),
+    )
+    const owing = [...balances.entries()]
+      .filter(([orderId, balance]) => balance.balance_minor > 0 && !cancelledIds.has(orderId))
+      .map(([, balance]) => balance)
     return {
       count: owing.length,
-      total: owing.reduce((sum, balance) => sum + balance.balance, 0),
+      total: owing.reduce((sum, balance) => sum + balance.balance_minor, 0),
     }
-  }, [balances])
+  }, [balances, orders])
 
   const stageCounts = useMemo(() => {
     const counts = new Map(ORDER_STAGES.map((stage) => [stage, 0]))
@@ -98,16 +108,16 @@ export function Reports() {
         <Card>
           <p class="text-xs font-medium text-stone-500 dark:text-stone-400">Collected, 7 days</p>
           <p class="mt-1.5 text-3xl font-semibold tabular-nums tracking-tight">
-            {formatMoney(collected.week)}
+            {formatMinor(collected.week, shop.currency)}
           </p>
           <div class="mt-4 flex gap-8 text-sm">
             <span>
               <span class="block text-xs text-stone-500 dark:text-stone-400">30 days</span>
-              <span class="font-semibold tabular-nums">{formatMoney(collected.month)}</span>
+              <span class="font-semibold tabular-nums">{formatMinor(collected.month, shop.currency)}</span>
             </span>
             <span>
               <span class="block text-xs text-stone-500 dark:text-stone-400">All time</span>
-              <span class="font-semibold tabular-nums">{formatMoney(collected.all)}</span>
+              <span class="font-semibold tabular-nums">{formatMinor(collected.all, shop.currency)}</span>
             </span>
           </div>
         </Card>
@@ -117,7 +127,7 @@ export function Reports() {
           <Card>
             <div class="flex items-baseline justify-between">
               <span class="text-2xl font-semibold text-amber-700 dark:text-amber-400">
-                {formatMoney(outstanding.total)}
+                {formatMinor(outstanding.total, shop.currency)}
               </span>
               <span class="text-sm text-stone-500 dark:text-stone-400">
                 across {outstanding.count} order{outstanding.count === 1 ? '' : 's'}

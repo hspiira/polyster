@@ -1,5 +1,14 @@
+import { useMemo } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
-import { IconHome, IconOrders, IconPlus, IconUsers } from './icons'
+import { Avatar } from './ui'
+import { SyncBadge } from './SyncBadge'
+import { useCurrentShop } from '../state/ShopProvider'
+import { useRxQuery } from '../hooks/useRxQuery'
+import { today } from '../lib/dates'
+import { OPEN_STAGES } from '../screens/today/todayModel'
+import type { AuthState } from '../lib/auth'
+import type { ReplicationStatus } from '../hooks/useReplication'
+import { IconChart, IconChevronRight, IconHome, IconOrders, IconPlus, IconSettings, IconUsers } from './icons'
 
 /**
  * Bottom navigation: a floating pill inset from the left, right and bottom
@@ -74,8 +83,10 @@ export function TabBar() {
 
   return (
     <nav
+      // Hidden from lg up, where SideRail takes over. A thumb-reached bar at
+      // the bottom of a 1440px screen is a long way from the pointer.
       class="fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30
-             flex justify-center px-4"
+             flex justify-center px-4 lg:hidden"
       aria-label="Main"
     >
       {/* Sized by its contents, not by the viewport: `w-full` with
@@ -131,6 +142,159 @@ function Tab({
       {/* Kept in the DOM either way for assistive tech; hidden visually when
           inactive so the label reads exactly once on screen. */}
       <span class={active ? 'text-[13px] font-semibold' : 'sr-only'}>{label}</span>
+    </a>
+  )
+}
+
+/**
+ * Desktop navigation: a fixed rail down the left edge, from `lg` up.
+ *
+ * Structured rather than a list of links, because a rail is the one piece of
+ * chrome always on screen and it can carry things the tab bar has no room for:
+ *
+ *  - who is working and which shop, which on a phone lives in Today's profile
+ *    header and in the Shell's status strip. Both are mobile answers to
+ *    "there is nowhere else to put this"; on desktop there is.
+ *  - Reports and Settings as real destinations. They were reachable only
+ *    through a `...` sheet on Today -- two taps deep for the screen that
+ *    answers "what did I collect this week", which is the question a shop
+ *    owner asks daily.
+ *  - the overdue count, next to the destination that resolves it.
+ *  - sync state, pinned at the foot. ARCHITECTURE section 9 requires it to be
+ *    visible on every screen; the rail satisfies that for all of them at once,
+ *    which is why the Shell's strip stands down at this width.
+ */
+export function SideRail({
+  online,
+  auth,
+  replication,
+}: {
+  online: boolean
+  auth: AuthState
+  replication: ReplicationStatus
+}) {
+  const { path } = useLocation()
+  const { db, shop, activeStaff } = useCurrentShop()
+  const now = today()
+
+  const orderDocs = useRxQuery(
+    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+
+  // Only overdue gets a badge. A count beside every destination is wallpaper;
+  // a count beside the one thing that is late is a prompt.
+  const overdue = useMemo(
+    () =>
+      orderDocs.filter((doc) => {
+        const order = doc.toJSON()
+        return OPEN_STAGES.includes(order.stage) && order.pickup_due_date < now
+      }).length,
+    [orderDocs, now],
+  )
+
+  return (
+    <nav
+      class="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-stone-200
+             bg-white px-3 py-4 lg:flex dark:border-stone-800 dark:bg-stone-900"
+      aria-label="Main"
+    >
+      <a
+        href="/settings"
+        class="mb-4 flex min-h-12 items-center gap-2.5 rounded-card px-2 transition-colors
+               hover:bg-stone-100 dark:hover:bg-stone-800"
+      >
+        {activeStaff && <Avatar name={activeStaff.name} size="sm" />}
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-sm font-semibold">{shop.name}</span>
+          {activeStaff && (
+            <span class="block truncate text-xs text-stone-500 dark:text-stone-400">
+              {activeStaff.name}
+            </span>
+          )}
+        </span>
+        <IconChevronRight size={16} />
+      </a>
+
+      <a
+        href="/orders/new"
+        class="mb-4 flex min-h-11 items-center justify-center gap-2 rounded-control
+               bg-stone-900 px-4 text-[15px] font-medium text-white
+               transition-transform active:scale-[0.98] dark:bg-white dark:text-stone-900"
+      >
+        <IconPlus size={20} /> Take an order
+      </a>
+
+      <div class="flex flex-col gap-0.5">
+        {[...LEADING_TABS, ...TRAILING_TABS].map((tab) => (
+          <RailItem
+            key={tab.href}
+            {...tab}
+            active={isActive(path, tab.prefix)}
+            badge={tab.href === '/orders' && overdue > 0 ? overdue : undefined}
+          />
+        ))}
+      </div>
+
+      <div class="my-3 border-t border-stone-200 dark:border-stone-800" />
+
+      <div class="flex flex-col gap-0.5">
+        <RailItem
+          href="/reports"
+          label="Reports"
+          Icon={IconChart}
+          prefix="/reports"
+          active={isActive(path, '/reports')}
+        />
+        <RailItem
+          href="/settings"
+          label="Settings"
+          Icon={IconSettings}
+          prefix="/settings"
+          active={isActive(path, '/settings')}
+        />
+      </div>
+
+      <div class="mt-auto px-3 pt-4">
+        <SyncBadge online={online} auth={auth} replication={replication} />
+      </div>
+    </nav>
+  )
+}
+
+function RailItem({
+  href,
+  label,
+  Icon,
+  active,
+  badge,
+}: TabDef & { active: boolean; badge?: number }) {
+  return (
+    <a
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      class={`flex min-h-11 items-center gap-3 rounded-control px-3.5 text-[15px]
+              transition-colors ${
+                active
+                  ? 'bg-stone-900 font-medium text-white dark:bg-white dark:text-stone-900'
+                  : 'text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800'
+              }`}
+    >
+      <Icon size={20} stroke-width={active ? 2.1 : 1.75} />
+      <span class="flex-1 truncate">{label}</span>
+      {badge !== undefined && (
+        <span
+          class={`min-w-5 rounded-full px-1.5 text-center text-xs font-semibold tabular-nums ${
+            active
+              ? 'bg-white/20 text-white dark:bg-stone-900/15 dark:text-stone-900'
+              : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+          }`}
+          aria-label={`${badge} overdue`}
+        >
+          {badge}
+        </span>
+      )}
     </a>
   )
 }

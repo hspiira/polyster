@@ -40,16 +40,26 @@ import type { RxJsonSchema } from 'rxdb'
 // on any indexed string field, so this is declared once rather than retyped.
 const uuidField = { type: 'string' as const, maxLength: 36 }
 
+/** ISO 3166-1 alpha-2. Replaces the hardcoded dialling prefix as the default. */
+export const DEFAULT_COUNTRY = 'UG'
+
 export interface ShopDoc {
   id: string
   name: string
   whatsapp_number?: string
   /** Unset until linked to a live Supabase session; never syncs until then. */
   supabase_auth_user_id?: string
+  /** ISO 4217, snapshotted onto each order at creation. */
+  currency: string
+  country: string
+  address?: string
+  /** 0 means never. */
+  lock_after_minutes: number
   created_at: string
+  updated_at: string
 }
 export const shopSchema: RxJsonSchema<ShopDoc> = {
-  version: 1, // v1: supabase_auth_user_id no longer required -- see database.ts's migrationStrategies
+  version: 2, // v2: currency, country, address, lock_after_minutes, updated_at
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -57,9 +67,14 @@ export const shopSchema: RxJsonSchema<ShopDoc> = {
     name: { type: 'string' },
     whatsapp_number: { type: 'string' },
     supabase_auth_user_id: uuidField,
+    currency: { type: 'string' },
+    country: { type: 'string' },
+    address: { type: 'string' },
+    lock_after_minutes: { type: 'integer', minimum: 0 },
     created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
   },
-  required: ['id', 'name'],
+  required: ['id', 'name', 'currency', 'country', 'lock_after_minutes'],
 }
 
 export type StaffRole = 'owner' | 'staff'
@@ -68,23 +83,33 @@ export interface StaffDoc {
   id: string
   shop_id: string
   name: string
+  phone?: string
   pin_hash: string
+  /** A PIN reset otherwise leaves no trace. */
+  pin_updated_at?: string
   role: StaffRole
   active: boolean
+  /** `active` records that someone left, never when. */
+  deactivated_at?: string
   created_at: string
+  updated_at: string
 }
 export const staffSchema: RxJsonSchema<StaffDoc> = {
-  version: 2,
+  version: 3, // v3: phone, pin_updated_at, deactivated_at, updated_at
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: uuidField,
     shop_id: uuidField,
     name: { type: 'string' },
+    phone: { type: 'string' },
     pin_hash: { type: 'string' },
+    pin_updated_at: { type: 'string', format: 'date-time' },
     role: { type: 'string', enum: ['owner', 'staff'] },
     active: { type: 'boolean' },
+    deactivated_at: { type: 'string', format: 'date-time' },
     created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
   },
   required: ['id', 'shop_id', 'name', 'pin_hash', 'role', 'active'],
   indexes: ['shop_id'],
@@ -96,10 +121,12 @@ export interface ClientDoc {
   name: string
   phone?: string
   notes?: string
+  created_by?: string
   created_at: string
+  updated_at: string
 }
 export const clientSchema: RxJsonSchema<ClientDoc> = {
-  version: 0,
+  version: 1, // v1: created_by, updated_at
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -108,11 +135,16 @@ export const clientSchema: RxJsonSchema<ClientDoc> = {
     name: { type: 'string' },
     phone: { type: 'string' },
     notes: { type: 'string' },
+    created_by: uuidField,
     created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
   },
   required: ['id', 'shop_id', 'name'],
   indexes: ['shop_id'],
 }
+
+export type MeasurementFieldType = 'number' | 'text'
+export const MEASUREMENT_FIELD_TYPES: readonly MeasurementFieldType[] = ['number', 'text']
 
 export interface MeasurementFieldDoc {
   id: string
@@ -120,9 +152,16 @@ export interface MeasurementFieldDoc {
   label: string
   unit?: string
   display_order: number
+  field_type: MeasurementFieldType
+  /** Display grouping only, no logic. */
+  group_label?: string
+  /** Retiring a field sets this false; `_deleted` returns to meaning deleted. */
+  active: boolean
+  created_at: string
+  updated_at: string
 }
 export const measurementFieldSchema: RxJsonSchema<MeasurementFieldDoc> = {
-  version: 0,
+  version: 1, // v1: field_type, group_label, active, created_at, updated_at
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -131,8 +170,13 @@ export const measurementFieldSchema: RxJsonSchema<MeasurementFieldDoc> = {
     label: { type: 'string' },
     unit: { type: 'string' },
     display_order: { type: 'number' },
+    field_type: { type: 'string', enum: [...MEASUREMENT_FIELD_TYPES] },
+    group_label: { type: 'string' },
+    active: { type: 'boolean' },
+    created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
   },
-  required: ['id', 'shop_id', 'label', 'display_order'],
+  required: ['id', 'shop_id', 'label', 'display_order', 'field_type', 'active'],
   indexes: ['shop_id'],
 }
 
@@ -141,17 +185,19 @@ export interface MeasurementProfileDoc {
   /** One profile per client -- enforced by a unique constraint in Postgres. */
   client_id: string
   values: Record<string, string | number>
+  created_at: string
   updated_at: string
   updated_by?: string
 }
 export const measurementProfileSchema: RxJsonSchema<MeasurementProfileDoc> = {
-  version: 0,
+  version: 1, // v1: created_at
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: uuidField,
     client_id: uuidField,
     values: { type: 'object', additionalProperties: true },
+    created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
     updated_by: uuidField,
   },
@@ -160,7 +206,13 @@ export const measurementProfileSchema: RxJsonSchema<MeasurementProfileDoc> = {
 }
 
 export type OrderType = 'tailor_made' | 'rental' | 'purchase'
-export type OrderStage = 'measured' | 'in_progress' | 'ready' | 'picked_up' | 'returned'
+export type OrderStage =
+  | 'measured'
+  | 'in_progress'
+  | 'ready'
+  | 'picked_up'
+  | 'returned'
+  | 'cancelled'
 
 export const ORDER_TYPES: readonly OrderType[] = ['tailor_made', 'rental', 'purchase']
 export const ORDER_STAGES: readonly OrderStage[] = [
@@ -169,6 +221,7 @@ export const ORDER_STAGES: readonly OrderStage[] = [
   'ready',
   'picked_up',
   'returned',
+  'cancelled',
 ]
 
 export interface OrderDoc {
@@ -176,20 +229,34 @@ export interface OrderDoc {
   shop_id: string
   client_id: string
   order_type: OrderType
-  item_description: string
+  /** DDMM-XXXXX, generated on the device. Indexed, deliberately not unique. */
+  reference: string
+  /** ISO 4217, snapshotted from the shop at creation. */
+  currency: string
+  /** Derived from the order's units -- see the model doc's invariant 3. */
+  summary: string
   stage: OrderStage
-  price_total: number
+  price_total_minor: number
+  /** May be negative: a discount, a late fee, damage. */
+  price_adjustment_minor: number
+  adjustment_reason?: string
+  /** Held and refundable. Never part of price_total_minor or any balance. */
+  rental_deposit_minor: number
+  deposit_refunded_at?: string
   /** ISO date (YYYY-MM-DD), not a timestamp -- matches the Postgres `date` column. */
   pickup_due_date: string
   return_due_date?: string
-  catalogue_item_id?: string // reserved for Phase 2, not used yet
+  picked_up_at?: string
+  returned_at?: string
+  cancelled_at?: string
+  cancellation_reason?: string
   notes?: string
   created_by?: string
   created_at: string
   updated_at: string
 }
 export const orderSchema: RxJsonSchema<OrderDoc> = {
-  version: 0,
+  version: 1, // v1: money in minor units, reference, currency, adjustments, cancellation
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -197,12 +264,21 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
     shop_id: uuidField,
     client_id: uuidField,
     order_type: { type: 'string', enum: [...ORDER_TYPES] },
-    item_description: { type: 'string' },
+    reference: { type: 'string' },
+    currency: { type: 'string' },
+    summary: { type: 'string' },
     stage: { type: 'string', enum: [...ORDER_STAGES], maxLength: 20 },
-    price_total: { type: 'number', minimum: 0 },
+    price_total_minor: { type: 'integer', minimum: 0 },
+    price_adjustment_minor: { type: 'integer' },
+    adjustment_reason: { type: 'string' },
+    rental_deposit_minor: { type: 'integer', minimum: 0 },
+    deposit_refunded_at: { type: 'string', format: 'date-time' },
     pickup_due_date: { type: 'string', format: 'date', maxLength: 10 },
     return_due_date: { type: 'string', format: 'date' },
-    catalogue_item_id: uuidField,
+    picked_up_at: { type: 'string', format: 'date-time' },
+    returned_at: { type: 'string', format: 'date-time' },
+    cancelled_at: { type: 'string', format: 'date-time' },
+    cancellation_reason: { type: 'string' },
     notes: { type: 'string' },
     created_by: uuidField,
     created_at: { type: 'string', format: 'date-time' },
@@ -213,9 +289,13 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
     'shop_id',
     'client_id',
     'order_type',
-    'item_description',
+    'reference',
+    'currency',
+    'summary',
     'stage',
-    'price_total',
+    'price_total_minor',
+    'price_adjustment_minor',
+    'rental_deposit_minor',
     'pickup_due_date',
   ],
   // The dashboard's hot queries are "this shop's orders by due date" and
@@ -228,34 +308,110 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
   ],
 }
 
-export type PaymentMethod = 'cash' | 'mobile_money' | 'bank' | 'other'
-export const PAYMENT_METHODS: readonly PaymentMethod[] = ['cash', 'mobile_money', 'bank', 'other']
+// ------------------------------------------------------------- order units
 
-export interface PaymentDoc {
+export type FabricSource = 'client' | 'shop'
+export const FABRIC_SOURCES: readonly FabricSource[] = ['client', 'shop']
+
+export interface OrderUnitDoc {
   id: string
   order_id: string
-  amount: number
-  payment_date: string
-  method: PaymentMethod
-  recorded_by?: string
+  position: number
+  /** Absent means "for the client themselves". Free text by design. */
+  wearer_name?: string
+  item_description: string
+  price_minor: number
+  /** Frozen snapshot keyed by measurement_fields.id, never rewritten by a profile edit. */
+  measurements: Record<string, string | number>
+  fabric_source: FabricSource
+  done: boolean
+  catalogue_item_id?: string // Phase 2, moved off orders
+  photo_url?: string // Phase 2, reserved and unwritten
   notes?: string
+  created_at: string
+  updated_at: string
 }
-export const paymentSchema: RxJsonSchema<PaymentDoc> = {
+export const orderUnitSchema: RxJsonSchema<OrderUnitDoc> = {
   version: 0,
   primaryKey: 'id',
   type: 'object',
   properties: {
     id: uuidField,
     order_id: uuidField,
-    // Positive only. A mistaken payment is voided via soft-delete, not by
-    // entering a negative correcting row -- see pwa-stack-options.md section 3.
-    amount: { type: 'number', exclusiveMinimum: 0 },
+    position: { type: 'number' },
+    wearer_name: { type: 'string' },
+    item_description: { type: 'string' },
+    price_minor: { type: 'integer', minimum: 0 },
+    measurements: { type: 'object', additionalProperties: true },
+    fabric_source: { type: 'string', enum: [...FABRIC_SOURCES] },
+    done: { type: 'boolean' },
+    catalogue_item_id: uuidField,
+    photo_url: { type: 'string' },
+    notes: { type: 'string' },
+    created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
+  },
+  required: [
+    'id',
+    'order_id',
+    'position',
+    'item_description',
+    'price_minor',
+    'fabric_source',
+    'done',
+  ],
+  indexes: ['order_id'],
+}
+
+// ---------------------------------------------------------------- payments
+
+export type PaymentMethod = 'cash' | 'mobile_money' | 'bank' | 'other'
+export const PAYMENT_METHODS: readonly PaymentMethod[] = ['cash', 'mobile_money', 'bank', 'other']
+
+export type PaymentKind = 'payment' | 'refund'
+export const PAYMENT_KINDS: readonly PaymentKind[] = ['payment', 'refund']
+
+export interface PaymentDoc {
+  id: string
+  order_id: string
+  amount_minor: number
+  /** A refund is a positive row with kind 'refund', never a negative payment. */
+  kind: PaymentKind
+  /** When the money moved. */
+  payment_date: string
+  method: PaymentMethod
+  /** Mobile-money transaction id, for statement reconciliation. */
+  reference?: string
+  recorded_by?: string
+  notes?: string
+  voided_by?: string
+  voided_at?: string
+  void_reason?: string
+  /** When it was typed in, which offline is not when it moved. */
+  created_at: string
+}
+export const paymentSchema: RxJsonSchema<PaymentDoc> = {
+  version: 1, // v1: amount in minor units, kind, created_at, reference, void trail
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: uuidField,
+    order_id: uuidField,
+    // Positive only, for both kinds. A mistaken payment is voided via
+    // soft-delete, not by entering a negative correcting row.
+    amount_minor: { type: 'integer', exclusiveMinimum: 0 },
+    kind: { type: 'string', enum: [...PAYMENT_KINDS] },
     payment_date: { type: 'string', format: 'date-time' },
     method: { type: 'string', enum: [...PAYMENT_METHODS] },
+    reference: { type: 'string' },
     recorded_by: uuidField,
     notes: { type: 'string' },
+    voided_by: uuidField,
+    voided_at: { type: 'string', format: 'date-time' },
+    void_reason: { type: 'string' },
+    created_at: { type: 'string', format: 'date-time' },
   },
-  required: ['id', 'order_id', 'amount', 'payment_date', 'method'],
+  required: ['id', 'order_id', 'amount_minor', 'kind', 'payment_date', 'method'],
   indexes: ['order_id'],
 }
 
@@ -264,11 +420,13 @@ export interface OrderStageHistoryDoc {
   order_id: string
   from_stage?: OrderStage
   to_stage: OrderStage
+  /** "Client asked us to hold it." */
+  note?: string
   changed_by?: string
   changed_at: string
 }
 export const orderStageHistorySchema: RxJsonSchema<OrderStageHistoryDoc> = {
-  version: 0,
+  version: 1, // v1: note
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -276,9 +434,57 @@ export const orderStageHistorySchema: RxJsonSchema<OrderStageHistoryDoc> = {
     order_id: uuidField,
     from_stage: { type: 'string', enum: [...ORDER_STAGES] },
     to_stage: { type: 'string', enum: [...ORDER_STAGES] },
+    note: { type: 'string' },
     changed_by: uuidField,
     changed_at: { type: 'string', format: 'date-time' },
   },
   required: ['id', 'order_id', 'to_stage', 'changed_at'],
   indexes: ['order_id'],
+}
+
+// ------------------------------------------------------------- message log
+
+export type MessageChannel = 'whatsapp' | 'sms' | 'call'
+export const MESSAGE_CHANNELS: readonly MessageChannel[] = ['whatsapp', 'sms', 'call']
+
+export type MessageTemplate = 'stage_update' | 'balance_reminder' | 'custom'
+export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
+  'stage_update',
+  'balance_reminder',
+  'custom',
+]
+
+/**
+ * Records intent to send, not delivery. A wa.me link hands off to WhatsApp and
+ * the app never learns what happened next.
+ */
+export interface MessageLogDoc {
+  id: string
+  client_id: string
+  /** Absent when the message is not about an order. */
+  order_id?: string
+  channel: MessageChannel
+  template: MessageTemplate
+  /** Recorded alongside the template rather than duplicating the stage enum. */
+  order_stage?: OrderStage
+  sent_at: string
+  sent_by?: string
+}
+export const messageLogSchema: RxJsonSchema<MessageLogDoc> = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: uuidField,
+    client_id: uuidField,
+    order_id: uuidField,
+    channel: { type: 'string', enum: [...MESSAGE_CHANNELS] },
+    template: { type: 'string', enum: [...MESSAGE_TEMPLATES] },
+    order_stage: { type: 'string', enum: [...ORDER_STAGES] },
+    sent_at: { type: 'string', format: 'date-time' },
+    sent_by: uuidField,
+  },
+  required: ['id', 'client_id', 'channel', 'template', 'sent_at'],
+  // order_id is optional, and Dexie rejects an index on a non-required field.
+  indexes: ['client_id'],
 }

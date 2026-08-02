@@ -19,9 +19,9 @@
  * shell, offline included.
  */
 import { Route, Router, useLocation } from 'preact-iso'
-import { TabBar } from '../components/TabBar'
+import { SideRail, TabBar } from '../components/TabBar'
 import { SyncBadge } from '../components/SyncBadge'
-import { Avatar } from '../components/ui'
+import { Avatar, CONTAINER, cn } from '../components/ui'
 import { IconSettings } from '../components/icons'
 import { useShop } from '../state/ShopProvider'
 import type { AuthState } from '../lib/auth'
@@ -52,7 +52,8 @@ export function Shell({ online, auth, replication }: ShellProps) {
   const { path } = useLocation()
 
   return (
-    <div class="min-h-svh bg-stone-100 dark:bg-stone-950">
+    <div class="min-h-svh bg-stone-100 lg:pl-60 dark:bg-stone-950">
+      <SideRail online={online} auth={auth} replication={replication} />
       {/*
         Page-coloured and unbordered, so this and the Screen header below it read
         as one quiet block rather than two stacked bars. Nothing here is a
@@ -64,7 +65,9 @@ export function Shell({ online, auth, replication }: ShellProps) {
       */}
       <div class="safe-top">
         {path !== '/' && (
-          <div class="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 pt-2.5 pb-1">
+          // Hidden at lg: the rail carries the same identity and sync state,
+          // permanently and on every screen including Today.
+          <div class={cn(CONTAINER, 'flex items-center justify-between gap-3 px-4 pt-2.5 pb-1 lg:hidden')}>
             <SyncBadge online={online} auth={auth} replication={replication} />
             {/* One control, not two: the avatar says who is working, the gear says
                 what tapping does, and both go to the same place. */}

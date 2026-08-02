@@ -18,6 +18,8 @@ import {
   InfoNote,
   Input,
   Screen,
+  SectionTitle,
+  Segmented,
   Sheet,
 } from '../../components/ui'
 import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '../../components/icons'
@@ -26,9 +28,16 @@ import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import {
   createMeasurementField,
-  removeMeasurementField,
+  reactivateMeasurementField,
+  retireMeasurementField,
   reorderMeasurementFields,
 } from '../../db/writes'
+import { MEASUREMENT_FIELD_TYPES, type MeasurementFieldType } from '../../db/schema'
+
+const FIELD_TYPE_LABELS: Record<MeasurementFieldType, string> = {
+  number: 'Number',
+  text: 'Text',
+}
 
 /**
  * Offered on an empty list so a shop is not staring at a blank screen trying
@@ -48,6 +57,8 @@ export function MeasurementFieldSettings() {
   const { db, shop } = useShop()
   const [label, setLabel] = useState('')
   const [unit, setUnit] = useState('in')
+  const [fieldType, setFieldType] = useState<MeasurementFieldType>('number')
+  const [group, setGroup] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
@@ -61,6 +72,10 @@ export function MeasurementFieldSettings() {
     [],
   )
   const fields = useMemo(() => fieldDocs.map((doc) => doc.toJSON()), [fieldDocs])
+  // Retired fields stay visible here (with a restore control) rather than
+  // vanishing, since nothing elsewhere lets a shop see or undo a retirement.
+  const activeFields = useMemo(() => fields.filter((field) => field.active !== false), [fields])
+  const retiredFields = useMemo(() => fields.filter((field) => field.active === false), [fields])
 
   if (!shop) {
     return (
@@ -82,8 +97,15 @@ export function MeasurementFieldSettings() {
     }
     setError(null)
     try {
-      await createMeasurementField(db, shop!.id, { label, unit, display_order: fields.length })
+      await createMeasurementField(db, shop!.id, {
+        label,
+        unit,
+        display_order: fields.length,
+        field_type: fieldType,
+        group_label: group,
+      })
       setLabel('')
+      setGroup('')
       setAdding(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add that field.')
@@ -91,7 +113,7 @@ export function MeasurementFieldSettings() {
   }
 
   async function move(index: number, direction: -1 | 1) {
-    const next = [...fields]
+    const next = [...activeFields]
     const target = index + direction
     const a = next[index]
     const b = next[target]
@@ -145,49 +167,92 @@ export function MeasurementFieldSettings() {
             }
           />
         ) : (
-          <Card padded={false}>
-            <ul>
-              {fields.map((field, index) => (
-                <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
-                  <span class="min-w-0 flex-1 pl-1">
-                    <span class="block truncate font-medium">{field.label}</span>
-                    {field.unit && (
-                      <span class="block text-xs text-stone-500 dark:text-stone-400">
-                        {field.unit}
+          <>
+            {activeFields.length > 0 && (
+              <Card padded={false}>
+                <ul>
+                  {activeFields.map((field, index) => (
+                    <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
+                      <span class="min-w-0 flex-1 pl-1">
+                        <span class="block truncate font-medium">{field.label}</span>
+                        {(field.unit || field.field_type === 'text' || field.group_label) && (
+                          <span class="block text-xs text-stone-500 dark:text-stone-400">
+                            {[
+                              field.unit,
+                              // 'number' is the common case; naming it every time would be noise.
+                              field.field_type === 'text' ? FIELD_TYPE_LABELS.text : null,
+                              field.group_label,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Move ${field.label} up`}
-                    disabled={index === 0}
-                    onClick={() => void move(index, -1)}
-                  >
-                    <IconArrowUp size={18} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Move ${field.label} down`}
-                    disabled={index === fields.length - 1}
-                    onClick={() => void move(index, 1)}
-                  >
-                    <IconArrowDown size={18} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    class="text-red-600 dark:text-red-400"
-                    aria-label={`Remove ${field.label}`}
-                    onClick={() => void removeMeasurementField(db, field.id)}
-                  >
-                    <IconTrash size={18} />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </Card>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Move ${field.label} up`}
+                        disabled={index === 0}
+                        onClick={() => void move(index, -1)}
+                      >
+                        <IconArrowUp size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Move ${field.label} down`}
+                        disabled={index === activeFields.length - 1}
+                        onClick={() => void move(index, 1)}
+                      >
+                        <IconArrowDown size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="text-red-600 dark:text-red-400"
+                        aria-label={`Retire ${field.label}`}
+                        onClick={() => void retireMeasurementField(db, field.id)}
+                      >
+                        <IconTrash size={18} />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
+            {retiredFields.length > 0 && (
+              <div>
+                <SectionTitle>Retired</SectionTitle>
+                <Card padded={false}>
+                  <ul>
+                    {retiredFields.map((field) => (
+                      <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
+                        <span class="min-w-0 flex-1 pl-1">
+                          <span class="block truncate text-stone-500 dark:text-stone-400">
+                            {field.label}
+                          </span>
+                          {field.unit && (
+                            <span class="block text-xs text-stone-400 dark:text-stone-500">
+                              {field.unit}
+                            </span>
+                          )}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Restore ${field.label}`}
+                          onClick={() => void reactivateMeasurementField(db, field.id)}
+                        >
+                          Restore
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              </div>
+            )}
+          </>
         )}
 
         {fields.length > 0 && (
@@ -221,6 +286,27 @@ export function MeasurementFieldSettings() {
               </Field>
             </div>
           </div>
+
+          <Field label="Type">
+            <Segmented
+              value={fieldType}
+              options={MEASUREMENT_FIELD_TYPES.map((value) => ({
+                value,
+                label: FIELD_TYPE_LABELS[value],
+              }))}
+              onChange={setFieldType}
+              label="Field type"
+            />
+          </Field>
+
+          <Field label="Group" hint="Optional -- e.g. 'Upper body'. For display only.">
+            <Input
+              value={group}
+              placeholder="Optional"
+              onInput={(e) => setGroup((e.target as HTMLInputElement).value)}
+            />
+          </Field>
+
           {error && <ErrorNote>{error}</ErrorNote>}
           <div class="flex gap-2 pt-1">
             <Button variant="secondary" class="flex-1" type="button" onClick={() => setAdding(false)}>

@@ -10,9 +10,9 @@ export function NotFound() {
         title="There is nothing at this address"
         description="The link may be from an older version of the app."
         action={
-          <a href="/">
-            <Button variant="secondary">Back to Today</Button>
-          </a>
+          <Button linkTo="/" variant="secondary">
+            Back to Today
+          </Button>
         }
       />
     </Screen>

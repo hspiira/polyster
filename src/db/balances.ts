@@ -20,40 +20,38 @@ import type { OrderDoc, PaymentDoc } from './schema'
 
 export interface OrderBalance {
   order_id: string
-  price_total: number
-  amount_paid: number
-  /** price_total - amount_paid. Negative means the client overpaid. */
-  balance: number
+  price_total_minor: number
+  amount_paid_minor: number
+  /** price_total_minor - amount_paid_minor. Negative means the client overpaid. */
+  balance_minor: number
   fully_paid: boolean
 }
 
 /**
- * Money arrives as `numeric(12, 2)`. Summing those as floats accumulates
- * error (0.1 + 0.2 being the canonical example), so sums are done in minor
- * units -- integers -- and converted back once.
+ * A payment's contribution to money-in, signed by kind.
+ *
+ * Exported because "collected" is aggregated in more than one place -- the
+ * order balance here and the totals on the Reports screen. Both must agree
+ * with the `order_balances` view's `case when pm.kind = 'refund'` arm, and
+ * the surest way to keep three copies in agreement is to have one.
  */
-function toMinorUnits(amount: number): number {
-  return Math.round(amount * 100)
-}
-
-function fromMinorUnits(minor: number): number {
-  return minor / 100
+export function signedAmountMinor(payment: Pick<PaymentDoc, 'amount_minor' | 'kind'>): number {
+  return payment.kind === 'refund' ? -payment.amount_minor : payment.amount_minor
 }
 
 /** Pure calculation. Given an order and its payments, what is owed. */
 export function calculateBalance(
-  order: Pick<OrderDoc, 'id' | 'price_total'>,
-  payments: readonly Pick<PaymentDoc, 'amount'>[],
+  order: Pick<OrderDoc, 'id' | 'price_total_minor'>,
+  payments: readonly Pick<PaymentDoc, 'amount_minor' | 'kind'>[],
 ): OrderBalance {
-  const totalMinor = toMinorUnits(order.price_total)
-  const paidMinor = payments.reduce((sum, p) => sum + toMinorUnits(p.amount), 0)
+  const paidMinor = payments.reduce((sum, p) => sum + signedAmountMinor(p), 0)
 
   return {
     order_id: order.id,
-    price_total: fromMinorUnits(totalMinor),
-    amount_paid: fromMinorUnits(paidMinor),
-    balance: fromMinorUnits(totalMinor - paidMinor),
-    fully_paid: paidMinor >= totalMinor,
+    price_total_minor: order.price_total_minor,
+    amount_paid_minor: paidMinor,
+    balance_minor: order.price_total_minor - paidMinor,
+    fully_paid: paidMinor >= order.price_total_minor,
   }
 }
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { heroSegments } from './todayModel'
-import { formatMoney } from '../../lib/money'
+import { formatMinor } from '../../lib/money'
 
-const NONE = { late: 0, dueToday: 0, dueThisWeek: 0, outstanding: 0 }
+const NONE = { late: 0, dueToday: 0, dueThisWeek: 0, outstanding_minor: 0, currency: 'UGX' }
 
 describe('heroSegments', () => {
   it('leads with late work and names today alongside it', () => {
@@ -43,10 +43,10 @@ describe('heroSegments', () => {
   // The money clause attaches with "and"; the work clause uses a comma, so no
   // sentence ever carries two "and"s.
   it('appends the money clause when something is owed', () => {
-    const segments = heroSegments({ ...NONE, late: 2, dueToday: 3, outstanding: 240_000 })
+    const segments = heroSegments({ ...NONE, late: 2, dueToday: 3, outstanding_minor: 240_000 })
     expect(segments.slice(-2)).toEqual([
       { text: ' and ', tone: 'muted' },
-      { text: `${formatMoney(240_000)} owed`, tone: 'money' },
+      { text: `${formatMinor(240_000, 'UGX')} owed`, tone: 'money' },
     ])
   })
 
@@ -58,17 +58,17 @@ describe('heroSegments', () => {
   })
 
   it('reads sensibly when money is owed but no work is due', () => {
-    expect(heroSegments({ ...NONE, outstanding: 5000 })).toEqual([
+    expect(heroSegments({ ...NONE, outstanding_minor: 5000 })).toEqual([
       { text: 'Nothing due today', tone: 'strong' },
       { text: ' and ', tone: 'muted' },
-      { text: `${formatMoney(5000)} owed`, tone: 'money' },
+      { text: `${formatMinor(5000, 'UGX')} owed`, tone: 'money' },
     ])
   })
 
   // An overpaid order produces a negative balance. It must never surface as a
   // negative figure in the hero.
   it('ignores a non-positive outstanding total', () => {
-    expect(heroSegments({ ...NONE, dueToday: 1, outstanding: -500 })).toEqual([
+    expect(heroSegments({ ...NONE, dueToday: 1, outstanding_minor: -500 })).toEqual([
       { text: 'You have ', tone: 'muted' },
       { text: '1 due today', tone: 'strong' },
     ])
@@ -86,9 +86,13 @@ function order(overrides: Partial<OrderDoc> & { id: string }): OrderDoc {
     shop_id: 'shop-1',
     client_id: 'client-1',
     order_type: 'tailor_made',
-    item_description: 'Navy suit',
+    currency: 'UGX',
+    summary: 'Navy suit',
     stage: 'in_progress',
-    price_total: 100_000,
+    price_total_minor: 100_000,
+    price_adjustment_minor: 0,
+    rental_deposit_minor: 0,
+    reference: '0108-K7M2Q',
     pickup_due_date: TODAY,
     created_at: '2026-07-01T00:00:00.000Z',
     updated_at: '2026-07-01T00:00:00.000Z',
@@ -259,12 +263,21 @@ describe('buildBuckets', () => {
 
   it('carries the client name and the outstanding balance', () => {
     const balances = new Map<string, OrderBalance>([
-      ['today', { order_id: 'today', price_total: 100_000, amount_paid: 40_000, balance: 60_000, fully_paid: false }],
+      [
+        'today',
+        {
+          order_id: 'today',
+          price_total_minor: 100_000,
+          amount_paid_minor: 40_000,
+          balance_minor: 60_000,
+          fully_paid: false,
+        },
+      ],
     ])
     const buckets = buildBuckets([order({ id: 'today' })], NAMES, balances, TODAY)
 
     expect(buckets.dueToday[0]?.clientName).toBe('Achen Josephine')
-    expect(buckets.dueToday[0]?.outstanding).toBe(60_000)
+    expect(buckets.dueToday[0]?.outstanding_minor).toBe(60_000)
   })
 
   it('falls back for a client that has not synced, rather than hiding the row', () => {
@@ -279,10 +292,19 @@ describe('buildBuckets', () => {
 
   it('reports an overpaid order as owing nothing', () => {
     const balances = new Map<string, OrderBalance>([
-      ['today', { order_id: 'today', price_total: 100_000, amount_paid: 120_000, balance: -20_000, fully_paid: true }],
+      [
+        'today',
+        {
+          order_id: 'today',
+          price_total_minor: 100_000,
+          amount_paid_minor: 120_000,
+          balance_minor: -20_000,
+          fully_paid: true,
+        },
+      ],
     ])
     const buckets = buildBuckets([order({ id: 'today' })], NAMES, balances, TODAY)
-    expect(buckets.dueToday[0]?.outstanding).toBe(0)
+    expect(buckets.dueToday[0]?.outstanding_minor).toBe(0)
   })
 })
 
@@ -392,7 +414,13 @@ import { buildMoneySummary, capRows } from './todayModel'
 function balance(id: string, owed: number): [string, OrderBalance] {
   return [
     id,
-    { order_id: id, price_total: 100_000, amount_paid: 100_000 - owed, balance: owed, fully_paid: owed <= 0 },
+    {
+      order_id: id,
+      price_total_minor: 100_000,
+      amount_paid_minor: 100_000 - owed,
+      balance_minor: owed,
+      fully_paid: owed <= 0,
+    },
   ]
 }
 
@@ -403,7 +431,7 @@ describe('buildMoneySummary', () => {
       NAMES,
       new Map([balance('a', 60_000), balance('b', 40_000)]),
     )
-    expect(summary.outstanding).toBe(100_000)
+    expect(summary.outstanding_minor).toBe(100_000)
   })
 
   it('excludes fully paid and overpaid orders from the total', () => {
@@ -412,7 +440,7 @@ describe('buildMoneySummary', () => {
       NAMES,
       new Map([balance('a', 60_000), balance('b', 0), balance('c', -5_000)]),
     )
-    expect(summary.outstanding).toBe(60_000)
+    expect(summary.outstanding_minor).toBe(60_000)
     expect(summary.rows.map((row) => row.order.id)).toEqual(['a'])
   })
 
@@ -462,7 +490,7 @@ describe('buildMoneySummary', () => {
       2,
     )
     expect(summary.rows).toHaveLength(2)
-    expect(summary.outstanding).toBe(60_000)
+    expect(summary.outstanding_minor).toBe(60_000)
   })
 
   it('counts all distinct clients owing even when rows are capped', () => {
@@ -486,7 +514,7 @@ describe('buildMoneySummary', () => {
     )
     expect(summary.rows).toHaveLength(2)
     expect(summary.clientCount).toBe(4)
-    expect(summary.outstanding).toBe(150_000)
+    expect(summary.outstanding_minor).toBe(150_000)
   })
 
   it('respects the default limit of 3 when not specified', () => {
@@ -501,12 +529,24 @@ describe('buildMoneySummary', () => {
       new Map([balance('a', 40_000), balance('b', 30_000), balance('c', 20_000), balance('d', 10_000)]),
     )
     expect(summary.rows).toHaveLength(3)
-    expect(summary.outstanding).toBe(100_000)
+    expect(summary.outstanding_minor).toBe(100_000)
   })
 
   it('reports nothing owed on an empty shop', () => {
     const summary = buildMoneySummary([], NAMES, NO_BALANCES)
-    expect(summary).toEqual({ outstanding: 0, clientCount: 0, rows: [] })
+    expect(summary).toEqual({ outstanding_minor: 0, clientCount: 0, rows: [] })
+  })
+
+  // A cancelled order still carries a balance (it may have been part-paid),
+  // but the shop is not chasing it, so it must not inflate what is owed.
+  it('excludes cancelled orders from the outstanding total', () => {
+    const summary = buildMoneySummary(
+      [order({ id: 'a', stage: 'cancelled' }), order({ id: 'b' })],
+      NAMES,
+      new Map([balance('a', 60_000), balance('b', 40_000)]),
+    )
+    expect(summary.outstanding_minor).toBe(40_000)
+    expect(summary.rows.map((row) => row.order.id)).toEqual(['b'])
   })
 })
 
@@ -621,13 +661,13 @@ describe('pickupRows', () => {
         'a',
         {
           order_id: 'a',
-          price_total: 100_000,
-          amount_paid: 120_000,
-          balance: -20_000,
+          price_total_minor: 100_000,
+          amount_paid_minor: 120_000,
+          balance_minor: -20_000,
           fully_paid: true,
         },
       ],
     ])
-    expect(pickupRows([order({ id: 'a' })], NAMES, balances)[0]?.outstanding).toBe(0)
+    expect(pickupRows([order({ id: 'a' })], NAMES, balances)[0]?.outstanding_minor).toBe(0)
   })
 })

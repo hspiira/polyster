@@ -41,6 +41,8 @@ export const REPLICATED_TABLES = [
   'orders',
   'payments',
   'order_stage_history',
+  'order_units',
+  'message_log',
 ] as const satisfies readonly (keyof Collections)[]
 
 export type ReplicationHandle = {

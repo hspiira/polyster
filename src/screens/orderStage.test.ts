@@ -45,6 +45,12 @@ describe('nextStage', () => {
     // otherwise have no way forward at all.
     expect(nextStage('tailor_made', 'returned')).toBe('measured')
   })
+
+  it('offers no next stage from cancelled, for any order type', () => {
+    // Unlike the "type changed" recovery above, cancelled is a deliberate
+    // terminal exit -- it must never fall back to the flow's first stage.
+    for (const type of ORDER_TYPES) expect(nextStage(type, 'cancelled')).toBeNull()
+  })
 })
 
 describe('labels', () => {

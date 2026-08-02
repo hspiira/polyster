@@ -3,7 +3,7 @@
  * reads as "in_progress" on one screen and "In progress" on another.
  */
 import type { ChipTone } from '../components/ui'
-import type { OrderStage, OrderType, PaymentMethod } from '../db/schema'
+import type { FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
   measured: 'Measured',
@@ -11,6 +11,7 @@ export const STAGE_LABELS: Record<OrderStage, string> = {
   ready: 'Ready',
   picked_up: 'Picked up',
   returned: 'Returned',
+  cancelled: 'Cancelled',
 }
 
 export const STAGE_TONES: Record<OrderStage, ChipTone> = {
@@ -19,6 +20,9 @@ export const STAGE_TONES: Record<OrderStage, ChipTone> = {
   ready: 'good',
   picked_up: 'neutral',
   returned: 'neutral',
+  // The one stage that is an adverse outcome rather than progress or a plain
+  // finish, so it gets the tone none of the others use.
+  cancelled: 'bad',
 }
 
 export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
@@ -34,6 +38,11 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   other: 'Other',
 }
 
+export const FABRIC_SOURCE_LABELS: Record<FabricSource, string> = {
+  client: "Client's own fabric",
+  shop: "Shop's fabric",
+}
+
 /**
  * The stages an order of each type actually passes through.
  *
@@ -41,6 +50,9 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
  * is. Showing every stage for every type would put a button on screen that
  * makes no sense for the order in front of you, which is how bad data gets
  * entered.
+ *
+ * 'cancelled' is deliberately absent from every flow: it is a terminal exit
+ * reachable from any stage, not a rung between 'ready' and 'picked_up'.
  */
 const FLOWS: Record<OrderType, readonly OrderStage[]> = {
   tailor_made: ['measured', 'in_progress', 'ready', 'picked_up'],
@@ -55,11 +67,13 @@ export function stagesFor(orderType: OrderType): readonly OrderStage[] {
 /**
  * The next stage in the flow, or null at the end.
  *
- * Returns the flow's first stage if the current one is not in it -- which
- * happens when an order's type is changed after the fact, and is better than
- * leaving the shop with no way forward.
+ * 'cancelled' is a terminal exit with no next stage, never a detour back to
+ * the flow's first stage. For any other stage missing from the flow --
+ * an order's type changed after the fact -- falling back to the first stage
+ * is better than leaving the shop with no way forward.
  */
 export function nextStage(orderType: OrderType, current: OrderStage): OrderStage | null {
+  if (current === 'cancelled') return null
   const flow = stagesFor(orderType)
   const index = flow.indexOf(current)
   if (index === -1) return flow[0] ?? null

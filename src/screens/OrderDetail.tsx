@@ -14,6 +14,7 @@ import { useLocation, useRoute } from 'preact-iso'
 import {
   Button,
   Card,
+  cn,
   DataRow,
   EmptyState,
   ErrorNote,
@@ -21,6 +22,8 @@ import {
   Input,
   Screen,
   SectionTitle,
+  StatStrip,
+  StatTile,
   Segmented,
   Sheet,
   StatValue,
@@ -36,9 +39,16 @@ import { IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeBalance, type OrderBalance } from '../db/balances'
-import { changeOrderStage, recordPayment, voidPayment } from '../db/writes'
-import { PAYMENT_METHODS, type OrderDoc, type PaymentDoc, type PaymentMethod } from '../db/schema'
-import { formatMoney, parseMoney } from '../lib/money'
+import { changeOrderStage, logMessage, recordPayment, setUnitDone, voidPayment } from '../db/writes'
+import {
+  PAYMENT_METHODS,
+  type MessageTemplate,
+  type OrderDoc,
+  type PaymentDoc,
+  type PaymentMethod,
+  type StaffDoc,
+} from '../db/schema'
+import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate } from '../lib/dates'
 import { balanceReminder, suggestedMessage, waLink } from '../lib/whatsapp'
 import {
@@ -85,9 +95,9 @@ export function OrderDetail() {
           title="Order not found"
           description="It may have been removed, or this device has not synced it yet."
           action={
-            <a href="/orders">
-              <Button variant="secondary">Back to orders</Button>
-            </a>
+            <Button linkTo="/orders" variant="secondary">
+              Back to orders
+            </Button>
           }
         />
       </Screen>
@@ -111,9 +121,10 @@ export function OrderDetail() {
 
   return (
     <Screen
-      title={order.item_description}
+      title={order.summary}
       subtitle={client?.name}
       back="/orders"
+      wide
       action={
         <Button
           variant="ghost"
@@ -128,8 +139,31 @@ export function OrderDetail() {
       <div class="space-y-5">
         {error && <ErrorNote>{error}</ErrorNote>}
 
-        <BalanceCard balance={balance} />
+        {/* Below lg the balance is one big card, because it is the question
+            asked at the counter and the screen has room for nothing else.
+            Above lg it becomes a strip alongside the other two figures worth
+            knowing at a glance, and the room that frees goes to two columns. */}
+        <div class="lg:hidden">
+          <BalanceCard balance={balance} currency={order.currency} />
+        </div>
+        {balance && (
+          <div class="hidden lg:block">
+            <StatStrip>
+              <StatTile label="Balance due" tone={balance.balance_minor > 0 ? 'money' : undefined}>
+                {formatMinor(Math.abs(balance.balance_minor), order.currency)}
+              </StatTile>
+              <StatTile label="Paid">
+                {formatMinor(balance.amount_paid_minor, order.currency)}
+              </StatTile>
+              <StatTile label={order.order_type === 'rental' ? 'Collection' : 'Pickup'} tone={overdue ? 'alert' : undefined}>
+                {formatDate(order.pickup_due_date)}
+              </StatTile>
+            </StatStrip>
+          </div>
+        )}
 
+      <div class="space-y-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start lg:gap-5 lg:space-y-0">
+        <div class="space-y-5">
         <section>
           <SectionTitle>Progress</SectionTitle>
           <Card>
@@ -145,6 +179,10 @@ export function OrderDetail() {
             )}
           </Card>
         </section>
+
+        <MoneyBlock order={order} balance={balance} currency={order.currency} />
+
+        <ItemsSection orderId={orderId} currency={order.currency} onError={setError} />
 
         <section>
           <SectionTitle>Details</SectionTitle>
@@ -182,15 +220,24 @@ export function OrderDetail() {
 
         <PaymentsSection
           orderId={orderId}
+          currency={order.currency}
           balance={balance}
           payments={payments}
           onError={setError}
         />
 
+        </div>
+
+        {/* Right column on desktop. On mobile these simply follow the left
+            column's sections, which preserves the original running order:
+            messaging the client stays above the history log, not below it. */}
+        <div class="space-y-5 lg:sticky lg:top-4">
         {client && balance && (
           <WhatsAppSection
             shopName={shop.name}
             clientName={client.name}
+            clientId={client.id}
+            orderId={orderId}
             phone={client.phone}
             order={order}
             balance={balance}
@@ -199,6 +246,8 @@ export function OrderDetail() {
         )}
 
         <StageHistory orderId={orderId} />
+        </div>
+      </div>
       </div>
     </Screen>
   )
@@ -211,14 +260,20 @@ export function OrderDetail() {
  * amount carries the colour -- amber for outstanding, which is the one thing
  * amber is reserved for -- and the card carries none.
  */
-function BalanceCard({ balance }: { balance: OrderBalance | null }) {
+function BalanceCard({
+  balance,
+  currency,
+}: {
+  balance: OrderBalance | null
+  currency: string
+}) {
   if (!balance) return <Card><div class="h-20" /></Card>
 
-  const owing = balance.balance > 0
-  const overpaid = balance.balance < 0
+  const owing = balance.balance_minor > 0
+  const overpaid = balance.balance_minor < 0
   const paidFraction = Math.min(
     1,
-    Math.max(0, balance.amount_paid / (balance.price_total || 1)),
+    Math.max(0, balance.amount_paid_minor / (balance.price_total_minor || 1)),
   )
 
   return (
@@ -228,12 +283,13 @@ function BalanceCard({ balance }: { balance: OrderBalance | null }) {
       </p>
       <div class="mt-1.5">
         <StatValue
-          value={formatMoney(Math.abs(balance.balance))}
+          value={formatMinor(Math.abs(balance.balance_minor), currency)}
           tone={owing ? 'money' : 'default'}
         />
       </div>
       <p class="mt-2 text-sm text-stone-500 dark:text-stone-400">
-        {formatMoney(balance.amount_paid)} paid of {formatMoney(balance.price_total)}
+        {formatMinor(balance.amount_paid_minor, currency)} paid of{' '}
+        {formatMinor(balance.price_total_minor, currency)}
       </p>
       <div class="mt-3 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
         <div
@@ -244,6 +300,123 @@ function BalanceCard({ balance }: { balance: OrderBalance | null }) {
         />
       </div>
     </Card>
+  )
+}
+
+/**
+ * Subtotal, adjustment, total, paid and balance as separate lines (Task 10).
+ * A rental deposit is held rather than earned, so it is shown apart from the
+ * balance and never folded into any of the figures above it.
+ */
+function MoneyBlock({
+  order,
+  balance,
+  currency,
+}: {
+  order: OrderDoc
+  balance: OrderBalance | null
+  currency: string
+}) {
+  if (!balance) return null
+
+  const subtotal = order.price_total_minor - order.price_adjustment_minor
+  const adjustment = order.price_adjustment_minor
+
+  return (
+    <section>
+      <SectionTitle>Money</SectionTitle>
+      <Card>
+        <dl>
+          <DataRow label="Subtotal">{formatMinor(subtotal, currency)}</DataRow>
+          {adjustment !== 0 && (
+            <DataRow label={order.adjustment_reason ?? (adjustment < 0 ? 'Discount' : 'Extra charge')}>
+              {adjustment < 0 ? '-' : '+'}
+              {formatMinor(Math.abs(adjustment), currency)}
+            </DataRow>
+          )}
+          <DataRow label="Total">{formatMinor(order.price_total_minor, currency)}</DataRow>
+          <DataRow label="Paid">{formatMinor(balance.amount_paid_minor, currency)}</DataRow>
+          <DataRow label="Balance">{formatMinor(balance.balance_minor, currency)}</DataRow>
+        </dl>
+        {order.rental_deposit_minor > 0 && (
+          <p class="mt-3 border-t border-stone-100 pt-3 text-sm text-stone-600 dark:border-stone-800 dark:text-stone-300">
+            Deposit held: <span class="font-medium">{formatMinor(order.rental_deposit_minor, currency)}</span>
+            {order.deposit_refunded_at
+              ? ` -- refunded ${formatDate(order.deposit_refunded_at)}`
+              : ' -- held, not part of the balance above'}
+          </p>
+        )}
+      </Card>
+    </section>
+  )
+}
+
+/** The unit list, with a per-unit done tick (Task 10). */
+function ItemsSection({
+  orderId,
+  currency,
+  onError,
+}: {
+  orderId: string
+  currency: string
+  onError: (message: string | null) => void
+}) {
+  const { db } = useCurrentShop()
+  const unitDocs = useRxQuery(
+    () => db.order_units.find({ selector: { order_id: orderId }, sort: [{ position: 'asc' }] }).$,
+    [db, orderId],
+    [],
+  )
+  const units = useMemo(() => unitDocs.map((doc) => doc.toJSON()), [unitDocs])
+
+  if (units.length === 0) return null
+
+  async function toggle(unitId: string, done: boolean): Promise<void> {
+    onError(null)
+    try {
+      await setUnitDone(db, unitId, done)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not update that item.')
+    }
+  }
+
+  return (
+    <section>
+      <SectionTitle>Items</SectionTitle>
+      <Card padded={false}>
+        <ul>
+          {units.map((unit) => (
+            <li key={unit.id} class="flex items-center gap-3 px-4 py-3.5">
+              <button
+                type="button"
+                aria-pressed={unit.done}
+                aria-label={unit.done ? `Mark ${unit.item_description} not done` : `Mark ${unit.item_description} done`}
+                onClick={() => void toggle(unit.id, !unit.done)}
+                class={cn(
+                  'flex size-7 shrink-0 items-center justify-center rounded-full transition-colors',
+                  unit.done
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-stone-200 text-transparent dark:bg-stone-700',
+                )}
+              >
+                <IconCheck size={14} />
+              </button>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate font-medium">{unit.item_description}</span>
+                {unit.wearer_name && (
+                  <span class="block text-xs text-stone-500 dark:text-stone-400">
+                    For {unit.wearer_name}
+                  </span>
+                )}
+              </span>
+              <span class="shrink-0 text-sm font-medium tabular-nums">
+                {formatMinor(unit.price_minor, currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </section>
   )
 }
 
@@ -306,11 +479,13 @@ function StageTrack({
 
 function PaymentsSection({
   orderId,
+  currency,
   balance,
   payments,
   onError,
 }: {
   orderId: string
+  currency: string
   balance: OrderBalance | null
   payments: PaymentDoc[]
   onError: (message: string | null) => void
@@ -325,7 +500,7 @@ function PaymentsSection({
 
   async function submit(event: Event) {
     event.preventDefault()
-    const parsed = parseMoney(amount)
+    const parsed = parseToMinor(amount, currency)
     if (parsed === null || parsed <= 0) {
       setFormError('Enter an amount greater than zero.')
       return
@@ -334,7 +509,7 @@ function PaymentsSection({
     setSaving(true)
     setFormError(null)
     try {
-      await recordPayment(db, orderId, { amount: parsed, method, notes }, activeStaff?.id)
+      await recordPayment(db, orderId, { amount_minor: parsed, method, notes }, activeStaff?.id)
       setAmount('')
       setNotes('')
       setAdding(false)
@@ -371,7 +546,7 @@ function PaymentsSection({
             {payments.map((payment) => (
               <li key={payment.id} class="flex items-center justify-between gap-3 px-4 py-3.5">
                 <span class="min-w-0">
-                  <span class="block font-medium">{formatMoney(payment.amount)}</span>
+                  <span class="block font-medium">{formatMinor(payment.amount_minor, currency)}</span>
                   <span class="block truncate text-xs text-stone-500 dark:text-stone-400">
                     {PAYMENT_METHOD_LABELS[payment.method]} · {formatDateTime(payment.payment_date)}
                   </span>
@@ -401,15 +576,15 @@ function PaymentsSection({
 
       <Sheet open={adding} title="Record a payment" onClose={() => setAdding(false)}>
         <form onSubmit={submit} class="space-y-4">
-          {balance && balance.balance > 0 && (
+          {balance && balance.balance_minor > 0 && (
             <button
               type="button"
-              onClick={() => setAmount(String(balance.balance))}
+              onClick={() => setAmount(String(fromMinorUnits(balance.balance_minor, currency)))}
               class="min-h-11 w-full rounded-control bg-brand-100 px-3 text-sm
                      font-medium text-brand-800 active:bg-brand-200
                      dark:bg-brand-950 dark:text-brand-300"
             >
-              Pay the full balance, {formatMoney(balance.balance)}
+              Pay the full balance, {formatMinor(balance.balance_minor, currency)}
             </button>
           )}
 
@@ -464,6 +639,8 @@ function PaymentsSection({
 function WhatsAppSection({
   shopName,
   clientName,
+  clientId,
+  orderId,
   phone,
   order,
   balance,
@@ -471,15 +648,36 @@ function WhatsAppSection({
 }: {
   shopName: string
   clientName: string
+  clientId: string
+  orderId: string
   phone: string | undefined
   order: OrderDoc
   balance: OrderBalance
   overdue: boolean
 }) {
+  const { db, staff, activeStaff } = useCurrentShop()
   const context = { shopName, clientName, order, balance }
   const statusLink = waLink(phone, suggestedMessage(context))
   const reminderLink = waLink(phone, balanceReminder(context))
-  const showReminder = overdue && balance.balance > 0 && reminderLink
+  const showReminder = overdue && balance.balance_minor > 0 && reminderLink
+
+  // Logged on click, not on render: this is the moment the shop commits to
+  // sending, not merely that a link exists for them to tap.
+  function logStatusUpdate(): void {
+    void logMessage(
+      db,
+      { client_id: clientId, order_id: orderId, template: 'stage_update', order_stage: order.stage },
+      activeStaff?.id,
+    )
+  }
+
+  function logBalanceReminder(): void {
+    void logMessage(
+      db,
+      { client_id: clientId, order_id: orderId, template: 'balance_reminder' },
+      activeStaff?.id,
+    )
+  }
 
   if (!statusLink) {
     return (
@@ -505,21 +703,61 @@ function WhatsAppSection({
           Opens WhatsApp with the message ready. Nothing is sent until you tap send.
         </p>
         <div class="space-y-2">
-          <a href={statusLink} target="_blank" rel="noreferrer" class="block">
-            <Button block>
-              <IconWhatsApp size={18} /> Send {STAGE_LABELS[order.stage].toLowerCase()} update
-            </Button>
-          </a>
+          <Button linkTo={statusLink} target="_blank" rel="noreferrer" block onClick={logStatusUpdate}>
+            <IconWhatsApp size={18} /> Send {STAGE_LABELS[order.stage].toLowerCase()} update
+          </Button>
           {showReminder && (
-            <a href={reminderLink} target="_blank" rel="noreferrer" class="block">
-              <Button variant="secondary" block>
-                Send balance reminder
-              </Button>
-            </a>
+            <Button
+              linkTo={reminderLink}
+              target="_blank"
+              rel="noreferrer"
+              variant="secondary"
+              block
+              onClick={logBalanceReminder}
+            >
+              Send balance reminder
+            </Button>
           )}
         </div>
+        <LastReminderSent orderId={orderId} staff={staff} />
       </Card>
     </section>
+  )
+}
+
+/**
+ * Only 'balance_reminder' is a reminder -- a 'stage_update' (e.g. "ready for
+ * pickup") is routine progress, not a chase, and labelling it "Reminder sent"
+ * would tell staff the client had been chased about money when they had not.
+ */
+const MESSAGE_SENT_LABEL: Record<MessageTemplate, string> = {
+  balance_reminder: 'Reminder sent',
+  stage_update: 'Update sent',
+  custom: 'Message sent',
+}
+
+/**
+ * Shows when a message was last sent for this order, and by whom if
+ * attributed. Never "notified" -- because a wa.me link only records that the
+ * shop opened WhatsApp, not that WhatsApp delivered it.
+ */
+function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc[] }) {
+  const { db } = useCurrentShop()
+  const logDocs = useRxQuery(
+    () => db.message_log.find({ selector: { order_id: orderId }, sort: [{ sent_at: 'desc' }] }).$,
+    [db, orderId],
+    [],
+  )
+  const latest = logDocs[0]?.toJSON()
+  if (!latest) return null
+
+  const sender = latest.sent_by ? staff.find((member) => member.id === latest.sent_by)?.name : undefined
+
+  return (
+    <p class="mt-3 text-xs text-stone-500 dark:text-stone-400">
+      {MESSAGE_SENT_LABEL[latest.template]} {formatDateTime(latest.sent_at)}
+      {sender ? ` by ${sender}` : ''}
+    </p>
   )
 }
 

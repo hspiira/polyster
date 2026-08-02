@@ -14,6 +14,8 @@ import {
   EmptyState,
   ErrorNote,
   Field,
+  DataRowLink,
+  DataTable,
   HeaderAction,
   Input,
   ListRow,
@@ -21,6 +23,7 @@ import {
   Screen,
   SearchInput,
   Sheet,
+  Td,
   Textarea,
 } from '../components/ui'
 import { IconPlus } from '../components/icons'
@@ -28,6 +31,23 @@ import { IllustrationBook, IllustrationSearch } from '../components/illustration
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { createClient } from '../db/writes'
+import { observeShopBalances } from '../db/balances'
+import { formatMinor } from '../lib/money'
+import { formatDate } from '../lib/dates'
+
+const CLIENT_COLUMNS = [
+  { label: 'Client' },
+  { label: 'Phone' },
+  { label: 'Orders', align: 'right' as const },
+  { label: 'Outstanding', align: 'right' as const },
+  { label: 'Last order' },
+] as const
+
+interface ClientTally {
+  orders: number
+  outstanding_minor: number
+  lastOrderDate?: string
+}
 
 export function Clients() {
   const { db, shop } = useCurrentShop()
@@ -40,6 +60,33 @@ export function Clients() {
     [],
   )
   const clients = useMemo(() => docs.map((doc) => doc.toJSON()), [docs])
+
+  // Desktop columns only. A phone shows name and number; a desktop table has
+  // room for the question actually worth asking of a client list -- who owes
+  // money, and when they were last in.
+  const orderDocs = useRxQuery(
+    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+
+  const tallies = useMemo(() => {
+    const byClient = new Map<string, ClientTally>()
+    for (const doc of orderDocs) {
+      const order = doc.toJSON()
+      if (order.stage === 'cancelled') continue
+      const tally = byClient.get(order.client_id) ?? { orders: 0, outstanding_minor: 0 }
+      tally.orders += 1
+      const balance = balances.get(order.id)
+      if (balance && balance.balance_minor > 0) tally.outstanding_minor += balance.balance_minor
+      if (!tally.lastOrderDate || order.created_at > tally.lastOrderDate) {
+        tally.lastOrderDate = order.created_at
+      }
+      byClient.set(order.client_id, tally)
+    }
+    return byClient
+  }, [orderDocs, balances])
 
   const matches = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -56,6 +103,7 @@ export function Clients() {
     <>
       <Screen
         label="Clients"
+        wide
         // In the header rather than floating: the tab bar's centre button is
         // already this app's one floating action, and two is a menu (spec N12).
         action={
@@ -98,7 +146,7 @@ export function Clients() {
           )}
 
           {matches.length > 0 && (
-            <Card padded={false}>
+            <Card padded={false} class="lg:hidden">
               <RowList>
                 {matches.map((client) => (
                   <li key={client.id}>
@@ -112,6 +160,40 @@ export function Clients() {
                 ))}
               </RowList>
             </Card>
+          )}
+
+          {matches.length > 0 && (
+            <DataTable columns={CLIENT_COLUMNS}>
+              {matches.map((client) => {
+                const tally = tallies.get(client.id)
+                return (
+                  <DataRowLink key={client.id} href={`/clients/${client.id}`}>
+                    <Td>
+                      <span class="flex items-center gap-3">
+                        <Avatar name={client.name} size="sm" />
+                        <span class="truncate font-medium">{client.name}</span>
+                      </span>
+                    </Td>
+                    <Td muted>{client.phone ?? '--'}</Td>
+                    <Td align="right" muted>
+                      {tally?.orders ?? 0}
+                    </Td>
+                    <Td align="right">
+                      {tally && tally.outstanding_minor > 0 ? (
+                        <span class="font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                          {formatMinor(tally.outstanding_minor, shop.currency)}
+                        </span>
+                      ) : (
+                        <span class="text-stone-400 dark:text-stone-600">--</span>
+                      )}
+                    </Td>
+                    <Td muted>
+                      {tally?.lastOrderDate ? formatDate(tally.lastOrderDate.slice(0, 10)) : '--'}
+                    </Td>
+                  </DataRowLink>
+                )
+              })}
+            </DataTable>
           )}
         </div>
       </Screen>

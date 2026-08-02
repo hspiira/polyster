@@ -36,3 +36,6 @@ yarn.lock
 
 # Visual brainstorming companion mockups
 .superpowers/
+
+# Worktrees created for isolated agent work.
+.claude/worktrees/

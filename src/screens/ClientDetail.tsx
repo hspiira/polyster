@@ -32,7 +32,7 @@ import {
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { saveMeasurements, updateClient } from '../db/writes'
-import { formatMoney } from '../lib/money'
+import { formatMinor } from '../lib/money'
 import { formatDueDate } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
 
@@ -66,9 +66,9 @@ export function ClientDetail() {
           title="Client not found"
           description="They may have been removed, or this device has not synced them yet."
           action={
-            <a href="/clients">
-              <Button variant="secondary">Back to clients</Button>
-            </a>
+            <Button linkTo="/clients" variant="secondary">
+              Back to clients
+            </Button>
           }
         />
       </Screen>
@@ -129,9 +129,7 @@ export function ClientDetail() {
               title="No orders yet"
               description={`Nothing has been ordered by ${client.name} so far.`}
               action={
-                <a href={`/orders/new?client=${client.id}`}>
-                  <Button>Take an order</Button>
-                </a>
+                <Button linkTo={`/orders/new?client=${client.id}`}>Take an order</Button>
               }
             />
           ) : (
@@ -145,9 +143,9 @@ export function ClientDetail() {
                         <Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>
                       }
                     >
-                      <span class="block truncate font-medium">{order.item_description}</span>
+                      <span class="block truncate font-medium">{order.summary}</span>
                       <span class="block text-sm text-stone-500 dark:text-stone-400">
-                        {formatMoney(order.price_total)} · due{' '}
+                        {formatMinor(order.price_total_minor, order.currency)} · due{' '}
                         {formatDueDate(order.pickup_due_date)}
                       </span>
                     </ListRow>
@@ -249,16 +247,34 @@ function EditClientSheet({
 function Measurements({ clientId }: { clientId: string }) {
   const { db, shop, activeStaff } = useCurrentShop()
 
+  // $ne rather than true, so fields predating this column (undefined active)
+  // still count as active instead of being silently dropped from the form.
   const fieldDocs = useRxQuery(
     () =>
       db.measurement_fields.find({
-        selector: { shop_id: shop.id },
+        selector: { shop_id: shop.id, active: { $ne: false } },
         sort: [{ display_order: 'asc' }],
       }).$,
     [db, shop.id],
     [],
   )
   const fields = useMemo(() => fieldDocs.map((doc) => doc.toJSON()), [fieldDocs])
+
+  // Retired fields load separately so a recorded value can still be shown,
+  // read-only, instead of becoming unlabellable once a field is retired.
+  const retiredFieldDocs = useRxQuery(
+    () =>
+      db.measurement_fields.find({
+        selector: { shop_id: shop.id, active: false },
+        sort: [{ display_order: 'asc' }],
+      }).$,
+    [db, shop.id],
+    [],
+  )
+  const retiredFields = useMemo(
+    () => retiredFieldDocs.map((doc) => doc.toJSON()),
+    [retiredFieldDocs],
+  )
 
   const profileDoc = useRxQuery(
     () => db.measurement_profiles.findOne({ selector: { client_id: clientId } }).$,
@@ -273,6 +289,13 @@ function Measurements({ clientId }: { clientId: string }) {
 
   const stored = useMemo(() => profileDoc?.toJSON().values ?? {}, [profileDoc])
 
+  // The retired-field fix: a value recorded against a since-retired field
+  // must stay visible and labelled, just no longer editable.
+  const retiredWithValue = useMemo(
+    () => retiredFields.filter((field) => stored[field.id] !== undefined),
+    [retiredFields, stored],
+  )
+
   // Keep in step with what replication brings in, but never clobber
   // half-typed input: a measurement arriving from the other device mid-entry
   // must not wipe what is being typed here.
@@ -283,7 +306,7 @@ function Measurements({ clientId }: { clientId: string }) {
     setDraft(next)
   }, [stored, dirty])
 
-  if (fields.length === 0) {
+  if (fields.length === 0 && retiredWithValue.length === 0) {
     return (
       <section>
         <SectionTitle>Measurements</SectionTitle>
@@ -292,9 +315,9 @@ function Measurements({ clientId }: { clientId: string }) {
           title="No measurement fields set up"
           description="Choose the measurements you actually take: chest and waist, or bust and hip, or whatever your work needs."
           action={
-            <a href="/settings/measurements">
-              <Button variant="secondary">Set them up</Button>
-            </a>
+            <Button linkTo="/settings/measurements" variant="secondary">
+              Set them up
+            </Button>
           }
         />
       </section>
@@ -341,6 +364,14 @@ function Measurements({ clientId }: { clientId: string }) {
                     setDraft({ ...draft, [field.id]: (e.target as HTMLInputElement).value })
                   }}
                 />
+              </Field>
+            ))}
+            {retiredWithValue.map((field) => (
+              <Field
+                key={field.id}
+                label={`${field.unit ? `${field.label} (${field.unit})` : field.label} (retired)`}
+              >
+                <Input value={String(stored[field.id])} disabled readOnly />
               </Field>
             ))}
           </div>
