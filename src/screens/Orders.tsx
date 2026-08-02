@@ -24,11 +24,14 @@ import { useLocation } from 'preact-iso'
 import {
   Card,
   Chip,
+  DataRowLink,
+  DataTable,
   EmptyState,
   ListRow,
   RowList,
   Screen,
   Segmented,
+  Td,
 } from '../components/ui'
 import { IllustrationOrders } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
@@ -36,7 +39,7 @@ import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDueDate, today } from '../lib/dates'
-import { STAGE_LABELS, STAGE_TONES } from './orderStage'
+import { ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from './orderStage'
 import {
   OPEN_STAGES,
   buildBuckets,
@@ -145,7 +148,7 @@ export function Orders() {
   }, [orders, clientNames, balances, scope, now])
 
   return (
-    <Screen label="Orders">
+    <Screen label="Orders" wide>
       <div class="space-y-4">
         {isSegment(scope) ? (
           <Segmented
@@ -166,15 +169,26 @@ export function Orders() {
             description={emptyDescription(scope)}
           />
         ) : (
-          <Card padded={false}>
-            <RowList>
+          <>
+            {/* Below lg the same rows are cards; above it they are a table.
+                Seven columns at 390px would be a horizontal scroll, and one
+                stacked card per order at 1440px wastes the screen entirely. */}
+            <Card padded={false} class="lg:hidden">
+              <RowList>
+                {rows.map((row) => (
+                  <li key={`${row.order.id}-${row.kind}`}>
+                    <OrderRow row={row} />
+                  </li>
+                ))}
+              </RowList>
+            </Card>
+
+            <DataTable columns={ORDER_COLUMNS}>
               {rows.map((row) => (
-                <li key={`${row.order.id}-${row.kind}`}>
-                  <OrderRow row={row} />
-                </li>
+                <OrderTableRow key={`${row.order.id}-${row.kind}-table`} row={row} />
               ))}
-            </RowList>
-          </Card>
+            </DataTable>
+          </>
         )}
       </div>
     </Screen>
@@ -286,5 +300,56 @@ function OrderRow({ row }: { row: DueRow }) {
         )}
       </span>
     </ListRow>
+  )
+}
+
+const ORDER_COLUMNS = [
+  { label: 'Order' },
+  { label: 'Client' },
+  { label: 'Type' },
+  { label: 'Due' },
+  { label: 'Stage' },
+  { label: 'Outstanding', align: 'right' as const },
+] as const
+
+/** The desktop form of OrderRow. Same data, one row instead of two lines. */
+function OrderTableRow({ row }: { row: DueRow }) {
+  const { order } = row
+  const stillDue =
+    row.kind === 'return' || (order.stage !== 'picked_up' && order.stage !== 'returned')
+  const overdue = stillDue && dueBucket(row.dueDate) === 'overdue'
+
+  return (
+    <DataRowLink href={`/orders/${order.id}`}>
+      <Td>
+        <span class="block truncate font-medium">{order.summary}</span>
+        <span class="mt-0.5 block text-xs text-stone-500 dark:text-stone-400">
+          {order.reference}
+          {row.kind === 'return' && ' · return'}
+        </span>
+      </Td>
+      <Td muted>{row.clientName}</Td>
+      <Td muted>{ORDER_TYPE_LABELS[order.order_type]}</Td>
+      <Td>
+        <span class={overdue ? 'font-medium text-red-600 dark:text-red-400' : ''}>
+          {formatDate(row.dueDate)}
+        </span>
+        <span class="mt-0.5 block text-xs text-stone-500 dark:text-stone-400">
+          {formatDueDate(row.dueDate)}
+        </span>
+      </Td>
+      <Td>
+        <Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>
+      </Td>
+      <Td align="right">
+        {row.outstanding_minor > 0 ? (
+          <span class="font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+            {formatMinor(row.outstanding_minor, order.currency)}
+          </span>
+        ) : (
+          <span class="text-stone-400 dark:text-stone-600">--</span>
+        )}
+      </Td>
+    </DataRowLink>
   )
 }

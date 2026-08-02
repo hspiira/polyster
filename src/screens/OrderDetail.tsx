@@ -21,6 +21,8 @@ import {
   Input,
   Screen,
   SectionTitle,
+  StatStrip,
+  StatTile,
   Segmented,
   Sheet,
   StatValue,
@@ -121,6 +123,7 @@ export function OrderDetail() {
       title={order.summary}
       subtitle={client?.name}
       back="/orders"
+      wide
       action={
         <Button
           variant="ghost"
@@ -135,8 +138,31 @@ export function OrderDetail() {
       <div class="space-y-5">
         {error && <ErrorNote>{error}</ErrorNote>}
 
-        <BalanceCard balance={balance} currency={order.currency} />
+        {/* Below lg the balance is one big card, because it is the question
+            asked at the counter and the screen has room for nothing else.
+            Above lg it becomes a strip alongside the other two figures worth
+            knowing at a glance, and the room that frees goes to two columns. */}
+        <div class="lg:hidden">
+          <BalanceCard balance={balance} currency={order.currency} />
+        </div>
+        {balance && (
+          <div class="hidden lg:block">
+            <StatStrip>
+              <StatTile label="Balance due" tone={balance.balance_minor > 0 ? 'money' : undefined}>
+                {formatMinor(Math.abs(balance.balance_minor), order.currency)}
+              </StatTile>
+              <StatTile label="Paid">
+                {formatMinor(balance.amount_paid_minor, order.currency)}
+              </StatTile>
+              <StatTile label={order.order_type === 'rental' ? 'Collection' : 'Pickup'} tone={overdue ? 'alert' : undefined}>
+                {formatDate(order.pickup_due_date)}
+              </StatTile>
+            </StatStrip>
+          </div>
+        )}
 
+      <div class="space-y-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start lg:gap-5 lg:space-y-0">
+        <div class="space-y-5">
         <section>
           <SectionTitle>Progress</SectionTitle>
           <Card>
@@ -195,6 +221,12 @@ export function OrderDetail() {
           onError={setError}
         />
 
+        </div>
+
+        {/* Right column on desktop. On mobile these simply follow the left
+            column's sections, which preserves the original running order:
+            messaging the client stays above the history log, not below it. */}
+        <div class="space-y-5 lg:sticky lg:top-4">
         {client && balance && (
           <WhatsAppSection
             shopName={shop.name}
@@ -209,6 +241,8 @@ export function OrderDetail() {
         )}
 
         <StageHistory orderId={orderId} />
+        </div>
+      </div>
       </div>
     </Screen>
   )

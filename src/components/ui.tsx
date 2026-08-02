@@ -17,6 +17,7 @@
  */
 import type { ComponentChildren, JSX } from 'preact'
 import { useEffect } from 'preact/hooks'
+import { useLocation } from 'preact-iso'
 import { IconChevronLeft, IconChevronRight, IconSearch } from './icons'
 import { useSwipeBack } from '../hooks/useSwipeBack'
 import { cn } from '../lib/cn'
@@ -90,6 +91,7 @@ export function Screen({
   back,
   action,
   subheader,
+  wide = false,
   children,
 }: ScreenHeading & {
   /** Href for the back chevron and the edge-swipe. Omit on the tab roots. */
@@ -101,9 +103,15 @@ export function Screen({
    * itself needing to re-implement stickiness.
    */
   subheader?: ComponentChildren
+  /**
+   * Use the wide measure. For screens whose desktop form is a table or a
+   * multi-column record rather than prose -- see CONTAINER_WIDE.
+   */
+  wide?: boolean
   children: ComponentChildren
 }) {
   const swipeRef = useSwipeBack(back)
+  const measure = wide ? CONTAINER_WIDE : CONTAINER
   const heading = title ?? label
   // A label-only tab root with no back chevron and no action renders nothing
   // visible in this row (the h1 is sr-only) -- collapse its padding instead of
@@ -116,7 +124,7 @@ export function Screen({
       <header class={`sticky top-0 z-20 ${PAGE}`}>
         <div
           class={cn(
-            CONTAINER,
+            measure,
             'flex items-center gap-2 px-4',
             rowHasContent ? 'pt-1 pb-3' : subheader ? 'pt-1' : 'py-0',
           )}
@@ -145,14 +153,14 @@ export function Screen({
           </div>
           {action}
         </div>
-        {subheader && <div class={cn(CONTAINER, 'px-4 pb-3')}>{subheader}</div>}
+        {subheader && <div class={cn(measure, 'px-4 pb-3')}>{subheader}</div>}
       </header>
 
       {/* TabBar floats now (1rem inset + its own ~60px height, on top of the
           safe area), so this clears it directly rather than a flat guess. */}
       {/* Bottom clearance is for the tab bar, which only exists below lg --
           above it the side rail takes over and the padding is dead space. */}
-      <div class={cn(CONTAINER, 'px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-10')}>
+      <div class={cn(measure, 'px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-10')}>
         {children}
       </div>
     </div>
@@ -198,6 +206,130 @@ export function SectionTitle({
  * panes, multi-column sections) rather than to longer lines.
  */
 export const CONTAINER = 'mx-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl'
+
+/**
+ * The measure for screens whose desktop form is a table or a multi-column
+ * record, not prose. Reading comfort caps a text column at ~48rem; a row of
+ * eight attributes has no such limit and is worse for being cramped.
+ */
+export const CONTAINER_WIDE = 'mx-auto w-full max-w-lg md:max-w-2xl lg:max-w-none lg:px-2 xl:max-w-7xl'
+
+// ------------------------------------------------------------- data tables
+
+/**
+ * A desktop data table. Renders from `lg` up only -- below it the same records
+ * are a card list, because a seven-column table at 390px is a horizontal
+ * scroll nobody wins.
+ */
+export function DataTable({
+  columns,
+  children,
+}: {
+  columns: readonly { label: string; align?: 'right' }[]
+  children: ComponentChildren
+}) {
+  return (
+    <div class="hidden overflow-hidden rounded-card bg-white lg:block dark:bg-stone-900">
+      <table class="w-full border-collapse text-left text-sm">
+        <thead>
+          <tr class="border-b border-stone-200 dark:border-stone-800">
+            {columns.map((column) => (
+              <th
+                key={column.label}
+                scope="col"
+                class={cn(
+                  'px-4 py-3 text-xs font-medium text-stone-500 dark:text-stone-400',
+                  column.align === 'right' && 'text-right',
+                )}
+              >
+                {column.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  )
+}
+
+/** A table row that navigates. The whole row is the target, not a cell in it. */
+export function DataRowLink({
+  href,
+  children,
+}: {
+  href: string
+  children: ComponentChildren
+}) {
+  const { route } = useLocation()
+  return (
+    <tr
+      onClick={() => route(href)}
+      class="cursor-pointer border-b border-stone-100 transition-colors last:border-0
+             hover:bg-stone-50 dark:border-stone-800/70 dark:hover:bg-stone-800/50"
+    >
+      {children}
+    </tr>
+  )
+}
+
+export function Td({
+  children,
+  align,
+  muted,
+  class: className,
+}: {
+  children: ComponentChildren
+  align?: 'right'
+  muted?: boolean
+  class?: string
+}) {
+  return (
+    <td
+      class={cn(
+        'px-4 py-3.5 align-middle',
+        align === 'right' && 'text-right',
+        muted && TEXT_MUTED,
+        className,
+      )}
+    >
+      {children}
+    </td>
+  )
+}
+
+/**
+ * A row of figures above a record, the way an inventory page leads with on
+ * hand / to be delivered / to be ordered. Scannable before anything is read.
+ */
+export function StatStrip({ children }: { children: ComponentChildren }) {
+  return <div class="grid grid-cols-2 gap-3 md:grid-cols-3">{children}</div>
+}
+
+export function StatTile({
+  label,
+  children,
+  tone,
+}: {
+  label: string
+  children: ComponentChildren
+  tone?: 'money' | 'alert'
+}) {
+  return (
+    <div class="rounded-card bg-white px-4 py-3.5 dark:bg-stone-900">
+      <p class={cn('text-xs font-medium', TEXT_MUTED)}>{label}</p>
+      <p
+        class={cn(
+          'mt-1 text-xl font-semibold tabular-nums tracking-tight',
+          tone === 'money' && 'text-amber-700 dark:text-amber-400',
+          tone === 'alert' && 'text-red-600 dark:text-red-400',
+        )}
+      >
+        {children}
+      </p>
+    </div>
+  )
+}
 
 // ----------------------------------------------------------------- buttons
 
