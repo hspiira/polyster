@@ -26,7 +26,7 @@ import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import {
   createMeasurementField,
-  removeMeasurementField,
+  retireMeasurementField,
   reorderMeasurementFields,
 } from '../../db/writes'
 
@@ -51,10 +51,12 @@ export function MeasurementFieldSettings() {
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
+  // Retiring no longer soft-deletes, so this list must filter active fields
+  // itself to keep a retired field from lingering here unremoved.
   const fieldDocs = useRxQuery(
     () =>
       db.measurement_fields.find({
-        selector: { shop_id: shop?.id ?? '__none__' },
+        selector: { shop_id: shop?.id ?? '__none__', active: { $ne: false } },
         sort: [{ display_order: 'asc' }],
       }).$,
     [db, shop?.id],
@@ -180,7 +182,7 @@ export function MeasurementFieldSettings() {
                     size="sm"
                     class="text-red-600 dark:text-red-400"
                     aria-label={`Remove ${field.label}`}
-                    onClick={() => void removeMeasurementField(db, field.id)}
+                    onClick={() => void retireMeasurementField(db, field.id)}
                   >
                     <IconTrash size={18} />
                   </Button>

@@ -157,12 +157,40 @@ export async function reorderMeasurementFields(
   )
 }
 
-export async function removeMeasurementField(db: AppDatabase, fieldId: string): Promise<void> {
-  // Soft-deleted, not purged. Existing measurement_profiles still hold values
-  // keyed by this id, and a client's recorded chest measurement should not
-  // vanish because the shop tidied its field list.
+export async function retireMeasurementField(db: AppDatabase, fieldId: string): Promise<void> {
+  // Patched, not removed: doc.remove() is a soft delete that RxDB excludes
+  // from query results, which would make recorded values unlabellable.
   const doc = await db.measurement_fields.findOne(fieldId).exec()
-  await doc?.remove()
+  await doc?.patch({ active: false, updated_at: now() })
+}
+
+/**
+ * Copies a client's saved profile onto one order unit's frozen snapshot.
+ * Explicit and one-way: a later edit to the client's profile must never
+ * reach back and rewrite this unit.
+ */
+export async function copyMeasurementsFromClient(
+  db: AppDatabase,
+  unitId: string,
+  clientId: string,
+): Promise<void> {
+  const profile = await db.measurement_profiles.findOne({ selector: { client_id: clientId } }).exec()
+  await updateOrderUnit(db, unitId, { measurements: profile?.toJSON().values ?? {} })
+}
+
+/**
+ * Writes a unit's snapshot up to the client's profile, the reverse direction.
+ * Reuses saveMeasurements so create-or-update logic lives in one place.
+ */
+export async function saveUnitMeasurementsToClient(
+  db: AppDatabase,
+  unitId: string,
+  clientId: string,
+  staffId?: string,
+): Promise<void> {
+  const unit = await db.order_units.findOne(unitId).exec()
+  if (!unit) throw new Error('That item no longer exists on this device.')
+  await saveMeasurements(db, clientId, unit.toJSON().measurements, staffId)
 }
 
 // ----------------------------------------------------------------- orders

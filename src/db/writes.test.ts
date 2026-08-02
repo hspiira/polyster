@@ -5,10 +5,16 @@ import {
   buildSummary,
   cancelOrder,
   changeOrderStage,
+  copyMeasurementsFromClient,
+  createClient,
+  createMeasurementField,
   createOrder,
   recordPayment,
   removeOrderUnit,
   reorderOrderUnits,
+  retireMeasurementField,
+  saveMeasurements,
+  saveUnitMeasurementsToClient,
   setOrderAdjustment,
   setUnitDone,
   updateOrder,
@@ -41,6 +47,8 @@ async function freshDatabase(): Promise<AppDatabase> {
 afterEach(async () => {
   await Promise.all(created.splice(0).map((db) => db.remove()))
 })
+
+const shopId = crypto.randomUUID()
 
 // Matches the fixtures buildSummary's own tests are pinned against.
 const DESCRIPTIONS = ['Kanzu, navy', 'Gomesi, gold trim', 'Shirt, white']
@@ -80,6 +88,18 @@ async function orderWithUnits(
   }
 
   return { db, orderId, unitIds }
+}
+
+/** An order with one unit carrying a measurement snapshot, and its client. */
+async function unitWithMeasurements(measurements: Record<string, string | number>) {
+  const { db, orderId } = await orderWithUnits([45000])
+  const client = await createClient(db, shopId, { name: 'Mrs. Okello' })
+
+  const units = await db.order_units.find({ selector: { order_id: orderId } }).exec()
+  const unitId = units[0]!.id
+  await updateOrderUnit(db, unitId, { measurements })
+
+  return { db, clientId: client.id, unitId }
 }
 
 describe('recalculateOrder', () => {
@@ -289,5 +309,69 @@ describe('voidPayment', () => {
     expect(raw?.voided_by).toBe(staffId)
     expect(raw?.void_reason).toBe('entered twice')
     expect(raw?.voided_at).toBeTruthy()
+  })
+})
+
+describe('measurement fields', () => {
+  it('keeps a retired field queryable so recorded values still resolve', async () => {
+    const db = await freshDatabase()
+    const field = await createMeasurementField(db, shopId, { label: 'Chest', display_order: 0 })
+
+    await retireMeasurementField(db, field.id)
+
+    // The bug this replaces: doc.remove() soft-deletes, RxDB excludes
+    // soft-deleted docs from queries, and every recorded chest measurement
+    // becomes unlabellable.
+    const found = await db.measurement_fields.findOne(field.id).exec()
+    expect(found).not.toBeNull()
+    expect(found?.active).toBe(false)
+  })
+
+  it('does not touch _deleted when retiring', async () => {
+    const db = await freshDatabase()
+    const field = await createMeasurementField(db, shopId, { label: 'Chest', display_order: 0 })
+
+    await retireMeasurementField(db, field.id)
+
+    const [raw] = await db.measurement_fields.storageInstance.findDocumentsById([field.id], true)
+    expect(raw?._deleted).toBe(false)
+  })
+})
+
+describe('unit measurements', () => {
+  it('does not change a unit snapshot when the client profile is later edited', async () => {
+    const { db, clientId, unitId } = await unitWithMeasurements({ chest: 72 })
+    await saveMeasurements(db, clientId, { chest: 99 })
+
+    const unit = await db.order_units.findOne(unitId).exec()
+    expect(unit?.measurements).toEqual({ chest: 72 })
+  })
+
+  it('copyMeasurementsFromClient pulls the client profile onto the unit', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    const client = await createClient(db, shopId, { name: 'Mrs. Okello' })
+    await saveMeasurements(db, client.id, { chest: 88 })
+
+    const units = await db.order_units.find({ selector: { order_id: orderId } }).exec()
+    const unitId = units[0]!.id
+
+    await copyMeasurementsFromClient(db, unitId, client.id)
+
+    const unit = await db.order_units.findOne(unitId).exec()
+    expect(unit?.measurements).toEqual({ chest: 88 })
+  })
+
+  it('saveUnitMeasurementsToClient pushes the snapshot up without automatic sync either way', async () => {
+    const { db, clientId, unitId } = await unitWithMeasurements({ chest: 72 })
+
+    await saveUnitMeasurementsToClient(db, unitId, clientId)
+
+    const profile = await db.measurement_profiles.findOne({ selector: { client_id: clientId } }).exec()
+    expect(profile?.values).toEqual({ chest: 72 })
+
+    // One-way: pushing to the client must not retroactively alter the unit.
+    await saveMeasurements(db, clientId, { chest: 100 })
+    const unit = await db.order_units.findOne(unitId).exec()
+    expect(unit?.measurements).toEqual({ chest: 72 })
   })
 })

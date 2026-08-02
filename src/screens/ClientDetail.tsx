@@ -249,16 +249,34 @@ function EditClientSheet({
 function Measurements({ clientId }: { clientId: string }) {
   const { db, shop, activeStaff } = useCurrentShop()
 
+  // $ne rather than true, so fields predating this column (undefined active)
+  // still count as active instead of being silently dropped from the form.
   const fieldDocs = useRxQuery(
     () =>
       db.measurement_fields.find({
-        selector: { shop_id: shop.id },
+        selector: { shop_id: shop.id, active: { $ne: false } },
         sort: [{ display_order: 'asc' }],
       }).$,
     [db, shop.id],
     [],
   )
   const fields = useMemo(() => fieldDocs.map((doc) => doc.toJSON()), [fieldDocs])
+
+  // Retired fields load separately so a recorded value can still be shown,
+  // read-only, instead of becoming unlabellable once a field is retired.
+  const retiredFieldDocs = useRxQuery(
+    () =>
+      db.measurement_fields.find({
+        selector: { shop_id: shop.id, active: false },
+        sort: [{ display_order: 'asc' }],
+      }).$,
+    [db, shop.id],
+    [],
+  )
+  const retiredFields = useMemo(
+    () => retiredFieldDocs.map((doc) => doc.toJSON()),
+    [retiredFieldDocs],
+  )
 
   const profileDoc = useRxQuery(
     () => db.measurement_profiles.findOne({ selector: { client_id: clientId } }).$,
@@ -273,6 +291,13 @@ function Measurements({ clientId }: { clientId: string }) {
 
   const stored = useMemo(() => profileDoc?.toJSON().values ?? {}, [profileDoc])
 
+  // The retired-field fix: a value recorded against a since-retired field
+  // must stay visible and labelled, just no longer editable.
+  const retiredWithValue = useMemo(
+    () => retiredFields.filter((field) => stored[field.id] !== undefined),
+    [retiredFields, stored],
+  )
+
   // Keep in step with what replication brings in, but never clobber
   // half-typed input: a measurement arriving from the other device mid-entry
   // must not wipe what is being typed here.
@@ -283,7 +308,7 @@ function Measurements({ clientId }: { clientId: string }) {
     setDraft(next)
   }, [stored, dirty])
 
-  if (fields.length === 0) {
+  if (fields.length === 0 && retiredWithValue.length === 0) {
     return (
       <section>
         <SectionTitle>Measurements</SectionTitle>
@@ -341,6 +366,14 @@ function Measurements({ clientId }: { clientId: string }) {
                     setDraft({ ...draft, [field.id]: (e.target as HTMLInputElement).value })
                   }}
                 />
+              </Field>
+            ))}
+            {retiredWithValue.map((field) => (
+              <Field
+                key={field.id}
+                label={`${field.unit ? `${field.label} (${field.unit})` : field.label} (retired)`}
+              >
+                <Input value={String(stored[field.id])} disabled readOnly />
               </Field>
             ))}
           </div>
