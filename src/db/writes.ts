@@ -305,13 +305,17 @@ const TERMINAL_STAGE_TIMESTAMP_FIELD: Partial<Record<OrderStage, keyof OrderDoc>
  *
  * History first -- see the transaction note at the top of this file. Entering
  * a terminal stage also stamps its own column, in the same patch as `stage`,
- * so the two can never disagree.
+ * so the two can never disagree. `extraPatch` folds a caller's own fields
+ * (e.g. cancelOrder's reason) into that same single patch, for the same
+ * reason: two patches invite a crash between them leaving one written and not
+ * the other.
  */
 export async function changeOrderStage(
   db: AppDatabase,
   orderId: string,
   toStage: OrderStage,
   staffId?: string,
+  extraPatch?: Partial<OrderDoc>,
 ): Promise<void> {
   const doc = await db.orders.findOne(orderId).exec()
   if (!doc) throw new Error('That order no longer exists on this device.')
@@ -336,12 +340,14 @@ export async function changeOrderStage(
     stage: toStage,
     updated_at: timestamp,
     ...(timestampField ? { [timestampField]: timestamp } : {}),
+    ...extraPatch,
   })
 }
 
 /**
  * Cancels an order: routes through changeOrderStage so the stage history stays
- * the one place that logs the transition, then records why.
+ * the one place that logs the transition, and the reason lands in the same
+ * patch as the stage change rather than a second write that could go missing.
  */
 export async function cancelOrder(
   db: AppDatabase,
@@ -349,10 +355,9 @@ export async function cancelOrder(
   reason: string,
   staffId?: string,
 ): Promise<void> {
-  await changeOrderStage(db, orderId, 'cancelled', staffId)
-
-  const doc = await db.orders.findOne(orderId).exec()
-  await doc?.patch({ cancellation_reason: reason.trim() || undefined })
+  await changeOrderStage(db, orderId, 'cancelled', staffId, {
+    cancellation_reason: reason.trim() || undefined,
+  })
 }
 
 /**

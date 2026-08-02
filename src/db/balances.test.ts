@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { calculateBalance, signedAmountMinor } from './balances'
+import type { OrderDoc } from './schema'
 
 const order = { id: 'order-1', price_total_minor: 250000 }
 
@@ -94,12 +95,40 @@ describe('calculateBalance', () => {
     expect(balance.fully_paid).toBe(false)
   })
 
-  it('never counts a rental deposit as payment', () => {
-    // rental_deposit_minor is not an input to this function at all. If it ever
-    // becomes one, this test should be deleted deliberately, not quietly.
-    const balance = calculateBalance({ id: 'o1', price_total_minor: 100000 }, [
-      { amount_minor: 100000, kind: 'payment' },
+  it('ignores rental_deposit_minor even when the order object carries one', () => {
+    // The signature does not accept rental_deposit_minor at all -- Pick<> only
+    // admits 'id' and 'price_total_minor'. A type assertion smuggles a
+    // non-zero deposit past that so the deposit is present in the input and
+    // provably ignored, rather than merely absent (a fixture that never sets
+    // the field would pass just as well if this invariant were violated).
+    const orderWithDeposit = {
+      id: 'o1',
+      price_total_minor: 100000,
+      rental_deposit_minor: 50000,
+    } as Pick<OrderDoc, 'id' | 'price_total_minor'>
+
+    const payments = [{ amount_minor: 40000, kind: 'payment' as const }]
+
+    const withDeposit = calculateBalance(orderWithDeposit, payments)
+    const withoutDeposit = calculateBalance({ id: 'o1', price_total_minor: 100000 }, payments)
+
+    expect(withDeposit).toEqual(withoutDeposit)
+    expect(withDeposit.amount_paid_minor).toBe(40000)
+    expect(withDeposit.balance_minor).toBe(60000)
+  })
+
+  it('reports a larger balance when refunds exceed everything paid', () => {
+    // Not a workflow the shop should ever reach on purpose -- a refund larger
+    // than what was collected -- but calculateBalance is a pure, unclamped
+    // sum. Same convention as the overpayment case above (report the real
+    // number, do not clamp), just the mirror direction: net money-in goes
+    // negative, so the balance owed grows past the order's own total.
+    const result = calculateBalance({ id: 'o1', price_total_minor: 100000 }, [
+      { amount_minor: 50000, kind: 'payment' },
+      { amount_minor: 80000, kind: 'refund' },
     ])
-    expect(balance.fully_paid).toBe(true)
+    expect(result.amount_paid_minor).toBe(-30000)
+    expect(result.balance_minor).toBe(130000)
+    expect(result.fully_paid).toBe(false)
   })
 })
