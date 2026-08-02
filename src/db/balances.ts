@@ -27,16 +27,24 @@ export interface OrderBalance {
   fully_paid: boolean
 }
 
+/**
+ * A payment's contribution to money-in, signed by kind.
+ *
+ * Exported because "collected" is aggregated in more than one place -- the
+ * order balance here and the totals on the Reports screen. Both must agree
+ * with the `order_balances` view's `case when pm.kind = 'refund'` arm, and
+ * the surest way to keep three copies in agreement is to have one.
+ */
+export function signedAmountMinor(payment: Pick<PaymentDoc, 'amount_minor' | 'kind'>): number {
+  return payment.kind === 'refund' ? -payment.amount_minor : payment.amount_minor
+}
+
 /** Pure calculation. Given an order and its payments, what is owed. */
 export function calculateBalance(
   order: Pick<OrderDoc, 'id' | 'price_total_minor'>,
   payments: readonly Pick<PaymentDoc, 'amount_minor' | 'kind'>[],
 ): OrderBalance {
-  // A refund gives money back, so it subtracts from what the client has paid.
-  const paidMinor = payments.reduce(
-    (sum, p) => sum + (p.kind === 'refund' ? -p.amount_minor : p.amount_minor),
-    0,
-  )
+  const paidMinor = payments.reduce((sum, p) => sum + signedAmountMinor(p), 0)
 
   return {
     order_id: order.id,

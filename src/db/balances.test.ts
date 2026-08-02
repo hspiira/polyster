@@ -1,7 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { calculateBalance } from './balances'
+import { calculateBalance, signedAmountMinor } from './balances'
 
 const order = { id: 'order-1', price_total_minor: 250000 }
+
+describe('signedAmountMinor', () => {
+  it('counts a payment as money in', () => {
+    expect(signedAmountMinor({ amount_minor: 5000, kind: 'payment' })).toBe(5000)
+  })
+
+  // Both kinds are stored positive (schema.ts: "a refund is a positive row
+  // with kind 'refund'"), so the sign has to come from the kind, not the value.
+  it('counts a refund as money back out', () => {
+    expect(signedAmountMinor({ amount_minor: 5000, kind: 'refund' })).toBe(-5000)
+  })
+
+  // The Reports screen aggregates "collected" separately from calculateBalance.
+  // Both go through here so they cannot drift from each other, or from the
+  // order_balances view's matching `case when pm.kind = 'refund'` arm.
+  it('is what every money-in total is summed through', () => {
+    const rows = [
+      { amount_minor: 100000, kind: 'payment' as const },
+      { amount_minor: 30000, kind: 'refund' as const },
+    ]
+    expect(rows.reduce((sum, row) => sum + signedAmountMinor(row), 0)).toBe(70000)
+  })
+})
 
 describe('calculateBalance', () => {
   it('reports the full price outstanding when nothing has been paid', () => {

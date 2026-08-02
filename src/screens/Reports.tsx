@@ -12,7 +12,7 @@ import { useMemo } from 'preact/hooks'
 import { Card, InfoNote, Screen, SectionTitle } from '../components/ui'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { observeShopBalances, signedAmountMinor } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { addDays, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
@@ -64,10 +64,13 @@ export function Reports() {
       const payment = doc.toJSON()
       if (!orderIds.has(payment.order_id)) continue
       const day = payment.payment_date.slice(0, 10)
-      all += payment.amount_minor
-      if (day >= monthStart) month += payment.amount_minor
-      if (day >= weekStart) week += payment.amount_minor
-      if (byDay.has(day)) byDay.set(day, (byDay.get(day) ?? 0) + payment.amount_minor)
+      // Signed by kind: a refund is money going back out, so counting it as
+      // collected would overstate every figure on this screen.
+      const amount = signedAmountMinor(payment)
+      all += amount
+      if (day >= monthStart) month += amount
+      if (day >= weekStart) week += amount
+      if (byDay.has(day)) byDay.set(day, (byDay.get(day) ?? 0) + amount)
     }
 
     return { week, month, all, trend: days.map((day) => byDay.get(day) ?? 0) }
