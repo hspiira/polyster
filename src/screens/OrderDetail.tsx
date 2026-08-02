@@ -36,8 +36,14 @@ import { IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeBalance, type OrderBalance } from '../db/balances'
-import { changeOrderStage, recordPayment, voidPayment } from '../db/writes'
-import { PAYMENT_METHODS, type OrderDoc, type PaymentDoc, type PaymentMethod } from '../db/schema'
+import { changeOrderStage, logMessage, recordPayment, voidPayment } from '../db/writes'
+import {
+  PAYMENT_METHODS,
+  type OrderDoc,
+  type PaymentDoc,
+  type PaymentMethod,
+  type StaffDoc,
+} from '../db/schema'
 import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate } from '../lib/dates'
 import { balanceReminder, suggestedMessage, waLink } from '../lib/whatsapp'
@@ -192,6 +198,8 @@ export function OrderDetail() {
           <WhatsAppSection
             shopName={shop.name}
             clientName={client.name}
+            clientId={client.id}
+            orderId={orderId}
             phone={client.phone}
             order={order}
             balance={balance}
@@ -474,6 +482,8 @@ function PaymentsSection({
 function WhatsAppSection({
   shopName,
   clientName,
+  clientId,
+  orderId,
   phone,
   order,
   balance,
@@ -481,15 +491,36 @@ function WhatsAppSection({
 }: {
   shopName: string
   clientName: string
+  clientId: string
+  orderId: string
   phone: string | undefined
   order: OrderDoc
   balance: OrderBalance
   overdue: boolean
 }) {
+  const { db, staff, activeStaff } = useCurrentShop()
   const context = { shopName, clientName, order, balance }
   const statusLink = waLink(phone, suggestedMessage(context))
   const reminderLink = waLink(phone, balanceReminder(context))
   const showReminder = overdue && balance.balance_minor > 0 && reminderLink
+
+  // Logged on click, not on render: this is the moment the shop commits to
+  // sending, not merely that a link exists for them to tap.
+  function logStatusUpdate(): void {
+    void logMessage(
+      db,
+      { client_id: clientId, order_id: orderId, template: 'stage_update', order_stage: order.stage },
+      activeStaff?.id,
+    )
+  }
+
+  function logBalanceReminder(): void {
+    void logMessage(
+      db,
+      { client_id: clientId, order_id: orderId, template: 'balance_reminder' },
+      activeStaff?.id,
+    )
+  }
 
   if (!statusLink) {
     return (
@@ -515,21 +546,47 @@ function WhatsAppSection({
           Opens WhatsApp with the message ready. Nothing is sent until you tap send.
         </p>
         <div class="space-y-2">
-          <a href={statusLink} target="_blank" rel="noreferrer" class="block">
+          <a href={statusLink} target="_blank" rel="noreferrer" class="block" onClick={logStatusUpdate}>
             <Button block>
               <IconWhatsApp size={18} /> Send {STAGE_LABELS[order.stage].toLowerCase()} update
             </Button>
           </a>
           {showReminder && (
-            <a href={reminderLink} target="_blank" rel="noreferrer" class="block">
+            <a href={reminderLink} target="_blank" rel="noreferrer" class="block" onClick={logBalanceReminder}>
               <Button variant="secondary" block>
                 Send balance reminder
               </Button>
             </a>
           )}
         </div>
+        <LastReminderSent orderId={orderId} staff={staff} />
       </Card>
     </section>
+  )
+}
+
+/**
+ * Shows when a message was last sent for this order, and by whom if
+ * attributed. "Reminder sent" -- never "notified" -- because a wa.me link
+ * only records that the shop opened WhatsApp, not that WhatsApp delivered it.
+ */
+function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc[] }) {
+  const { db } = useCurrentShop()
+  const logDocs = useRxQuery(
+    () => db.message_log.find({ selector: { order_id: orderId }, sort: [{ sent_at: 'desc' }] }).$,
+    [db, orderId],
+    [],
+  )
+  const latest = logDocs[0]?.toJSON()
+  if (!latest) return null
+
+  const sender = latest.sent_by ? staff.find((member) => member.id === latest.sent_by)?.name : undefined
+
+  return (
+    <p class="mt-3 text-xs text-stone-500 dark:text-stone-400">
+      Reminder sent {formatDateTime(latest.sent_at)}
+      {sender ? ` by ${sender}` : ''}
+    </p>
   )
 }
 

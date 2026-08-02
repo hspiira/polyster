@@ -25,6 +25,7 @@ import {
   type FabricSource,
   type MeasurementFieldDoc,
   type MeasurementFieldType,
+  type MessageTemplate,
   type OrderDoc,
   type OrderStage,
   type OrderType,
@@ -624,6 +625,34 @@ export async function voidPayment(
     ...(reason?.trim() ? { void_reason: reason.trim() } : {}),
   })
   await patched.remove()
+}
+
+// ------------------------------------------------------------- message log
+
+/**
+ * Records that a WhatsApp message was sent -- intent, not delivery. A wa.me
+ * link hands off to WhatsApp and this app never learns what happened next.
+ */
+export async function logMessage(
+  db: AppDatabase,
+  input: {
+    client_id: string
+    order_id?: string
+    template: MessageTemplate
+    order_stage?: OrderStage
+  },
+  staffId?: string,
+): Promise<void> {
+  await db.message_log.insert({
+    id: newId(),
+    client_id: input.client_id,
+    channel: 'whatsapp',
+    template: input.template,
+    sent_at: now(),
+    ...(input.order_id ? { order_id: input.order_id } : {}),
+    ...(input.order_stage ? { order_stage: input.order_stage } : {}),
+    ...(staffId ? { sent_by: staffId } : {}),
+  })
 }
 
 // ------------------------------------------------------------------ staff

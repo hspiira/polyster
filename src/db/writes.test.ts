@@ -9,6 +9,7 @@ import {
   createClient,
   createMeasurementField,
   createOrder,
+  logMessage,
   reactivateMeasurementField,
   recordPayment,
   removeOrderUnit,
@@ -401,5 +402,32 @@ describe('unit measurements', () => {
     await saveMeasurements(db, clientId, { chest: 100 })
     const unit = await db.order_units.findOne(unitId).exec()
     expect(unit?.measurements).toEqual({ chest: 72 })
+  })
+})
+
+describe('logMessage', () => {
+  it('records a sent reminder against the order and the client', async () => {
+    const db = await freshDatabase()
+    const clientId = crypto.randomUUID()
+    const orderId = crypto.randomUUID()
+
+    await logMessage(db, { client_id: clientId, order_id: orderId, template: 'balance_reminder' })
+
+    const logged = await db.message_log.find({ selector: { order_id: orderId } }).exec()
+    expect(logged).toHaveLength(1)
+    expect(logged[0]?.channel).toBe('whatsapp')
+  })
+
+  it('attributes the send to staff when given', async () => {
+    const db = await freshDatabase()
+    const clientId = crypto.randomUUID()
+    const staffId = crypto.randomUUID()
+
+    await logMessage(db, { client_id: clientId, template: 'stage_update', order_stage: 'ready' }, staffId)
+
+    const logged = await db.message_log.find({ selector: { client_id: clientId } }).exec()
+    expect(logged[0]?.sent_by).toBe(staffId)
+    expect(logged[0]?.order_stage).toBe('ready')
+    expect(logged[0]?.order_id).toBeUndefined()
   })
 })
