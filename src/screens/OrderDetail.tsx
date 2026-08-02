@@ -92,9 +92,9 @@ export function OrderDetail() {
           title="Order not found"
           description="It may have been removed, or this device has not synced it yet."
           action={
-            <a href="/orders">
-              <Button variant="secondary">Back to orders</Button>
-            </a>
+            <Button linkTo="/orders" variant="secondary">
+              Back to orders
+            </Button>
           }
         />
       </Screen>
@@ -547,17 +547,20 @@ function WhatsAppSection({
           Opens WhatsApp with the message ready. Nothing is sent until you tap send.
         </p>
         <div class="space-y-2">
-          <a href={statusLink} target="_blank" rel="noreferrer" class="block" onClick={logStatusUpdate}>
-            <Button block>
-              <IconWhatsApp size={18} /> Send {STAGE_LABELS[order.stage].toLowerCase()} update
-            </Button>
-          </a>
+          <Button linkTo={statusLink} target="_blank" rel="noreferrer" block onClick={logStatusUpdate}>
+            <IconWhatsApp size={18} /> Send {STAGE_LABELS[order.stage].toLowerCase()} update
+          </Button>
           {showReminder && (
-            <a href={reminderLink} target="_blank" rel="noreferrer" class="block" onClick={logBalanceReminder}>
-              <Button variant="secondary" block>
-                Send balance reminder
-              </Button>
-            </a>
+            <Button
+              linkTo={reminderLink}
+              target="_blank"
+              rel="noreferrer"
+              variant="secondary"
+              block
+              onClick={logBalanceReminder}
+            >
+              Send balance reminder
+            </Button>
           )}
         </div>
         <LastReminderSent orderId={orderId} staff={staff} />

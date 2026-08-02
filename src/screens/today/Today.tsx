@@ -54,6 +54,14 @@ export function Today({ online, auth, replication }: TodayProps) {
   const greetingText = greeting(activeStaff?.name)
   const firstName = activeStaff?.name.split(/\s+/)[0]
 
+  // Only the count matters, and only on the empty state -- which branch of it
+  // to show. See the comment there.
+  const clientCount = useRxQuery(
+    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  ).length
+
   const { value: orderDocs, loaded } = useRxQueryStatus(
     () => db.orders.find({ selector: { shop_id: shop.id }, sort: [{ pickup_due_date: 'asc' }] }).$,
     [db, shop.id],
@@ -111,6 +119,11 @@ export function Today({ online, auth, replication }: TodayProps) {
   }
 
   if (orders.length === 0) {
+    // An order belongs to a client, so offering to take one before any client
+    // exists sends the owner to a form that immediately turns them away. On a
+    // brand-new shop the first step is the client, and this says so.
+    const needsClientFirst = clientCount === 0
+
     return (
       <Screen label="Today">
         <ProfileHeader
@@ -125,13 +138,21 @@ export function Today({ online, auth, replication }: TodayProps) {
           spacious
           illustration={<IllustrationOrders size={128} />}
           title="Nothing on yet"
-          description="Once you take an order, what is due and what is owed shows up here."
+          description={
+            needsClientFirst
+              ? 'Add the client you are sewing for, then take their order. What is due and what is owed shows up here.'
+              : 'Once you take an order, what is due and what is owed shows up here.'
+          }
           action={
-            <a href="/orders/new">
-              <Button>
+            needsClientFirst ? (
+              <Button linkTo="/clients">
+                <IconPlus size={18} /> Add your first client
+              </Button>
+            ) : (
+              <Button linkTo="/orders/new">
                 <IconPlus size={18} /> Take the first order
               </Button>
-            </a>
+            )
           }
         />
       </Screen>

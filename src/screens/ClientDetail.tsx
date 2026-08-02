@@ -66,9 +66,9 @@ export function ClientDetail() {
           title="Client not found"
           description="They may have been removed, or this device has not synced them yet."
           action={
-            <a href="/clients">
-              <Button variant="secondary">Back to clients</Button>
-            </a>
+            <Button linkTo="/clients" variant="secondary">
+              Back to clients
+            </Button>
           }
         />
       </Screen>
@@ -129,9 +129,7 @@ export function ClientDetail() {
               title="No orders yet"
               description={`Nothing has been ordered by ${client.name} so far.`}
               action={
-                <a href={`/orders/new?client=${client.id}`}>
-                  <Button>Take an order</Button>
-                </a>
+                <Button linkTo={`/orders/new?client=${client.id}`}>Take an order</Button>
               }
             />
           ) : (
@@ -317,9 +315,9 @@ function Measurements({ clientId }: { clientId: string }) {
           title="No measurement fields set up"
           description="Choose the measurements you actually take: chest and waist, or bust and hip, or whatever your work needs."
           action={
-            <a href="/settings/measurements">
-              <Button variant="secondary">Set them up</Button>
-            </a>
+            <Button linkTo="/settings/measurements" variant="secondary">
+              Set them up
+            </Button>
           }
         />
       </section>

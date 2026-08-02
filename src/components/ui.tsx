@@ -187,11 +187,24 @@ export function SectionTitle({
 
 // ----------------------------------------------------------------- buttons
 
-type ButtonProps = JSX.IntrinsicElements['button'] & {
+type ButtonBase = {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
   size?: 'md' | 'sm'
   block?: boolean
 }
+
+type ButtonProps = ButtonBase & JSX.IntrinsicElements['button'] & { linkTo?: never }
+
+/**
+ * `linkTo` renders an anchor that looks like a button.
+ *
+ * It exists so navigation actions stop being written as `<a><Button/></a>`.
+ * Interactive content cannot descend from an anchor: the nesting is invalid
+ * HTML, and it costs a keyboard user two tab stops and a screen-reader user a
+ * control announced inside a link.
+ */
+type ButtonLinkProps = ButtonBase &
+  Omit<JSX.IntrinsicElements['a'], 'href'> & { linkTo: string }
 
 /**
  * Fills only -- a secondary button is a quieter fill, never an outline -- and
@@ -209,24 +222,28 @@ const BUTTON_VARIANTS = {
   ghost: 'text-stone-600 active:bg-stone-200 dark:text-stone-300 dark:active:bg-stone-800',
 } as const
 
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  block = false,
-  class: className,
-  ...props
-}: ButtonProps) {
-  return (
-    <button
-      {...props}
-      class={`inline-flex items-center justify-center gap-2 rounded-control
-              font-medium transition-[transform,background-color] duration-100
-              active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40
-              ${size === 'sm' ? 'min-h-9 px-3 text-sm' : `${TAP} px-4 text-[15px]`}
-              ${block ? 'w-full' : ''}
-              ${BUTTON_VARIANTS[variant]} ${className ?? ''}`}
-    />
+export function Button(props: ButtonProps | ButtonLinkProps) {
+  const { variant = 'primary', size = 'md', block = false, class: className } = props
+
+  const classes = cn(
+    'inline-flex items-center justify-center gap-2 rounded-control',
+    'font-medium transition-[transform,background-color] duration-100',
+    'active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40',
+    size === 'sm' ? 'min-h-9 px-3 text-sm' : `${TAP} px-4 text-[15px]`,
+    block && 'w-full',
+    BUTTON_VARIANTS[variant],
+    className,
   )
+
+  if (props.linkTo) {
+    const { linkTo, variant: _v, size: _s, block: _b, class: _c, ...rest } = props
+    return <a {...rest} href={linkTo} class={classes} />
+  }
+
+  // Narrowed by hand: `linkTo?: never` does not discriminate the union well
+  // enough for TypeScript to keep anchor-only attributes out of the rest.
+  const { variant: _v, size: _s, block: _b, class: _c, linkTo: _l, ...rest } = props as ButtonProps
+  return <button {...rest} class={classes} />
 }
 
 /**

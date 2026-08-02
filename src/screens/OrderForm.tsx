@@ -40,6 +40,19 @@ interface Draft {
   notes: string
 }
 
+/** Fields validation can complain about. `notes` and `order_type` cannot fail. */
+type FieldKey = Exclude<keyof Draft, 'notes' | 'order_type'>
+
+/**
+ * A rejection carries which field it is about, so the message can be shown
+ * beside that field rather than in one note at the foot of the form -- where,
+ * on a phone, it is several fields below whatever it is complaining about.
+ */
+interface Invalid {
+  field: FieldKey
+  message: string
+}
+
 const BLANK: Draft = {
   client_id: '',
   order_type: 'tailor_made',
@@ -82,7 +95,22 @@ export function OrderForm() {
   }))
   const [loaded, setLoaded] = useState(!isEdit)
   const [error, setError] = useState<string | null>(null)
+  const [invalid, setInvalid] = useState<Invalid | null>(null)
   const [saving, setSaving] = useState(false)
+
+  /**
+   * Patch the draft and retire any complaint about a field being patched.
+   *
+   * Without the second half, a validation message stays on screen after the
+   * user has fixed the very thing it names, which reads as the app not having
+   * noticed.
+   */
+  function update(patch: Partial<Draft>) {
+    setDraft((current) => ({ ...current, ...patch }))
+    if (invalid && invalid.field in patch) setInvalid(null)
+  }
+
+  const errorFor = (field: FieldKey) => (invalid?.field === field ? invalid.message : null)
 
   useEffect(() => {
     if (!isEdit || loaded || !orderDoc) return
@@ -103,16 +131,24 @@ export function OrderForm() {
   // otherwise the shop's, since no order exists yet to snapshot from.
   const currency = orderDoc?.toJSON().currency ?? shop.currency
 
-  function validate(): NewOrderInput | string {
-    if (!draft.client_id) return 'Choose which client this order is for.'
-    if (!draft.item_description.trim()) return 'Describe the item, so it can be told apart later.'
+  function validate(): NewOrderInput | Invalid {
+    if (!draft.client_id) {
+      return { field: 'client_id', message: 'Choose which client this order is for.' }
+    }
+    if (!draft.item_description.trim()) {
+      return { field: 'item_description', message: 'Describe the item, so it can be told apart later.' }
+    }
 
     const price = parseToMinor(draft.price_total, currency)
-    if (price === null) return 'Enter the price as a number.'
+    if (price === null) {
+      return { field: 'price_total', message: 'Enter the price as a number.' }
+    }
 
-    if (!draft.pickup_due_date) return 'A pickup date is needed.'
+    if (!draft.pickup_due_date) {
+      return { field: 'pickup_due_date', message: 'A pickup date is needed.' }
+    }
     if (draft.return_due_date && draft.return_due_date < draft.pickup_due_date) {
-      return 'The return date cannot be before the pickup date.'
+      return { field: 'return_due_date', message: 'The return date cannot be before the pickup date.' }
     }
 
     return {
@@ -129,10 +165,11 @@ export function OrderForm() {
   async function submit(event: Event) {
     event.preventDefault()
     const result = validate()
-    if (typeof result === 'string') {
-      setError(result)
+    if ('field' in result) {
+      setInvalid(result)
       return
     }
+    setInvalid(null)
 
     setSaving(true)
     setError(null)
@@ -159,9 +196,9 @@ export function OrderForm() {
           <p class="text-sm text-stone-600 dark:text-stone-300">
             An order belongs to a client, and there are none yet. Add the client first.
           </p>
-          <a href="/clients" class="mt-3 block">
-            <Button block>Go to clients</Button>
-          </a>
+          <Button linkTo="/clients" block class="mt-3">
+            Go to clients
+          </Button>
         </Card>
       </Screen>
     )
@@ -174,11 +211,11 @@ export function OrderForm() {
       <form onSubmit={submit}>
         <Card>
           <div class="space-y-4">
-            <Field label="Client">
+            <Field label="Client" error={errorFor('client_id')}>
               <Select
                 value={draft.client_id}
                 onChange={(e) =>
-                  setDraft({ ...draft, client_id: (e.target as HTMLSelectElement).value })
+                  update({ client_id: (e.target as HTMLSelectElement).value })
                 }
               >
                 <option value="">Choose a client</option>
@@ -197,50 +234,57 @@ export function OrderForm() {
                   value: type,
                   label: ORDER_TYPE_LABELS[type],
                 }))}
-                onChange={(order_type) => setDraft({ ...draft, order_type })}
+                onChange={(order_type) => update({ order_type })}
                 label="Order type"
               />
             </Field>
 
-            <Field label="Item" hint="What is being made, rented, or sold.">
+            <Field label="Item" hint="What is being made, rented, or sold." error={errorFor('item_description')}>
               <Input
                 value={draft.item_description}
                 placeholder="Navy two-piece suit"
                 onInput={(e) =>
-                  setDraft({ ...draft, item_description: (e.target as HTMLInputElement).value })
+                  update({ item_description: (e.target as HTMLInputElement).value })
                 }
               />
             </Field>
 
-            <Field label="Price">
+            <Field label="Price" hint={`Amount in ${currency}.`} error={errorFor('price_total')}>
               <Input
                 inputmode="decimal"
                 placeholder="0"
                 value={draft.price_total}
                 onInput={(e) =>
-                  setDraft({ ...draft, price_total: (e.target as HTMLInputElement).value })
+                  update({ price_total: (e.target as HTMLInputElement).value })
                 }
               />
             </Field>
 
-            <Field label={isRental ? 'Collection date' : 'Pickup date'}>
+            <Field
+              label={isRental ? 'Collection date' : 'Pickup date'}
+              error={errorFor('pickup_due_date')}
+            >
               <Input
                 type="date"
                 value={draft.pickup_due_date}
                 onInput={(e) =>
-                  setDraft({ ...draft, pickup_due_date: (e.target as HTMLInputElement).value })
+                  update({ pickup_due_date: (e.target as HTMLInputElement).value })
                 }
               />
             </Field>
 
             {isRental && (
-              <Field label="Return date" hint="When the item is due back.">
+              <Field
+                label="Return date"
+                hint="When the item is due back."
+                error={errorFor('return_due_date')}
+              >
                 <Input
                   type="date"
                   min={draft.pickup_due_date}
                   value={draft.return_due_date}
                   onInput={(e) =>
-                    setDraft({ ...draft, return_due_date: (e.target as HTMLInputElement).value })
+                    update({ return_due_date: (e.target as HTMLInputElement).value })
                   }
                 />
               </Field>
@@ -249,10 +293,11 @@ export function OrderForm() {
             <Field label="Notes">
               <Textarea
                 value={draft.notes}
-                onInput={(e) => setDraft({ ...draft, notes: (e.target as HTMLTextAreaElement).value })}
+                onInput={(e) => update({ notes: (e.target as HTMLTextAreaElement).value })}
               />
             </Field>
 
+            {/* Save failures only -- validation now speaks at the field it is about. */}
             {error && <ErrorNote>{error}</ErrorNote>}
           </div>
         </Card>
@@ -280,7 +325,7 @@ export function OrderForm() {
             >
               Cancel
             </Button>
-            <Button class="flex-[2]" type="submit" disabled={saving}>
+            <Button class="flex-2" type="submit" disabled={saving}>
               {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create order'}
             </Button>
           </div>
