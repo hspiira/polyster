@@ -14,6 +14,8 @@ import { useLocation, useRoute } from 'preact-iso'
 import {
   Button,
   Card,
+  CONTAINER,
+  cn,
   ErrorNote,
   Field,
   Input,
@@ -312,11 +314,14 @@ export function OrderForm() {
           true, and the tab bar's centre action ended up overlapping the submit
           button.
         */}
+        {/* `lg:left-56` clears the side rail. `inset-x-0` alone is measured
+            from the viewport, not from the padded page, so on desktop this bar
+            ran underneath the rail. */}
         <div
-          class="fixed inset-x-0 bottom-0 z-20 bg-white px-4 pt-3 dark:bg-stone-900
+          class="fixed inset-x-0 bottom-0 z-20 bg-white px-4 pt-3 lg:left-56 dark:bg-stone-900
                  pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         >
-          <div class="mx-auto flex max-w-lg gap-2">
+          <div class={cn(CONTAINER, 'flex gap-2')}>
             <Button
               variant="secondary"
               class="flex-1"

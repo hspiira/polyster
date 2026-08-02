@@ -74,8 +74,10 @@ export function TabBar() {
 
   return (
     <nav
+      // Hidden from lg up, where SideRail takes over. A thumb-reached bar at
+      // the bottom of a 1440px screen is a long way from the pointer.
       class="fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30
-             flex justify-center px-4"
+             flex justify-center px-4 lg:hidden"
       aria-label="Main"
     >
       {/* Sized by its contents, not by the viewport: `w-full` with
@@ -131,6 +133,62 @@ function Tab({
       {/* Kept in the DOM either way for assistive tech; hidden visually when
           inactive so the label reads exactly once on screen. */}
       <span class={active ? 'text-[13px] font-semibold' : 'sr-only'}>{label}</span>
+    </a>
+  )
+}
+
+/**
+ * Desktop navigation: a fixed rail down the left edge, from `lg` up.
+ *
+ * The same destinations as the tab bar and in the same order, so the mental
+ * model does not change with the window -- what changes is reachability. A
+ * bottom bar is where a thumb is on a handset and where nothing is on a
+ * desktop, so above `lg` the bar hides and this takes its place.
+ *
+ * Labels are always shown here. The tab bar labels only the active item
+ * because four labels do not fit at 390px; that constraint does not exist at
+ * 1024px, and unlabelled icons would be a needless guessing game.
+ */
+export function SideRail() {
+  const { path } = useLocation()
+
+  return (
+    <nav
+      class="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col gap-1 border-r
+             border-stone-200 bg-white px-3 py-5 lg:flex
+             dark:border-stone-800 dark:bg-stone-900"
+      aria-label="Main"
+    >
+      <a
+        href="/orders/new"
+        class="mb-3 flex min-h-11 items-center justify-center gap-2 rounded-control
+               bg-stone-900 px-4 text-[15px] font-medium text-white
+               dark:bg-white dark:text-stone-900"
+      >
+        <IconPlus size={20} /> Take an order
+      </a>
+
+      {[...LEADING_TABS, ...TRAILING_TABS].map((tab) => (
+        <RailItem key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
+      ))}
+    </nav>
+  )
+}
+
+function RailItem({ href, label, Icon, active }: TabDef & { active: boolean }) {
+  return (
+    <a
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      class={`flex min-h-11 items-center gap-3 rounded-control px-3.5 text-[15px]
+              transition-colors ${
+                active
+                  ? 'bg-stone-900 font-medium text-white dark:bg-white dark:text-stone-900'
+                  : 'text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800'
+              }`}
+    >
+      <Icon size={20} stroke-width={active ? 2.1 : 1.75} />
+      {label}
     </a>
   )
 }

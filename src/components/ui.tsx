@@ -116,7 +116,8 @@ export function Screen({
       <header class={`sticky top-0 z-20 ${PAGE}`}>
         <div
           class={cn(
-            'mx-auto flex max-w-lg items-center gap-2 px-4',
+            CONTAINER,
+            'flex items-center gap-2 px-4',
             rowHasContent ? 'pt-1 pb-3' : subheader ? 'pt-1' : 'py-0',
           )}
         >
@@ -144,12 +145,14 @@ export function Screen({
           </div>
           {action}
         </div>
-        {subheader && <div class="mx-auto max-w-lg px-4 pb-3">{subheader}</div>}
+        {subheader && <div class={cn(CONTAINER, 'px-4 pb-3')}>{subheader}</div>}
       </header>
 
       {/* TabBar floats now (1rem inset + its own ~60px height, on top of the
           safe area), so this clears it directly rather than a flat guess. */}
-      <div class="mx-auto w-full max-w-lg px-4 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+      {/* Bottom clearance is for the tab bar, which only exists below lg --
+          above it the side rail takes over and the padding is dead space. */}
+      <div class={cn(CONTAINER, 'px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-10')}>
         {children}
       </div>
     </div>
@@ -184,6 +187,17 @@ export function SectionTitle({
     </div>
   )
 }
+
+/**
+ * The shared content measure.
+ *
+ * A phone is one column and stays one column. Wider viewports get a wider
+ * measure rather than a phone-shaped ribbon centred in grey -- but only up to
+ * a point: past roughly 48rem a line of body text stops being comfortable to
+ * read, so the growth stops there and the extra room goes to layout (two
+ * panes, multi-column sections) rather than to longer lines.
+ */
+export const CONTAINER = 'mx-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl'
 
 // ----------------------------------------------------------------- buttons
 
