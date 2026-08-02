@@ -162,7 +162,24 @@ export const ordersStrategies = {
       price_adjustment_minor: 0,
       rental_deposit_minor: 0,
       currency: DEFAULT_CURRENCY,
-      reference: generateOrderReference(new Date(doc.created_at)),
+      reference: generateOrderReference(new Date(doc.created_at ?? Date.now())),
+    }
+  },
+}
+
+/** Exported so a test can exercise the strategy RxDB actually ships with. */
+export const paymentsStrategies = {
+  1: (doc: PaymentDocV0): PaymentDoc => {
+    const { amount, ...rest } = doc
+    return {
+      ...rest,
+      // Mirrors the `round(amount)::bigint <= 0` pre-flight in
+      // 0005_order_units_and_schema_pass.sql. The server can reject and ask
+      // the shop to retry; the client cannot -- refusing to migrate would
+      // brick the only copy of the shop's data, so it clamps instead.
+      amount_minor: Math.max(1, Math.round(amount)),
+      kind: 'payment',
+      created_at: doc.payment_date,
     }
   },
 }
@@ -272,21 +289,7 @@ export async function createDatabase(
       },
     },
     orders: { schema: orderSchema, migrationStrategies: ordersStrategies },
-    payments: {
-      schema: paymentSchema,
-      migrationStrategies: {
-        // v1: amount -> amount_minor, plus kind and a created_at distinct from payment_date.
-        1: (doc: PaymentDocV0): PaymentDoc => {
-          const { amount, ...rest } = doc
-          return {
-            ...rest,
-            amount_minor: Math.round(amount),
-            kind: 'payment',
-            created_at: doc.payment_date,
-          }
-        },
-      },
-    },
+    payments: { schema: paymentSchema, migrationStrategies: paymentsStrategies },
     order_stage_history: {
       schema: orderStageHistorySchema,
       migrationStrategies: {

@@ -16,9 +16,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createRxDatabase, type RxJsonSchema } from 'rxdb'
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv'
-import { createDatabase, ordersStrategies, type AppDatabase } from './database'
+import { createDatabase, ordersStrategies, paymentsStrategies, type AppDatabase } from './database'
 import { REPLICATED_TABLES } from './replication'
-import { orderSchema } from './schema'
+import { orderSchema, paymentSchema } from './schema'
 
 const created: AppDatabase[] = []
 
@@ -404,7 +404,67 @@ describe('schema migration', () => {
       currency: 'UGX',
     })
     expect(migrated?.toJSON()).not.toHaveProperty('price_total')
-    expect(migrated?.get('reference')).toMatch(/^[0-9]{4}-[0-9A-Z]{5}$/)
+    // Ties the reference to this order's own created_at (2026-08-01), not
+    // today's date -- the DDMM contract the SQL backfill mirrors.
+    expect(migrated?.get('reference')).toMatch(/^0108-[0-9A-Z]{5}$/)
+
+    await after.remove()
+  })
+
+  // v0 shape: a plain decimal amount, no kind/void trail. Pinned rather than
+  // imported for the same reason as ordersSchemaV0.
+  interface PaymentDocV0 {
+    id: string
+    order_id: string
+    amount: number
+    payment_date: string
+    method: string
+    recorded_by?: string
+    notes?: string
+  }
+
+  const paymentsSchemaV0: RxJsonSchema<PaymentDocV0> = {
+    version: 0,
+    primaryKey: 'id',
+    type: 'object',
+    properties: {
+      id: { type: 'string', maxLength: 36 },
+      order_id: { type: 'string', maxLength: 36 },
+      amount: { type: 'number', exclusiveMinimum: 0 },
+      payment_date: { type: 'string', format: 'date-time' },
+      method: { type: 'string', enum: ['cash', 'mobile_money', 'bank', 'other'] },
+      recorded_by: { type: 'string', maxLength: 36 },
+      notes: { type: 'string' },
+    },
+    required: ['id', 'order_id', 'amount', 'payment_date', 'method'],
+  }
+
+  it('carries a real v0 payment across the amount rename, clamping a sub-unit amount up to 1', async () => {
+    const name = `payments_migration_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    const before = await open(name)
+    await before.addCollections({
+      payments: { schema: paymentsSchemaV0, migrationStrategies: {} },
+    })
+    await before.collections.payments?.insert({
+      id: 'p1',
+      order_id: crypto.randomUUID(),
+      amount: 0.4,
+      payment_date: '2026-08-01T09:00:00.000Z',
+      method: 'cash',
+    })
+    await before.close()
+
+    const after = await open(name)
+    await after.addCollections({
+      payments: { schema: paymentSchema, migrationStrategies: paymentsStrategies },
+    })
+
+    const migrated = await after.collections.payments?.findOne('p1').exec()
+    expect(migrated?.get('amount_minor')).toBe(1)
+    expect(Number.isInteger(migrated?.get('amount_minor'))).toBe(true)
+    expect(migrated?.get('amount_minor')).toBeGreaterThan(0)
+    expect(migrated?.toJSON()).not.toHaveProperty('amount')
 
     await after.remove()
   })

@@ -280,7 +280,7 @@ export function OrderForm() {
             >
               Cancel
             </Button>
-            <Button class="flex-2" type="submit" disabled={saving}>
+            <Button class="flex-[2]" type="submit" disabled={saving}>
               {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create order'}
             </Button>
           </div>

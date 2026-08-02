@@ -211,6 +211,18 @@ export async function createOrder(
 
   await db.orders.insert(doc)
 
+  // The opening stage is part of the trail too. Without it, an order's history
+  // starts at its first change rather than at its creation. Written before the
+  // unit, per the module header: the history row is the one write that must
+  // never be silently dropped.
+  await db.order_stage_history.insert({
+    id: newId(),
+    order_id: doc.id,
+    to_stage: 'measured',
+    changed_at: timestamp,
+    ...(staffId ? { changed_by: staffId } : {}),
+  })
+
   await db.order_units.insert({
     id: crypto.randomUUID(),
     order_id: doc.id,
@@ -222,16 +234,6 @@ export async function createOrder(
     done: false,
     created_at: timestamp,
     updated_at: timestamp,
-  })
-
-  // The opening stage is part of the trail too. Without it, an order's history
-  // starts at its first change rather than at its creation.
-  await db.order_stage_history.insert({
-    id: newId(),
-    order_id: doc.id,
-    to_stage: 'measured',
-    changed_at: timestamp,
-    ...(staffId ? { changed_by: staffId } : {}),
   })
 
   return doc
