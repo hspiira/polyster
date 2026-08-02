@@ -94,6 +94,36 @@ describe('backfillOrderUnits', () => {
     expect(await db.order_units.count().exec()).toBe(1)
   })
 
+  // Regression guard: a unit soft-deleted mid-archiveOrder (order removed,
+  // unit removal not yet reached) must read as "already had one", not as
+  // "predates order units" -- ordinary queries hide soft-deleted docs, which
+  // is exactly what made the two indistinguishable before this fix.
+  it('does not resurrect a unit that was soft-deleted, rather than never created', async () => {
+    const db = await freshDatabase()
+    const orderId = await insertOrderWithoutUnits(db, { summary: 'Kanzu', price_total_minor: 45000 })
+    const timestamp = new Date().toISOString()
+
+    const unit = await db.order_units.insert({
+      id: orderId,
+      order_id: orderId,
+      position: 0,
+      item_description: 'Kanzu, navy',
+      price_minor: 45000,
+      measurements: {},
+      fabric_source: 'shop',
+      done: false,
+      created_at: timestamp,
+      updated_at: timestamp,
+    })
+    await unit.remove()
+
+    expect(await backfillOrderUnits(db)).toBe(0)
+    expect(await db.order_units.count().exec()).toBe(0)
+
+    const [raw] = await db.order_units.storageInstance.findDocumentsById([orderId], true)
+    expect(raw?._deleted).toBe(true)
+  })
+
   it('clamps a stale adjustment that would drive the recovered price negative', async () => {
     const db = await freshDatabase()
     const orderId = await insertOrderWithoutUnits(db, {

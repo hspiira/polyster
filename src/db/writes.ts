@@ -399,16 +399,18 @@ export async function cancelOrder(
 }
 
 /**
- * Soft-deletes the order and its units. Units first: `_deleted` does not
- * trigger Postgres' `on delete cascade`, so if this order's remove failed
- * partway, an archived order must never be left with live units.
+ * Soft-deletes the order, then its units. Order first: an archived order left
+ * with live units is orphaned but harmless, whereas a live order interrupted
+ * between these two awaits with zero live units is indistinguishable from one
+ * that predates order_units -- backfillOrderUnits would fabricate a unit for
+ * it from stale order data on the next app start.
  */
 export async function archiveOrder(db: AppDatabase, orderId: string): Promise<void> {
-  const units = await db.order_units.find({ selector: { order_id: orderId } }).exec()
-  await Promise.all(units.map((unit) => unit.remove()))
-
   const doc = await db.orders.findOne(orderId).exec()
   await doc?.remove()
+
+  const units = await db.order_units.find({ selector: { order_id: orderId } }).exec()
+  await Promise.all(units.map((unit) => unit.remove()))
 }
 
 // ----------------------------------------------------------- order units

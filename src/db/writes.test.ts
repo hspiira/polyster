@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createDatabase, type AppDatabase } from './database'
+import { backfillOrderUnits } from './backfill'
 import {
   addOrderUnit,
+  archiveOrder,
   buildSummary,
   cancelOrder,
   changeOrderStage,
@@ -276,6 +278,34 @@ describe('cancelOrder', () => {
 
     const history = await db.order_stage_history.find({ selector: { order_id: orderId } }).exec()
     expect(history.some((entry) => entry.to_stage === 'cancelled')).toBe(true)
+  })
+})
+
+describe('archiveOrder', () => {
+  it('soft-deletes the order and its units, order first', async () => {
+    const { db, orderId, unitIds } = await orderWithUnits([45000, 80000])
+
+    await archiveOrder(db, orderId)
+
+    expect(await db.orders.findOne(orderId).exec()).toBeNull()
+    expect(await db.order_units.find({ selector: { order_id: orderId } }).exec()).toEqual([])
+
+    const [rawOrder] = await db.orders.storageInstance.findDocumentsById([orderId], true)
+    expect(rawOrder?._deleted).toBe(true)
+    for (const unitId of unitIds) {
+      const [rawUnit] = await db.order_units.storageInstance.findDocumentsById([unitId], true)
+      expect(rawUnit?._deleted).toBe(true)
+    }
+  })
+
+  // The ordering this test guards: backfillOrderUnits must never resurrect an
+  // order archived this way, even reading straight after the archive.
+  it('leaves nothing for backfillOrderUnits to fabricate a unit for', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+
+    await archiveOrder(db, orderId)
+
+    expect(await backfillOrderUnits(db)).toBe(0)
   })
 })
 

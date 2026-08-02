@@ -16,10 +16,13 @@ export async function backfillOrderUnits(db: AppDatabase): Promise<number> {
   let created = 0
 
   for (const order of orders) {
-    const existing = await db.order_units.count({ selector: { order_id: order.id } }).exec()
-    if (existing > 0) continue
-
     try {
+      // Reads through the storage instance rather than a query: RxDB queries
+      // hide soft-deleted docs, so a unit removed mid-archiveOrder would
+      // otherwise look identical to "never had one" and get resurrected.
+      const [existing] = await db.order_units.storageInstance.findDocumentsById([order.id], true)
+      if (existing) continue
+
       await db.order_units.insert({
         id: order.id,
         order_id: order.id,
