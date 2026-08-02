@@ -271,6 +271,9 @@ export function buildMoneySummary(
   let outstanding_minor = 0
 
   for (const order of orders) {
+    // A cancelled order is not chased for money -- excluded here, at the
+    // aggregate, rather than in calculateBalance, which stays dumb.
+    if (order.stage === 'cancelled') continue
     const owed = balances.get(order.id)?.balance_minor ?? 0
     if (owed <= 0) continue
 

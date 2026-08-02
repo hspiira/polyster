@@ -74,12 +74,19 @@ export function Reports() {
   }, [paymentDocs, orderIds, now])
 
   const outstanding = useMemo(() => {
-    const owing = [...balances.values()].filter((balance) => balance.balance_minor > 0)
+    // A cancelled order still carries a balance but is not chased for money,
+    // so it is excluded from this aggregate rather than from calculateBalance.
+    const cancelledIds = new Set(
+      orders.filter((order) => order.stage === 'cancelled').map((order) => order.id),
+    )
+    const owing = [...balances.entries()]
+      .filter(([orderId, balance]) => balance.balance_minor > 0 && !cancelledIds.has(orderId))
+      .map(([, balance]) => balance)
     return {
       count: owing.length,
       total: owing.reduce((sum, balance) => sum + balance.balance_minor, 0),
     }
-  }, [balances])
+  }, [balances, orders])
 
   const stageCounts = useMemo(() => {
     const counts = new Map(ORDER_STAGES.map((stage) => [stage, 0]))

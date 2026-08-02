@@ -62,11 +62,13 @@ export function stagesFor(orderType: OrderType): readonly OrderStage[] {
 /**
  * The next stage in the flow, or null at the end.
  *
- * Returns the flow's first stage if the current one is not in it -- which
- * happens when an order's type is changed after the fact, and is better than
- * leaving the shop with no way forward.
+ * 'cancelled' is a terminal exit with no next stage, never a detour back to
+ * the flow's first stage. For any other stage missing from the flow --
+ * an order's type changed after the fact -- falling back to the first stage
+ * is better than leaving the shop with no way forward.
  */
 export function nextStage(orderType: OrderType, current: OrderStage): OrderStage | null {
+  if (current === 'cancelled') return null
   const flow = stagesFor(orderType)
   const index = flow.indexOf(current)
   if (index === -1) return flow[0] ?? null

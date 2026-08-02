@@ -30,6 +30,7 @@ import {
   type OrderType,
   type OrderUnitDoc,
   type PaymentDoc,
+  type PaymentKind,
   type PaymentMethod,
   type ShopDoc,
   type StaffDoc,
@@ -292,10 +293,19 @@ export async function updateOrder(
   })
 }
 
+/** The column each terminal stage stamps, alongside `stage` itself. */
+const TERMINAL_STAGE_TIMESTAMP_FIELD: Partial<Record<OrderStage, keyof OrderDoc>> = {
+  picked_up: 'picked_up_at',
+  returned: 'returned_at',
+  cancelled: 'cancelled_at',
+}
+
 /**
  * Advances an order to a new stage and records who did it.
  *
- * History first -- see the transaction note at the top of this file.
+ * History first -- see the transaction note at the top of this file. Entering
+ * a terminal stage also stamps its own column, in the same patch as `stage`,
+ * so the two can never disagree.
  */
 export async function changeOrderStage(
   db: AppDatabase,
@@ -320,7 +330,29 @@ export async function changeOrderStage(
     ...(staffId ? { changed_by: staffId } : {}),
   })
 
-  await doc.patch({ stage: toStage, updated_at: timestamp })
+  const timestampField = TERMINAL_STAGE_TIMESTAMP_FIELD[toStage]
+
+  await doc.patch({
+    stage: toStage,
+    updated_at: timestamp,
+    ...(timestampField ? { [timestampField]: timestamp } : {}),
+  })
+}
+
+/**
+ * Cancels an order: routes through changeOrderStage so the stage history stays
+ * the one place that logs the transition, then records why.
+ */
+export async function cancelOrder(
+  db: AppDatabase,
+  orderId: string,
+  reason: string,
+  staffId?: string,
+): Promise<void> {
+  await changeOrderStage(db, orderId, 'cancelled', staffId)
+
+  const doc = await db.orders.findOne(orderId).exec()
+  await doc?.patch({ cancellation_reason: reason.trim() || undefined })
 }
 
 /**
@@ -497,10 +529,15 @@ export async function setOrderAdjustment(
 
 // --------------------------------------------------------------- payments
 
+/**
+ * Records a payment or, with `kind: 'refund'`, a refund. A refund is always a
+ * positive amount -- the schema's `exclusiveMinimum: 0` forces this for both
+ * kinds -- never a negative payment row.
+ */
 export async function recordPayment(
   db: AppDatabase,
   orderId: string,
-  input: { amount_minor: number; method: PaymentMethod; notes?: string },
+  input: { amount_minor: number; method: PaymentMethod; notes?: string; kind?: PaymentKind },
   staffId?: string,
 ): Promise<PaymentDoc> {
   const timestamp = now()
@@ -508,7 +545,7 @@ export async function recordPayment(
     id: newId(),
     order_id: orderId,
     amount_minor: input.amount_minor,
-    kind: 'payment',
+    kind: input.kind ?? 'payment',
     payment_date: timestamp,
     created_at: timestamp,
     method: input.method,
@@ -524,10 +561,27 @@ export async function recordPayment(
  * constraint in the migration forces: a mistaken entry is retracted, never
  * cancelled out with a negative row. The balance calculation already ignores
  * deleted payments, so the figure corrects itself.
+ *
+ * The void trail is patched before the remove -- a removed document cannot be
+ * patched afterwards.
  */
-export async function voidPayment(db: AppDatabase, paymentId: string): Promise<void> {
+export async function voidPayment(
+  db: AppDatabase,
+  paymentId: string,
+  reason?: string,
+  staffId?: string,
+): Promise<void> {
   const doc = await db.payments.findOne(paymentId).exec()
-  await doc?.remove()
+  if (!doc) return
+
+  // patch() returns the updated revision -- remove() must be called on that,
+  // not the stale `doc`, or RxDB rejects it as a revision conflict.
+  const patched = await doc.patch({
+    voided_at: now(),
+    ...(staffId ? { voided_by: staffId } : {}),
+    ...(reason?.trim() ? { void_reason: reason.trim() } : {}),
+  })
+  await patched.remove()
 }
 
 // ------------------------------------------------------------------ staff

@@ -3,13 +3,17 @@ import { createDatabase, type AppDatabase } from './database'
 import {
   addOrderUnit,
   buildSummary,
+  cancelOrder,
+  changeOrderStage,
   createOrder,
+  recordPayment,
   removeOrderUnit,
   reorderOrderUnits,
   setOrderAdjustment,
   setUnitDone,
   updateOrder,
   updateOrderUnit,
+  voidPayment,
 } from './writes'
 
 describe('buildSummary', () => {
@@ -201,5 +205,73 @@ describe('updateOrder', () => {
     expect(firstUnit?.price_minor).toBe(45000)
     expect(secondUnitAfter?.item_description).toBe('Gomesi, gold trim')
     expect(secondUnitAfter?.price_minor).toBe(80000)
+  })
+})
+
+describe('changeOrderStage', () => {
+  it('stamps only the terminal timestamp matching the stage entered', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+
+    await changeOrderStage(db, orderId, 'ready')
+    let order = await db.orders.findOne(orderId).exec()
+    expect(order?.stage).toBe('ready')
+    expect(order?.picked_up_at).toBeUndefined()
+
+    await changeOrderStage(db, orderId, 'picked_up')
+    order = await db.orders.findOne(orderId).exec()
+    expect(order?.stage).toBe('picked_up')
+    expect(order?.picked_up_at).toBeTruthy()
+    expect(order?.returned_at).toBeUndefined()
+  })
+})
+
+describe('cancelOrder', () => {
+  it('moves the order to cancelled, stamps cancelled_at, and records the reason', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+
+    await cancelOrder(db, orderId, 'client changed their mind')
+
+    const order = await db.orders.findOne(orderId).exec()
+    expect(order?.stage).toBe('cancelled')
+    expect(order?.cancelled_at).toBeTruthy()
+    expect(order?.cancellation_reason).toBe('client changed their mind')
+
+    const history = await db.order_stage_history.find({ selector: { order_id: orderId } }).exec()
+    expect(history.some((entry) => entry.to_stage === 'cancelled')).toBe(true)
+  })
+})
+
+describe('recordPayment', () => {
+  it('defaults to kind payment, and accepts an explicit refund', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+
+    const payment = await recordPayment(db, orderId, { amount_minor: 20000, method: 'cash' })
+    expect(payment.kind).toBe('payment')
+
+    const refund = await recordPayment(db, orderId, {
+      amount_minor: 5000,
+      method: 'cash',
+      kind: 'refund',
+    })
+    expect(refund.kind).toBe('refund')
+    expect(refund.amount_minor).toBe(5000)
+  })
+})
+
+describe('voidPayment', () => {
+  it('records who voided it and why, before the soft delete', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    const payment = await recordPayment(db, orderId, { amount_minor: 20000, method: 'cash' })
+    const staffId = crypto.randomUUID()
+
+    await voidPayment(db, payment.id, 'entered twice', staffId)
+
+    expect(await db.payments.findOne(payment.id).exec()).toBeNull()
+
+    const [raw] = await db.payments.storageInstance.findDocumentsById([payment.id], true)
+    expect(raw?._deleted).toBe(true)
+    expect(raw?.voided_by).toBe(staffId)
+    expect(raw?.void_reason).toBe('entered twice')
+    expect(raw?.voided_at).toBeTruthy()
   })
 })

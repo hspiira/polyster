@@ -536,6 +536,18 @@ describe('buildMoneySummary', () => {
     const summary = buildMoneySummary([], NAMES, NO_BALANCES)
     expect(summary).toEqual({ outstanding_minor: 0, clientCount: 0, rows: [] })
   })
+
+  // A cancelled order still carries a balance (it may have been part-paid),
+  // but the shop is not chasing it, so it must not inflate what is owed.
+  it('excludes cancelled orders from the outstanding total', () => {
+    const summary = buildMoneySummary(
+      [order({ id: 'a', stage: 'cancelled' }), order({ id: 'b' })],
+      NAMES,
+      new Map([balance('a', 60_000), balance('b', 40_000)]),
+    )
+    expect(summary.outstanding_minor).toBe(40_000)
+    expect(summary.rows.map((row) => row.order.id)).toEqual(['b'])
+  })
 })
 
 describe('capRows', () => {

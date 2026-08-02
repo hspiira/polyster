@@ -30,9 +30,13 @@ export interface OrderBalance {
 /** Pure calculation. Given an order and its payments, what is owed. */
 export function calculateBalance(
   order: Pick<OrderDoc, 'id' | 'price_total_minor'>,
-  payments: readonly Pick<PaymentDoc, 'amount_minor'>[],
+  payments: readonly Pick<PaymentDoc, 'amount_minor' | 'kind'>[],
 ): OrderBalance {
-  const paidMinor = payments.reduce((sum, p) => sum + p.amount_minor, 0)
+  // A refund gives money back, so it subtracts from what the client has paid.
+  const paidMinor = payments.reduce(
+    (sum, p) => sum + (p.kind === 'refund' ? -p.amount_minor : p.amount_minor),
+    0,
+  )
 
   return {
     order_id: order.id,
