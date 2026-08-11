@@ -17,7 +17,15 @@ import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { OPEN_STAGES } from '../screens/today/todayModel'
 import { SyncBadge } from '../components/SyncBadge'
-import { IconMoney, IconOrders, IconPlus, IconRuler, IconSettings, IconUsers } from '../components/icons'
+import {
+  IconMoney,
+  IconOrders,
+  IconPlus,
+  IconRuler,
+  IconSettings,
+  IconTag,
+  IconUsers,
+} from '../components/icons'
 import { cn } from '../lib/cn'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import type { AuthState } from '../lib/auth'
@@ -76,6 +84,7 @@ export function Sidebar({
         { href: '/orders', label: 'Orders', Icon: IconOrders, count: openOrders },
         { href: '/clients', label: 'Clients', Icon: IconUsers, count: clientDocs.length },
         { href: '/settings/measurements', label: 'Measurements', Icon: IconRuler, feature: 'measurements' },
+        { href: '/catalogue', label: 'Catalogue', Icon: IconTag, feature: 'catalogue' },
       ],
     },
     {

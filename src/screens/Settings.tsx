@@ -21,6 +21,7 @@ import {
   IconLock,
   IconRuler,
   IconSettings,
+  IconTag,
   IconToggle,
   IconUsers,
 } from '../components/icons'
@@ -56,6 +57,12 @@ const SHOP_ENTRIES: readonly Entry[] = [
     Icon: IconUsers,
   },
   {
+    href: '/catalogue',
+    label: 'Catalogue',
+    hint: 'Products, categories and variants',
+    Icon: IconTag,
+  },
+  {
     href: '/settings/features',
     label: 'Modules',
     hint: 'What shows up in navigation',
@@ -83,9 +90,11 @@ export function Settings() {
   const { controller } = useAuth()
   const flags = useFeatureFlags(db, shop?.id ?? '__none__')
 
-  const shopEntries = SHOP_ENTRIES.filter(
-    (entry) => entry.href !== '/settings/measurements' || flags.measurements,
-  )
+  const shopEntries = SHOP_ENTRIES.filter((entry) => {
+    if (entry.href === '/settings/measurements') return flags.measurements
+    if (entry.href === '/catalogue') return flags.catalogue
+    return true
+  })
 
   return (
     <Screen title="Settings" subtitle={shop?.name} back="/">

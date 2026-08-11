@@ -40,6 +40,8 @@ import { LockSettings } from './settings/LockSettings'
 import { StaffSettings } from './settings/StaffSettings'
 import { BackupSettings } from './settings/BackupSettings'
 import { FeatureSettings } from './settings/FeatureSettings'
+import { Catalogue } from './Catalogue'
+import { CatalogueDetail } from './CatalogueDetail'
 import { Money } from './Money'
 import { Reports } from './Reports'
 import { Sales } from './Sales'
@@ -112,6 +114,8 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/settings/staff" component={StaffSettings} />
           <Route path="/settings/backup" component={BackupSettings} />
           <Route path="/settings/features" component={FeatureSettings} />
+          <Route path="/catalogue" component={Catalogue} />
+          <Route path="/catalogue/:id" component={CatalogueDetail} />
           <Route default component={NotFound} />
         </Router>
       </main>

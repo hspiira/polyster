@@ -15,8 +15,9 @@ forgetLayoutOverride()
 // then reload. Never bundled in production (see the DEV guard below).
 if (import.meta.env.DEV) {
   const { getDatabase } = await import('./db/database.ts')
+  const { getSupabase } = await import('./lib/supabaseClient.ts')
   const fixtures = await import('./dev/fixtures/index.ts')
-  ;(window as unknown as { __polyster: unknown }).__polyster = { getDatabase, ...fixtures }
+  ;(window as unknown as { __polyster: unknown }).__polyster = { getDatabase, getSupabase, ...fixtures }
 }
 
 /**

@@ -2044,6 +2044,8 @@ The agent must inspect existing migrations before choosing the final numbers.
 
 # 45. RxDB Requirement
 
+**Amended 2026-08-12 — see §46.1.** RxDB's open-source tier hard-caps a database at 14 open collections (verified empirically against the installed `rxdb@17.4.0`; the library's own error text says 13, which is off by one from what it actually enforces). This app was already at 13 after Phase 1. This section's rule below still applies to any table that can fit in the remaining budget; it no longer applies unconditionally to every new table — see §46.1 for what happens when it doesn't fit.
+
 Every synced Postgres table requires a corresponding RxDB collection schema.
 
 Do not copy `_modified` into RxDB schemas.
@@ -2092,13 +2094,31 @@ replication
 Supabase
 ```
 
-This is a core architectural invariant.
+This is a core architectural invariant for every table that has an RxDB collection. See §46.1 for the one class of exception.
+
+---
+
+## 46.1 Online-Only Modules (amendment, 2026-08-12)
+
+RxDB's free tier caps a database at 14 collections; this app was already at 13 after Phase 1 (tenant configuration). Phase 2's catalogue tables would have pushed it to 16.
+
+Three options were considered and discussed explicitly with the project owner before choosing:
+
+1. **Buy RxDB Premium** — removes the limit, zero architecture change. Not pursued (cost decision, left to the owner to revisit).
+2. **Consolidate collections** — multiple Postgres tables sharing one RxDB collection via a type discriminator. Investigated in depth: the `replicateSupabase` plugin (read from source, not assumed) is hard-wired to one collection ↔ one table, so this would *also* require consolidating on the Postgres side (one shared table with a JSONB payload column), losing real foreign keys and plain-SQL querying for every table built this way, forever. Rejected once this cost was clear — it does not match the project's stated wish to avoid deepening vendor-specific lock-in.
+3. **New tables online-only, direct to Postgres, no RxDB collection** — chosen. Simple, portable (plain Supabase client calls, nothing proprietary), adds zero pressure on the collection cap ever again. The explicit cost, accepted knowingly: **these modules do not work offline**, which overrides the general rule in §45 and §47 for exactly these modules and no others.
+
+**What this changes going forward:** any *new* table introduced from Phase 2 onward defaults to this online-only pattern (a module under `src/online/`, querying Supabase directly via `src/lib/supabaseClient.ts`, no RxDB collection, no entry in `REPLICATED_TABLES`) rather than the RxDB-mediated pattern in §45/§46. The write-layer rule in §46 (no direct Supabase calls from UI) still holds in spirit — direct calls are now permitted, but only from a module under `src/online/`, never from a screen component directly, so there is still exactly one place per table that knows how to write to it.
+
+Existing tables (everything through Phase 1) are unaffected and keep working offline exactly as before.
+
+Every online-only module must still meet the rest of this document's UI bar (§56): loading, empty, and — especially — a clear, explicit "this needs a connection" error state, not a silent failure or an indefinitely stuck loading spinner. A fetch that never resolves (e.g. a stale page reloading while offline) must fail fast with a clear message rather than hang.
 
 ---
 
 # 47. Offline Behaviour
 
-Every newly introduced module must work offline.
+Every newly introduced module must work offline, **except an online-only module under §46.1** — those must instead fail fast and clearly when there is no connection, never hang or silently do nothing.
 
 For example:
 
@@ -3023,28 +3043,31 @@ Add:
 
 ### Priority: P0
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done**, built as an **online-only module** per §46.1 — see that section for why (RxDB's 14-collection cap was already reached in Phase 1). Implemented and verified live 2026-08-12: migration `0009_catalogue.sql` applied, RLS structural check passes, and a 9-check live test (two real tenants) confirmed cross-tenant isolation, per-shop SKU uniqueness, category-delete `on delete set null` behaviour, and same-SKU-different-shop all work correctly.
 
 Implement:
 
 ```text
-products
-product_categories
-product_variants
+products          -- real Postgres table, RLS, no RxDB collection (see §46.1)
+product_categories -- same
+product_variants   -- same
 ```
 
 Features:
 
-- CRUD
-- SKU
-- price
-- cost
-- variants
-- active/inactive
-- images
-- search
+- ✅ CRUD — `src/online/catalogue.ts` + `src/screens/Catalogue.tsx` / `CatalogueDetail.tsx`
+- ✅ SKU — required per variant, `UNIQUE(shop_id, sku)`
+- ✅ price / cost — `price_minor` / `cost_minor`, integer minor units, matching house convention
+- ✅ variants — full CRUD, one product to many variants
+- ✅ active/inactive — toggle per product and per variant; category has no active flag (spec doesn't call for one) so removal is a real delete, `on delete set null` on `products.category_id` protects existing products
+- ✅ images — real Supabase Storage upload (§67), migration `0010_product_image_storage.sql`: public `product-images` bucket, shop-scoped insert/update/delete policies keyed on the `<shop_id>/...` object path. Verified live: a tenant can upload and publicly read its own image, cannot upload into another tenant's folder, and cannot delete another tenant's object (confirmed against ground truth via the service-role connection, not the requesting tenant's own client, after an initial version of this check gave a false positive by relying on a `.list()` call that needed a policy that doesn't exist)
+- ✅ search — in-memory filter by name/brand, matching the existing `Clients.tsx` convention
 
-This is the foundation for both ordinary apparel businesses and NORTH//FOUND.
+**UI placement, a deliberate deviation from a literal reading of §40/§57:** rather than a dedicated top-level tab (the phone shell's 4-slot tab bar is deliberately fixed, and there's no "More" sheet to add a 5th destination to — that mechanism was removed in an earlier redesign), Catalogue is reached via Settings on the phone shell (same tier as Staff/Modules) and as a real top-level Work-group item in the web sidebar, where there's no such slot constraint. Both are gated behind the `catalogue` feature flag from Phase 1.
+
+**Also found and fixed along the way:** the online catalogue screens could hang on a stuck loading skeleton indefinitely if a page reloaded while already offline (a fetch that never resolves). Fixed with a `withTimeout` wrapper (`src/lib/withTimeout.ts`) so a stalled request fails within 8 seconds with a clear message, per §46.1's requirement that online-only modules fail fast rather than hang.
+
+This is the foundation for both ordinary apparel businesses and NORTH//FOUND, though it no longer works offline for either — see §46.1.
 
 ---
 
