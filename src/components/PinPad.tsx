@@ -1,21 +1,13 @@
 /**
- * The six-digit PIN pad, shared by every place a PIN is typed.
+ * The six-digit pad, used everywhere a PIN or a one-time code is typed.
  *
- * One component for entry, for choosing a new PIN, and for confirming it, so
- * those three never drift apart. Nobody should meet a number pad on one screen
- * and a text field on the next.
+ * It submits itself on the sixth digit, since PINs are a fixed length. Delete
+ * only appears once there is something to delete. A wrong entry shakes the dots
+ * and clears them, which is quicker to read than an error you must dismiss.
  *
- * Behaviour, all of it deliberate:
- *
- *  - **It submits itself on the sixth digit.** PINs are a fixed length
- *    (lib/pin.ts), so the pad always knows when you have finished. No confirm
- *    tap.
- *  - **Delete only exists once there is something to delete.** A permanent
- *    backspace on an empty pad is a key that does nothing.
- *  - **Failure shakes the dots and clears them.** Faster to read than an error
- *    you have to dismiss before retyping.
- *
- * `tone="dark"` is for StaffGate's fixed-dark screen; SetupFlow stays on the default `"light"`.
+ * Three ways in, all writing to the same value: the on-screen keys, a physical
+ * keyboard, and a hidden input that carries `autocomplete` so the phone can fill
+ * an SMS code and so the code can be pasted.
  */
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { cn } from '../lib/cn'
@@ -34,6 +26,13 @@ export interface PinPadProps {
   busyHint?: string
   /** @default "light" */
   tone?: 'light' | 'dark'
+  /**
+   * Turns the hidden field into a one-time-code field, so a phone can offer the
+   * SMS code it just received. Leave off for PINs, which no autofill knows.
+   */
+  oneTimeCode?: boolean
+  /** Names the hidden field for screen readers and password managers. */
+  label?: string
 }
 
 export function PinPad({
@@ -42,10 +41,13 @@ export function PinPad({
   errorHint = 'Wrong PIN, try again',
   busyHint = 'Checking...',
   tone = 'dark',
+  oneTimeCode = false,
+  label = 'PIN',
 }: PinPadProps) {
   const [pin, setPin] = useState('')
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)
+  const field = useRef<HTMLInputElement>(null)
 
   // Guards a second submission while the first is still running: PBKDF2 takes
   // a moment, and a fast double-tap on the last digit would start two.
@@ -94,10 +96,36 @@ export function PinPad({
     if (next.length === PIN_LENGTH) void submit(next)
   }
 
+  /** Autofill and paste arrive whole, so take the value rather than a keystroke. */
+  function fill(raw: string) {
+    if (busy) return
+    const digits = raw.replace(/\D/g, '').slice(0, PIN_LENGTH)
+    setFailed(false)
+    write(digits)
+    if (digits.length === PIN_LENGTH) void submit(digits)
+  }
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      // The hidden field handles its own typing; taking it here too double-enters.
+      if (event.target === field.current) return
+      if (/^\d$/.test(event.key)) {
+        event.preventDefault()
+        press(event.key)
+      } else if (event.key === 'Backspace') {
+        event.preventDefault()
+        press('del')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+
   const dark = tone === 'dark'
 
   return (
-    <div class="space-y-7">
+    <div class="relative space-y-7">
       <p
         class={`text-center text-sm ${
           failed
@@ -113,8 +141,28 @@ export function PinPad({
         {failed ? errorHint : busy ? busyHint : hint}
       </p>
 
+      {/* Off-screen but focusable, so autofill has somewhere to put an SMS code
+          and a paste has somewhere to land. The dots stay the visible control. */}
+      <input
+        ref={field}
+        type="text"
+        inputMode="numeric"
+        autocomplete={oneTimeCode ? 'one-time-code' : 'off'}
+        aria-label={label}
+        maxLength={PIN_LENGTH}
+        value={pin}
+        disabled={busy}
+        onInput={(event) => fill((event.target as HTMLInputElement).value)}
+        class="absolute size-px overflow-hidden opacity-0"
+      />
+
+      {/* Tapping the dots focuses the hidden field, which is how you reach paste
+          and autofill without the keyboard opening on top of the pad. */}
       <div
-        class={`flex justify-center gap-3 ${failed ? 'animate-shake' : ''}`}
+        class={`flex cursor-text justify-center gap-3 ${failed ? 'animate-shake' : ''}`}
+        onClick={() => field.current?.focus()}
+        role="status"
+        aria-live="polite"
         aria-label={`${pin.length} of ${PIN_LENGTH} digits entered`}
       >
         {Array.from({ length: PIN_LENGTH }, (_, index) => {

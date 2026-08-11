@@ -1,44 +1,28 @@
 /**
- * The first screen on a device with nothing set up.
+ * The first screen on a device with nothing set up. Always dark.
  *
- * One door, not two: signing in and signing up are the same three screens --
- * phone, code, PIN -- and only the backend knows which one a number is, so
- * there is nothing for the user to declare (spec E9).
+ * Two doors, weighted. Setting up a shop needs no number and no signal, so it
+ * leads. Signing in needs both, and only returning owners want it.
  *
- * Always dark, regardless of the system's light/dark setting. Everything
- * before the shell is one fixed, branded world.
- *
- * ## One screen at every size
- *
- * The shell is two designs, phone and web (spec W1); the entry flow
- * deliberately is not -- see app.tsx. So this screen has to hold on its own
- * from 375px to a desk monitor, and measured on the build before this change it
- * did not: at 1440x900 the hero was still a 272px column set in 30/44px type,
- * with its button 250px below the sentence on the bottom edge of the window.
- * A phone-sized note in the middle of a monitor.
- *
- * Two things carry the adaptation.
- *
- * **The statement scales as a poster.** Sizes are `clamp()`, and each line's
- * measure is set in `em` -- so the wrap points are identical at every size and
- * only the size changes. The clamps track `vmin` rather than `vw` because a
- * hero that grows with width alone overflows a short landscape window; keyed to
- * the smaller axis, the composition can always fit the screen it is on. Their
- * anchors, measured rather than guessed: 30/44px unchanged on a 375px phone,
- * 42/65px on a tablet, 46/72px on a 1440x900 laptop, 52/80px at the ceiling.
- *
- * **The action moves rather than stretches.** Stacked, it is a full-width pill
- * on the bottom edge, where a thumb is. Side by side (`entry-wide`, defined in
- * index.css) it sits beside the statement with its bottom on the statement's
- * last line, because at that size the bottom edge is nowhere near what you just
- * read -- and on a phone in landscape, stacking is what put it off-screen.
+ * The hero scales like a poster: `clamp()` sizes with measures in `em`, so the
+ * lines wrap at the same words at every screen size. The clamps track `vmin`,
+ * not `vw`, so a short landscape window does not overflow. Side by side
+ * (`entry-wide` in index.css) the button moves beside the statement instead of
+ * sitting on the bottom edge, which is far from what you just read on a desk.
  */
 import { GlowBackdrop } from '../../components/GlowBackdrop'
 import { Logomark } from '../../components/Logomark'
 import { IconArrowUpRight } from '../../components/icons'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 
-export function Landing({ onContinue }: { onContinue: () => void }) {
+export function Landing({
+  onStart,
+  onSignIn,
+}: {
+  onStart: () => void
+  /** Absent when the build has no Supabase credentials -- there is nothing to sign in to. */
+  onSignIn?: () => void
+}) {
   const install = useInstallPrompt()
 
   return (
@@ -48,14 +32,8 @@ export function Landing({ onContinue }: { onContinue: () => void }) {
     >
       <GlowBackdrop />
 
-      {/*
-        safe-top and safe-bottom set padding themselves, so a `pt-*` here would
-        be silently overridden -- the design spacing goes on the children.
-
-        One wrapper for both rows, so the mark, the statement and the action all
-        measure from the same left edge instead of from two containers that can
-        disagree.
-      */}
+      {/* safe-top and safe-bottom set their own padding, so spacing goes on the
+          children. One wrapper for both rows, so everything shares a left edge. */}
       <div
         class="safe-top safe-bottom relative z-10 mx-auto flex w-full max-w-[28rem] flex-1 flex-col
                entry-wide:max-w-[60rem]"
@@ -65,28 +43,19 @@ export function Landing({ onContinue }: { onContinue: () => void }) {
           <span class="text-base font-semibold tracking-tight">Polyster</span>
         </header>
 
-        {/*
-          `content-center` is load-bearing once this is a grid: the single
-          implicit row would otherwise stretch to the full height and `items-end`
-          would drop the whole composition onto the bottom edge, which is the
-          layout this is replacing.
-        */}
+        {/* `content-center` matters once this is a grid: without it the single row
+            stretches full height and `items-end` drops everything to the bottom. */}
         <div
           class="flex flex-1 flex-col pb-[clamp(2.25rem,2.05rem+0.55vmin,3rem)]
                  entry-wide:grid entry-wide:grid-cols-[minmax(0,1fr)_auto] entry-wide:content-center
                  entry-wide:items-end entry-wide:gap-x-[clamp(2rem,4vw,4.5rem)]"
         >
-          {/*
-            The padding is a floor, not spacing: symmetric, so it does not move
-            the centred block, and it stops the statement touching the mark or
-            the button when the window is short. Dropped side by side, where the
-            action's bottom edge should meet the sentence's last line.
-          */}
+          {/* Symmetric padding, so it keeps the block centred while stopping the
+              text touching the mark or the button in a short window. */}
           <div class="flex flex-1 flex-col justify-center py-8 entry-wide:py-0">
             <h1 class="tracking-tight">
-              {/* Measures in `em` so each line breaks in the same place at every
-                  size. Not `ch`: it resolves against the inherited font size,
-                  not the display size these lines are actually set in. */}
+              {/* `em`, not `ch`: `ch` resolves against the inherited font size,
+                  not the display size these lines are set in. */}
               <span
                 class="block max-w-[9.1em] text-[clamp(1.875rem,1.1625rem+3.05vmin,3.25rem)]
                        font-normal leading-[1.14] text-stone-400"
@@ -106,28 +75,22 @@ export function Landing({ onContinue }: { onContinue: () => void }) {
                      text-[clamp(0.9375rem,0.848rem+0.381vmin,1.0625rem)] leading-relaxed
                      text-stone-400"
             >
-              One account for the whole shop. You sign in with your phone number.
+              Set up in one screen. No account, no code, nothing to remember.
             </p>
           </div>
 
           <div class="shrink-0">
-            {/*
-              A plain button, not the shared Button component: glass shell with a
-              solid brand disc, which is the one saturated element on the screen.
-
-              Hover brightens the rim and the disc. Tailwind's `hover:` is
-              already behind `(hover: hover)`, so a touch device does not keep
-              the state after a tap.
-            */}
+            {/* Not the shared Button: glass shell with a solid brand disc, the one
+                saturated thing on the screen. */}
             <button
               type="button"
-              onClick={onContinue}
+              onClick={onStart}
               class="glass glass-sheen group flex w-full items-center justify-between gap-3
                      overflow-hidden rounded-control py-1.5 pl-5 pr-1.5 text-white
                      transition-[transform,border-color] hover:border-white/24
                      active:scale-[0.98] entry-wide:w-auto entry-wide:min-w-[19rem]"
             >
-              <span class="relative z-10 text-base font-medium">Continue with your number</span>
+              <span class="relative z-10 text-base font-medium">Set up my shop</span>
               <span
                 class="relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full
                        bg-brand-500 text-white transition-colors group-hover:bg-brand-400"
@@ -136,12 +99,24 @@ export function Landing({ onContinue }: { onContinue: () => void }) {
               </span>
             </button>
 
+            {/* The minority case, and the only one that needs a number. */}
+            {onSignIn && (
+              <button
+                type="button"
+                onClick={onSignIn}
+                class="mt-3 min-h-11 w-full text-center text-sm text-stone-400
+                       hover:text-stone-200 active:text-stone-200"
+              >
+                I already have a shop
+              </button>
+            )}
+
             {!install.isStandalone && install.canPrompt && (
               <button
                 type="button"
                 onClick={() => void install.prompt()}
-                class="mt-3 min-h-11 w-full text-center text-xs text-stone-400
-                       hover:text-stone-200 active:text-stone-200"
+                class="mt-1 min-h-11 w-full text-center text-xs text-stone-500
+                       hover:text-stone-300 active:text-stone-300"
               >
                 Add to home screen
               </button>

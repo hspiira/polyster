@@ -1,26 +1,21 @@
 /**
- * Dark-only primitives for the entry flow.
+ * Dark-only building blocks for the entry flow.
  *
- * Unthemed on purpose (spec E6): everything before the shell is one fixed,
- * branded world, so the first run does not flicker between light and dark.
- * That fixed dark is also what lets the glass in index.css read as material
- * rather than as decoration.
- *
- * Two layouts, and only two. Forms anchor their content under the header and
- * pin their actions to the bottom edge, the way a phone form should. Pads
- * centre, because the pad is the content.
+ * Always dark, whatever the system theme (spec E6), so the first run does not
+ * flash between light and dark. Two layouts only: forms, and centred pads.
  */
-import type { ComponentChildren, JSX } from 'preact'
+import { cloneElement } from 'preact'
+import { useId } from 'preact/hooks'
+import type { ComponentChildren, JSX, RefObject, VNode } from 'preact'
 import { cn } from '../../lib/cn'
 import { GlowBackdrop } from '../../components/GlowBackdrop'
 
 /**
  * Full-screen dark shell with the drifting glow.
  *
- * Two nested wrappers, and the nesting is load-bearing: `safe-top` and
- * `safe-bottom` set padding themselves, so a `pt-*` on the same element is
- * silently overridden. The outer holds the safe area, the inner the design
- * spacing.
+ * Nested on purpose: `safe-top` and `safe-bottom` set their own padding, so a
+ * `pt-*` on the same element is silently overridden. Outer holds the safe area,
+ * inner holds the spacing.
  */
 export function EntryScreen({ children }: { children: ComponentChildren }) {
   return (
@@ -34,12 +29,11 @@ export function EntryScreen({ children }: { children: ComponentChildren }) {
 }
 
 /**
- * A form as one block: heading, fields, then its action directly beneath.
+ * Heading, fields, then the action right beneath them.
  *
- * The action deliberately does not sit against the bottom edge. On a two-field
- * step that leaves several hundred pixels of nothing between what you typed
- * and the button that submits it, which reads as a mistake rather than as
- * space. Anything genuinely secondary goes in `footer`, which is pinned.
+ * The action is not on the bottom edge: on a short form that leaves a big gap
+ * between what you typed and the button, which reads as a bug. Secondary things
+ * go in `footer`, which is pinned.
  */
 export function EntryForm({
   onSubmit,
@@ -85,35 +79,65 @@ export function EntryHeading({
   )
 }
 
-export function EntryField({ label, children }: { label: string; children: ComponentChildren }) {
+/** The control is cloned so the error is named on the input, not just near it. */
+export function EntryField({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string
+  hint?: string
+  error?: string | null
+  children: VNode<JSX.IntrinsicElements['input']>
+}) {
+  const id = useId()
+  const hintId = `${id}-hint`
+  const errorId = `${id}-error`
+  const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(' ')
+
   return (
     <label class="mb-4 block">
       <span class="mb-2 block pl-4 text-sm font-medium text-stone-300">{label}</span>
-      {children}
+      {cloneElement(children, {
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': describedBy || undefined,
+      })}
+      {error ? (
+        <span id={errorId} role="alert" class="mt-2 block pl-4 text-sm leading-relaxed text-red-400">
+          {error}
+        </span>
+      ) : (
+        hint && (
+          <span id={hintId} class="mt-2 block pl-4 text-sm leading-relaxed text-stone-400">
+            {hint}
+          </span>
+        )
+      )}
     </label>
   )
 }
 
-/**
- * The glass lives on a wrapper, not the input: `::before` does not render on
- * a replaced element, so the sheen has nowhere to go otherwise.
- *
- * Focus brightens the rim rather than adding a coloured ring. Still clearly
- * visible for keyboard use -- a contrast change, not a removed indicator.
- */
-export function EntryInput({ class: className, ...props }: JSX.IntrinsicElements['input']) {
+/** Glass sits on a wrapper, not the input: `::before` does not render on an input. */
+export function EntryInput({
+  class: className,
+  inputRef,
+  ...props
+}: JSX.IntrinsicElements['input'] & { inputRef?: RefObject<HTMLInputElement> }) {
   return (
     <span
       class={cn(
         'glass-inset glass-sheen block overflow-hidden rounded-control',
         'transition-colors focus-within:border-white/32',
+        props['aria-invalid'] && 'border-red-500/60',
         className,
       )}
     >
       <input
         {...props}
+        ref={inputRef}
         class="relative z-10 min-h-13 w-full bg-transparent px-5 text-base text-white
-               outline-none placeholder:text-stone-500"
+               outline-none placeholder:text-stone-400"
       />
     </span>
   )
@@ -155,6 +179,7 @@ export function EntryQuietButton({ class: className, ...props }: JSX.IntrinsicEl
       {...props}
       class={cn(
         'min-h-11 w-full text-sm font-medium text-stone-400 active:text-stone-200',
+        'disabled:pointer-events-none disabled:text-stone-500',
         className,
       )}
     />
@@ -170,10 +195,7 @@ export function EntryError({ children }: { children: ComponentChildren }) {
   )
 }
 
-/**
- * rounded-xl rather than rounded-card: the entry flow is a separate world with
- * a softer radius, and --radius-card is now near-square for the shell.
- */
+/** rounded-xl, not rounded-card: --radius-card is near-square for the shell. */
 export function EntryNote({ children }: { children: ComponentChildren }) {
   return (
     <p class="glass rounded-xl px-4 py-3.5 text-sm leading-relaxed text-stone-300">{children}</p>

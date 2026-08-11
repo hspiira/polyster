@@ -83,8 +83,8 @@ export interface StaffDoc {
   id: string
   shop_id: string
   name: string
+  pin_hash?: string
   phone?: string
-  pin_hash: string
   /** A PIN reset otherwise leaves no trace. */
   pin_updated_at?: string
   role: StaffRole
@@ -95,7 +95,7 @@ export interface StaffDoc {
   updated_at: string
 }
 export const staffSchema: RxJsonSchema<StaffDoc> = {
-  version: 3, // v3: phone, pin_updated_at, deactivated_at, updated_at
+  version: 4, // v4: pin_hash optional -- the PIN is set after registration, not during
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -111,7 +111,7 @@ export const staffSchema: RxJsonSchema<StaffDoc> = {
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
   },
-  required: ['id', 'shop_id', 'name', 'pin_hash', 'role', 'active'],
+  required: ['id', 'shop_id', 'name', 'role', 'active'],
   indexes: ['shop_id'],
 }
 

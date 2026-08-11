@@ -15,32 +15,7 @@ describe('resolvePlatform', () => {
   // question than the one that decides control size (decision W2). There is no
   // test for that because there is no parameter to pass -- the type is the
   // assertion.
-
-  describe('override', () => {
-    it('forces the phone design on a fine pointer', () => {
-      expect(resolvePlatform({ finePointer: true, preference: 'phone' })).toBe('phone')
-    })
-
-    it('forces the web design on a coarse pointer', () => {
-      expect(resolvePlatform({ finePointer: false, preference: 'web' })).toBe('web')
-    })
-
-    it('agrees with detection when it happens to match', () => {
-      expect(resolvePlatform({ finePointer: true, preference: 'web' })).toBe('web')
-      expect(resolvePlatform({ finePointer: false, preference: 'phone' })).toBe('phone')
-    })
-  })
-
-  describe('auto', () => {
-    it('follows the pointer when set explicitly', () => {
-      expect(resolvePlatform({ finePointer: true, preference: 'auto' })).toBe('web')
-      expect(resolvePlatform({ finePointer: false, preference: 'auto' })).toBe('phone')
-    })
-
-    it('is what an omitted preference means', () => {
-      expect(resolvePlatform({ finePointer: true })).toBe(
-        resolvePlatform({ finePointer: true, preference: 'auto' }),
-      )
-    })
-  })
+  //
+  // A user preference is absent for the same reason: the device knows, and a
+  // picker only creates wrong answers to keep.
 })

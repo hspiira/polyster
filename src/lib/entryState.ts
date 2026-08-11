@@ -7,7 +7,7 @@
  */
 import type { AuthState } from './auth'
 
-export type EntryScreen = 'splash' | 'fatal' | 'landing' | 'setup' | 'lock' | 'shell'
+export type EntryScreen = 'splash' | 'fatal' | 'landing' | 'register' | 'lock' | 'shell'
 
 export interface EntryInput {
   dbStatus: 'loading' | 'ready' | 'error'
@@ -15,14 +15,16 @@ export interface EntryInput {
   /** A shop row and at least one staff row exist locally. */
   provisioned: boolean
   locked: boolean
+  /** The user chose "Set up my shop" and the form has not finished. */
+  registering: boolean
   /**
-   * The wizard is running and has not said it has finished.
+   * True between a successful sign-in and the first replication pull settling.
    *
-   * Latched rather than derived: creating the shop and first staff member
-   * makes `provisioned` true, and without this the wizard would be torn down
-   * mid-flow, before its last steps could render.
+   * Without it a returning owner is shown the registration form during the gap,
+   * because their shop has not arrived yet and "no local shop" is
+   * indistinguishable from "no shop at all".
    */
-  setupStarted: boolean
+  awaitingFirstPull: boolean
 }
 
 export function decideEntryScreen({
@@ -30,15 +32,24 @@ export function decideEntryScreen({
   authStatus,
   provisioned,
   locked,
-  setupStarted,
+  registering,
+  awaitingFirstPull,
 }: EntryInput): EntryScreen {
   if (dbStatus === 'error') return 'fatal'
   if (dbStatus === 'loading' || authStatus === 'checking') return 'splash'
 
-  if (setupStarted) return 'setup'
   if (provisioned) return locked ? 'lock' : 'shell'
+  if (registering) return 'register'
+  if (authStatus === 'signed_in') return awaitingFirstPull ? 'splash' : 'register'
 
-  // Verified but nothing set up yet: resume mid-setup rather than re-asking
-  // for a number that has already been confirmed.
-  return authStatus === 'signed_in' ? 'setup' : 'landing'
+  return 'landing'
+}
+
+/**
+ * A shop with no PIN on its staff row has not been locked yet, so it must not
+ * be shown a pad it cannot answer.
+ */
+export function isLocked(staff: { pin_hash?: string }[], activeStaff: unknown): boolean {
+  if (activeStaff) return false
+  return staff.some((member) => Boolean(member.pin_hash))
 }

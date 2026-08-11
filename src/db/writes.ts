@@ -657,14 +657,14 @@ export async function logMessage(
 export async function createStaff(
   db: AppDatabase,
   shopId: string,
-  input: { name: string; pin: string; role: StaffRole },
+  input: { name: string; pin?: string; role: StaffRole },
 ): Promise<StaffDoc> {
   const timestamp = now()
   const doc: StaffDoc = {
     id: newId(),
     shop_id: shopId,
     name: input.name.trim(),
-    pin_hash: await hashPin(input.pin),
+    ...(input.pin ? { pin_hash: await hashPin(input.pin) } : {}),
     role: input.role,
     active: true,
     created_at: timestamp,
@@ -677,7 +677,14 @@ export async function createStaff(
 export async function setStaffPin(db: AppDatabase, staffId: string, pin: string): Promise<void> {
   const doc = await db.staff.findOne(staffId).exec()
   if (!doc) throw new Error('That staff member no longer exists on this device.')
-  await doc.patch({ pin_hash: await hashPin(pin) })
+  await doc.patch({ pin_hash: await hashPin(pin), pin_updated_at: now() })
+}
+
+/** Removes the lock. The device then opens straight into the shop. */
+export async function clearStaffPin(db: AppDatabase, staffId: string): Promise<void> {
+  const doc = await db.staff.findOne(staffId).exec()
+  if (!doc) throw new Error('That staff member no longer exists on this device.')
+  await doc.patch({ pin_hash: undefined, pin_updated_at: now() })
 }
 
 /**
@@ -738,6 +745,29 @@ export async function updateShop(
       ? { lock_after_minutes: input.lock_after_minutes }
       : {}),
   })
+}
+
+/**
+ * Attaches a verified account to a shop that was set up without one.
+ *
+ * Refuses if the shop already belongs to a different account. Two shops on one
+ * number is the unreconciled case in ARCHITECTURE D14, and quietly overwriting
+ * the owner here would be how a device ends up syncing into someone else's shop.
+ */
+export async function claimShop(
+  db: AppDatabase,
+  shopId: string,
+  supabaseAuthUserId: string,
+): Promise<void> {
+  const doc = await db.shops.findOne(shopId).exec()
+  if (!doc) throw new Error('Shop record not found on this device.')
+
+  const existing = doc.get('supabase_auth_user_id') as string | undefined
+  if (existing && existing !== supabaseAuthUserId) {
+    throw new Error('This shop is already backed up under a different number.')
+  }
+
+  await doc.patch({ supabase_auth_user_id: supabaseAuthUserId })
 }
 
 // ------------------------------------------------------------------- sales

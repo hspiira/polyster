@@ -8,7 +8,17 @@ import { today } from '../lib/dates'
 import { OPEN_STAGES } from '../screens/today/todayModel'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
-import { IconChart, IconChevronRight, IconHome, IconOrders, IconPlus, IconSettings, IconUsers } from './icons'
+import {
+  IconChart,
+  IconChevronRight,
+  IconHome,
+  IconOrders,
+  IconPlus,
+  IconReceipt,
+  IconSettings,
+  IconTag,
+  IconUsers,
+} from './icons'
 
 /**
  * Bottom navigation: a floating pill inset from the left, right and bottom
@@ -61,16 +71,34 @@ const LEADING_TABS: readonly TabDef[] = [
 
 /**
  * "Money" rather than "Reports": the phone's question is what the shop took and
- * spent, and Reports is where that is answered. The word a tailor uses is the
- * one on the tab.
+ * spent. The tab opens a hub over sales, expenses and reports, so none of the
+ * three is buried in Settings.
  */
 const TRAILING_TABS: readonly TabDef[] = [
   { href: '/clients', label: 'Clients', Icon: IconUsers, prefix: '/clients' },
-  { href: '/reports', label: 'Money', Icon: IconChart, prefix: '/reports' },
+  { href: '/money', label: 'Money', Icon: IconChart, prefix: '/money' },
+]
+
+/** The money tab stays lit on the screens its hub leads to. */
+const MONEY_PATHS = ['/money', '/sales', '/expenses', '/reports']
+
+const RAIL_WORK: readonly TabDef[] = [
+  { href: '/', label: 'Today', Icon: IconHome, prefix: '/' },
+  { href: '/orders', label: 'Orders', Icon: IconOrders, prefix: '/orders' },
+  { href: '/clients', label: 'Clients', Icon: IconUsers, prefix: '/clients' },
+]
+
+const RAIL_MONEY: readonly TabDef[] = [
+  { href: '/sales', label: 'Sales', Icon: IconTag, prefix: '/sales' },
+  { href: '/expenses', label: 'Expenses', Icon: IconReceipt, prefix: '/expenses' },
+  { href: '/reports', label: 'Reports', Icon: IconChart, prefix: '/reports' },
 ]
 
 function isActive(currentPath: string, prefix: string): boolean {
   if (prefix === '/') return currentPath === '/'
+  if (prefix === '/money') {
+    return MONEY_PATHS.some((path) => currentPath === path || currentPath.startsWith(`${path}/`))
+  }
   return currentPath === prefix || currentPath.startsWith(`${prefix}/`)
 }
 
@@ -228,8 +256,10 @@ export function SideRail({
         <IconPlus size={20} /> Take an order
       </a>
 
+      {/* The rail has room, so it skips the Money hub and lists what the hub
+          holds. Only the bar, with four slots, needs to group them. */}
       <div class="flex flex-col gap-0.5">
-        {[...LEADING_TABS, ...TRAILING_TABS].map((tab) => (
+        {RAIL_WORK.map((tab) => (
           <RailItem
             key={tab.href}
             {...tab}
@@ -242,13 +272,9 @@ export function SideRail({
       <div class="my-3 border-t border-stone-200 dark:border-stone-800" />
 
       <div class="flex flex-col gap-0.5">
-        <RailItem
-          href="/reports"
-          label="Reports"
-          Icon={IconChart}
-          prefix="/reports"
-          active={isActive(path, '/reports')}
-        />
+        {RAIL_MONEY.map((tab) => (
+          <RailItem key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
+        ))}
         <RailItem
           href="/settings"
           label="Settings"

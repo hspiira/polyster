@@ -36,8 +36,10 @@ import { OrderForm } from './OrderForm'
 import { Settings } from './Settings'
 import { ShopSettings } from './settings/ShopSettings'
 import { MeasurementFieldSettings } from './settings/MeasurementFieldSettings'
+import { LockSettings } from './settings/LockSettings'
 import { StaffSettings } from './settings/StaffSettings'
 import { BackupSettings } from './settings/BackupSettings'
+import { Money } from './Money'
 import { Reports } from './Reports'
 import { Sales } from './Sales'
 import { SaleForm } from './SaleForm'
@@ -97,6 +99,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/orders/new" component={OrderForm} />
           <Route path="/orders/:id" component={OrderDetail} />
           <Route path="/orders/:id/edit" component={OrderForm} />
+          <Route path="/money" component={Money} />
           <Route path="/reports" component={Reports} />
           <Route path="/sales" component={Sales} />
           <Route path="/sales/new" component={SaleForm} />
@@ -104,6 +107,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/settings" component={Settings} />
           <Route path="/settings/shop" component={ShopSettings} />
           <Route path="/settings/measurements" component={MeasurementFieldSettings} />
+          <Route path="/settings/lock" component={LockSettings} />
           <Route path="/settings/staff" component={StaffSettings} />
           <Route path="/settings/backup" component={BackupSettings} />
           <Route default component={NotFound} />

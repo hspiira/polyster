@@ -8,7 +8,7 @@
  * on every cold start. See lib/entryState.ts.
  */
 import { LocationProvider } from 'preact-iso'
-import { useCallback, useState } from 'preact/hooks'
+import { useCallback, useEffect, useState } from 'preact/hooks'
 import { useAuth } from './hooks/useAuth'
 import { useAutoLock } from './hooks/useAutoLock'
 import { useDatabase } from './hooks/useDatabase'
@@ -19,11 +19,11 @@ import { Landing } from './screens/entry/Landing'
 import { SignIn } from './screens/entry/SignIn'
 import { isSupabaseConfigured } from './lib/supabaseClient'
 import { LockScreen } from './screens/entry/LockScreen'
-import { SetupFlow } from './screens/entry/SetupFlow'
+import { Register } from './screens/entry/Register'
 import { Shell } from './screens/Shell'
 import { WebShell } from './web/WebShell'
 import { Logomark } from './components/Logomark'
-import { decideEntryScreen } from './lib/entryState'
+import { decideEntryScreen, isLocked } from './lib/entryState'
 import { DEFAULT_LOCK_AFTER_MINUTES } from './lib/lockPolicy'
 import { usePlatform } from './hooks/usePlatform'
 import type { AppDatabase } from './db/database'
@@ -50,27 +50,37 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
   const { shop, staff, activeStaff, setActiveStaff, loaded } = useShop()
   const replication = useReplication(db, auth.status === 'signed_in')
 
-  const [setupRunning, setSetupRunning] = useState(false)
+  const [registering, setRegistering] = useState(false)
 
   const lock = useCallback(() => setActiveStaff(null), [setActiveStaff])
   useAutoLock(DEFAULT_LOCK_AFTER_MINUTES, lock)
 
+  const provisioned = Boolean(shop) && staff.length > 0
+  const locked = isLocked(staff, activeStaff)
+
+  // No PIN means no lock screen, so nothing else would ever attribute the
+  // session. Open the device as the only person on it.
+  useEffect(() => {
+    if (provisioned && !locked && !activeStaff && staff[0]) setActiveStaff(staff[0])
+  }, [provisioned, locked, activeStaff, staff, setActiveStaff])
+
   const screen = decideEntryScreen({
     dbStatus: loaded ? 'ready' : 'loading',
     authStatus: auth.status,
-    provisioned: Boolean(shop) && staff.length > 0,
-    locked: !activeStaff,
-    setupStarted: setupRunning,
+    provisioned,
+    locked,
+    registering,
+    awaitingFirstPull: replication.status === 'syncing',
   })
 
   if (screen === 'splash') return <Splash />
 
   if (screen === 'landing') {
-    return <SignedOut onStartSetup={() => setSetupRunning(true)} />
+    return <SignedOut onStartRegister={() => setRegistering(true)} />
   }
 
-  if (screen === 'setup') {
-    return <SetupFlow onDone={() => setSetupRunning(false)} />
+  if (screen === 'register') {
+    return <Register onDone={() => setRegistering(false)} />
   }
 
   if (screen === 'lock') return <LockScreen authStatus={auth.status} />
@@ -106,22 +116,23 @@ function AppShell({
 }
 
 /**
- * The signed-out half: landing, then either sign-in or setup.
+ * The signed-out half: landing, then either registration or sign-in.
  *
  * Local state rather than routes -- the router lives inside the authenticated
  * shell, and standing one up out here to toggle between two screens would be
  * more machinery than the job needs.
  */
-function SignedOut({ onStartSetup }: { onStartSetup: () => void }) {
+function SignedOut({ onStartRegister }: { onStartRegister: () => void }) {
   const [view, setView] = useState<'landing' | 'signIn'>('landing')
 
   if (view === 'signIn') return <SignIn onCancel={() => setView('landing')} />
 
-  // A build with no Supabase credentials cannot send a code, so it must not
-  // offer to -- it goes straight to setting the shop up on this device.
   return (
     <Landing
-      onContinue={() => (isSupabaseConfigured() ? setView('signIn') : onStartSetup())}
+      onStart={onStartRegister}
+      // A build with no Supabase credentials cannot send a code, so it must not
+      // offer a door that needs one.
+      onSignIn={isSupabaseConfigured() ? () => setView('signIn') : undefined}
     />
   )
 }

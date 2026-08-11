@@ -266,6 +266,8 @@ export async function createDatabase(
         },
         // v3 added phone, pin_updated_at, deactivated_at (all optional) and updated_at.
         3: (doc: StaffDocV2): StaffDoc => ({ ...doc, updated_at: doc.created_at }),
+        // v4 only relaxed `required`: pin_hash is now optional. No shape change.
+        4: (doc: StaffDoc) => doc,
       },
     },
     clients: {

@@ -1,3 +1,4 @@
+import { useShop } from '../state/ShopProvider'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
 
@@ -40,7 +41,25 @@ export const SYNC_DOT_TONES: Record<SyncTone, string> = {
  * is the worst outcome this design can produce.
  */
 export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
-  const { label, tone } = describe(online, auth, replication)
+  const { shop } = useShop()
+  const claimed = Boolean(shop?.supabase_auth_user_id)
+  const { label, tone } = describe(online, auth, replication, claimed)
+
+  // An unclaimed shop has nowhere to sync to, and the fix is one screen away.
+  if (!claimed && auth.status !== 'local_only') {
+    return (
+      <a
+        href="/settings/backup"
+        class="inline-flex min-w-0 items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"
+      >
+        <span class="relative flex size-2 shrink-0">
+          <span class="absolute inline-flex size-full animate-ping rounded-full bg-amber-500 opacity-60" />
+          <span class="relative inline-flex size-2 rounded-full bg-amber-500" />
+        </span>
+        <span class="truncate underline underline-offset-2">Only on this phone</span>
+      </a>
+    )
+  }
 
   const text = {
     good: 'text-emerald-700 dark:text-emerald-400',
@@ -71,9 +90,15 @@ export function describe(
   online: boolean,
   auth: AuthState,
   replication: ReplicationStatus,
+  claimed = true,
 ): { label: string; tone: SyncTone } {
   if (auth.status === 'local_only') {
     return { label: 'Local only', tone: 'neutral' }
+  }
+  // Registration no longer asks for a number, so a shop can be real and still
+  // have no account behind it. Nothing can sync until it does.
+  if (!claimed) {
+    return { label: 'Only on this phone', tone: 'waiting' }
   }
   if (auth.status === 'offline_stale') {
     return { label: 'Offline, not yet synced', tone: 'waiting' }

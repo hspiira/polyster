@@ -2,10 +2,14 @@ import { render } from 'preact'
 import './index.css'
 import { App } from './app.tsx'
 import { startTheme } from './lib/theme.ts'
+import { forgetLayoutOverride } from './lib/platform.ts'
 
 // index.html already set the attribute before first paint; this keeps a
 // `system` preference live without a reload.
 startTheme()
+
+// The layout picker is gone; release anyone it pinned to the wrong design.
+forgetLayoutOverride()
 
 /**
  * Paint something when the app fails to mount.

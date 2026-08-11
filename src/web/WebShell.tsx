@@ -22,12 +22,13 @@ import { ClientDetailPage } from './ClientDetailPage'
 import { SalesPage } from './SalesPage'
 import { ExpensesPage } from './ExpensesPage'
 import { ReportsPage } from './ReportsPage'
-import { NotBuiltYet } from './NotBuiltYet'
 import { OrderDetail } from '../screens/OrderDetail'
 import { OrderForm } from '../screens/OrderForm'
 import { SaleForm } from '../screens/SaleForm'
+import { Settings } from '../screens/Settings'
 import { ShopSettings } from '../screens/settings/ShopSettings'
 import { MeasurementFieldSettings } from '../screens/settings/MeasurementFieldSettings'
+import { LockSettings } from '../screens/settings/LockSettings'
 import { StaffSettings } from '../screens/settings/StaffSettings'
 import { BackupSettings } from '../screens/settings/BackupSettings'
 import { NotFound } from '../screens/NotFound'
@@ -47,8 +48,10 @@ const BORROWED_FROM_PHONE = [
   { path: '/orders/:id', component: OrderDetail },
   { path: '/orders/:id/edit', component: OrderForm },
   { path: '/sales/new', component: SaleForm },
+  { path: '/settings', component: Settings },
   { path: '/settings/shop', component: ShopSettings },
   { path: '/settings/measurements', component: MeasurementFieldSettings },
+  { path: '/settings/lock', component: LockSettings },
   { path: '/settings/staff', component: StaffSettings },
   { path: '/settings/backup', component: BackupSettings },
 ] as const
@@ -87,11 +90,6 @@ export function WebShell({
             <Route path="/sales" component={SalesPage} />
             <Route path="/expenses" component={ExpensesPage} />
             <Route path="/reports" component={ReportsPage} />
-
-            <Route
-              path="/settings"
-              component={() => <NotBuiltYet title="Settings" crumbs={['Shop']} />}
-            />
 
             {BORROWED_FROM_PHONE.map((route) => (
               <Route key={route.path} path={route.path} component={route.component} />

@@ -56,6 +56,7 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
         <PhoneStep
           title="Verify your number"
           body="The number this shop's account uses. We'll send a code to it."
+          initialPhone={phone}
           onSent={(sent) => {
             setPhone(sent)
             setError(null)
@@ -71,7 +72,7 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
       <EntryScreen>
         <CodeStep
           phone={phone}
-          onResend={() => setStage('phone')}
+          onEditNumber={() => setStage('phone')}
           onVerified={(userId) => {
             if (!verifiedUserOwnsShop(userId, shop?.supabase_auth_user_id)) {
               setError('That number does not belong to this shop.')

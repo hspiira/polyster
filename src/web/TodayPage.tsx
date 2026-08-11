@@ -17,6 +17,7 @@ import { formatMinor } from '../lib/money'
 import { formatDueDate, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from '../screens/orderStage'
 import { buildBuckets, buildMoneySummary, type DueRow } from '../screens/today/todayModel'
+import { ShopPrompts } from '../components/ShopPrompts'
 import { Chip } from '../ui'
 import { cn } from '../lib/cn'
 import { Page } from './Page'
@@ -56,6 +57,8 @@ export function TodayPage() {
   return (
     <Page crumbs={['Work']} title="Today">
       <div class="flex min-h-0 flex-1 flex-col gap-3">
+        <ShopPrompts />
+
         <div class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-2.5">
           <Stat label="Late" value={String(buckets.overdue.length)} tone={buckets.overdue.length > 0 ? 'danger' : undefined} />
           <Stat label="Due today" value={String(buckets.dueToday.length)} />

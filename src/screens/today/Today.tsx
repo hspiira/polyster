@@ -18,6 +18,7 @@ import {
 } from '../../components/ui'
 import { IconPlus } from '../../components/icons'
 import { IllustrationOrders } from '../../components/illustrations'
+import { ShopPrompts } from '../../components/ShopPrompts'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { useRxQuery, useRxQueryStatus } from '../../hooks/useRxQuery'
 import { observeShopBalances } from '../../db/balances'
@@ -159,17 +160,10 @@ export function Today({ online, auth, replication }: TodayProps) {
           replication={replication}
         />
       <Hero segments={segments} />
+      <ShopPrompts />
 
-      {/*
-        One prioritised column on a phone: overdue first, because that is what
-        the day is decided by. On a desktop the same sections sit two-up --
-        the order still reads left-to-right, top-to-bottom, but a shop with
-        work in every bucket stops needing to scroll to see it.
-
-        `items-start` so a short column does not stretch to match a long one,
-        and `[&>*]:break-inside-avoid` is not needed because this is a grid,
-        not columns -- each section stays whole by construction.
-      */}
+      {/* One column on a phone, overdue first. Two up on a desktop, reading
+          left to right, so a busy shop stops having to scroll. */}
       <div class="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
         <Bucket title="Overdue" tone="bad" filter="overdue" rows={buckets.overdue} />
         <Bucket title="Due today" tone="warn" filter="today" rows={buckets.dueToday} />
