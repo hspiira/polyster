@@ -16,6 +16,7 @@ import {
   type FeatureKey,
   type MeasurementFieldDoc,
   type MeasurementFieldType,
+  type CustomerType,
   type MessageTemplate,
   type OrderDoc,
   type OrderStage,
@@ -201,7 +202,16 @@ export async function saveUnitMeasurementsToClient(
 
 // ----------------------------------------------------------------- orders
 
-export interface NewOrderInput {
+/** Phase 7 (sections 31-32): shared by creation and the header editor. */
+export interface OrderPartyInput {
+  customer_type?: CustomerType
+  organisation_name?: string
+  purchase_order_reference?: string
+  contact_person?: string
+  expected_fulfilment_date?: string
+}
+
+export interface NewOrderInput extends OrderPartyInput {
   client_id: string
   order_type: OrderType
   item_description: string
@@ -209,6 +219,19 @@ export interface NewOrderInput {
   pickup_due_date: string
   return_due_date?: string
   notes?: string
+}
+
+/** Shared by createOrder and updateOrderHeader -- every field here is optional. */
+function partyFields(input: OrderPartyInput): Partial<OrderDoc> {
+  return {
+    ...(input.customer_type ? { customer_type: input.customer_type } : {}),
+    ...(input.organisation_name?.trim() ? { organisation_name: input.organisation_name.trim() } : {}),
+    ...(input.purchase_order_reference?.trim()
+      ? { purchase_order_reference: input.purchase_order_reference.trim() }
+      : {}),
+    ...(input.contact_person?.trim() ? { contact_person: input.contact_person.trim() } : {}),
+    ...(input.expected_fulfilment_date ? { expected_fulfilment_date: input.expected_fulfilment_date } : {}),
+  }
 }
 
 /**
@@ -247,6 +270,7 @@ export async function createOrder(
     ...(input.return_due_date ? { return_due_date: input.return_due_date } : {}),
     ...(input.notes?.trim() ? { notes: input.notes.trim() } : {}),
     ...(staffId ? { created_by: staffId } : {}),
+    ...partyFields(input),
   }
 
   await db.orders.insert(doc)
@@ -285,7 +309,7 @@ export async function createOrder(
   return saved.toJSON()
 }
 
-export interface OrderHeaderInput {
+export interface OrderHeaderInput extends OrderPartyInput {
   client_id: string
   order_type: OrderType
   pickup_due_date: string
@@ -313,6 +337,11 @@ export async function updateOrderHeader(
     pickup_due_date: input.pickup_due_date,
     return_due_date: input.return_due_date || undefined,
     notes: input.notes?.trim() || undefined,
+    customer_type: input.customer_type,
+    organisation_name: input.organisation_name?.trim() || undefined,
+    purchase_order_reference: input.purchase_order_reference?.trim() || undefined,
+    contact_person: input.contact_person?.trim() || undefined,
+    expected_fulfilment_date: input.expected_fulfilment_date || undefined,
     updated_at: now(),
   })
 }

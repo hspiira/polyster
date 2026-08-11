@@ -3,7 +3,7 @@
  * reads as "in_progress" on one screen and "In progress" on another.
  */
 import type { AnyTone } from '../ui/tones'
-import type { FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
+import type { CustomerType, FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
   measured: 'Measured',
@@ -30,6 +30,12 @@ export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
   tailor_made: 'Tailor-made',
   rental: 'Rental',
   purchase: 'Purchase',
+  pre_order: 'Pre-order',
+}
+
+export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
+  individual: 'Individual',
+  corporate: 'Corporate',
 }
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -59,6 +65,9 @@ const FLOWS: Record<OrderType, readonly OrderStage[]> = {
   tailor_made: ['measured', 'in_progress', 'ready', 'picked_up'],
   purchase: ['measured', 'ready', 'picked_up'],
   rental: ['measured', 'ready', 'picked_up', 'returned'],
+  // Same shape as purchase -- a pre-order is a purchase of something not
+  // made or in stock yet, so it needs no return leg either.
+  pre_order: ['measured', 'ready', 'picked_up'],
 }
 
 export function stagesFor(orderType: OrderType): readonly OrderStage[] {

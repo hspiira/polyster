@@ -51,6 +51,7 @@ import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate } from '../lib/dates'
 import { balanceReminder, suggestedMessage, waLink } from '../lib/whatsapp'
 import {
+  CUSTOMER_TYPE_LABELS,
   ORDER_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
   STAGE_LABELS,
@@ -207,6 +208,21 @@ export function OrderDetail() {
               </DataRow>
               {order.return_due_date && (
                 <DataRow label="Return due">{formatDate(order.return_due_date)}</DataRow>
+              )}
+              {order.expected_fulfilment_date && (
+                <DataRow label="Expected fulfilment">{formatDate(order.expected_fulfilment_date)}</DataRow>
+              )}
+              {order.customer_type === 'corporate' && (
+                <>
+                  <DataRow label="Customer">{CUSTOMER_TYPE_LABELS.corporate}</DataRow>
+                  {order.organisation_name && <DataRow label="Company">{order.organisation_name}</DataRow>}
+                  {order.purchase_order_reference && (
+                    <DataRow label="PO reference">{order.purchase_order_reference}</DataRow>
+                  )}
+                  {order.contact_person && (
+                    <DataRow label="Contact person">{order.contact_person}</DataRow>
+                  )}
+                </>
               )}
             </dl>
             {order.notes && (

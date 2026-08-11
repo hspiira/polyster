@@ -285,7 +285,7 @@ export const measurementProfileSchema: RxJsonSchema<MeasurementProfileDoc> = {
   indexes: ['client_id'],
 }
 
-export type OrderType = 'tailor_made' | 'rental' | 'purchase'
+export type OrderType = 'tailor_made' | 'rental' | 'purchase' | 'pre_order'
 export type OrderStage =
   | 'measured'
   | 'in_progress'
@@ -294,7 +294,7 @@ export type OrderStage =
   | 'returned'
   | 'cancelled'
 
-export const ORDER_TYPES: readonly OrderType[] = ['tailor_made', 'rental', 'purchase']
+export const ORDER_TYPES: readonly OrderType[] = ['tailor_made', 'rental', 'purchase', 'pre_order']
 export const ORDER_STAGES: readonly OrderStage[] = [
   'measured',
   'in_progress',
@@ -303,6 +303,10 @@ export const ORDER_STAGES: readonly OrderStage[] = [
   'returned',
   'cancelled',
 ]
+
+/** Phase 7 (section 32): who the order is for, orthogonal to order_type. */
+export type CustomerType = 'individual' | 'corporate'
+export const CUSTOMER_TYPES: readonly CustomerType[] = ['individual', 'corporate']
 
 export interface OrderDoc {
   id: string
@@ -331,12 +335,31 @@ export interface OrderDoc {
   cancelled_at?: string
   cancellation_reason?: string
   notes?: string
+  /** Phase 7 (section 32). Absent means individual -- the common case. */
+  customer_type?: CustomerType
+  organisation_name?: string
+  purchase_order_reference?: string
+  contact_person?: string
+  /** Phase 7 (section 31), pre_order only. */
+  expected_fulfilment_date?: string
+  /**
+   * Phase 7 (section 31) reserved links -- product_variants and collections
+   * are online-only (section 46.1), so these are plain UUID strings with no
+   * RxDB-side validation of what they point to, same as order_units'
+   * catalogue_item_id since Phase 2. Not yet written from any UI; a variant/
+   * collection picker needs an online fetch that an otherwise fully offline
+   * form cannot require (section 47), so wiring these in is left for the
+   * garment-identity work in Phase 8 rather than done half-offline here.
+   */
+  product_variant_id?: string
+  collection_id?: string
+  production_batch_id?: string
   created_by?: string
   created_at: string
   updated_at: string
 }
 export const orderSchema: RxJsonSchema<OrderDoc> = {
-  version: 1, // v1: money in minor units, reference, currency, adjustments, cancellation
+  version: 2, // v2: customer_type + corporate fields, pre_order fields (Phase 7)
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -360,6 +383,14 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
     cancelled_at: { type: 'string', format: 'date-time' },
     cancellation_reason: { type: 'string' },
     notes: { type: 'string' },
+    customer_type: { type: 'string', enum: [...CUSTOMER_TYPES] },
+    organisation_name: { type: 'string' },
+    purchase_order_reference: { type: 'string' },
+    contact_person: { type: 'string' },
+    expected_fulfilment_date: { type: 'string', format: 'date' },
+    product_variant_id: uuidField,
+    collection_id: uuidField,
+    production_batch_id: uuidField,
     created_by: uuidField,
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },

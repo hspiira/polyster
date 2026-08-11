@@ -3179,18 +3179,26 @@ Reached via Settings (phone) / a Work-group sidebar item (web), gated behind the
 
 ### Priority: P1
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Unlike every phase since Phase 2, this extends the existing offline-capable `orders` table rather than adding an online-only module — section 47 explicitly requires "Create pre-order" to work with no connection, which rules out the §46.1 pattern here. Migration `0016_preorders_and_corporate.sql` applied, RLS unaffected (same "shop scoped" policy already covers the new columns — row-level, not column-level), and a live 9-check test confirmed the `order_type` and `customer_type` check constraints (including that both still reject an invalid value), the corporate fields round-trip, the `collection_id` foreign key accepts a real collection and rejects a fake one, and `on delete set null` fires correctly. Also drove the actual UI: created a pre-order for a corporate customer with an expected fulfilment date, and confirmed the order detail page displays "Pre-order", the company name, and the fulfilment date.
 
-Add:
+Implement, as new optional columns and RxDB schema fields on `orders` (schema version 1 → 2, identity migration — nothing to backfill):
 
 ```text
-pre_order
-corporate
+order_type = 'pre_order'                          -- 4th value alongside tailor_made/rental/purchase
+customer_type = 'individual' | 'corporate'         -- new, orthogonal to order_type, defaults 'individual'
+organisation_name / purchase_order_reference / contact_person   -- corporate-only, optional
+expected_fulfilment_date                           -- pre_order-only, optional
 ```
 
-to the appropriate existing order architecture.
+- ✅ pre-order via `order_type`, per section 31's own preferred approach, rather than a separate `pre_orders` table — no duplication
+- ✅ corporate, generic per section 32 — `customer_type` plus the three optional fields; the UI requires a company name once "Corporate" is chosen, nothing else
+- ✅ deposit — deliberately **not** a new field. A pre-order deposit is a partial payment, and the app already has a `payments` table for exactly that; adding `deposit_minor` here would be the duplicate logic section 78 explicitly says not to write. Record it as an early payment against the order instead.
+- ✅ both new fields gated behind their Phase 1 feature flags (`pre_orders`, `corporate_orders`) in the order form — an order that already has one of these values keeps showing it even if the flag is later switched off, so disabling a module never hides existing data
+- ✅ `pre_order` given its own stage flow in `orderStage.ts` (same as `purchase`: measured → ready → picked_up, no return leg) — and every existing stage-flow test iterates `ORDER_TYPES`, so the new type was exercised for free without touching a single test
 
-Do not duplicate payment/order logic.
+**Scoping decision, documented rather than silently done:** `product_variant_id`, `collection_id`, and `production_batch_id` were added to `orders` as reserved, nullable FK columns — cheap to add now, and exactly the links section 31 suggests ("link the order to: product_variant, collection, production_batch?") — but no UI writes them yet. A variant/collection picker needs an online fetch (Phase 2/6 are online-only per §46.1), and requiring one inside this form would break the offline guarantee section 47 demands for pre-orders specifically. This mirrors `order_units.catalogue_item_id`, reserved and unwritten since Phase 2 for the identical reason. Left for Phase 8 (garment identity), which is where a batch/variant/unit relationship actually gets built. `collection_id` was exercised in this phase's live test (insert, FK rejection, `on delete set null`) even though nothing writes it yet, so the column itself is proven correct ahead of that UI work.
+
+A `quantity` field (implied by the corporate example, "100 Shirts, 50 Trousers") was **not** added to `order_units` in this phase. Section 32's own field list for corporate orders is just `customer_type` + the three optional fields — no `quantity` — and today's model already supports a corporate order for multiple items by adding one `order_unit` per line, just without a compact "100×" shorthand. Changing `order_units`' pricing model risks the order-total invariants Phase 1 built (`recalculateOrder`'s subtotal derivation), which is a bigger change than this phase's stated scope justifies. Flagged for whoever next touches bulk/ready-made line items, not left as a silent gap.
 
 ---
 

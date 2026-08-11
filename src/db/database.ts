@@ -141,6 +141,10 @@ export const ordersStrategies = {
       reference: generateOrderReference(new Date(doc.created_at ?? Date.now())),
     }
   },
+  // v2 added customer_type, organisation_name, purchase_order_reference,
+  // contact_person, expected_fulfilment_date, product_variant_id,
+  // collection_id, production_batch_id -- all optional, no shape change.
+  2: (doc: OrderDoc) => doc,
 }
 
 /** Exported so a test can exercise the strategy RxDB actually ships with. */
