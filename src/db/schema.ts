@@ -1,47 +1,29 @@
 /**
- * RxDB collection schemas, mirroring the Postgres tables defined in
- * pwa-schema-and-screens.md.
+ * RxDB collection schemas, mirroring the Postgres tables.
  *
- * ## Why `_modified` is NOT declared here
+ * Do not declare `_modified` here: RxDB's dev-mode schema check rejects
+ * underscore-prefixed fields other than `_deleted`, so it breaks `pnpm dev`
+ * while `vite build` stays green (see database.test.ts). `_modified` and
+ * `_deleted` are Postgres/replication-only columns.
  *
- * The Supabase replication protocol uses a `_modified` timestamp column and a
- * `_deleted` soft-delete flag on every synced Postgres table. Neither belongs
- * in the RxDB schema:
- *
- *  - RxDB rejects any top-level field starting with `_` other than `_id` and
- *    `_deleted` (see checkFieldNameRegex / SC8 in rxdb/plugins/dev-mode/
- *    check-schema.js). Declaring `_modified` makes `addCollections()` throw,
- *    but only when the dev-mode plugin is loaded -- so it breaks `pnpm dev`
- *    while a production build appears fine. See the smoke test in
- *    database.test.ts, which exists specifically to catch that asymmetry.
- *  - The replication plugin does not need it. It reads `_modified` off the raw
- *    Postgres row for checkpointing, then strips it, and only copies it back
- *    onto the document if the schema happens to declare that property
- *    (rowToDoc in rxdb/plugins/replication-supabase/index.js).
- *  - `_modified` is server-owned regardless: the migration sets it from a
- *    BEFORE trigger and the plugin deletes it from every pushed row, so client
- *    code could not meaningfully set it even if it wanted to.
- *
- * `_deleted` is likewise omitted. RxDB manages it internally on every document
- * and the replication plugin maps the Postgres column onto it.
- *
- * ## Nullability
- *
- * Fields that are nullable in 0001_init.sql are optional here. Treating a
- * nullable column as a guaranteed `string` is how you get a runtime `null`
- * wearing a `string` type.
- *
- * catalogue_items is intentionally not defined yet -- it's a Phase 2 addition
- * per IMPLEMENTATION_PLAN.md.
+ * Nullable Postgres columns are optional here, not a guaranteed type.
  */
 import type { RxJsonSchema } from 'rxdb'
 
-// Every id is a Postgres uuid. RxDB requires maxLength on the primary key and
-// on any indexed string field, so this is declared once rather than retyped.
 const uuidField = { type: 'string' as const, maxLength: 36 }
 
 /** ISO 3166-1 alpha-2. Replaces the hardcoded dialling prefix as the default. */
 export const DEFAULT_COUNTRY = 'UG'
+
+/** Affects defaults and navigation only, never a permission boundary. */
+export type BusinessType = 'tailor' | 'rental' | 'apparel_brand' | 'corporate_supplier' | 'hybrid'
+export const BUSINESS_TYPES: readonly BusinessType[] = [
+  'tailor',
+  'rental',
+  'apparel_brand',
+  'corporate_supplier',
+  'hybrid',
+]
 
 export interface ShopDoc {
   id: string
@@ -55,11 +37,17 @@ export interface ShopDoc {
   address?: string
   /** 0 means never. */
   lock_after_minutes: number
+  business_type?: BusinessType
+  logo_url?: string
+  /** IANA zone name, e.g. "Africa/Kampala". Display only. */
+  timezone?: string
+  email?: string
+  website?: string
   created_at: string
   updated_at: string
 }
 export const shopSchema: RxJsonSchema<ShopDoc> = {
-  version: 2, // v2: currency, country, address, lock_after_minutes, updated_at
+  version: 3, // v3: business_type, logo_url, timezone, email, website
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -71,10 +59,102 @@ export const shopSchema: RxJsonSchema<ShopDoc> = {
     country: { type: 'string' },
     address: { type: 'string' },
     lock_after_minutes: { type: 'integer', minimum: 0 },
+    business_type: { type: 'string', enum: [...BUSINESS_TYPES] },
+    logo_url: { type: 'string' },
+    timezone: { type: 'string' },
+    email: { type: 'string' },
+    website: { type: 'string' },
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
   },
   required: ['id', 'name', 'currency', 'country', 'lock_after_minutes'],
+}
+
+// -------------------------------------------------------- tenant features
+
+/** Gates navigation and optional workflows -- never the sole security mechanism. */
+export type FeatureKey =
+  | 'customers'
+  | 'measurements'
+  | 'orders'
+  | 'payments'
+  | 'expenses'
+  | 'sales'
+  | 'rentals'
+  | 'catalogue'
+  | 'inventory'
+  | 'suppliers'
+  | 'production'
+  | 'pre_orders'
+  | 'corporate_orders'
+  | 'collections'
+  | 'repairs'
+  | 'garment_identity'
+  | 'garment_passport'
+
+export const FEATURE_KEYS: readonly FeatureKey[] = [
+  'customers',
+  'measurements',
+  'orders',
+  'payments',
+  'expenses',
+  'sales',
+  'rentals',
+  'catalogue',
+  'inventory',
+  'suppliers',
+  'production',
+  'pre_orders',
+  'corporate_orders',
+  'collections',
+  'repairs',
+  'garment_identity',
+  'garment_passport',
+]
+
+/** Used when a tenant has no override row for a key. */
+export const DEFAULT_FEATURE_FLAGS: Record<FeatureKey, boolean> = {
+  customers: true,
+  measurements: true,
+  orders: true,
+  payments: true,
+  expenses: true,
+  sales: true,
+  rentals: false,
+  catalogue: false,
+  inventory: false,
+  suppliers: false,
+  production: false,
+  pre_orders: false,
+  corporate_orders: false,
+  collections: false,
+  repairs: true,
+  garment_identity: false,
+  garment_passport: false,
+}
+
+export interface TenantFeatureDoc {
+  id: string
+  shop_id: string
+  feature_key: FeatureKey
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+export const tenantFeatureSchema: RxJsonSchema<TenantFeatureDoc> = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: uuidField,
+    shop_id: uuidField,
+    feature_key: { type: 'string', enum: [...FEATURE_KEYS], maxLength: 20 },
+    enabled: { type: 'boolean' },
+    created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
+  },
+  required: ['id', 'shop_id', 'feature_key', 'enabled'],
+  indexes: [['shop_id', 'feature_key']],
 }
 
 export type StaffRole = 'owner' | 'staff'

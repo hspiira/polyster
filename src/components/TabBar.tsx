@@ -4,10 +4,12 @@ import { Avatar } from './ui'
 import { SyncBadge } from './SyncBadge'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { today } from '../lib/dates'
 import { OPEN_STAGES } from '../screens/today/todayModel'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
+import type { FeatureKey } from '../db/schema'
 import {
   IconChart,
   IconChevronRight,
@@ -61,6 +63,7 @@ interface TabDef {
   Icon: (props: { size?: number; 'stroke-width'?: number }) => preact.JSX.Element
   /** Path prefix that counts as this tab being active. */
   prefix: string
+  feature?: FeatureKey
 }
 
 /** Left of the create action, then right of it. */
@@ -89,8 +92,8 @@ const RAIL_WORK: readonly TabDef[] = [
 ]
 
 const RAIL_MONEY: readonly TabDef[] = [
-  { href: '/sales', label: 'Sales', Icon: IconTag, prefix: '/sales' },
-  { href: '/expenses', label: 'Expenses', Icon: IconReceipt, prefix: '/expenses' },
+  { href: '/sales', label: 'Sales', Icon: IconTag, prefix: '/sales', feature: 'sales' },
+  { href: '/expenses', label: 'Expenses', Icon: IconReceipt, prefix: '/expenses', feature: 'expenses' },
   { href: '/reports', label: 'Reports', Icon: IconChart, prefix: '/reports' },
 ]
 
@@ -206,6 +209,8 @@ export function SideRail({
   const { path } = useLocation()
   const { db, shop, activeStaff } = useCurrentShop()
   const now = today()
+  const flags = useFeatureFlags(db, shop.id)
+  const railMoney = RAIL_MONEY.filter((tab) => !tab.feature || flags[tab.feature])
 
   const orderDocs = useRxQuery(
     () => db.orders.find({ selector: { shop_id: shop.id } }).$,
@@ -272,7 +277,7 @@ export function SideRail({
       <div class="my-3 border-t border-stone-200 dark:border-stone-800" />
 
       <div class="flex flex-col gap-0.5">
-        {RAIL_MONEY.map((tab) => (
+        {railMoney.map((tab) => (
           <RailItem key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
         ))}
         <RailItem

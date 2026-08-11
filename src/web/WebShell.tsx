@@ -31,6 +31,7 @@ import { MeasurementFieldSettings } from '../screens/settings/MeasurementFieldSe
 import { LockSettings } from '../screens/settings/LockSettings'
 import { StaffSettings } from '../screens/settings/StaffSettings'
 import { BackupSettings } from '../screens/settings/BackupSettings'
+import { FeatureSettings } from '../screens/settings/FeatureSettings'
 import { NotFound } from '../screens/NotFound'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
@@ -54,6 +55,7 @@ const BORROWED_FROM_PHONE = [
   { path: '/settings/lock', component: LockSettings },
   { path: '/settings/staff', component: StaffSettings },
   { path: '/settings/backup', component: BackupSettings },
+  { path: '/settings/features', component: FeatureSettings },
 ] as const
 
 export function WebShell({

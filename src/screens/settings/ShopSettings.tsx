@@ -3,6 +3,15 @@ import { Button, Card, ErrorNote, Field, Input, InfoNote, Screen, Select } from 
 import { useShop } from '../../state/ShopProvider'
 import { updateShop } from '../../db/writes'
 import { toWaNumber } from '../../lib/whatsapp'
+import { BUSINESS_TYPES, type BusinessType } from '../../db/schema'
+
+const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+  tailor: 'Tailor',
+  rental: 'Rental',
+  apparel_brand: 'Apparel brand',
+  corporate_supplier: 'Corporate supplier',
+  hybrid: 'Hybrid',
+}
 
 /** In minutes; 0 means never. Fixed choices, not free text -- a mistyped
  *  number here locks the till out at an odd interval nobody chose on purpose. */
@@ -31,6 +40,11 @@ export function ShopSettings() {
   const [whatsapp, setWhatsapp] = useState('')
   const [currency, setCurrency] = useState('')
   const [lockAfterMinutes, setLockAfterMinutes] = useState('5')
+  const [businessType, setBusinessType] = useState<BusinessType>('tailor')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [timezone, setTimezone] = useState('')
+  const [email, setEmail] = useState('')
+  const [website, setWebsite] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -41,6 +55,11 @@ export function ShopSettings() {
     setWhatsapp(shop.whatsapp_number ?? '')
     setCurrency(shop.currency)
     setLockAfterMinutes(String(shop.lock_after_minutes))
+    setBusinessType(shop.business_type ?? 'tailor')
+    setLogoUrl(shop.logo_url ?? '')
+    setTimezone(shop.timezone ?? '')
+    setEmail(shop.email ?? '')
+    setWebsite(shop.website ?? '')
   }, [shop])
 
   if (!shop) {
@@ -75,6 +94,11 @@ export function ShopSettings() {
         whatsapp_number: whatsapp,
         currency: trimmedCurrency,
         lock_after_minutes: Number(lockAfterMinutes),
+        business_type: businessType,
+        logo_url: logoUrl,
+        timezone,
+        email,
+        website,
       })
       setSaved(true)
     } catch (err) {
@@ -132,7 +156,41 @@ export function ShopSettings() {
               </Select>
             </Field>
 
+            <Field label="Business type" hint="Affects defaults and onboarding, not what you can do.">
+              <Select
+                value={businessType}
+                onChange={(e) => setBusinessType((e.target as HTMLSelectElement).value as BusinessType)}
+              >
+                {BUSINESS_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {BUSINESS_TYPE_LABELS[type]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
             {error && <ErrorNote>{error}</ErrorNote>}
+          </div>
+        </Card>
+
+        <Card>
+          <div class="space-y-4">
+            <Field label="Logo URL" hint="Optional.">
+              <Input value={logoUrl} onInput={(e) => setLogoUrl((e.target as HTMLInputElement).value)} />
+            </Field>
+            <Field label="Timezone" hint="IANA name, e.g. Africa/Kampala. Optional.">
+              <Input value={timezone} onInput={(e) => setTimezone((e.target as HTMLInputElement).value)} />
+            </Field>
+            <Field label="Email" hint="Optional.">
+              <Input
+                type="email"
+                value={email}
+                onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
+              />
+            </Field>
+            <Field label="Website" hint="Optional.">
+              <Input value={website} onInput={(e) => setWebsite((e.target as HTMLInputElement).value)} />
+            </Field>
           </div>
         </Card>
 

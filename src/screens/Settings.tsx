@@ -21,11 +21,13 @@ import {
   IconLock,
   IconRuler,
   IconSettings,
+  IconToggle,
   IconUsers,
 } from '../components/icons'
 import { ThemeChoice } from '../components/ThemeChoice'
 import { useShop } from '../state/ShopProvider'
 import { useAuth } from '../hooks/useAuth'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 
 interface Entry {
   href: string
@@ -53,6 +55,12 @@ const SHOP_ENTRIES: readonly Entry[] = [
     hint: 'Who can use this app',
     Icon: IconUsers,
   },
+  {
+    href: '/settings/features',
+    label: 'Modules',
+    hint: 'What shows up in navigation',
+    Icon: IconToggle,
+  },
 ]
 
 const DEVICE_ENTRIES: readonly Entry[] = [
@@ -71,13 +79,18 @@ const DEVICE_ENTRIES: readonly Entry[] = [
 ]
 
 export function Settings() {
-  const { shop, activeStaff, setActiveStaff } = useShop()
+  const { db, shop, activeStaff, setActiveStaff } = useShop()
   const { controller } = useAuth()
+  const flags = useFeatureFlags(db, shop?.id ?? '__none__')
+
+  const shopEntries = SHOP_ENTRIES.filter(
+    (entry) => entry.href !== '/settings/measurements' || flags.measurements,
+  )
 
   return (
     <Screen title="Settings" subtitle={shop?.name} back="/">
       <div class="space-y-6">
-        <Group title="Your shop" entries={SHOP_ENTRIES} />
+        <Group title="Your shop" entries={shopEntries} />
         <Group title="This device" entries={DEVICE_ENTRIES} />
 
         <section>

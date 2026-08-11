@@ -129,10 +129,16 @@ try {
     where relkind = 'v' and relnamespace = 'public'::regnamespace
   `
 
+  // Postgres stores this reloption as whatever boolean literal the DDL used
+  // (`on`, `true`, `1`, ...) rather than canonicalizing it, so match any
+  // truthy spelling instead of the single 'security_invoker=true' string.
+  const TRUTHY_BOOL_LITERALS = new Set(['true', 'on', 'yes', '1'])
+
   for (const v of views) {
-    const hasSecurityInvoker = (v.reloptions ?? []).some(
-      (opt) => opt === 'security_invoker=true',
-    )
+    const hasSecurityInvoker = (v.reloptions ?? []).some((opt) => {
+      const [key, value] = opt.split('=')
+      return key === 'security_invoker' && TRUTHY_BOOL_LITERALS.has(value?.toLowerCase())
+    })
     if (!hasSecurityInvoker) {
       fail(
         `view '${v.relname}' does not have security_invoker=on -- it runs with ` +

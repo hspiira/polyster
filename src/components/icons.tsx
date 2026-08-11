@@ -212,3 +212,10 @@ export const IconReceipt = (p: IconProps) => (
     <path d="M9 8h6M9 12h6" />
   </Icon>
 )
+
+export const IconToggle = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.5" y="7" width="19" height="10" rx="5" />
+    <circle cx="16" cy="12" r="3" fill="currentColor" stroke="none" />
+  </Icon>
+)

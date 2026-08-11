@@ -11,6 +11,14 @@ startTheme()
 // The layout picker is gone; release anyone it pinned to the wrong design.
 forgetLayoutOverride()
 
+// Dev-only console tools: getDatabase().then(db => __polyster.seedNorthFound(db)),
+// then reload. Never bundled in production (see the DEV guard below).
+if (import.meta.env.DEV) {
+  const { getDatabase } = await import('./db/database.ts')
+  const fixtures = await import('./dev/fixtures/index.ts')
+  ;(window as unknown as { __polyster: unknown }).__polyster = { getDatabase, ...fixtures }
+}
+
 /**
  * Paint something when the app fails to mount.
  *

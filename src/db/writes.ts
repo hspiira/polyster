@@ -1,28 +1,19 @@
 /**
- * Every write the app makes, in one place.
+ * Every write the app makes, in one place, so id generation, timestamps and
+ * attribution aren't repeated (or forgotten) per screen.
  *
- * Screens call these rather than touching collections directly, so that the
- * things easy to forget -- generating an id, stamping `created_at`, recording
- * who did it, writing the audit row -- cannot be forgotten in one screen and
- * remembered in another.
- *
- * ## On transactions
- *
- * RxDB has no cross-collection transaction, so "advance the stage and record
- * the history" cannot be atomic. The order below is deliberate: the history
- * row is written **first**. If the second write fails, the shop is left with a
- * history entry for a transition that did not happen -- visible, harmless, and
- * correctable. The other ordering fails the other way, silently dropping the
- * audit record, which is the one thing that table exists to guarantee.
- *
- * An earlier draft of IMPLEMENTATION_PLAN.md said these happen "in the same
- * transaction". They cannot; this comment is the correction.
+ * RxDB has no cross-collection transaction. Where a stage change and its
+ * history row both need writing, the history row goes first -- a failure
+ * after that leaves a visible, correctable orphan rather than silently
+ * dropping the audit record.
  */
 import type { AppDatabase } from './database'
 import {
   DEFAULT_COUNTRY,
+  type BusinessType,
   type ClientDoc,
   type FabricSource,
+  type FeatureKey,
   type MeasurementFieldDoc,
   type MeasurementFieldType,
   type MessageTemplate,
@@ -39,6 +30,7 @@ import {
   type SaleDoc,
   type ExpenseDoc,
   type ExpenseCategory,
+  type TenantFeatureDoc,
 } from './schema'
 import { hashPin } from '../lib/pin'
 import { DEFAULT_CURRENCY } from '../lib/money'
@@ -732,6 +724,11 @@ export async function updateShop(
     whatsapp_number?: string
     currency?: string
     lock_after_minutes?: number
+    business_type?: BusinessType
+    logo_url?: string
+    timezone?: string
+    email?: string
+    website?: string
   },
 ): Promise<void> {
   const doc = await db.shops.findOne(shopId).exec()
@@ -744,6 +741,11 @@ export async function updateShop(
     ...(input.lock_after_minutes !== undefined
       ? { lock_after_minutes: input.lock_after_minutes }
       : {}),
+    ...(input.business_type ? { business_type: input.business_type } : {}),
+    logo_url: input.logo_url?.trim() || undefined,
+    timezone: input.timezone?.trim() || undefined,
+    email: input.email?.trim() || undefined,
+    website: input.website?.trim() || undefined,
   })
 }
 
@@ -768,6 +770,36 @@ export async function claimShop(
   }
 
   await doc.patch({ supabase_auth_user_id: supabaseAuthUserId })
+}
+
+// -------------------------------------------------------- tenant features
+
+/** Creates the override row on first toggle; patches it after that. */
+export async function setFeatureEnabled(
+  db: AppDatabase,
+  shopId: string,
+  featureKey: FeatureKey,
+  enabled: boolean,
+): Promise<void> {
+  const existing = await db.tenant_features
+    .findOne({ selector: { shop_id: shopId, feature_key: featureKey } })
+    .exec()
+
+  if (existing) {
+    await existing.patch({ enabled, updated_at: now() })
+    return
+  }
+
+  const timestamp = now()
+  const doc: TenantFeatureDoc = {
+    id: newId(),
+    shop_id: shopId,
+    feature_key: featureKey,
+    enabled,
+    created_at: timestamp,
+    updated_at: timestamp,
+  }
+  await db.tenant_features.insert(doc)
 }
 
 // ------------------------------------------------------------------- sales

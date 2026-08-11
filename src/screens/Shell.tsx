@@ -39,6 +39,7 @@ import { MeasurementFieldSettings } from './settings/MeasurementFieldSettings'
 import { LockSettings } from './settings/LockSettings'
 import { StaffSettings } from './settings/StaffSettings'
 import { BackupSettings } from './settings/BackupSettings'
+import { FeatureSettings } from './settings/FeatureSettings'
 import { Money } from './Money'
 import { Reports } from './Reports'
 import { Sales } from './Sales'
@@ -110,6 +111,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/settings/lock" component={LockSettings} />
           <Route path="/settings/staff" component={StaffSettings} />
           <Route path="/settings/backup" component={BackupSettings} />
+          <Route path="/settings/features" component={FeatureSettings} />
           <Route default component={NotFound} />
         </Router>
       </main>

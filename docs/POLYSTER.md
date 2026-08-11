@@ -2961,28 +2961,31 @@ Do not remove existing tests to make the new implementation pass.
 
 ### Priority: P0
 
-**Status: 🔄 In progress** — local checks done; live-Supabase checks blocked, no `.env`/`SUPABASE_DB_URL` present in this environment.
+**Status: 🔄 In progress** — local checks, live tenant-isolation/RLS checks, and offline/mobile-layout/PWA-prerequisite checks all done against a real (eu-central-1) Supabase project and a real mobile-emulated browser. Remaining gap: replication/Realtime/reconnect/multi-device sync all need a Supabase-account-linked shop, which needs phone-OTP sign-in — no SMS provider is configured on this project yet. That is the one open item blocking full Phase 0 exit.
 
 Before adding major functionality:
 
 - ✅ Run existing tests — `pnpm verify` (typecheck + 273 tests across 19 files + production build), all passing, 2026-08-11
-- ⛔ Verify Supabase connection — needs `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` in `.env`
-- ⛔ Create two tenants — needs a live Supabase project
-- ⛔ Verify authentication — needs a live Supabase project
-- ⛔ Verify RLS — `pnpm verify:rls` needs `SUPABASE_DB_URL`; structural check only, not the actual cross-tenant read test
-- ⛔ Verify `order_balances` — needs a live Supabase project with two tenants
-- ⛔ Verify replication — needs a live Supabase project
-- ⛔ Verify Realtime — needs a live Supabase project
-- ⛔ Test offline writes — needs a live Supabase project to test reconnect against
-- ⛔ Test reconnect — needs a live Supabase project
-- ⛔ Test multi-device sync — needs a live Supabase project and two devices/sessions
-- ⛔ Test conflict behaviour — needs a live Supabase project and two devices/sessions
-- ⬜ Test PWA installation — not attempted yet
-- ⬜ Test mobile layout — not attempted yet
+- ✅ Verify Supabase connection — live project reachable (PostgREST, Auth Admin API, direct DB via session pooler), 2026-08-11
+- ✅ Create two tenants — two real shops created live via the Admin API + magic-link session flow (phone-OTP sign-in path itself not yet exercised — see note below), 2026-08-11
+- 🔄 Verify authentication — a real Supabase Auth user + session correctly authenticates against PostgREST/RLS (`auth.uid()` resolves, `current_shop_id()` resolves correctly per tenant). The app's actual phone-OTP sign-in path (`src/lib/auth.ts`) has **not** been exercised — no SMS provider configured yet.
+- ✅ Verify RLS — `pnpm verify:rls` structural check passing (was failing on a bug in the check itself — see below, now fixed), **and** a live two-tenant RLS test matrix run over the real PostgREST path: 17/17 checks passed (own-data reads, cross-tenant reads denied, cross-tenant insert/update/delete all rejected or no-op), 2026-08-11
+- ✅ Verify `order_balances` — confirmed in the same live test: Tenant A could read its own `order_balances` row, denied Tenant B's
+- ⛔ Verify replication — blocked: requires a shop connected to a Supabase account, which requires phone-OTP sign-in (`src/lib/auth.ts`); no SMS provider configured yet on this project
+- ⛔ Verify Realtime — same blocker as replication
+- ✅ Test offline writes — driven live in a real (mobile-emulated) browser: created a client with the browser context's network forced offline (`context.setOffline(true)`), save succeeded with no errors and no UI blocking, 2026-08-11
+- ✅ Test offline persistence — confirmed the offline-created record survives a full browser process restart (real IndexedDB persistence, not in-memory-only)
+- ⛔ Test reconnect — same OTP blocker as replication (nothing to reconnect without a cloud-linked shop)
+- ⛔ Test multi-device sync — same OTP blocker
+- ⛔ Test conflict behaviour — same OTP blocker
+- 🔄 Test PWA installation — technical prerequisites confirmed against the production build (`pnpm preview`): service worker registers and activates, `manifest.webmanifest` is valid (`display: standalone`, correct `start_url`, 3 icons). The actual "Add to Home Screen" device flow still needs a real phone.
+- ✅ Test mobile layout — confirmed correct with full mobile device emulation (touch + mobile user-agent, not just a narrow viewport): bottom tab nav renders correctly, forms and empty states are usable one-handed. Note: viewport width alone is not sufficient to trigger the mobile layout in this app — a narrow desktop-UA browser window renders the desktop sidebar layout instead.
+
+**Bug found and fixed during this phase:** `scripts/verify-rls.mjs` checked `order_balances`'s `security_invoker` reloption against the literal string `'security_invoker=true'`, but Postgres stores the reloption verbatim as written in the DDL (`security_invoker=on` in this migration), not canonicalized to `true`/`false`. The check was a false failure, not a real schema problem — fixed to match any truthy boolean spelling (`on`/`true`/`yes`/`1`).
 
 **Exit condition:**
 
-The existing product works reliably against real Supabase infrastructure. **Not yet met** — see blocked items above.
+The existing product works reliably against real Supabase infrastructure. **Partially met** — auth/RLS/tenant-isolation confirmed live; offline writes, persistence, mobile layout, and PWA prerequisites confirmed against the real app. Only replication/Realtime/reconnect/multi-device sync remain, blocked on phone-OTP not being configured yet (see blocked items above).
 
 ---
 
@@ -2990,30 +2993,29 @@ The existing product works reliably against real Supabase infrastructure. **Not 
 
 ### Priority: P0
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Implemented and verified 2026-08-11: migration `0008_tenant_configuration.sql` applied and RLS-tested live (structural check + a two-tenant isolation test on `tenant_features` and the new `shops` columns, 5/5 passed). Both development tenants seeded and confirmed live in a real browser (correct `business_type`, all 17 feature flags read back exactly right for each persona).
+
+**Found and fixed while wiring this up:** the app has two parallel shell implementations (`screens/Shell.tsx` for phone, `web/WebShell.tsx` for desktop/mouse, chosen by pointer type in `lib/platform.ts`) that must each register the same routes. The new `/settings/features` route and the feature-aware nav filtering were only added to the phone shell at first; `web/WebShell.tsx` and `web/Sidebar.tsx` needed the same additions. Also found and fixed: the dev-tenant seed helper initially created a shop with no staff row, and `entryState.ts` requires both to count a shop as "provisioned" — without a staff row the app bounced back to onboarding instead of opening the seeded shop.
+
+**Deviation from this section's literal text:** no separate `shop_settings` table was created. `shops` already carried tenant-config fields directly (`currency`, `country`, `address`, `lock_after_minutes`), so `business_type`, `logo_url`, `timezone`, `email`, `website` were added as columns on `shops` instead, matching the existing convention rather than splitting config across two tables. `display_name` and a generic `phone` were skipped as duplicates of the existing `name` and `whatsapp_number`.
 
 Implement:
 
 ```text
-shop_settings
-tenant_features
-business_type
+shop_settings   -- done as columns on shops, not a separate table (see above)
+tenant_features -- done: table + RLS + RxDB collection + replication
+business_type   -- done: column on shops, enum tailor/rental/apparel_brand/corporate_supplier/hybrid
 ```
 
 Add:
 
-- feature loading
-- feature caching in RxDB
-- feature-aware navigation
-- tenant branding
-- tenant configuration screen
+- ✅ feature loading — `src/db/features.ts` (`resolveFeatureFlags`, `observeFeatureFlags`)
+- ✅ feature caching in RxDB — `tenant_features` is a synced RxDB collection like any other
+- ✅ feature-aware navigation — Settings hides "Measurement fields" when `measurements` is off; the Money hub and desktop rail hide Sales/Expenses when their flags are off
+- 🔄 tenant branding — `logo_url` etc. are captured in Shop details, but nothing in the UI renders a shop's logo yet
+- ✅ tenant configuration screen — Shop details extended (business type + presentation fields), new "Modules" screen for feature toggles
 
-Create two development tenants:
-
-```text
-Generic Tailor
-NORTH//FOUND
-```
+✅ **Create two development tenants (Generic Tailor, NORTH//FOUND) — done.** `src/dev/fixtures/` (`base.ts`, `tailor.ts`, `northfound.ts`), matching the `seedTenant()`/`seedNorthFound()` shape suggested in section 50. Dev-only console access via `window.__polyster` (wired in `main.tsx`, tree-shaken out of production builds — confirmed absent from the built bundle). Scoped to exactly what this phase needs (a correctly configured shop per persona); the full realistic datasets in sections 50-55 (40 clients, 60 orders, etc.) remain future work, not built as a side effect here.
 
 ---
 

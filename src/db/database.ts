@@ -1,14 +1,8 @@
 /**
- * RxDB database singleton. Every screen reads and writes through this --
- * never directly against Supabase (see ARCHITECTURE.md section 3,
- * "Data flow").
- *
- * The dev-mode + ajv-validation wiring below runs only in development. That
- * asymmetry is deliberate (both plugins are large and their checks are
- * developer aids, not runtime requirements) but it has a sharp edge: a schema
- * mistake fails loudly in `pnpm dev` and silently passes `vite build`. The
- * smoke test in database.test.ts runs this exact code path with dev-mode on so
- * the failure surfaces in CI rather than on someone's laptop.
+ * RxDB database singleton. Every screen reads and writes through this, never
+ * directly against Supabase. Dev-mode/ajv validation is dev-only; the smoke
+ * test in database.test.ts runs this path with it on so a schema mistake
+ * fails in CI rather than only in `pnpm dev`.
  */
 import { createRxDatabase, addRxPlugin, type RxCollection, type RxDatabase } from 'rxdb'
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
@@ -26,6 +20,7 @@ import {
   saleSchema,
   expenseSchema,
   messageLogSchema,
+  tenantFeatureSchema,
   DEFAULT_COUNTRY,
   type ShopDoc,
   type StaffDoc,
@@ -41,14 +36,14 @@ import {
   type SaleDoc,
   type ExpenseDoc,
   type MessageLogDoc,
+  type TenantFeatureDoc,
 } from './schema'
 import { DEFAULT_CURRENCY } from '../lib/money'
 import { generateOrderReference } from '../lib/orderReference'
 import { DEFAULT_LOCK_AFTER_MINUTES } from '../lib/lockPolicy'
 import { backfillOrderUnits } from './backfill'
 
-// Collections keyed exactly as the Supabase tableName they replicate
-// against (see REPLICATED_TABLES in ./replication.ts) -- keep these in sync.
+// Keys must match REPLICATED_TABLES in ./replication.ts.
 export type Collections = {
   shops: RxCollection<ShopDoc>
   staff: RxCollection<StaffDoc>
@@ -62,42 +57,16 @@ export type Collections = {
   sales: RxCollection<SaleDoc>
   expenses: RxCollection<ExpenseDoc>
   message_log: RxCollection<MessageLogDoc>
+  tenant_features: RxCollection<TenantFeatureDoc>
 }
 
 export type AppDatabase = RxDatabase<Collections>
 
 export const DATABASE_NAME = 'tailor_tracker'
 
-/**
- * Schema migrations.
- *
- * Every collection passes a `migrationStrategies` map, empty while all schemas
- * are still at `version: 0`. The empty maps are not decoration -- they are the
- * pattern being established while it is free.
- *
- * The failure this prevents is specific and bad. Once this app is installed on
- * a shop's phone, that phone holds the only copy of any work done offline.
- * Bumping a schema version without a strategy for the version below it makes
- * `addCollections()` throw on that device, and the app cannot open the
- * database that holds the shop's orders. It is not a data-loss bug on paper --
- * the rows are still in IndexedDB -- but it is one in practice, because the
- * only thing that can read them is the app that now refuses to start.
- *
- * So: when you bump a `version` in schema.ts, add the matching strategy here
- * in the same commit. A strategy is a function from the old document shape to
- * the new one; returning `null` drops the document.
- *
- *     orders: {
- *       schema: orderSchema,           // version: 1
- *       migrationStrategies: {
- *         1: (doc) => ({ ...doc, deposit_required: false }),
- *       },
- *     }
- *
- * The number is the version being migrated *to*. Test it: `database.test.ts`
- * has a case that opens a collection at v0, writes a document, reopens it at
- * v1, and asserts the document survived.
- */
+// A schema version bump with no matching strategy here throws on
+// addCollections() -- on a shop's phone, that means the app can no longer
+// open its own database. Add the strategy in the same commit as the bump.
 addRxPlugin(RxDBMigrationSchemaPlugin)
 
 // Old document shapes, one per migrated collection, typed as a `Pick` of the
@@ -204,13 +173,9 @@ export async function createDatabase(
 
   let storage = getRxStorageDexie()
 
-  // `import.meta.env.DEV` has to be the outer condition, not `devMode`.
-  // Rollup only drops the two dynamic imports below -- roughly 240 KB, which
-  // would otherwise land in the service worker's precache manifest and be
-  // downloaded by every install -- if the guard is a statically known
-  // constant. A parameter is not. The consequence is that dev-mode cannot be
-  // switched on in a production build at all, which is the right trade for an
-  // app whose users are on metered, low-bandwidth connections.
+  // `import.meta.env.DEV` must be the outer condition -- Rollup only
+  // tree-shakes the dynamic imports below for a statically known constant,
+  // not a runtime `devMode` param.
   if (import.meta.env.DEV && devMode) {
     const { RxDBDevModePlugin, disableWarnings } = await import('rxdb/plugins/dev-mode')
     const { wrappedValidateAjvStorage } = await import('rxdb/plugins/validate-ajv')
@@ -247,6 +212,8 @@ export async function createDatabase(
           lock_after_minutes: DEFAULT_LOCK_AFTER_MINUTES,
           updated_at: doc.created_at,
         }),
+        // v3 added business_type, logo_url, timezone, email, website (all optional).
+        3: (doc: ShopDoc) => doc,
       },
     },
     staff: {
@@ -310,6 +277,7 @@ export async function createDatabase(
     sales: { schema: saleSchema, migrationStrategies: {} },
     expenses: { schema: expenseSchema, migrationStrategies: {} },
     message_log: { schema: messageLogSchema, migrationStrategies: {} },
+    tenant_features: { schema: tenantFeatureSchema, migrationStrategies: {} },
   })
 
   try {

@@ -8,8 +8,10 @@ import { Card, ListRow, RowList, Screen, StatValue } from '../components/ui'
 import { IconChart, IconReceipt, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
+import type { FeatureKey } from '../db/schema'
 
 const SECTIONS = [
   {
@@ -17,24 +19,29 @@ const SECTIONS = [
     label: 'Sales',
     hint: 'Counter sales, and what sells most',
     Icon: IconTag,
+    feature: 'sales' as FeatureKey,
   },
   {
     href: '/expenses',
     label: 'Expenses',
     hint: 'Money out, so profit means something',
     Icon: IconReceipt,
+    feature: 'expenses' as FeatureKey,
   },
   {
     href: '/reports',
     label: 'Reports',
     hint: 'Profit, collected, outstanding, stages',
     Icon: IconChart,
+    feature: null,
   },
 ] as const
 
 export function Money() {
   const { db, shop } = useCurrentShop()
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const flags = useFeatureFlags(db, shop.id)
+  const sections = SECTIONS.filter((section) => !section.feature || flags[section.feature])
 
   const outstanding = [...balances.values()].reduce(
     (total, balance) => total + Math.max(0, balance.balance_minor),
@@ -53,7 +60,7 @@ export function Money() {
 
         <Card padded={false}>
           <RowList>
-            {SECTIONS.map(({ href, label, hint, Icon }) => (
+            {sections.map(({ href, label, hint, Icon }) => (
               <li key={href}>
                 <ListRow
                   href={href}

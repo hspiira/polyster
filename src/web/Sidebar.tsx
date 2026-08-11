@@ -14,6 +14,7 @@ import { useMemo } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { OPEN_STAGES } from '../screens/today/todayModel'
 import { SyncBadge } from '../components/SyncBadge'
 import { IconMoney, IconOrders, IconPlus, IconRuler, IconSettings, IconUsers } from '../components/icons'
@@ -21,12 +22,14 @@ import { cn } from '../lib/cn'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
+import type { FeatureKey } from '../db/schema'
 
 interface NavItem {
   href: string
   label: string
   Icon?: (props: { size?: number }) => preact.JSX.Element
   count?: number
+  feature?: FeatureKey
 }
 
 function isActive(path: string, href: string): boolean {
@@ -45,6 +48,7 @@ export function Sidebar({
 }) {
   const { db, shop } = useCurrentShop()
   const { path } = useLocation()
+  const flags = useFeatureFlags(db, shop.id)
 
   const orderDocs = useRxQuery(
     () => db.orders.find({ selector: { shop_id: shop.id } }).$,
@@ -64,21 +68,21 @@ export function Sidebar({
     [orderDocs],
   )
 
-  const groups: { label: string; items: NavItem[] }[] = [
+  const rawGroups: { label: string; items: NavItem[] }[] = [
     {
       label: 'Work',
       items: [
         { href: '/', label: 'Today', Icon: IconOrders },
         { href: '/orders', label: 'Orders', Icon: IconOrders, count: openOrders },
         { href: '/clients', label: 'Clients', Icon: IconUsers, count: clientDocs.length },
-        { href: '/settings/measurements', label: 'Measurements', Icon: IconRuler },
+        { href: '/settings/measurements', label: 'Measurements', Icon: IconRuler, feature: 'measurements' },
       ],
     },
     {
       label: 'Money',
       items: [
-        { href: '/sales', label: 'Sales', Icon: IconMoney },
-        { href: '/expenses', label: 'Expenses', Icon: IconMoney },
+        { href: '/sales', label: 'Sales', Icon: IconMoney, feature: 'sales' },
+        { href: '/expenses', label: 'Expenses', Icon: IconMoney, feature: 'expenses' },
         { href: '/reports', label: 'Reports', Icon: IconMoney },
       ],
     },
@@ -90,6 +94,10 @@ export function Sidebar({
       ],
     },
   ]
+
+  const groups = rawGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => !item.feature || flags[item.feature]) }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <nav
