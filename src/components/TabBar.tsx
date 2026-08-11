@@ -73,7 +73,14 @@ function isActive(currentPath: string, prefix: string): boolean {
  * pinned to the bottom edge, and tab-switching mid-draft silently discards it.
  */
 function isFullScreenTask(path: string): boolean {
-  return path === '/orders/new' || /^\/orders\/[^/]+\/edit$/.test(path)
+  return (
+    path === '/orders/new' ||
+    // Same reasoning: the sale form pins its own Cancel/Record pair at the
+    // bottom, and the floating pill sat on top of them -- the primary action
+    // was partly un-tappable.
+    path === '/sales/new' ||
+    /^\/orders\/[^/]+\/edit$/.test(path)
+  )
 }
 
 export function TabBar() {

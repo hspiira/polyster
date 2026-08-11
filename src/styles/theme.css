@@ -1,0 +1,325 @@
+/**
+ * THE THEME. Everything the app looks like is decided here, and nowhere else
+ * may name a colour -- components ask for roles (`bg-surface`, `text-money`)
+ * and this file says what a role is worth.
+ *
+ * To re-skin: `--hue-brand` and `--sat-brand` in section 1. Nothing else.
+ * Section 2's ramps are perceptual positions (an L and a C at whatever hue you
+ * set), so re-hueing preserves every contrast ratio -- which is the whole
+ * reason the palette is oklch rather than hex.
+ *
+ * No `dark:` utilities exist in this app. A variant writes each colour decision
+ * twice at the call site where the copies can drift; here each role is written
+ * twice in this file and never again. The theme is a `data-theme` attribute,
+ * resolved by src/lib/theme.ts, bootstrapped inline in index.html.
+ *
+ * (`light-dark()` would collapse the two blocks into one but fails closed: on a
+ * browser without it every role resolves to nothing and the app renders
+ * unstyled. The attribute degrades to light theme instead.)
+ */
+
+/* ═══════════════════════════════════════════════════════════ 1. THE KNOBS ═══
+   Change these to change the app. */
+:root {
+  /* Iris. Far enough from money (75), danger (27) and success (158) that no
+     status colour can be mistaken for a brand colour. */
+  --hue-brand: 274;
+  /* 0 is greyscale, 1 as designed, 1.2 loud. */
+  --sat-brand: 1;
+
+  /* These encode meaning, not style. Amber is money and only money. */
+  --hue-money: 75;
+  --hue-danger: 27;
+  --hue-success: 158;
+
+  /* A trace of the brand hue, so the greys read as part of the family. */
+  --hue-ink: var(--hue-brand);
+  --chroma-ink: 0.01;
+}
+
+/* ══════════════════════════════════════════════════════ 2. THE RAMPS ═══
+   Derived from section 1. Do not hardcode values here, and do not reference
+   these outside section 3. */
+:root {
+  /* -- brand ------------------------------------------------------------- */
+  --brand-50: oklch(0.977 calc(0.012 * var(--sat-brand)) var(--hue-brand));
+  --brand-100: oklch(0.95 calc(0.028 * var(--sat-brand)) var(--hue-brand));
+  --brand-200: oklch(0.902 calc(0.056 * var(--sat-brand)) var(--hue-brand));
+  --brand-300: oklch(0.826 calc(0.098 * var(--sat-brand)) var(--hue-brand));
+  --brand-400: oklch(0.72 calc(0.148 * var(--sat-brand)) var(--hue-brand));
+  --brand-500: oklch(0.615 calc(0.182 * var(--sat-brand)) var(--hue-brand));
+  --brand-600: oklch(0.535 calc(0.196 * var(--sat-brand)) var(--hue-brand));
+  --brand-700: oklch(0.462 calc(0.182 * var(--sat-brand)) var(--hue-brand));
+  --brand-800: oklch(0.392 calc(0.152 * var(--sat-brand)) var(--hue-brand));
+  --brand-900: oklch(0.33 calc(0.118 * var(--sat-brand)) var(--hue-brand));
+  --brand-950: oklch(0.232 calc(0.082 * var(--sat-brand)) var(--hue-brand));
+
+  /* -- ink (neutrals) ---------------------------------------------------- */
+  --ink-0: oklch(1 0 0);
+  --ink-50: oklch(0.985 calc(0.2 * var(--chroma-ink)) var(--hue-ink));
+  --ink-100: oklch(0.968 calc(0.4 * var(--chroma-ink)) var(--hue-ink));
+  --ink-200: oklch(0.928 calc(0.6 * var(--chroma-ink)) var(--hue-ink));
+  --ink-300: oklch(0.872 calc(0.8 * var(--chroma-ink)) var(--hue-ink));
+  --ink-400: oklch(0.715 calc(1.2 * var(--chroma-ink)) var(--hue-ink));
+  --ink-500: oklch(0.578 calc(1.4 * var(--chroma-ink)) var(--hue-ink));
+  --ink-600: oklch(0.464 calc(1.4 * var(--chroma-ink)) var(--hue-ink));
+  --ink-700: oklch(0.375 calc(1.3 * var(--chroma-ink)) var(--hue-ink));
+  --ink-800: oklch(0.278 calc(1.1 * var(--chroma-ink)) var(--hue-ink));
+  --ink-900: oklch(0.208 calc(1 * var(--chroma-ink)) var(--hue-ink));
+  --ink-950: oklch(0.165 calc(1 * var(--chroma-ink)) var(--hue-ink));
+  --ink-1000: oklch(0.115 calc(1 * var(--chroma-ink)) var(--hue-ink));
+
+  /* -- money. Outstanding balance, and nothing else. --------------------- */
+  --money-100: oklch(0.955 0.055 var(--hue-money));
+  --money-300: oklch(0.855 0.115 var(--hue-money));
+  --money-400: oklch(0.795 0.145 var(--hue-money));
+  --money-700: oklch(0.545 0.125 var(--hue-money));
+  --money-900: oklch(0.375 0.085 var(--hue-money));
+  --money-950: oklch(0.255 0.062 var(--hue-money));
+
+  /* -- danger. Overdue, destructive, failed. ----------------------------- */
+  --danger-100: oklch(0.935 0.035 var(--hue-danger));
+  --danger-300: oklch(0.8 0.105 var(--hue-danger));
+  --danger-400: oklch(0.705 0.17 var(--hue-danger));
+  --danger-600: oklch(0.565 0.225 var(--hue-danger));
+  --danger-700: oklch(0.492 0.195 var(--hue-danger));
+  --danger-900: oklch(0.355 0.125 var(--hue-danger));
+  --danger-950: oklch(0.245 0.085 var(--hue-danger));
+
+  /* -- success. Done, paid, synced. -------------------------------------- */
+  --success-100: oklch(0.95 0.045 var(--hue-success));
+  --success-300: oklch(0.845 0.105 var(--hue-success));
+  --success-400: oklch(0.76 0.135 var(--hue-success));
+  --success-500: oklch(0.68 0.145 var(--hue-success));
+  --success-700: oklch(0.5 0.11 var(--hue-success));
+  --success-800: oklch(0.43 0.095 var(--hue-success));
+  --success-950: oklch(0.255 0.055 var(--hue-success));
+}
+
+/* ═════════════════════════════════════════════════════ 3. THE ROLES ═══
+   The only names the rest of the app is allowed to know. Each appears exactly
+   twice: once light, once dark. */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* A surface is separated from the page by its fill, not by a line.
+     Elevation is a lighter fill plus, at most, one soft shadow. */
+  --page: var(--ink-100);
+  --surface: var(--ink-0);
+  --surface-raised: var(--ink-0);
+  --surface-sunken: var(--ink-200);
+  --hover: var(--ink-100);
+  --pressed: var(--ink-200);
+
+  /* For tabular alignment and for dividing a rail from a page. Never for
+     drawing a card. */
+  --line: var(--ink-200);
+  --line-strong: var(--ink-300);
+
+  --content: var(--ink-900);
+  --content-muted: var(--ink-600);
+  --content-subtle: var(--ink-500);
+  --content-inverted: var(--ink-50);
+
+  /* Carries the primary button. */
+  --accent: var(--brand-600);
+  --accent-hover: var(--brand-700);
+  --accent-content: var(--ink-0);
+  --accent-soft: var(--brand-100);
+  --accent-on-soft: var(--brand-800);
+
+  --money: var(--money-700);
+  --money-soft: var(--money-100);
+  --money-on-soft: var(--money-900);
+
+  --danger: var(--danger-600);
+  --danger-hover: var(--danger-700);
+  --danger-content: var(--ink-0);
+  --danger-soft: var(--danger-100);
+  --danger-on-soft: var(--danger-900);
+
+  --success: var(--success-700);
+  --success-soft: var(--success-100);
+  --success-on-soft: var(--success-800);
+
+  --neutral-soft: var(--ink-200);
+  --neutral-on-soft: var(--ink-700);
+
+  --focus: var(--brand-600);
+  --scrim: oklch(0.208 0.01 var(--hue-ink) / 0.45);
+
+  /* The OS status bar. A hand-matched hex of `--page`, because meta and
+     manifest colour parsers do not reliably accept oklch(). Re-match on change. */
+  --meta-theme-color: #f4f3f7;
+
+  /* Light theme can afford real shadows; there is somewhere for them to fall. */
+  --elev-1: 0 1px 2px oklch(0.2 0.02 var(--hue-ink) / 0.06);
+  --elev-2:
+    0 1px 2px oklch(0.2 0.02 var(--hue-ink) / 0.06),
+    0 4px 12px oklch(0.2 0.02 var(--hue-ink) / 0.08);
+  --elev-3:
+    0 2px 4px oklch(0.2 0.02 var(--hue-ink) / 0.08),
+    0 12px 32px oklch(0.2 0.02 var(--hue-ink) / 0.14);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --page: var(--ink-1000);
+  --surface: var(--ink-950);
+  --surface-raised: var(--ink-900);
+  --surface-sunken: var(--ink-900);
+  --hover: var(--ink-900);
+  --pressed: var(--ink-800);
+
+  --line: var(--ink-800);
+  --line-strong: var(--ink-700);
+
+  --content: var(--ink-100);
+  --content-muted: var(--ink-400);
+  --content-subtle: var(--ink-500);
+  --content-inverted: var(--ink-950);
+
+  /* One step lighter: brand-600 on a near-black page is a hole, not a button,
+     and the step up also flips what reads on top of it. */
+  --accent: var(--brand-500);
+  --accent-hover: var(--brand-400);
+  --accent-content: var(--ink-1000);
+  --accent-soft: var(--brand-950);
+  --accent-on-soft: var(--brand-300);
+
+  --money: var(--money-400);
+  --money-soft: var(--money-950);
+  --money-on-soft: var(--money-300);
+
+  --danger: var(--danger-400);
+  --danger-hover: var(--danger-300);
+  --danger-content: var(--ink-1000);
+  --danger-soft: var(--danger-950);
+  --danger-on-soft: var(--danger-300);
+
+  --success: var(--success-400);
+  --success-soft: var(--success-950);
+  --success-on-soft: var(--success-300);
+
+  --neutral-soft: var(--ink-800);
+  --neutral-on-soft: var(--ink-300);
+
+  --focus: var(--brand-400);
+  --scrim: oklch(0.1 0.01 var(--hue-ink) / 0.65);
+
+  /* See the light-theme note. Also the value in vite.config.ts's manifest and
+     index.html's fallback, because a splash screen has no theme to read. */
+  --meta-theme-color: #0d0c12;
+
+  /* Near-nothing: a shadow on a dark page is invisible work, and elevation is
+     already carried by the lighter fill. Keeps one utility safe in both themes. */
+  --elev-1: 0 1px 2px oklch(0 0 0 / 0.3);
+  --elev-2: 0 4px 14px oklch(0 0 0 / 0.4);
+  --elev-3: 0 12px 36px oklch(0 0 0 / 0.55);
+}
+
+/* ═══════════════════════════════════════ 4. SHAPE, SPACE, TYPE, MOTION ═══ */
+:root {
+  /* Cards are properly rounded; only chips stay full pills. */
+  --r-card: 0.75rem;
+  --r-panel: 1rem;
+  --r-control: 0.625rem;
+  --r-pill: 999px;
+
+  /* Fluid, so nothing snaps at a breakpoint. */
+  --gutter: clamp(1rem, 0.6rem + 1.6vw, 2rem);
+  --gap-section: clamp(1rem, 0.85rem + 0.6vw, 1.5rem);
+
+  --dur-fast: 100ms;
+  --dur-base: 180ms;
+  --dur-slow: 280ms;
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ══════════════════════════════════════════ 5. TAILWIND UTILITY EXPORT ═══
+   Publishes the roles above as utilities: `bg-surface`, `text-money`,
+   `px-gutter`, `shadow-raise`. `inline` is load-bearing -- it compiles
+   `bg-surface` to `var(--surface)` directly, so the value resolves in the
+   element's theme scope instead of being frozen at :root. */
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-hover: var(--hover);
+  --color-pressed: var(--pressed);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-content: var(--content);
+  --color-content-muted: var(--content-muted);
+  --color-content-subtle: var(--content-subtle);
+  --color-content-inverted: var(--content-inverted);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-content: var(--accent-content);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-on-soft: var(--accent-on-soft);
+
+  --color-money: var(--money);
+  --color-money-soft: var(--money-soft);
+  --color-money-on-soft: var(--money-on-soft);
+
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-content: var(--danger-content);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-on-soft: var(--danger-on-soft);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-on-soft: var(--success-on-soft);
+
+  --color-neutral-soft: var(--neutral-soft);
+  --color-neutral-on-soft: var(--neutral-on-soft);
+
+  --color-focus: var(--focus);
+  --color-scrim: var(--scrim);
+
+  --radius-card: var(--r-card);
+  --radius-panel: var(--r-panel);
+  --radius-control: var(--r-control);
+  --radius-pill: var(--r-pill);
+
+  --shadow-raise: var(--elev-1);
+  --shadow-float: var(--elev-2);
+  --shadow-overlay: var(--elev-3);
+
+  /* 44px tap floor: below it mis-taps become common, mouse or thumb. */
+  --spacing-gutter: var(--gutter);
+  --spacing-section: var(--gap-section);
+  --spacing-tap: 2.75rem;
+
+  /* Display sizes fluid, body sizes not: a caption that grows with the viewport
+     cannot be aligned against, and 16px inputs are what stop iOS zooming. */
+  --text-display: clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem);
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+  --text-title: clamp(1.375rem, 1.2rem + 0.7vw, 1.75rem);
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.015em;
+  --text-heading: 1.0625rem;
+  --text-heading--line-height: 1.35;
+  --text-heading--letter-spacing: -0.01em;
+
+  /* `max-w-measure` caps prose where reading comfort does; `max-w-wide` is for
+     records and tables, which have no such limit. */
+  --container-measure: 46rem;
+  --container-wide: 90rem;
+
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* No web font: instant, and free on the metered connection this app assumes. */
+  --font-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+}

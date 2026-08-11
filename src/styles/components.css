@@ -1,0 +1,185 @@
+/**
+ * The few patterns that cannot be utilities.
+ *
+ * Everything here either needs a container query, a pseudo-element, or a
+ * declaration Tailwind has no utility for. Nothing here names a colour: every
+ * value is a role from theme.css, so this file is theme-agnostic too.
+ */
+
+/* ═════════════════════════════════════════════════════════ DATA LIST ═══
+ *
+ * Layout for ui/DataList.tsx. The DOM is always the same -- a list of rows,
+ * each a grid of cells tagged with the part they play -- and only the placement
+ * changes. Wide, tracks come from `--data-cols` and the meta wrapper goes
+ * `display: contents` so its children align against the header; narrow, the
+ * cells fold into two rows and the wrapper becomes a wrapping flex line.
+ *
+ * A container query, not a breakpoint: the question is how much room the list
+ * has, which stops matching window size the moment it sits in a sidebar. */
+.data-list {
+  container-type: inline-size;
+  container-name: data-list;
+}
+
+.data-row {
+  display: grid;
+  align-items: baseline;
+  min-height: 2.75rem;
+  padding: 0.75rem var(--gutter);
+  column-gap: 0.75rem;
+  row-gap: 0.125rem;
+  /* Card form: title and status on one line, facts and figure under them. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  transition: background-color var(--dur-fast) ease-out;
+}
+
+.data-row > [data-cell='primary'] {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.data-row > .data-meta {
+  grid-area: 2 / 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+  min-width: 0;
+}
+.data-row > [data-cell='status'] {
+  grid-area: 1 / 2;
+  justify-self: end;
+}
+.data-row > [data-cell='figure'] {
+  grid-area: 2 / 2;
+  justify-self: end;
+}
+
+/* `::before` rather than a rendered character, so the separators are never
+   read out or copied. */
+.data-meta > [data-cell='meta'] + [data-cell='meta']::before {
+  content: '·';
+  margin-right: 0.5rem;
+  color: var(--content-subtle);
+}
+
+@media (hover: hover) {
+  .data-row:hover {
+    background-color: var(--hover);
+  }
+}
+.data-row:active {
+  background-color: var(--pressed);
+}
+
+.data-list-head {
+  display: none;
+}
+
+/* Table form. 44rem is where six columns of a real record stop being cramped;
+   below it they are a horizontal scroll nobody wins. */
+@container data-list (width >= 44rem) {
+  .data-list-head,
+  .data-row {
+    grid-template-columns: var(--data-cols);
+    grid-template-rows: auto;
+    align-items: center;
+    column-gap: 1rem;
+    row-gap: 0;
+  }
+
+  .data-list-head {
+    display: grid;
+    padding: 0.625rem var(--gutter);
+    border-bottom: 1px solid var(--line);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--content-muted);
+  }
+
+  /* Dissolves the wrapper so meta cells become grid items in their own right. */
+  .data-list-head > .data-meta,
+  .data-row > .data-meta {
+    display: contents;
+  }
+
+  /* Every cell placed by source order instead of by role. */
+  .data-list-head > [data-cell],
+  .data-row > [data-cell] {
+    grid-area: auto;
+    justify-self: stretch;
+    min-width: 0;
+  }
+
+  .data-row {
+    padding-block: 0.625rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .data-row:last-child {
+    border-bottom: 0;
+  }
+
+  .data-meta > [data-cell='meta'] + [data-cell='meta']::before {
+    content: none;
+  }
+
+  [data-align='end'] {
+    text-align: right;
+  }
+  .data-list-head > [data-align='end'],
+  .data-row > [data-align='end'] {
+    justify-self: end;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════ GLASS ═══
+ *
+ * The entry flow (setup, PIN, lock) is a fixed dark world with its own rules.
+ * `backdrop-filter` sits behind `@supports` so the fallback is a flat
+ * translucent fill rather than an invisible control. */
+.glass,
+.glass-flat {
+  position: relative;
+  background: color-mix(in oklch, white 5%, transparent);
+  border: 1px solid color-mix(in oklch, white 9%, transparent);
+  box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent);
+}
+
+/* Recessed, for inputs. Black-tinted, not white: a white tint over the entry
+   flow's glow picks the colour up and the whole form turns brand-coloured. */
+.glass-inset {
+  position: relative;
+  background: color-mix(in oklch, black 42%, transparent);
+  border: 1px solid color-mix(in oklch, white 12%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in oklch, white 8%, transparent),
+    inset 0 2px 6px oklch(0 0 0 / 0.28);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  /* `.glass-flat` is deliberately excluded: it is for surfaces repeated many
+     times, and ten pad keys re-sampling their backdrop every frame costs more
+     than blurring a soft gradient is worth. */
+  .glass {
+    -webkit-backdrop-filter: blur(24px) saturate(120%);
+    backdrop-filter: blur(24px) saturate(120%);
+  }
+  .glass-inset {
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
+}
+
+/* One soft highlight travelling across the surface. Barely there by design. */
+.glass-sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in oklch, white 7%, transparent) 46%,
+    transparent 62%
+  );
+}

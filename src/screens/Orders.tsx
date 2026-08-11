@@ -1,5 +1,5 @@
 /**
- * The order list (Phase 1 step 5), and one of Book's two sections.
+ * The order list, and the worked example for the redesign.
  *
  * Defaults to open work. A shop's list of everything ever made grows forever
  * and is almost never the question being asked on the shop floor -- "what is
@@ -18,21 +18,20 @@
  * Due-based scopes reuse `todayModel`'s bucketing rather than re-deriving it.
  * Two implementations of "overdue" would drift, and the first symptom would be
  * a card saying 6 opening a list of 5.
+ *
+ * This is the reference screen for the redesign: one `ORDER_COLUMNS`, one
+ * `DataList`, no colour named anywhere. Copy its shape when converting others.
  */
 import { useMemo } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import {
-  Card,
   Chip,
-  DataRowLink,
-  DataTable,
+  DataList,
   EmptyState,
-  ListRow,
-  RowList,
   Screen,
   Segmented,
-  Td,
-} from '../components/ui'
+  type Column,
+} from '../ui'
 import { IllustrationOrders } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
@@ -94,6 +93,83 @@ function isSegment(scope: Scope): scope is Segment {
   return typeof scope === 'string' && (SEGMENT_VALUES as readonly string[]).includes(scope)
 }
 
+/**
+ * Late, and still someone's problem. A return row is overdue on its own date
+ * even though the order has already been picked up.
+ */
+function isOverdue(row: DueRow): boolean {
+  const stillDue =
+    row.kind === 'return' ||
+    (row.order.stage !== 'picked_up' && row.order.stage !== 'returned')
+  return stillDue && dueBucket(row.dueDate) === 'overdue'
+}
+
+/** One description of an order row, for both presentations. See ui/DataList.tsx. */
+const ORDER_COLUMNS: readonly Column<DueRow>[] = [
+  {
+    id: 'order',
+    label: 'Order',
+    role: 'primary',
+    render: (row) => (
+      <>
+        <span class="block truncate">
+          {row.order.summary}
+          {row.kind === 'return' && (
+            <span class="font-normal text-content-muted"> · return</span>
+          )}
+        </span>
+        <span class="mt-0.5 block truncate text-xs font-normal text-content-subtle">
+          {row.order.reference}
+        </span>
+      </>
+    ),
+  },
+  {
+    id: 'client',
+    label: 'Client',
+    render: (row) => row.clientName,
+  },
+  {
+    id: 'type',
+    label: 'Type',
+    render: (row) => ORDER_TYPE_LABELS[row.order.order_type],
+  },
+  {
+    id: 'due',
+    label: 'Due',
+    // Relative ("in 3 days") on a phone -- the shop-floor question is how long
+    // there is, not what the date is. The table form has room for both.
+    render: (row) => (
+      <span class={isOverdue(row) ? 'font-medium text-danger' : undefined}>
+        {formatDueDate(row.dueDate)}
+        <span class="ml-1.5 hidden text-content-subtle @[44rem]/data-list:inline">
+          {formatDate(row.dueDate)}
+        </span>
+      </span>
+    ),
+  },
+  {
+    id: 'stage',
+    label: 'Stage',
+    role: 'status',
+    render: (row) => <Chip tone={STAGE_TONES[row.order.stage]}>{STAGE_LABELS[row.order.stage]}</Chip>,
+  },
+  {
+    id: 'outstanding',
+    label: 'Outstanding',
+    role: 'figure',
+    srLabel: 'Outstanding',
+    render: (row) =>
+      row.outstanding_minor > 0 ? (
+        <span class="text-money">
+          {formatMinor(row.outstanding_minor, row.order.currency)}
+        </span>
+      ) : (
+        <span class="font-normal text-content-subtle">--</span>
+      ),
+  },
+]
+
 export function Orders() {
   const { db, shop } = useCurrentShop()
   const location = useLocation()
@@ -148,9 +224,11 @@ export function Orders() {
   }, [orders, clientNames, balances, scope, now])
 
   return (
-    <Screen label="Orders" wide>
-      <div class="space-y-4">
-        {isSegment(scope) ? (
+    <Screen
+      label="Orders"
+      width="wide"
+      subheader={
+        isSegment(scope) ? (
           <Segmented
             value={scope}
             options={SEGMENTS}
@@ -159,38 +237,25 @@ export function Orders() {
           />
         ) : (
           <ScopeBar label={scopeLabel(scope)} count={rows.length} />
-        )}
-
-        {rows.length === 0 ? (
-          <EmptyState
-            spacious
-            illustration={<IllustrationOrders size={112} />}
-            title={emptyTitle(scope)}
-            description={emptyDescription(scope)}
-          />
-        ) : (
-          <>
-            {/* Below lg the same rows are cards; above it they are a table.
-                Seven columns at 390px would be a horizontal scroll, and one
-                stacked card per order at 1440px wastes the screen entirely. */}
-            <Card padded={false} class="lg:hidden">
-              <RowList>
-                {rows.map((row) => (
-                  <li key={`${row.order.id}-${row.kind}`}>
-                    <OrderRow row={row} />
-                  </li>
-                ))}
-              </RowList>
-            </Card>
-
-            <DataTable columns={ORDER_COLUMNS}>
-              {rows.map((row) => (
-                <OrderTableRow key={`${row.order.id}-${row.kind}-table`} row={row} />
-              ))}
-            </DataTable>
-          </>
-        )}
-      </div>
+        )
+      }
+    >
+      {rows.length === 0 ? (
+        <EmptyState
+          spacious
+          illustration={<IllustrationOrders size={112} />}
+          title={emptyTitle(scope)}
+          description={emptyDescription(scope)}
+        />
+      ) : (
+        <DataList
+          label="Orders"
+          items={rows}
+          columns={ORDER_COLUMNS}
+          getKey={(row) => `${row.order.id}-${row.kind}`}
+          href={(row) => `/orders/${row.order.id}`}
+        />
+      )}
     </Screen>
   )
 }
@@ -198,16 +263,15 @@ export function Orders() {
 /** What a linked scope is showing, and the way back to the segments. */
 function ScopeBar({ label, count }: { label: string; count: number }) {
   return (
-    <div class="flex items-center justify-between gap-3 rounded-card bg-white px-4 py-2.5 dark:bg-stone-900">
+    <div class="flex items-center justify-between gap-3 rounded-control bg-surface-sunken px-4 py-2.5">
       <p class="min-w-0 truncate text-sm">
         <span class="font-semibold">{label}</span>
-        <span class="text-stone-500 dark:text-stone-400"> · {count}</span>
+        <span class="text-content-muted"> · {count}</span>
       </p>
       <a
         href="/orders"
         class="-mr-2 flex min-h-9 shrink-0 items-center rounded-control px-2 text-xs
-               font-semibold text-brand-700 active:bg-stone-100 dark:text-brand-300
-               dark:active:bg-stone-800"
+               font-semibold text-accent transition-colors hover:bg-hover"
       >
         Clear
       </a>
@@ -264,92 +328,4 @@ function emptyDescription(scope: Scope): string {
     case 'all':
       return 'Take an order and it will appear here.'
   }
-}
-
-function OrderRow({ row }: { row: DueRow }) {
-  const { order } = row
-  // A return row is overdue on its own date even though the order has been
-  // picked up, which is exactly the case that used to be invisible (finding T1).
-  const stillDue = row.kind === 'return' || (order.stage !== 'picked_up' && order.stage !== 'returned')
-  const overdue = stillDue && dueBucket(row.dueDate) === 'overdue'
-
-  return (
-    <ListRow
-      href={`/orders/${order.id}`}
-      trailing={<Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>}
-    >
-      <span class="block truncate font-medium">
-        {order.summary}
-        {row.kind === 'return' && (
-          <span class="font-normal text-stone-500 dark:text-stone-400"> · return</span>
-        )}
-      </span>
-      <span class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-stone-500 dark:text-stone-400">
-        <span class="truncate">{row.clientName}</span>
-        <span aria-hidden="true">·</span>
-        <span class={overdue ? 'font-medium text-red-600 dark:text-red-400' : ''}>
-          {formatDueDate(row.dueDate)}
-        </span>
-        {row.outstanding_minor > 0 && (
-          <>
-            <span aria-hidden="true">·</span>
-            <span class="font-medium text-amber-700 dark:text-amber-400">
-              {formatMinor(row.outstanding_minor, order.currency)} due
-            </span>
-          </>
-        )}
-      </span>
-    </ListRow>
-  )
-}
-
-const ORDER_COLUMNS = [
-  { label: 'Order' },
-  { label: 'Client' },
-  { label: 'Type' },
-  { label: 'Due' },
-  { label: 'Stage' },
-  { label: 'Outstanding', align: 'right' as const },
-] as const
-
-/** The desktop form of OrderRow. Same data, one row instead of two lines. */
-function OrderTableRow({ row }: { row: DueRow }) {
-  const { order } = row
-  const stillDue =
-    row.kind === 'return' || (order.stage !== 'picked_up' && order.stage !== 'returned')
-  const overdue = stillDue && dueBucket(row.dueDate) === 'overdue'
-
-  return (
-    <DataRowLink href={`/orders/${order.id}`}>
-      <Td>
-        <span class="block truncate font-medium">{order.summary}</span>
-        <span class="mt-0.5 block text-xs text-stone-500 dark:text-stone-400">
-          {order.reference}
-          {row.kind === 'return' && ' · return'}
-        </span>
-      </Td>
-      <Td muted>{row.clientName}</Td>
-      <Td muted>{ORDER_TYPE_LABELS[order.order_type]}</Td>
-      <Td>
-        <span class={overdue ? 'font-medium text-red-600 dark:text-red-400' : ''}>
-          {formatDate(row.dueDate)}
-        </span>
-        <span class="mt-0.5 block text-xs text-stone-500 dark:text-stone-400">
-          {formatDueDate(row.dueDate)}
-        </span>
-      </Td>
-      <Td>
-        <Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>
-      </Td>
-      <Td align="right">
-        {row.outstanding_minor > 0 ? (
-          <span class="font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-            {formatMinor(row.outstanding_minor, order.currency)}
-          </span>
-        ) : (
-          <span class="text-stone-400 dark:text-stone-600">--</span>
-        )}
-      </Td>
-    </DataRowLink>
-  )
 }

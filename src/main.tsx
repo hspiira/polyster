@@ -1,6 +1,11 @@
 import { render } from 'preact'
 import './index.css'
 import { App } from './app.tsx'
+import { startTheme } from './lib/theme.ts'
+
+// index.html already set the attribute before first paint; this keeps a
+// `system` preference live without a reload.
+startTheme()
 
 /**
  * Paint something when the app fails to mount.

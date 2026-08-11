@@ -8,25 +8,19 @@
  * reflects exactly what this device knows. That last part matters, and the
  * screen says so rather than presenting stale figures as fact.
  */
-import { useMemo } from 'preact/hooks'
-import { Card, InfoNote, Screen, SectionTitle } from '../components/ui'
+import { useMemo, useState } from 'preact/hooks'
+import { Card, Chip, InfoNote, Screen, SectionTitle, Segmented } from '../components/ui'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances, signedAmountMinor } from '../db/balances'
+import { profitAndLoss } from '../db/profit'
+import { EXPENSE_CATEGORY_LABELS } from './Expenses'
 import { formatMinor } from '../lib/money'
 import { addDays, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
+import { normalizeTone, TONE_SOLID } from '../ui/tones'
 import { ORDER_STAGES } from '../db/schema'
 
-/** Bar-fill colours matching the Chip tones each stage already uses, so the
- * same stage reads as the same colour on the dashboard, in a chip, and here. */
-const BAR_TONES: Record<(typeof STAGE_TONES)[keyof typeof STAGE_TONES], string> = {
-  neutral: 'bg-stone-400 dark:bg-stone-500',
-  good: 'bg-emerald-500',
-  warn: 'bg-amber-500',
-  bad: 'bg-red-500',
-  info: 'bg-brand-600',
-}
 
 export function Reports() {
   const { db, shop } = useCurrentShop()
@@ -105,6 +99,8 @@ export function Reports() {
     // settings sub-screens rather than assuming either entry point.
     <Screen title="Reports" back="/settings">
       <div class="space-y-5">
+        <ProfitCard />
+
         <Card>
           <p class="text-xs font-medium text-stone-500 dark:text-stone-400">Collected, 7 days</p>
           <p class="mt-1.5 text-3xl font-semibold tabular-nums tracking-tight">
@@ -152,7 +148,7 @@ export function Reports() {
                       is not one colour on the dashboard and another here. */}
                   <div class="h-2 flex-1 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
                     <div
-                      class={`h-full rounded-full transition-[width] ${BAR_TONES[STAGE_TONES[stage]]}`}
+                      class={`h-full rounded-full transition-[width] ${TONE_SOLID[normalizeTone(STAGE_TONES[stage])]}`}
                       style={{ width: `${(count / maxStage) * 100}%` }}
                     />
                   </div>
@@ -175,5 +171,132 @@ export function Reports() {
         </InfoNote>
       </div>
     </Screen>
+  )
+}
+
+/**
+ * Profit for a period: what came in, what went out, what is left.
+ *
+ * The pilot shop's "Profits", and the reason expenses exist at all.
+ *
+ * Cash accounting throughout -- see db/profit.ts. Money in is money received,
+ * never the value of orders written up, so this figure equals what the shop
+ * can count. Outstanding is reported below, as outstanding, and is
+ * deliberately not folded in here.
+ */
+function ProfitCard() {
+  const { db, shop } = useCurrentShop()
+  const [range, setRange] = useState<'30' | '7'>('30')
+  const now = today()
+  const from = addDays(now, -(Number(range) - 1))
+
+  const saleDocs = useRxQuery(
+    () => db.sales.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+  const paymentDocs = useRxQuery(() => db.payments.find().$, [db], [])
+  const expenseDocs = useRxQuery(
+    () => db.expenses.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+
+  const pnl = useMemo(
+    () =>
+      profitAndLoss({
+        sales: saleDocs.map((doc) => doc.toJSON()),
+        payments: paymentDocs.map((doc) => doc.toJSON()),
+        expenses: expenseDocs.map((doc) => doc.toJSON()),
+        from,
+        to: now,
+      }),
+    [saleDocs, paymentDocs, expenseDocs, from, now],
+  )
+
+  const nothingRecorded = pnl.incomeMinor === 0 && pnl.expensesMinor === 0
+  const inProfit = pnl.profitMinor >= 0
+
+  return (
+    <section class="space-y-3">
+      <Segmented
+        value={range}
+        options={[
+          { value: '7' as const, label: '7 days' },
+          { value: '30' as const, label: '30 days' },
+        ]}
+        onChange={setRange}
+        label="Profit period"
+      />
+
+      <Card>
+        <p class="text-xs font-medium text-stone-500 dark:text-stone-400">
+          {inProfit ? 'Profit' : 'Loss'}, {range} days
+        </p>
+        <p
+          class={`mt-1.5 text-3xl font-semibold tabular-nums tracking-tight ${
+            nothingRecorded
+              ? ''
+              : inProfit
+                ? 'text-emerald-700 dark:text-emerald-400'
+                : 'text-red-700 dark:text-red-400'
+          }`}
+        >
+          {formatMinor(pnl.profitMinor, shop.currency)}
+        </p>
+
+        <dl class="mt-4 space-y-1.5 text-sm">
+          <div class="flex justify-between gap-4">
+            <dt class="text-stone-500 dark:text-stone-400">Money in</dt>
+            <dd class="font-medium tabular-nums">
+              {formatMinor(pnl.incomeMinor, shop.currency)}
+            </dd>
+          </div>
+          {/* Broken out because "why is income higher than my sales" is the
+              first question a shop asks of a combined figure. */}
+          <div class="flex justify-between gap-4 pl-3 text-xs text-stone-500 dark:text-stone-400">
+            <dt>Counter sales</dt>
+            <dd class="tabular-nums">{formatMinor(pnl.salesIncomeMinor, shop.currency)}</dd>
+          </div>
+          <div class="flex justify-between gap-4 pl-3 text-xs text-stone-500 dark:text-stone-400">
+            <dt>Paid on orders</dt>
+            <dd class="tabular-nums">{formatMinor(pnl.orderIncomeMinor, shop.currency)}</dd>
+          </div>
+          <div class="flex justify-between gap-4 border-t border-stone-100 pt-1.5 dark:border-stone-800">
+            <dt class="text-stone-500 dark:text-stone-400">Money out</dt>
+            <dd class="font-medium tabular-nums">
+              {formatMinor(pnl.expensesMinor, shop.currency)}
+            </dd>
+          </div>
+        </dl>
+
+        {pnl.byCategory.length > 0 && (
+          <ul class="mt-3 flex flex-wrap gap-1.5">
+            {pnl.byCategory.map((row) => (
+              <li key={row.category}>
+                <Chip>
+                  {EXPENSE_CATEGORY_LABELS[row.category]}{' '}
+                  {formatMinor(row.amountMinor, shop.currency)}
+                </Chip>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {nothingRecorded && (
+          <p class="mt-3 text-sm text-stone-500 dark:text-stone-400">
+            Nothing recorded in this period yet. Profit needs both halves: record sales and
+            expenses and it fills in.
+          </p>
+        )}
+
+        {pnl.expensesMinor === 0 && pnl.incomeMinor > 0 && (
+          <p class="mt-3 text-sm text-amber-700 dark:text-amber-400">
+            No expenses recorded, so this is really just income. Add what the shop spent for a
+            profit figure that means something.
+          </p>
+        )}
+      </Card>
+    </section>
   )
 }

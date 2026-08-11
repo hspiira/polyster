@@ -3,6 +3,7 @@
 Offline-first PWA for cloth tailoring and rental shops. Read the docs in [`docs/`](docs/) before touching code:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) -- system overview and the current record of what exists. **Read this first.**
+- [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) -- colour roles, responsiveness rules, and how to convert a screen. **Read before touching any UI.**
 - [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) -- phase-by-phase build plan and verification checklists
 - [`docs/pwa-research-notes.md`](docs/pwa-research-notes.md), [`docs/pwa-schema-and-screens.md`](docs/pwa-schema-and-screens.md), [`docs/pwa-stack-options.md`](docs/pwa-stack-options.md) -- the research and design detail behind each decision, with build-time corrections marked inline
 

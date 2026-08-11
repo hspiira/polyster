@@ -10,6 +10,8 @@ import {
 import {
   IconDownload,
   IconMoney,
+  IconReceipt,
+  IconTag,
   IconRuler,
   IconSettings,
   IconUsers,
@@ -44,9 +46,21 @@ export const SECTIONS = [
     Icon: IconDownload,
   },
   {
+    href: '/sales',
+    label: 'Sales',
+    hint: 'Counter sales, and what sells most',
+    Icon: IconTag,
+  },
+  {
+    href: '/expenses',
+    label: 'Expenses',
+    hint: 'Money out, so profit means something',
+    Icon: IconReceipt,
+  },
+  {
     href: '/reports',
     label: 'Reports',
-    hint: 'Collected, outstanding, and stage counts',
+    hint: 'Profit, collected, outstanding, stages',
     Icon: IconMoney,
   },
 ] as const

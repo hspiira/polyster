@@ -39,6 +39,9 @@ import { MeasurementFieldSettings } from './settings/MeasurementFieldSettings'
 import { StaffSettings } from './settings/StaffSettings'
 import { BackupSettings } from './settings/BackupSettings'
 import { Reports } from './Reports'
+import { Sales } from './Sales'
+import { SaleForm } from './SaleForm'
+import { Expenses } from './Expenses'
 import { NotFound } from './NotFound'
 
 interface ShellProps {
@@ -95,6 +98,9 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/orders/:id" component={OrderDetail} />
           <Route path="/orders/:id/edit" component={OrderForm} />
           <Route path="/reports" component={Reports} />
+          <Route path="/sales" component={Sales} />
+          <Route path="/sales/new" component={SaleForm} />
+          <Route path="/expenses" component={Expenses} />
           <Route path="/settings" component={Settings} />
           <Route path="/settings/shop" component={ShopSettings} />
           <Route path="/settings/measurements" component={MeasurementFieldSettings} />

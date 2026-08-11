@@ -189,3 +189,19 @@ export const IconBackspace = (p: IconProps) => (
     <path d="m12 9.5 5 5M17 9.5l-5 5" />
   </Icon>
 )
+
+/** A price tag: counter sales. */
+export const IconTag = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 12.8V4.5a1 1 0 0 1 1-1h8.3a1 1 0 0 1 .7.3l6.7 6.7a1 1 0 0 1 0 1.4l-7.3 7.3a1 1 0 0 1-1.4 0L3.8 12.5a1 1 0 0 1-.3-.7Z" />
+    <circle cx="8" cy="8" r="1.4" />
+  </Icon>
+)
+
+/** A receipt: money out. */
+export const IconReceipt = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 3.5h14v17l-2.3-1.6-2.4 1.6-2.3-1.6-2.4 1.6L7.3 19 5 20.5Z" />
+    <path d="M9 8h6M9 12h6" />
+  </Icon>
+)
