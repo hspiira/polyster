@@ -57,13 +57,13 @@ export function ExpensesPage() {
     {
       id: 'description',
       label: 'Description',
-      width: 'minmax(0, 2.4fr)',
+      width: 'minmax(9rem, 2.4fr)',
       render: (expense) => <span class="truncate font-semibold">{expense.description}</span>,
     },
     {
       id: 'category',
       label: 'Category',
-      width: 'minmax(0, 1fr)',
+      width: 'minmax(6rem, 1fr)',
       render: (expense) => EXPENSE_CATEGORY_LABELS[expense.category],
     },
     {
@@ -98,25 +98,26 @@ export function ExpensesPage() {
         </>
       }
     >
-      <div class="flex min-h-0 flex-1 gap-2.5">
-        <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-          <Table
-            label="Expenses"
-            items={inPeriod}
-            columns={columns}
-            getKey={(expense) => expense.id}
-            empty={
-              <EmptyState
-                illustration={<IconMoney size={22} />}
-                title="Nothing recorded"
-                description="Record what the shop spends and the profit figure on Reports becomes real."
-              />
-            }
-          />
-        </div>
+      <div class="work-split-outer">
+        <div class="work-split">
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+            <Table
+              label="Expenses"
+              items={inPeriod}
+              columns={columns}
+              getKey={(expense) => expense.id}
+              empty={
+                <EmptyState
+                  illustration={<IconMoney size={22} />}
+                  title="Nothing recorded"
+                  description="Record what the shop spends and the profit figure on Reports becomes real."
+                />
+              }
+            />
+          </div>
 
-        {byCategory.length > 0 && (
-          <aside class={cn('flex w-[15rem] shrink-0 flex-col overflow-hidden bg-surface', RADIUS)}>
+          {byCategory.length > 0 && (
+          <aside class={cn('side-pane flex flex-col overflow-hidden bg-surface', RADIUS)}>
             <h2 class={cn('shrink-0 px-3 pb-1.5 pt-2.5 font-semibold', TEXT_SM)}>Where it went</h2>
             <ul class="min-h-0 overflow-y-auto pb-2">
               {byCategory.map(([category, amount]) => (
@@ -137,9 +138,10 @@ export function ExpensesPage() {
                   </div>
                 </li>
               ))}
-            </ul>
-          </aside>
-        )}
+              </ul>
+            </aside>
+          )}
+        </div>
       </div>
     </Page>
   )

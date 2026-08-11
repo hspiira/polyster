@@ -237,3 +237,44 @@
     display: grid;
   }
 }
+
+/* A table with a supplementary pane beside it -- Sales' "what sold", Expenses'
+ * "where it went".
+ *
+ * Unlike the record pane these are not a second half of the screen, so they
+ * stack under the table rather than overlaying it: the information is still
+ * worth having, it just stops being worth a column. Same failure as the record
+ * pane otherwise -- at 900px Sales' item column measured 11px and its client
+ * column 6px, which is not a narrow column, it is an absent one. */
+.work-split-outer {
+  container-type: inline-size;
+  container-name: worksplit;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.work-split {
+  display: flex;
+  flex: 1;
+  gap: 0.625rem;
+  min-height: 0;
+  min-width: 0;
+}
+
+.side-pane {
+  flex-shrink: 0;
+  width: 15rem;
+}
+
+@container worksplit (width < 56rem) {
+  .work-split {
+    flex-direction: column;
+  }
+
+  .side-pane {
+    width: auto;
+    max-height: 13rem;
+  }
+}

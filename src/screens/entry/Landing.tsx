@@ -23,13 +23,15 @@
  * measure is set in `em` -- so the wrap points are identical at every size and
  * only the size changes. The clamps track `vmin` rather than `vw` because a
  * hero that grows with width alone overflows a short landscape window; keyed to
- * the smaller axis, the composition can always fit the screen it is on.
+ * the smaller axis, the composition can always fit the screen it is on. Their
+ * anchors, measured rather than guessed: 30/44px unchanged on a 375px phone,
+ * 42/65px on a tablet, 46/72px on a 1440x900 laptop, 52/80px at the ceiling.
  *
  * **The action moves rather than stretches.** Stacked, it is a full-width pill
  * on the bottom edge, where a thumb is. Side by side (`entry-wide`, defined in
  * index.css) it sits beside the statement with its bottom on the statement's
  * last line, because at that size the bottom edge is nowhere near what you just
- * read.
+ * read -- and on a phone in landscape, stacking is what put it off-screen.
  */
 import { GlowBackdrop } from '../../components/GlowBackdrop'
 import { Logomark } from '../../components/Logomark'

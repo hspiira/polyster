@@ -60,7 +60,7 @@ export function SalesPage() {
     {
       id: 'item',
       label: 'Item',
-      width: 'minmax(0, 2.2fr)',
+      width: 'minmax(9rem, 2.2fr)',
       render: (sale) => (
         <span class="truncate font-semibold">
           {sale.item_description}
@@ -73,7 +73,7 @@ export function SalesPage() {
     {
       id: 'client',
       label: 'Client',
-      width: 'minmax(0, 1.2fr)',
+      width: 'minmax(6rem, 1.2fr)',
       render: (sale) =>
         sale.client_id ? (
           clientNames.get(sale.client_id) ?? 'Unknown'
@@ -132,24 +132,26 @@ export function SalesPage() {
         </>
       }
     >
-      <div class="flex min-h-0 flex-1 gap-2.5">
-        <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-          <Table
-            label="Sales"
-            items={inPeriod}
-            columns={columns}
-            getKey={(sale) => sale.id}
-            empty={
-              <EmptyState
-                illustration={<IconMoney size={22} />}
-                title="No sales in this period"
-                description="Record what goes over the counter and it shows here, with a total."
-              />
-            }
-          />
-        </div>
+      <div class="work-split-outer">
+        <div class="work-split">
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+            <Table
+              label="Sales"
+              items={inPeriod}
+              columns={columns}
+              getKey={(sale) => sale.id}
+              empty={
+                <EmptyState
+                  illustration={<IconMoney size={22} />}
+                  title="No sales in this period"
+                  description="Record what goes over the counter and it shows here, with a total."
+                />
+              }
+            />
+          </div>
 
-        {grouped.length > 0 && <WhatSold items={grouped} currency={shop.currency} />}
+          {grouped.length > 0 && <WhatSold items={grouped} currency={shop.currency} />}
+        </div>
       </div>
     </Page>
   )
@@ -162,7 +164,7 @@ export function SalesPage() {
  */
 function WhatSold({ items, currency }: { items: readonly SoldItem[]; currency: string }) {
   return (
-    <aside class={cn('flex w-[15rem] shrink-0 flex-col overflow-hidden bg-surface', RADIUS)}>
+    <aside class={cn('side-pane flex flex-col overflow-hidden bg-surface', RADIUS)}>
       <h2 class={cn('shrink-0 px-3 pb-1.5 pt-2.5 font-semibold', TEXT_SM)}>What sold</h2>
       <ul class="min-h-0 overflow-y-auto pb-2">
         {items.map((item) => (
