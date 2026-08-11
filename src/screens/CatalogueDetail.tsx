@@ -39,6 +39,7 @@ import {
   type ProductType,
   type ProductVariant,
 } from '../online/catalogue'
+import { listCollections, type Collection } from '../online/collections'
 
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   garment: 'Garment',
@@ -61,6 +62,7 @@ export function CatalogueDetail() {
 
   const [product, setProduct] = useState<Product | null | undefined>(undefined)
   const [categories, setCategories] = useState<ProductCategory[]>([])
+  const [collections, setCollections] = useState<Collection[]>([])
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -68,13 +70,19 @@ export function CatalogueDetail() {
 
   async function reload() {
     try {
-      const [found, categoryList, variantList] = await withTimeout(
-        Promise.all([getProduct(productId), listProductCategories(shop.id), listProductVariants(productId)]),
+      const [found, categoryList, collectionList, variantList] = await withTimeout(
+        Promise.all([
+          getProduct(productId),
+          listProductCategories(shop.id),
+          listCollections(shop.id),
+          listProductVariants(productId),
+        ]),
         8000,
         'No response from the server. Check your connection and try again.',
       )
       setProduct(found)
       setCategories(categoryList)
+      setCollections(collectionList)
       setVariants(variantList)
       setLoadError(null)
     } catch (err) {
@@ -133,6 +141,7 @@ export function CatalogueDetail() {
   }
 
   const categoryName = categories.find((c) => c.id === product.category_id)?.name
+  const collectionName = collections.find((c) => c.id === product.collection_id)?.name
 
   return (
     <>
@@ -157,6 +166,7 @@ export function CatalogueDetail() {
             <div class="space-y-2 text-sm">
               <Row label="Type" value={PRODUCT_TYPE_LABELS[product.product_type]} />
               {categoryName && <Row label="Category" value={categoryName} />}
+              {collectionName && <Row label="Collection" value={collectionName} />}
               {product.brand && <Row label="Brand" value={product.brand} />}
               {product.description && <Row label="Description" value={product.description} />}
               <Row label="Status" value={product.active ? 'Active' : 'Inactive'} />
@@ -198,6 +208,7 @@ export function CatalogueDetail() {
         open={editing}
         product={product}
         categories={categories}
+        collections={collections}
         onClose={() => setEditing(false)}
         onSaved={reload}
       />
@@ -270,12 +281,14 @@ function EditProductSheet({
   open,
   product,
   categories,
+  collections,
   onClose,
   onSaved,
 }: {
   open: boolean
   product: Product
   categories: ProductCategory[]
+  collections: Collection[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -283,6 +296,7 @@ function EditProductSheet({
   const [name, setName] = useState(product.name)
   const [productType, setProductType] = useState<ProductType>(product.product_type)
   const [categoryId, setCategoryId] = useState(product.category_id ?? '')
+  const [collectionId, setCollectionId] = useState(product.collection_id ?? '')
   const [brand, setBrand] = useState(product.brand ?? '')
   const [description, setDescription] = useState(product.description ?? '')
   const [imageUrl, setImageUrl] = useState(product.image_url ?? '')
@@ -293,6 +307,7 @@ function EditProductSheet({
     setName(product.name)
     setProductType(product.product_type)
     setCategoryId(product.category_id ?? '')
+    setCollectionId(product.collection_id ?? '')
     setBrand(product.brand ?? '')
     setDescription(product.description ?? '')
     setImageUrl(product.image_url ?? '')
@@ -311,6 +326,7 @@ function EditProductSheet({
         name,
         product_type: productType,
         category_id: categoryId || undefined,
+        collection_id: collectionId || undefined,
         brand,
         description,
         image_url: imageUrl,
@@ -348,6 +364,16 @@ function EditProductSheet({
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Collection" hint="Optional.">
+          <Select value={collectionId} onChange={(e) => setCollectionId((e.target as HTMLSelectElement).value)}>
+            <option value="">No collection</option>
+            {collections.map((collection) => (
+              <option key={collection.id} value={collection.id}>
+                {collection.name}
               </option>
             ))}
           </Select>

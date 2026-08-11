@@ -20,6 +20,7 @@ import { SyncBadge } from '../components/SyncBadge'
 import {
   IconBox,
   IconFactory,
+  IconLayers,
   IconMoney,
   IconOrders,
   IconPlus,
@@ -89,6 +90,7 @@ export function Sidebar({
         { href: '/clients', label: 'Clients', Icon: IconUsers, count: clientDocs.length },
         { href: '/settings/measurements', label: 'Measurements', Icon: IconRuler, feature: 'measurements' },
         { href: '/catalogue', label: 'Catalogue', Icon: IconTag, feature: 'catalogue' },
+        { href: '/collections', label: 'Collections', Icon: IconLayers, feature: 'collections' },
         { href: '/suppliers', label: 'Suppliers', Icon: IconTruck, feature: 'suppliers' },
         { href: '/materials', label: 'Materials', Icon: IconSpool, feature: 'suppliers' },
         { href: '/inventory', label: 'Inventory', Icon: IconBox, feature: 'inventory' },

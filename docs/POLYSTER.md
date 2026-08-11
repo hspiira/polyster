@@ -3152,24 +3152,26 @@ Reached via Settings (phone) / a Work-group sidebar item (web), gated behind the
 
 ### Priority: P1
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Online-only per §46.1. Implemented and verified live 2026-08-12: migration `0014_collections.sql` applied, RLS passes, and a 13-check live test confirmed collection CRUD, cross-tenant isolation on both the table and its storage bucket, the `UNIQUE(shop_id, code)` constraint (including that multiple `NULL` codes coexist in one shop, and the same code is free to reuse across shops), and the `products.collection_id` foreign key's `on delete set null` behaviour. Also drove the actual UI end to end: created a collection with a cover image, linked a product to it from the catalogue's Add form, and confirmed the product's detail page displays the collection name.
 
 Implement:
 
 ```text
-collections
+collections               -- real Postgres table, RLS, no RxDB collection (see §46.1)
+products.collection_id    -- new nullable FK, on delete set null
 ```
 
-Make the module generic.
+- ✅ generic module — the coordinate/story/tagline/production-limit fields from §21 are optional for any tenant, not NORTH//FOUND-specific
+- ✅ a product can optionally belong to a collection (§20) — wired into both the create and edit product forms, and the product detail view
 
-Then configure NORTH//FOUND:
+**Two real bugs found by this phase's live testing and fixed, not just worked around:**
 
-```text
-FOUND 001
-FOUND 002
-OFFICE 001
-TRANSIT 001
-```
+1. **Storage delete/replace silently no-op'd for the rightful owner, in both `product-images` (Phase 2) and the new `collection-images` bucket.** Supabase Storage's own API needs a SELECT policy to locate an object before it will apply an UPDATE or DELETE policy to it — a bucket marked `public` only grants anonymous read of the public URL, it does not give an authenticated caller visibility into `storage.objects`. Without a SELECT policy, `remove()` returned success with zero rows deleted instead of an error, so `deleteProductImage`/`deleteCollectionImage` never actually deleted anything, for anyone, including the owning shop. Fixed by adding a shop-scoped SELECT policy to both buckets — new for `collection-images` in `0014_collections.sql`, retrofitted onto the already-shipped `product-images` bucket in `0015_product_image_select_policy.sql`. Confirmed fixed live: the delete call now returns the removed row and the object is verifiably gone.
+2. **A fresh device's first replication pull could crash on any table with an unset optional column.** `rxdb/plugins/replication-supabase`'s pull handler does a raw `flatClone(row)` with no null-handling, but every RxDB schema here types optional fields as plain `string`/`enum` (`null` is not a valid value in the schema). An Ajv-validated field that is simply unset comes back from Postgres as SQL `NULL`, which fails validation and throws `RC_PULL`, wedging replication entirely. This was invisible in every phase's testing so far because dev-fixture seeding (`seedTenant`) writes straight into the local RxDB collections and never exercises a real pull — it only surfaced once this phase's live UI test used a genuinely fresh, server-provisioned shop signing in for the first time, which is the normal shape of a second device or a reinstall in production. Fixed generically in `src/db/replication.ts` with a `pull.modifier` (`dropNullFields`) that strips `null`-valued keys before RxDB validates the row — Postgres `NULL` and "key absent" mean the same thing to an RxDB schema; the fix makes the pull path actually treat them that way instead of only working by accident when every optional column happens to be filled in.
+
+Reached via Settings (phone) / a Work-group sidebar item (web), gated behind the `collections` feature flag from Phase 1.
+
+**Scoping decision, documented rather than silently done:** NORTH//FOUND's specific collection codes (`FOUND 001`, `FOUND 002`, `OFFICE 001`, `TRANSIT 001`) were not seeded as dev-fixture data in this phase. `seedNorthFound` (like every persona fixture) only writes to local RxDB collections; collections are online-only Postgres data with no local seeding path, and no prior phase (3–5) added matching online seed data for suppliers, materials, or production batches either — the precedent this phase follows is that showcase data for the advanced tenant is populated through the live UI, not baked into the dev fixture. Left for Phase 10 (NORTH//FOUND garment passport) or the final three-tenant acceptance pass (§89), whichever actually needs the real records to exist first.
 
 ---
 

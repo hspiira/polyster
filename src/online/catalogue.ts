@@ -26,6 +26,7 @@ export interface Product {
   id: string
   shop_id: string
   category_id: string | null
+  collection_id: string | null
   name: string
   description: string | null
   brand: string | null
@@ -112,6 +113,7 @@ export interface NewProductInput {
   brand?: string
   product_type: ProductType
   category_id?: string
+  collection_id?: string
   image_url?: string
 }
 
@@ -125,6 +127,7 @@ export async function createProduct(shopId: string, input: NewProductInput): Pro
       description: input.description?.trim() || null,
       brand: input.brand?.trim() || null,
       category_id: input.category_id ?? null,
+      collection_id: input.collection_id ?? null,
       image_url: input.image_url?.trim() || null,
     })
     .select()
@@ -142,6 +145,7 @@ export async function updateProduct(id: string, input: NewProductInput): Promise
       description: input.description?.trim() || null,
       brand: input.brand?.trim() || null,
       category_id: input.category_id ?? null,
+      collection_id: input.collection_id ?? null,
       image_url: input.image_url?.trim() || null,
     })
     .eq('id', id)

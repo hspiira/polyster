@@ -32,6 +32,23 @@ export const REPLICATED_TABLES = [
   'tenant_features',
 ] as const satisfies readonly (keyof Collections)[]
 
+/**
+ * The Supabase plugin's pull handler does a raw `flatClone(row)` -- an
+ * optional column that is simply unset comes back as SQL NULL, but every
+ * RxDB schema here types optional fields as plain `string`/`enum` (no
+ * `null` in the type), so pulling a fresh row with any unset optional
+ * column throws RC_PULL and wedges replication. Postgres NULL and "key
+ * absent" both mean the same thing to RxDB's schema, so strip nulls before
+ * validation rather than widen every optional property to allow null.
+ */
+function dropNullFields<T extends object>(doc: T): T {
+  const clean = { ...doc } as Record<string, unknown>
+  for (const key of Object.keys(clean)) {
+    if (clean[key] === null) delete clean[key]
+  }
+  return clean as T
+}
+
 export type ReplicationHandle = {
   /** Resolves once every collection has completed one full initial sync. */
   awaitInitialReplication(): Promise<void>
@@ -70,7 +87,7 @@ export function startReplication(db: AppDatabase): ReplicationHandle | null {
       client,
       tableName,
       live: true,
-      pull: {},
+      pull: { modifier: dropNullFields },
       push: {},
     })
     // The generic is erased across the heterogeneous collection list; the

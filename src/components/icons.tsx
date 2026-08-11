@@ -255,3 +255,12 @@ export const IconFactory = (p: IconProps) => (
     <path d="M7 11V8" />
   </Icon>
 )
+
+/** Stacked layers: collections. */
+export const IconLayers = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3 3 8l9 5 9-5-9-5Z" />
+    <path d="M3 12l9 5 9-5" />
+    <path d="M3 16l9 5 9-5" />
+  </Icon>
+)

@@ -39,6 +39,7 @@ import {
   type ProductCategory,
   type ProductType,
 } from '../online/catalogue'
+import { listCollections, type Collection } from '../online/collections'
 
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   garment: 'Garment',
@@ -53,6 +54,7 @@ export function Catalogue() {
   const online = useOnlineFeature()
   const [products, setProducts] = useState<Product[] | null>(null)
   const [categories, setCategories] = useState<ProductCategory[]>([])
+  const [collections, setCollections] = useState<Collection[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
@@ -60,13 +62,14 @@ export function Catalogue() {
 
   async function reload() {
     try {
-      const [productList, categoryList] = await withTimeout(
-        Promise.all([listProducts(shop.id), listProductCategories(shop.id)]),
+      const [productList, categoryList, collectionList] = await withTimeout(
+        Promise.all([listProducts(shop.id), listProductCategories(shop.id), listCollections(shop.id)]),
         8000,
         'No response from the server. Check your connection and try again.',
       )
       setProducts(productList)
       setCategories(categoryList)
+      setCollections(collectionList)
       setLoadError(null)
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Could not load the catalogue.')
@@ -197,6 +200,7 @@ export function Catalogue() {
       <AddProductSheet
         open={adding}
         categories={categories}
+        collections={collections}
         onClose={() => setAdding(false)}
         onSaved={reload}
       />
@@ -213,11 +217,13 @@ export function Catalogue() {
 function AddProductSheet({
   open,
   categories,
+  collections,
   onClose,
   onSaved,
 }: {
   open: boolean
   categories: ProductCategory[]
+  collections: Collection[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -225,6 +231,7 @@ function AddProductSheet({
   const [name, setName] = useState('')
   const [productType, setProductType] = useState<ProductType>('garment')
   const [categoryId, setCategoryId] = useState('')
+  const [collectionId, setCollectionId] = useState('')
   const [brand, setBrand] = useState('')
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
@@ -235,6 +242,7 @@ function AddProductSheet({
     setName('')
     setProductType('garment')
     setCategoryId('')
+    setCollectionId('')
     setBrand('')
     setDescription('')
     setImageUrl('')
@@ -254,6 +262,7 @@ function AddProductSheet({
         name,
         product_type: productType,
         category_id: categoryId || undefined,
+        collection_id: collectionId || undefined,
         brand,
         description,
         image_url: imageUrl,
@@ -294,6 +303,17 @@ function AddProductSheet({
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="Collection" hint="Optional.">
+          <Select value={collectionId} onChange={(e) => setCollectionId((e.target as HTMLSelectElement).value)}>
+            <option value="">No collection</option>
+            {collections.map((collection) => (
+              <option key={collection.id} value={collection.id}>
+                {collection.name}
               </option>
             ))}
           </Select>

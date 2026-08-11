@@ -20,6 +20,7 @@ import {
   IconBox,
   IconDownload,
   IconFactory,
+  IconLayers,
   IconLock,
   IconRuler,
   IconSettings,
@@ -65,6 +66,12 @@ const SHOP_ENTRIES: readonly Entry[] = [
     label: 'Catalogue',
     hint: 'Products, categories and variants',
     Icon: IconTag,
+  },
+  {
+    href: '/collections',
+    label: 'Collections',
+    hint: 'Releases, with their own story and cover image',
+    Icon: IconLayers,
   },
   {
     href: '/suppliers',
@@ -121,6 +128,7 @@ export function Settings() {
   const shopEntries = SHOP_ENTRIES.filter((entry) => {
     if (entry.href === '/settings/measurements') return flags.measurements
     if (entry.href === '/catalogue') return flags.catalogue
+    if (entry.href === '/collections') return flags.collections
     if (entry.href === '/suppliers' || entry.href === '/materials') return flags.suppliers
     if (entry.href === '/inventory') return flags.inventory
     if (entry.href === '/production') return flags.production
