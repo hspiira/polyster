@@ -20,6 +20,7 @@ import {
   IconBox,
   IconDownload,
   IconFactory,
+  IconFingerprint,
   IconLayers,
   IconLock,
   IconRuler,
@@ -98,6 +99,12 @@ const SHOP_ENTRIES: readonly Entry[] = [
     Icon: IconFactory,
   },
   {
+    href: '/garment-units',
+    label: 'Garment identity',
+    hint: 'Individual garments, their serial numbers and status',
+    Icon: IconFingerprint,
+  },
+  {
     href: '/settings/features',
     label: 'Modules',
     hint: 'What shows up in navigation',
@@ -132,6 +139,7 @@ export function Settings() {
     if (entry.href === '/suppliers' || entry.href === '/materials') return flags.suppliers
     if (entry.href === '/inventory') return flags.inventory
     if (entry.href === '/production') return flags.production
+    if (entry.href === '/garment-units') return flags.garment_identity
     return true
   })
 

@@ -20,6 +20,7 @@ import { SyncBadge } from '../components/SyncBadge'
 import {
   IconBox,
   IconFactory,
+  IconFingerprint,
   IconLayers,
   IconMoney,
   IconOrders,
@@ -95,6 +96,7 @@ export function Sidebar({
         { href: '/materials', label: 'Materials', Icon: IconSpool, feature: 'suppliers' },
         { href: '/inventory', label: 'Inventory', Icon: IconBox, feature: 'inventory' },
         { href: '/production', label: 'Production', Icon: IconFactory, feature: 'production' },
+        { href: '/garment-units', label: 'Garment identity', Icon: IconFingerprint, feature: 'garment_identity' },
       ],
     },
     {

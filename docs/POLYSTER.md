@@ -3206,29 +3206,22 @@ A `quantity` field (implied by the corporate example, "100 Shirts, 50 Trousers")
 
 ### Priority: P2
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Online-only per §46.1. Implemented and verified live 2026-08-12: migration `0017_garment_units.sql` applied, RLS passes, and a live 8-check two-tenant test confirmed isolation, the `UNIQUE(shop_id, serial_number)` constraint (including reuse across different shops), the `status` and `product_variant_id` checks/FK, and that `production_batch_id` is genuinely optional. Also drove the actual UI: created a garment unit against a real variant with a NORTH//FOUND-style serial number and confirmed it appeared in the list.
 
 Implement:
 
 ```text
-garment_units
+garment_units     -- real Postgres table, RLS, no RxDB collection (see §46.1)
 ```
 
-Initially generic.
+- ✅ generic, per section 29 — any tenant may track individual garments, gated behind the `garment_identity` feature flag from Phase 1; a tenant that leaves the flag off "does not use individual identities at all," exactly as the spec allows
+- ✅ the database identity stays a UUID; `serial_number` is a separate, freely-typed business identifier (section 30) — no numbering scheme is hardcoded, since NORTH//FOUND's `F002-B01-017` and a generic tenant's `UNIFORM-2027-00017` are shaped too differently to derive from one formula, and the spec's own wording ("or not use individual identities at all") already treats the format as the tenant's choice, not the system's
+- ✅ full status enum from section 29 (produced/available/reserved/sold/returned/repair/retired/lost/damaged), guarded by a unit test pinning it against the migration's check constraint, the same pattern Phase 5 used for `BATCH_STATUSES`
+- ✅ optional links to `production_batch_id` and `customer_id` (the latter feeding section 35's "My NORTH//FOUND" wardrobe view directly from `garment_units`, per its own instruction not to build a duplicate ownership table)
 
-NORTH//FOUND uses:
+**Deviation from the literal field list, documented:** section 29 lists `production_batch_id` with no `?`, implying required. Made it nullable instead — a tenant with `garment_identity` on and `production` off (a combination nothing else in this spec forbids) would otherwise be unable to create a single garment unit. `product_variant_id` was kept required, since a garment unit with no variant has no identity to speak of.
 
-```text
-F002-B01-017
-```
-
-Other tenants may use:
-
-```text
-UNIFORM-2027-00017
-```
-
-or not use individual identities at all.
+**Resolves the Phase 5 scoping note, without overreaching it:** Phase 5 flagged that a production batch's output couldn't be connected to the Phase 4 inventory ledger because a batch points at a *product*, not a *variant*. `garment_units` now supplies exactly that missing link — a unit records both its `product_variant_id` and, optionally, which `production_batch_id` it came from, so "which variant did this batch's accepted units become" is now answerable. What this phase deliberately does **not** do is auto-generate inventory movements from a garment unit's creation or status changes. Section 79 itself specifies no such rule, and inventing one risks double-counting against Phase 4's manual/adjustment-based tracking (a tenant recording a unit for stock the ledger already reflects would get counted twice). That sync is left for whoever next needs it, once a real rule is specified rather than guessed.
 
 ---
 

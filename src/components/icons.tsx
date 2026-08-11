@@ -264,3 +264,15 @@ export const IconLayers = (p: IconProps) => (
     <path d="M3 16l9 5 9-5" />
   </Icon>
 )
+
+/** A fingerprint: an individual garment's own identity. */
+export const IconFingerprint = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 4a8 8 0 0 1 8 8v3" />
+    <path d="M4 15v-3a8 8 0 0 1 4-6.93" />
+    <path d="M8 20a8 8 0 0 0 8-8" />
+    <path d="M12 8a4 4 0 0 1 4 4v4" />
+    <path d="M8 12a4 4 0 0 1 4-4" />
+    <path d="M12 12v4" />
+  </Icon>
+)

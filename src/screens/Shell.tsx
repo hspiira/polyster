@@ -49,6 +49,7 @@ import { InventoryItemDetail } from './InventoryItemDetail'
 import { Production } from './Production'
 import { ProductionBatchDetail } from './ProductionBatchDetail'
 import { Collections } from './Collections'
+import { GarmentUnits } from './GarmentUnits'
 import { Money } from './Money'
 import { Reports } from './Reports'
 import { Sales } from './Sales'
@@ -130,6 +131,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/production" component={Production} />
           <Route path="/production/:id" component={ProductionBatchDetail} />
           <Route path="/collections" component={Collections} />
+          <Route path="/garment-units" component={GarmentUnits} />
           <Route default component={NotFound} />
         </Router>
       </main>
