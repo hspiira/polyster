@@ -56,11 +56,17 @@ interface TabDef {
 /** Left of the create action, then right of it. */
 const LEADING_TABS: readonly TabDef[] = [
   { href: '/', label: 'Today', Icon: IconHome, prefix: '/' },
-  { href: '/clients', label: 'Clients', Icon: IconUsers, prefix: '/clients' },
+  { href: '/orders', label: 'Orders', Icon: IconOrders, prefix: '/orders' },
 ]
 
+/**
+ * "Money" rather than "Reports": the phone's question is what the shop took and
+ * spent, and Reports is where that is answered. The word a tailor uses is the
+ * one on the tab.
+ */
 const TRAILING_TABS: readonly TabDef[] = [
-  { href: '/orders', label: 'Orders', Icon: IconOrders, prefix: '/orders' },
+  { href: '/clients', label: 'Clients', Icon: IconUsers, prefix: '/clients' },
+  { href: '/reports', label: 'Money', Icon: IconChart, prefix: '/reports' },
 ]
 
 function isActive(currentPath: string, prefix: string): boolean {
@@ -92,38 +98,30 @@ export function TabBar() {
     <nav
       // Hidden from lg up, where SideRail takes over. A thumb-reached bar at
       // the bottom of a 1440px screen is a long way from the pointer.
-      class="fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30
-             flex justify-center px-4 lg:hidden"
+      class="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-line
+             bg-surface safe-bottom lg:hidden"
       aria-label="Main"
     >
-      {/* Sized by its contents, not by the viewport: `w-full` with
-          `justify-between` stretched the pill to 512px and pushed three items
-          to its edges. `max-w-full` is the only width constraint it needs. */}
-      <div
-        class="flex max-w-full items-center gap-2 rounded-full
-               border border-stone-200/80 bg-white/85 p-2 backdrop-blur-lg
-               dark:border-stone-800 dark:bg-stone-900/85
-               supports-backdrop-filter:bg-white/70
-               dark:supports-backdrop-filter:bg-stone-900/70"
-      >
-        {LEADING_TABS.map((tab) => (
-          <Tab key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
-        ))}
+      {LEADING_TABS.map((tab) => (
+        <Tab key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
+      ))}
 
+      {/* In the bar, not raised above it. Raised, it overhung its own stacking
+          context and covered part of the order form's submit button. */}
+      <span class="flex flex-1 items-center justify-center">
         <a
           href="/orders/new"
           aria-label="Take an order"
-          class="flex size-11 shrink-0 items-center justify-center rounded-full bg-stone-900
-                 text-white transition-transform active:scale-95
-                 dark:bg-white dark:text-stone-900"
+          class="flex size-[46px] items-center justify-center rounded-full bg-accent
+                 text-accent-content transition-transform active:scale-95"
         >
           <IconPlus size={22} />
         </a>
+      </span>
 
-        {TRAILING_TABS.map((tab) => (
-          <Tab key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
-        ))}
-      </div>
+      {TRAILING_TABS.map((tab) => (
+        <Tab key={tab.href} {...tab} active={isActive(path, tab.prefix)} />
+      ))}
     </nav>
   )
 }
@@ -138,17 +136,14 @@ function Tab({
     <a
       href={href}
       aria-current={active ? 'page' : undefined}
-      class={`flex shrink-0 items-center justify-center gap-1.5 rounded-full
-              transition-colors ${
-                active
-                  ? 'h-11 bg-stone-900 px-3.5 text-white dark:bg-white dark:text-stone-900'
-                  : 'size-11 text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
-              }`}
+      class={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-[3px]
+              transition-colors ${active ? 'text-accent' : 'text-content-subtle'}`}
     >
       <Icon size={20} stroke-width={active ? 2.1 : 1.75} />
-      {/* Kept in the DOM either way for assistive tech; hidden visually when
-          inactive so the label reads exactly once on screen. */}
-      <span class={active ? 'text-[13px] font-semibold' : 'sr-only'}>{label}</span>
+      {/* Every label, always. Four destinations is under the legibility ceiling
+          this file used to argue about, and a bar where only the active item is
+          named makes you tap to find out what the others are. */}
+      <span class={`text-[10px] ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
     </a>
   )
 }

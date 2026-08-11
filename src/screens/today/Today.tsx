@@ -28,11 +28,9 @@ import type { FilterScope } from '../Orders'
 import type { AuthState } from '../../lib/auth'
 import type { ReplicationStatus } from '../../hooks/useReplication'
 import { Hero } from './Hero'
-import { DayStrip } from './DayStrip'
-import { ProfileHeader } from './ProfileHeader'
+import { TodayTop } from './TodayTop'
 import {
   buildBuckets,
-  buildDayStrip,
   buildMoneySummary,
   capRows,
   heroSegments,
@@ -51,8 +49,6 @@ interface TodayProps {
 export function Today({ online, auth, replication }: TodayProps) {
   const { db, shop, activeStaff } = useCurrentShop()
   const now = today()
-  const greetingText = greeting(activeStaff?.name)
-  const firstName = activeStaff?.name.split(/\s+/)[0]
 
   // Only the count matters, and only on the empty state -- which branch of it
   // to show. See the comment there.
@@ -84,7 +80,6 @@ export function Today({ online, auth, replication }: TodayProps) {
     () => buildBuckets(orders, clientNames, balances, now),
     [orders, clientNames, balances, now],
   )
-  const cells = useMemo(() => buildDayStrip(orders, now), [orders, now])
   const money = useMemo(
     () => buildMoneySummary(orders, clientNames, balances),
     [orders, clientNames, balances],
@@ -101,10 +96,8 @@ export function Today({ online, auth, replication }: TodayProps) {
   if (!loaded) {
     return (
       <Screen label="Today">
-        <ProfileHeader
-          name={firstName}
-          greeting={greetingText}
-          shopName={shop.name}
+        <TodayTop
+          staffName={activeStaff?.name}
           online={online}
           auth={auth}
           replication={replication}
@@ -126,10 +119,8 @@ export function Today({ online, auth, replication }: TodayProps) {
 
     return (
       <Screen label="Today">
-        <ProfileHeader
-          name={firstName}
-          greeting={greetingText}
-          shopName={shop.name}
+        <TodayTop
+          staffName={activeStaff?.name}
           online={online}
           auth={auth}
           replication={replication}
@@ -161,16 +152,13 @@ export function Today({ online, auth, replication }: TodayProps) {
 
   return (
     <Screen label="Today" wide>
-      <ProfileHeader
-        name={firstName}
-        greeting={greetingText}
-        shopName={shop.name}
-        online={online}
-        auth={auth}
-        replication={replication}
-      />
+      <TodayTop
+          staffName={activeStaff?.name}
+          online={online}
+          auth={auth}
+          replication={replication}
+        />
       <Hero segments={segments} />
-      <DayStrip cells={cells} />
 
       {/*
         One prioritised column on a phone: overdue first, because that is what
@@ -231,12 +219,6 @@ export function Today({ online, auth, replication }: TodayProps) {
       </div>
     </Screen>
   )
-}
-
-function greeting(name: string | undefined, now: Date = new Date()): string {
-  const hour = now.getHours()
-  const part = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-  return name ? `${part}, ${name.split(/\s+/)[0]}` : part
 }
 
 function Bucket({
