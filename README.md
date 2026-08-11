@@ -64,6 +64,12 @@ The RLS policies deliberately do not allow the app to insert a `shops` row, so t
 
 **Create two, not one.** Tenant isolation is the single most important thing to verify in Phase 0 and it cannot be tested with a single tenant. Give the second shop a client and an order so there is something for the first shop to fail to see.
 
+### 3a. Verify the RLS role split (optional, recommended before step 3's manual test)
+
+`pnpm verify:rls` checks the structural half of tenant isolation: that `anon`/`authenticated` don't have `BYPASSRLS`, that every table in `public` has RLS enabled with at least one policy, and that `order_balances` has `security_invoker` on. It needs `SUPABASE_DB_URL` in `.env` -- the *direct* Postgres connection string from **Project Settings -> Database -> Connection string**, not the anon key (see the comment in `.env.example`; this connects as the `postgres` role, which bypasses RLS itself, so it must never be used anywhere else).
+
+This does not replace the two-shop-account login test in the Phase 0 exit checklist (`docs/IMPLEMENTATION_PLAN.md`) -- it can't verify that shop A's session actually can't read shop B's rows, only that the policies are in place for that test to be meaningful.
+
 ### 4. Run it
 
 ```bash
@@ -82,10 +88,11 @@ Sign in with a shop account. You should reach the status screen showing the data
 | `pnpm typecheck` | `tsc -b`. Strict mode is on. |
 | `pnpm build` | Typecheck, then production build. |
 | `pnpm verify` | Typecheck, tests, build. Run this before pushing. |
+| `pnpm verify:rls` | Checks the RLS role split and policies against a live Supabase project. Needs `SUPABASE_DB_URL` (see setup step 3a). Not part of `pnpm verify` -- it needs a live database, and `pnpm verify` must stay runnable with no `.env` at all. |
 | `VITE_PWA_DEV=1 pnpm dev` | Dev server *with* the service worker, for testing install and offline behaviour. |
 
 CI runs `pnpm verify` on every push and pull request
-(`.github/workflows/verify.yml`).
+(`.github/workflows/verify.yml`). `pnpm verify:rls` is not wired into CI since no workflow currently holds a `SUPABASE_DB_URL` secret -- run it manually against your project after any migration that touches RLS.
 
 The service worker is off in development on purpose. It caches aggressively and produces stale-asset behaviour that reads as a code bug. Turn it on when you are specifically testing PWA behaviour, and expect to clear site data afterwards.
 

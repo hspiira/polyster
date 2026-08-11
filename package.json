@@ -14,7 +14,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "tsc -b && vitest run && vite build"
+    "verify": "tsc -b && vitest run && vite build",
+    "verify:rls": "node scripts/verify-rls.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.111.0",
@@ -28,6 +29,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.2",
     "fake-indexeddb": "^6.2.5",
+    "postgres": "^3.4.9",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
