@@ -189,7 +189,7 @@ export function OrdersPage() {
     {
       id: 'summary',
       label: 'Order',
-      width: 'minmax(0, 2.4fr)',
+      width: 'minmax(8rem, 2.4fr)',
       sortable: true,
       render: (row) => (
         <span class="font-semibold">
@@ -201,7 +201,7 @@ export function OrdersPage() {
     {
       id: 'client',
       label: 'Client',
-      width: 'minmax(0, 1.5fr)',
+      width: 'minmax(6rem, 1.5fr)',
       sortable: true,
       render: (row) => row.clientName,
     },
@@ -243,7 +243,9 @@ export function OrdersPage() {
   ]
 
   return (
-    <div class="flex min-h-0 flex-1">
+    // `panes` makes this a container: the record pane divides the screen while
+    // there is room for both and overlays it below that (styles/components.css).
+    <div class="panes flex min-h-0 flex-1">
       <Page
         crumbs={['Work']}
         title="Orders"
@@ -384,7 +386,11 @@ export function OrdersPage() {
         />
       </Page>
 
-      <Inspector row={openRow} />
+      <Inspector
+        row={openRow}
+        chosen={Boolean(openId)}
+        onClose={() => location.route('/orders')}
+      />
     </div>
   )
 }

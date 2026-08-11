@@ -86,14 +86,14 @@ export function Landing({ onContinue }: { onContinue: () => void }) {
                   size. Not `ch`: it resolves against the inherited font size,
                   not the display size these lines are actually set in. */}
               <span
-                class="block max-w-[9.1em] text-[clamp(1.875rem,1.1625rem+3.05vmin,2.875rem)]
+                class="block max-w-[9.1em] text-[clamp(1.875rem,1.1625rem+3.05vmin,3.25rem)]
                        font-normal leading-[1.14] text-stone-400"
               >
                 Take orders and payments
               </span>
               <span
                 class="mt-[0.22em] block max-w-[6.2em]
-                       text-[clamp(2.75rem,1.5rem+5.33vmin,4.5rem)] font-bold leading-[1.06]
+                       text-[clamp(2.75rem,1.5rem+5.33vmin,5rem)] font-bold leading-[1.06]
                        text-white"
               >
                 even with no signal.

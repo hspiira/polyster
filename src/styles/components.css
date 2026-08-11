@@ -183,3 +183,57 @@
     transparent 62%
   );
 }
+
+/* ════════════════════════════════════════════════ WEB WORKSPACE ═══
+ *
+ * Layout for the web design's list-and-record screens (src/web/).
+ *
+ * The record pane is persistent only while there is room for both it and a
+ * readable table. There was not, and the failure was silent: at a 900px window
+ * the rail took 224px and the pane 336px, leaving 306px for a table whose fixed
+ * columns already needed 304. The two flexible tracks were `minmax(0, Nfr)`, so
+ * they collapsed to exactly zero -- an orders table showing a checkbox, a stage,
+ * a date and an amount, and no indication of which order any row was.
+ *
+ * Two separate mistakes, fixed separately: a pane that refused to yield, and
+ * columns permitted to vanish. Below the threshold the record overlays the list
+ * instead of dividing it, which is what a master-detail layout does when the
+ * master can no longer be read. */
+.panes {
+  container-type: inline-size;
+  container-name: panes;
+  position: relative;
+}
+
+/* Wide: the pane is a column and there is nothing to dismiss.
+   Declared before the container query, not after: same specificity, so the last
+   rule wins and putting the default afterwards pinned the button shut. */
+.record-close {
+  display: none;
+}
+
+/* 64rem, not the 58rem the arithmetic allows.
+   At 58 the split is possible but not comfortable: every flexible column sits
+   exactly on its minimum, so an order called "School uniforms x12" truncates the
+   moment the pane appears. The line is where both halves are comfortable, which
+   puts 1280px and up in split and leaves 1024 and 1152 a full-width table. */
+@container panes (width < 64rem) {
+  .record-pane {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    z-index: 20;
+    width: min(21rem, 100%);
+    box-shadow: var(--elev-3);
+  }
+
+  /* Nothing is chosen, so the list gets the whole width rather than a pane
+     showing whichever row happened to be first. */
+  .record-pane[data-open='false'] {
+    display: none;
+  }
+
+  .record-close {
+    display: grid;
+  }
+}

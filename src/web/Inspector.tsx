@@ -24,6 +24,7 @@ import {
 } from '../screens/orderStage'
 import type { DueRow } from '../screens/today/todayModel'
 import { Chip } from '../ui'
+import { IconChevronRight } from '../components/icons'
 import { cn } from '../lib/cn'
 import { CONTROL, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import { PaymentDialog } from './PaymentDialog'
@@ -37,7 +38,20 @@ const TABS: readonly { value: Tab; label: string }[] = [
   { value: 'history', label: 'History' },
 ]
 
-export function Inspector({ row }: { row: DueRow | null }) {
+export function Inspector({
+  row,
+  chosen = false,
+  onClose,
+}: {
+  row: DueRow | null
+  /**
+   * Whether a row was actually picked, as opposed to this falling back to the
+   * first one. Only matters where the pane overlays the list: there, showing a
+   * record nobody asked for would cover the table on arrival.
+   */
+  chosen?: boolean
+  onClose?: () => void
+}) {
   const { db, shop, staff } = useCurrentShop()
   const [tab, setTab] = useState<Tab>('record')
   const [paying, setPaying] = useState(false)
@@ -74,7 +88,9 @@ export function Inspector({ row }: { row: DueRow | null }) {
     return (
       <aside
         aria-label="Record"
-        class="flex w-[21rem] shrink-0 items-center justify-center border-l border-line bg-surface px-6"
+        data-open="false"
+        class="record-pane flex w-[21rem] shrink-0 items-center justify-center border-l border-line
+               bg-surface px-6"
       >
         <p class={cn('text-center text-content-subtle', TEXT_SM)}>
           Choose an order to see it here.
@@ -93,14 +109,31 @@ export function Inspector({ row }: { row: DueRow | null }) {
   return (
     <aside
       aria-label={order.summary}
-      class="flex w-[21rem] shrink-0 flex-col border-l border-line bg-surface"
+      data-open={chosen ? 'true' : 'false'}
+      class="record-pane flex w-[21rem] shrink-0 flex-col border-l border-line bg-surface"
     >
-      <div class="px-3.5 pb-2 pt-3">
-        <h2 class="truncate text-[14.5px] font-semibold tracking-tight">{order.summary}</h2>
-        <p class={cn('mt-0.5 truncate text-content-muted', TEXT_XS)}>
-          {row.clientName}
-          {order.reference && ` · ${order.reference}`}
-        </p>
+      <div class="flex items-start gap-2 px-3.5 pb-2 pt-3">
+        <div class="min-w-0 flex-1">
+          <h2 class="truncate text-[14.5px] font-semibold tracking-tight">{order.summary}</h2>
+          <p class={cn('mt-0.5 truncate text-content-muted', TEXT_XS)}>
+            {row.clientName}
+            {order.reference && ` · ${order.reference}`}
+          </p>
+        </div>
+        {/* Only rendered where the pane covers the list. As a column there is
+            nothing to dismiss, so the button would be a dead control. */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close record"
+          class={cn(
+            'record-close size-7 shrink-0 place-items-center text-content-muted',
+            'hover:bg-hover hover:text-content',
+            RADIUS,
+          )}
+        >
+          <IconChevronRight size={15} />
+        </button>
       </div>
 
       <div class="flex gap-3.5 border-b border-line px-3.5" role="tablist">

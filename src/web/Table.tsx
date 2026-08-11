@@ -17,7 +17,14 @@ import { GUTTER, ROW, TEXT_XS } from './chrome'
 export interface TableColumn<T> {
   id: string
   label: string
-  /** A `grid-template-columns` track. */
+  /**
+   * A `grid-template-columns` track.
+   *
+   * Give flexible tracks a real minimum -- `minmax(7rem, 2.4fr)`, not
+   * `minmax(0, 2.4fr)`. A zero minimum lets the column collapse to nothing
+   * while fixed neighbours keep their width, which is how the orders table once
+   * rendered rows with no order name in them at all.
+   */
   width: string
   align?: 'end'
   sortable?: boolean
