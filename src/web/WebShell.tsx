@@ -18,11 +18,11 @@ import { Sidebar } from './Sidebar'
 import { TodayPage } from './TodayPage'
 import { OrdersPage } from './OrdersPage'
 import { ClientsPage } from './ClientsPage'
+import { ClientDetailPage } from './ClientDetailPage'
 import { SalesPage } from './SalesPage'
 import { ExpensesPage } from './ExpensesPage'
 import { ReportsPage } from './ReportsPage'
 import { NotBuiltYet } from './NotBuiltYet'
-import { ClientDetail } from '../screens/ClientDetail'
 import { OrderDetail } from '../screens/OrderDetail'
 import { OrderForm } from '../screens/OrderForm'
 import { SaleForm } from '../screens/SaleForm'
@@ -46,7 +46,6 @@ const BORROWED_FROM_PHONE = [
   { path: '/orders/new', component: OrderForm },
   { path: '/orders/:id', component: OrderDetail },
   { path: '/orders/:id/edit', component: OrderForm },
-  { path: '/clients/:id', component: ClientDetail },
   { path: '/sales/new', component: SaleForm },
   { path: '/settings/shop', component: ShopSettings },
   { path: '/settings/measurements', component: MeasurementFieldSettings },
@@ -83,6 +82,7 @@ export function WebShell({
             <Route path="/" component={TodayPage} />
             <Route path="/orders" component={OrdersPage} />
             <Route path="/clients" component={ClientsPage} />
+            <Route path="/clients/:id" component={ClientDetailPage} />
 
             <Route path="/sales" component={SalesPage} />
             <Route path="/expenses" component={ExpensesPage} />
