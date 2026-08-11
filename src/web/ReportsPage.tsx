@@ -1,0 +1,226 @@
+/**
+ * Reports, at a desk: the figures the phone caps at a reading measure.
+ *
+ * This is the screen that most wanted the width. On the phone it is a narrow
+ * column with the profit figure, stage bars and category totals stacked
+ * vertically; here they sit side by side, which is what a review screen is for.
+ *
+ * ## Payments are scoped to this shop's orders
+ *
+ * `profitAndLoss` filters by date and nothing else, because payments carry no
+ * shop_id -- they hang off orders. RLS means the local database should only hold
+ * one shop's rows, but signing out does not clear it, so a device handed to a
+ * second shop holds both. Passing every local payment in would then count the
+ * other shop's income while excluding their sales and expenses, which are
+ * scoped: not a stale figure, an incoherent one. So the order ids are the filter
+ * here, the same way the phone's `collected` block does it.
+ */
+import { useMemo, useState } from 'preact/hooks'
+import { useCurrentShop } from '../state/ShopProvider'
+import { useRxQuery } from '../hooks/useRxQuery'
+import { observeShopBalances } from '../db/balances'
+import { profitAndLoss } from '../db/profit'
+import { formatMinor } from '../lib/money'
+import { addDays, today } from '../lib/dates'
+import { EXPENSE_CATEGORY_LABELS } from '../screens/Expenses'
+import { STAGE_LABELS } from '../screens/orderStage'
+import { ORDER_STAGES } from '../db/schema'
+import { cn } from '../lib/cn'
+import { Page } from './Page'
+import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
+import { PeriodSwitch, RANGES, type RangeKey } from './period'
+
+export function ReportsPage() {
+  const { db, shop } = useCurrentShop()
+  const [range, setRange] = useState<RangeKey>('30')
+  const now = today()
+  const from = addDays(now, -(RANGES[range].days - 1))
+
+  const orderDocs = useRxQuery(
+    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+  const saleDocs = useRxQuery(
+    () => db.sales.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+  const expenseDocs = useRxQuery(
+    () => db.expenses.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+  const paymentDocs = useRxQuery(() => db.payments.find().$, [db], [])
+  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+
+  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
+  const orderIds = useMemo(() => new Set(orders.map((order) => order.id)), [orders])
+
+  const pnl = useMemo(
+    () =>
+      profitAndLoss({
+        sales: saleDocs.map((doc) => doc.toJSON()),
+        payments: paymentDocs
+          .map((doc) => doc.toJSON())
+          .filter((payment) => orderIds.has(payment.order_id)),
+        expenses: expenseDocs.map((doc) => doc.toJSON()),
+        from,
+        to: now,
+      }),
+    [saleDocs, paymentDocs, expenseDocs, orderIds, from, now],
+  )
+
+  const outstanding = useMemo(() => {
+    const cancelled = new Set(
+      orders.filter((order) => order.stage === 'cancelled').map((order) => order.id),
+    )
+    const owing = [...balances.entries()].filter(
+      ([id, balance]) => balance.balance_minor > 0 && !cancelled.has(id),
+    )
+    return {
+      count: owing.length,
+      total: owing.reduce((sum, [, balance]) => sum + balance.balance_minor, 0),
+    }
+  }, [orders, balances])
+
+  const stages = useMemo(() => {
+    const counts = new Map(ORDER_STAGES.map((stage) => [stage, 0]))
+    for (const order of orders) counts.set(order.stage, (counts.get(order.stage) ?? 0) + 1)
+    return [...counts].filter(([, count]) => count > 0)
+  }, [orders])
+
+  const maxStage = Math.max(1, ...stages.map(([, count]) => count))
+  const inProfit = pnl.profitMinor >= 0
+
+  return (
+    <Page
+      crumbs={['Money']}
+      title="Reports"
+      viewbar={
+        <>
+          <PeriodSwitch value={range} onChange={setRange} />
+          <span class="flex-1" />
+          <span class={cn('text-content-subtle', TEXT_XS)}>
+            From what this device has synced
+          </span>
+        </>
+      }
+    >
+      <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto">
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-2.5">
+          <Figure
+            label={`${inProfit ? 'Profit' : 'Loss'}, ${RANGES[range].label.toLowerCase()}`}
+            value={formatMinor(pnl.profitMinor, shop.currency)}
+            tone={pnl.incomeMinor === 0 && pnl.expensesMinor === 0 ? undefined : inProfit ? 'success' : 'danger'}
+            big
+          />
+          <Figure label="Money in" value={formatMinor(pnl.incomeMinor, shop.currency)} />
+          <Figure label="Money out" value={formatMinor(pnl.expensesMinor, shop.currency)} />
+          <Figure
+            label={`Owed by ${outstanding.count} ${outstanding.count === 1 ? 'order' : 'orders'}`}
+            value={formatMinor(outstanding.total, shop.currency)}
+            tone={outstanding.total > 0 ? 'money' : undefined}
+          />
+        </div>
+
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(17rem,1fr))] items-start gap-2.5">
+          <Panel title="Money in">
+            <Line
+              label="Counter sales"
+              value={formatMinor(pnl.salesIncomeMinor, shop.currency)}
+            />
+            <Line
+              label="Payments on orders"
+              value={formatMinor(pnl.orderIncomeMinor, shop.currency)}
+            />
+            <p class={cn('mt-2 leading-relaxed text-content-subtle', TEXT_XS)}>
+              Cash received, not the value of orders written up. A shop with unpaid orders on the
+              books has not earned them.
+            </p>
+          </Panel>
+
+          <Panel title="Where money went">
+            {pnl.byCategory.length === 0 ? (
+              <p class={cn('text-content-subtle', TEXT_XS)}>No expenses in this period.</p>
+            ) : (
+              pnl.byCategory.map((entry) => (
+                <Line
+                  key={entry.category}
+                  label={EXPENSE_CATEGORY_LABELS[entry.category]}
+                  value={formatMinor(entry.amountMinor, shop.currency)}
+                />
+              ))
+            )}
+          </Panel>
+
+          <Panel title="Orders by stage">
+            {stages.map(([stage, count]) => (
+              <div key={stage} class="flex items-center gap-2.5 py-1">
+                <span class={cn('w-[5.5rem] shrink-0 truncate text-content-muted', TEXT_XS)}>
+                  {STAGE_LABELS[stage]}
+                </span>
+                <span class="h-1.5 flex-1 overflow-hidden rounded-sm bg-surface-sunken">
+                  <span
+                    class="block h-full rounded-sm bg-accent"
+                    style={`width: ${(count / maxStage) * 100}%`}
+                  />
+                </span>
+                <span class={cn('w-6 shrink-0 text-right font-semibold tabular-nums', TEXT_XS)}>
+                  {count}
+                </span>
+              </div>
+            ))}
+          </Panel>
+        </div>
+      </div>
+    </Page>
+  )
+}
+
+function Figure({
+  label,
+  value,
+  tone,
+  big = false,
+}: {
+  label: string
+  value: string
+  tone?: 'success' | 'danger' | 'money'
+  big?: boolean
+}) {
+  return (
+    <div class={cn('bg-surface px-3 py-2.5', RADIUS)}>
+      <p class={cn('text-content-muted', TEXT_XS)}>{label}</p>
+      <p
+        class={cn(
+          'mt-1 font-semibold leading-none tracking-tight tabular-nums',
+          big ? 'text-[26px]' : 'text-[19px]',
+          tone === 'success' && 'text-success',
+          tone === 'danger' && 'text-danger',
+          tone === 'money' && 'text-money',
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function Panel({ title, children }: { title: string; children: preact.ComponentChildren }) {
+  return (
+    <section class={cn('bg-surface p-3', RADIUS)}>
+      <h2 class={cn('mb-1.5 font-semibold', TEXT_SM)}>{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+function Line({ label, value }: { label: string; value: string }) {
+  return (
+    <div class="flex items-baseline justify-between gap-3 border-b border-line py-1 last:border-b-0">
+      <span class={cn('min-w-0 truncate text-content-muted', TEXT_XS)}>{label}</span>
+      <span class={cn('shrink-0 font-semibold tabular-nums', TEXT_XS)}>{value}</span>
+    </div>
+  )
+}

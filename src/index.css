@@ -27,6 +27,25 @@
  */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/**
+ * "There is room to set two things side by side" -- the condition the entry
+ * flow's landing composes against.
+ *
+ * Not a breakpoint dressed up: it is two conditions because there are two
+ * separate reasons to stop stacking. Desk width, where the bottom edge of the
+ * window is a long way from what you just read and there is no thumb that needs
+ * to reach it. And a short window -- a phone held in landscape -- where
+ * stacking is what pushes the action below the fold.
+ *
+ * Width alone would answer the second case wrongly, which is why it is a named
+ * condition in one place rather than a `lg:` repeated across four elements.
+ */
+@custom-variant entry-wide {
+  @media (width >= 64rem), (width >= 40rem) and (height <= 30rem) {
+    @slot;
+  }
+}
+
 @layer base {
   html {
     /* iOS Safari inflates text in landscape without this, which quietly

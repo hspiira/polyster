@@ -9,12 +9,18 @@
  * page. A back-office is a workspace: the sidebar and the table header stay put
  * while the rows move, which cannot be done if the document itself scrolls.
  */
-import { Route, Router } from 'preact-iso'
+import { Route, Router, useLocation } from 'preact-iso'
+import { useCallback, useState } from 'preact/hooks'
 import { AppBar } from './AppBar'
+import { CommandPalette } from './CommandPalette'
+import { useShortcuts } from './useShortcuts'
 import { Sidebar } from './Sidebar'
 import { TodayPage } from './TodayPage'
 import { OrdersPage } from './OrdersPage'
 import { ClientsPage } from './ClientsPage'
+import { SalesPage } from './SalesPage'
+import { ExpensesPage } from './ExpensesPage'
+import { ReportsPage } from './ReportsPage'
 import { NotBuiltYet } from './NotBuiltYet'
 import { ClientDetail } from '../screens/ClientDetail'
 import { OrderDetail } from '../screens/OrderDetail'
@@ -57,9 +63,19 @@ export function WebShell({
   auth: AuthState
   replication: ReplicationStatus
 }) {
+  const location = useLocation()
+  const [searching, setSearching] = useState(false)
+
+  // Registered here, once, so a shortcut cannot mean two things on two screens.
+  useShortcuts({
+    onSearch: useCallback(() => setSearching(true), []),
+    onNew: useCallback(() => location.route('/orders/new'), [location]),
+    onEscape: useCallback(() => setSearching(false), []),
+  })
+
   return (
     <div class="flex h-svh flex-col overflow-hidden bg-page text-content">
-      <AppBar />
+      <AppBar onSearch={() => setSearching(true)} />
       <div class="flex min-h-0 flex-1">
         <Sidebar online={online} auth={auth} replication={replication} />
         <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -68,15 +84,10 @@ export function WebShell({
             <Route path="/orders" component={OrdersPage} />
             <Route path="/clients" component={ClientsPage} />
 
-            <Route path="/sales" component={() => <NotBuiltYet title="Sales" crumbs={['Money']} />} />
-            <Route
-              path="/expenses"
-              component={() => <NotBuiltYet title="Expenses" crumbs={['Money']} />}
-            />
-            <Route
-              path="/reports"
-              component={() => <NotBuiltYet title="Reports" crumbs={['Money']} />}
-            />
+            <Route path="/sales" component={SalesPage} />
+            <Route path="/expenses" component={ExpensesPage} />
+            <Route path="/reports" component={ReportsPage} />
+
             <Route
               path="/settings"
               component={() => <NotBuiltYet title="Settings" crumbs={['Shop']} />}
@@ -90,6 +101,8 @@ export function WebShell({
           </Router>
         </main>
       </div>
+
+      <CommandPalette open={searching} onClose={() => setSearching(false)} />
     </div>
   )
 }

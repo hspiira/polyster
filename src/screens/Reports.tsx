@@ -202,16 +202,40 @@ function ProfitCard() {
     [],
   )
 
+  /**
+   * Payments have to be scoped to this shop's orders, the way `collected` above
+   * already scopes them.
+   *
+   * `profitAndLoss` filters by date and nothing else, and a payment carries no
+   * shop_id -- it hangs off an order. RLS means the local database should hold
+   * one shop's rows, but signing out does not clear it, so a device handed on
+   * holds both shops'. Unscoped, this counted the other shop's order income
+   * while excluding their sales and expenses, which *are* scoped: not a stale
+   * figure but an incoherent one, where Money in stopped equalling its own two
+   * subtotals.
+   */
+  const shopOrderIds = useRxQuery(
+    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+  const orderIdSet = useMemo(
+    () => new Set(shopOrderIds.map((doc) => doc.id)),
+    [shopOrderIds],
+  )
+
   const pnl = useMemo(
     () =>
       profitAndLoss({
         sales: saleDocs.map((doc) => doc.toJSON()),
-        payments: paymentDocs.map((doc) => doc.toJSON()),
+        payments: paymentDocs
+          .map((doc) => doc.toJSON())
+          .filter((payment) => orderIdSet.has(payment.order_id)),
         expenses: expenseDocs.map((doc) => doc.toJSON()),
         from,
         to: now,
       }),
-    [saleDocs, paymentDocs, expenseDocs, from, now],
+    [saleDocs, paymentDocs, expenseDocs, orderIdSet, from, now],
   )
 
   const nothingRecorded = pnl.incomeMinor === 0 && pnl.expensesMinor === 0

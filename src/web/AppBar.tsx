@@ -12,7 +12,7 @@ import { IconAlert, IconChevronRight, IconSearch } from '../components/icons'
 import { cn } from '../lib/cn'
 import { CONTROL, RADIUS, TEXT_SM, TEXT_UI, TEXT_XS } from './chrome'
 
-export function AppBar() {
+export function AppBar({ onSearch }: { onSearch: () => void }) {
   const { shop, activeStaff } = useShop()
 
   return (
@@ -51,10 +51,13 @@ export function AppBar() {
 
       <span class="flex-1" />
 
-      {/* Not wired yet. It is here because the layout has to reserve it -- a
-          search added later always ends up squeezed somewhere it does not fit. */}
+      {/* A button rather than a field: it opens the palette, which is where the
+          typing happens. A field here would be a second place to search from,
+          with its own results and its own keyboard behaviour to keep in step. */}
       <button
         type="button"
+        onClick={onSearch}
+        aria-keyshortcuts="Meta+K Control+K"
         class={cn(
           'flex w-[24rem] max-w-[38%] items-center gap-2 border border-line-strong bg-page px-2.5',
           'text-content-subtle hover:border-content-muted',
