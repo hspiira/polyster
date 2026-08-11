@@ -19,6 +19,7 @@ import { OPEN_STAGES } from '../screens/today/todayModel'
 import { SyncBadge } from '../components/SyncBadge'
 import {
   IconBox,
+  IconFactory,
   IconMoney,
   IconOrders,
   IconPlus,
@@ -91,6 +92,7 @@ export function Sidebar({
         { href: '/suppliers', label: 'Suppliers', Icon: IconTruck, feature: 'suppliers' },
         { href: '/materials', label: 'Materials', Icon: IconSpool, feature: 'suppliers' },
         { href: '/inventory', label: 'Inventory', Icon: IconBox, feature: 'inventory' },
+        { href: '/production', label: 'Production', Icon: IconFactory, feature: 'production' },
       ],
     },
     {

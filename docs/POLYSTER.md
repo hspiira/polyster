@@ -3126,24 +3126,25 @@ Reached via Settings (phone) / a Work-group sidebar item (web), gated behind the
 
 ### Priority: P1
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Online-only per §46.1. Implemented and verified live 2026-08-12: migration `0013_production.sql` applied, RLS passes, and an 8-check live test confirmed per-shop batch-number uniqueness, the accepted+rejected≤produced constraint, and cross-tenant isolation on both tables. Also drove the actual UI: created a batch, updated its progress with a QC rejection reason, added a materials cost, and confirmed the cost-per-unit figure computed correctly.
 
 Implement:
 
 ```text
-production_batches
-production_batch_costs
+production_batches     -- real Postgres table, RLS, no RxDB collection (see §46.1)
+production_batch_costs -- same
 ```
 
 Support:
 
-- planning
-- production
-- QC
-- rejected units
-- actual costs
-- yield
-- cost per unit
+- ✅ planning — `planned_quantity` at creation, status starts at `planned`
+- ✅ production, QC, rejected units — full `status` enum (planned → materials_ready → in_production → quality_control → completed/cancelled); `accepted_quantity + rejected_quantity <= produced_quantity` enforced as a database check constraint, not just UI validation; a rejection requires a reason (§64 auditability — who is `created_by`, when is `updated_at`, accepted/rejected are the quantity columns, why is the new `rejected_reason` field)
+- ✅ actual costs — `production_batch_costs`, one row per cost line, `cost_type` enum matching §23 exactly
+- ✅ yield, cost per unit — computed on read (`summarizeBatchCosts`, pure and unit-tested), never stored, per §23's explicit instruction not to persist calculated values without a performance reason
+
+**Scoping decision, documented rather than silently skipped:** a batch's output is not connected to the Phase 4 inventory ledger. `production_batches.product_id` points at a *product*, but `inventory_items` tracks by *product variant* — the spec's own field list doesn't put a variant on a batch, and a batch can plausibly span several sizes/colours of one product. Wiring "batch completes → inventory movement" needs to know which variant(s) the accepted units actually are, which is exactly what Phase 8 (garment identity, `garment_units`, batch-to-variant-to-unit) resolves. Forcing that connection now would mean guessing an assumption the spec doesn't make. Flagged here for Phase 8 to close, not left as a silent gap.
+
+Reached via Settings (phone) / a Work-group sidebar item (web), gated behind the `production` feature flag from Phase 1.
 
 ---
 

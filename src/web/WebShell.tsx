@@ -38,6 +38,8 @@ import { Suppliers } from '../screens/Suppliers'
 import { Materials } from '../screens/Materials'
 import { Inventory } from '../screens/Inventory'
 import { InventoryItemDetail } from '../screens/InventoryItemDetail'
+import { Production } from '../screens/Production'
+import { ProductionBatchDetail } from '../screens/ProductionBatchDetail'
 import { NotFound } from '../screens/NotFound'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
@@ -68,6 +70,8 @@ const BORROWED_FROM_PHONE = [
   { path: '/materials', component: Materials },
   { path: '/inventory', component: Inventory },
   { path: '/inventory/:id', component: InventoryItemDetail },
+  { path: '/production', component: Production },
+  { path: '/production/:id', component: ProductionBatchDetail },
 ] as const
 
 export function WebShell({

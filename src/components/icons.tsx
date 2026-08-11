@@ -246,3 +246,12 @@ export const IconBox = (p: IconProps) => (
     <path d="M12 12v9" />
   </Icon>
 )
+
+/** A factory: production. */
+export const IconFactory = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 20V11l5 3.5V11l5 3.5V11l5 3.5V20Z" />
+    <path d="M4 20h16" />
+    <path d="M7 11V8" />
+  </Icon>
+)

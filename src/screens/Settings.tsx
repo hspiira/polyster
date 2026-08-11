@@ -19,6 +19,7 @@ import {
 import {
   IconBox,
   IconDownload,
+  IconFactory,
   IconLock,
   IconRuler,
   IconSettings,
@@ -84,6 +85,12 @@ const SHOP_ENTRIES: readonly Entry[] = [
     Icon: IconBox,
   },
   {
+    href: '/production',
+    label: 'Production',
+    hint: 'Batches, quality control and costing',
+    Icon: IconFactory,
+  },
+  {
     href: '/settings/features',
     label: 'Modules',
     hint: 'What shows up in navigation',
@@ -116,6 +123,7 @@ export function Settings() {
     if (entry.href === '/catalogue') return flags.catalogue
     if (entry.href === '/suppliers' || entry.href === '/materials') return flags.suppliers
     if (entry.href === '/inventory') return flags.inventory
+    if (entry.href === '/production') return flags.production
     return true
   })
 
