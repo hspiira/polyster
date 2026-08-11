@@ -488,3 +488,147 @@ export const messageLogSchema: RxJsonSchema<MessageLogDoc> = {
   // order_id is optional, and Dexie rejects an index on a non-required field.
   indexes: ['client_id'],
 }
+
+// ------------------------------------------------------------------- sales
+
+/**
+ * A sale: money taken over the counter, now.
+ *
+ * Deliberately a smaller shape than an order -- no due date, no stages, no
+ * units, no balance -- and `client_id` is optional, which is the whole reason
+ * this exists rather than reusing `orders`. See 0006_sales_and_expenses.sql
+ * for the friction it removes.
+ */
+export interface SaleDoc {
+  id: string
+  shop_id: string
+  /** Optional. A walk-in customer is not a client record. */
+  client_id?: string
+  item_description: string
+  quantity: number
+  /** Denormalised, like orders: a currency change must not rewrite history. */
+  currency: string
+  /** Price for one unit. Line total is quantity * unit_price_minor. */
+  unit_price_minor: number
+  method: PaymentMethod
+  reference?: string
+  /** When the money moved, which offline is not when it was typed in. */
+  sold_at: string
+  recorded_by?: string
+  notes?: string
+  voided_by?: string
+  voided_at?: string
+  void_reason?: string
+  created_at: string
+  updated_at: string
+}
+export const saleSchema: RxJsonSchema<SaleDoc> = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: uuidField,
+    shop_id: uuidField,
+    client_id: uuidField,
+    item_description: { type: 'string' },
+    quantity: { type: 'integer', minimum: 1 },
+    currency: { type: 'string' },
+    // Zero allowed, unlike a payment: a giveaway recorded at zero is more
+    // honest than one not recorded at all.
+    unit_price_minor: { type: 'integer', minimum: 0 },
+    method: { type: 'string', enum: [...PAYMENT_METHODS] },
+    reference: { type: 'string' },
+    sold_at: { type: 'string', format: 'date-time', maxLength: 30 },
+    recorded_by: uuidField,
+    notes: { type: 'string' },
+    voided_by: uuidField,
+    voided_at: { type: 'string', format: 'date-time' },
+    void_reason: { type: 'string' },
+    created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
+  },
+  required: [
+    'id',
+    'shop_id',
+    'item_description',
+    'quantity',
+    'currency',
+    'unit_price_minor',
+    'method',
+    'sold_at',
+  ],
+  // Compound: the report always asks for one shop's sales in a date window.
+  indexes: [['shop_id', 'sold_at']],
+}
+
+// ---------------------------------------------------------------- expenses
+
+export type ExpenseCategory =
+  | 'materials'
+  | 'rent'
+  | 'wages'
+  | 'transport'
+  | 'utilities'
+  | 'other'
+
+export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
+  'materials',
+  'rent',
+  'wages',
+  'transport',
+  'utilities',
+  'other',
+]
+
+/**
+ * Money out. Without it there is no profit figure, only revenue -- the
+ * half-picture 0005's design document flagged and deferred.
+ */
+export interface ExpenseDoc {
+  id: string
+  shop_id: string
+  category: ExpenseCategory
+  description: string
+  currency: string
+  amount_minor: number
+  /** ISO date (YYYY-MM-DD). An expense belongs to a day in the books. */
+  spent_on: string
+  recorded_by?: string
+  notes?: string
+  voided_by?: string
+  voided_at?: string
+  void_reason?: string
+  created_at: string
+  updated_at: string
+}
+export const expenseSchema: RxJsonSchema<ExpenseDoc> = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: uuidField,
+    shop_id: uuidField,
+    category: { type: 'string', enum: [...EXPENSE_CATEGORIES] },
+    description: { type: 'string' },
+    currency: { type: 'string' },
+    amount_minor: { type: 'integer', exclusiveMinimum: 0 },
+    spent_on: { type: 'string', format: 'date', maxLength: 10 },
+    recorded_by: uuidField,
+    notes: { type: 'string' },
+    voided_by: uuidField,
+    voided_at: { type: 'string', format: 'date-time' },
+    void_reason: { type: 'string' },
+    created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
+  },
+  required: [
+    'id',
+    'shop_id',
+    'category',
+    'description',
+    'currency',
+    'amount_minor',
+    'spent_on',
+  ],
+  indexes: [['shop_id', 'spent_on']],
+}

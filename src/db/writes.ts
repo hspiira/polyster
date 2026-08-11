@@ -36,6 +36,9 @@ import {
   type ShopDoc,
   type StaffDoc,
   type StaffRole,
+  type SaleDoc,
+  type ExpenseDoc,
+  type ExpenseCategory,
 } from './schema'
 import { hashPin } from '../lib/pin'
 import { DEFAULT_CURRENCY } from '../lib/money'
@@ -735,4 +738,130 @@ export async function updateShop(
       ? { lock_after_minutes: input.lock_after_minutes }
       : {}),
   })
+}
+
+// ------------------------------------------------------------------- sales
+
+export interface NewSaleInput {
+  item_description: string
+  quantity: number
+  unit_price_minor: number
+  method: PaymentMethod
+  /** Optional: a walk-in customer is not a client record. */
+  client_id?: string
+  reference?: string
+  notes?: string
+}
+
+/**
+ * Records a sale: money taken at the counter, now.
+ *
+ * No stage, no due date, no balance. A sale is paid in full by definition --
+ * that is what separates it from an order, and it is what lets the profit
+ * figure count every sale row as cash without consulting `payments`. Anything
+ * part-paid is an order.
+ *
+ * `currency` is denormalised off the shop for the same reason orders carry it:
+ * a shop that changes currency must not silently reinterpret its own history.
+ */
+export async function recordSale(
+  db: AppDatabase,
+  shop: Pick<ShopDoc, 'id' | 'currency'>,
+  input: NewSaleInput,
+  staffId?: string,
+): Promise<SaleDoc> {
+  const timestamp = now()
+  const doc: SaleDoc = {
+    id: newId(),
+    shop_id: shop.id,
+    item_description: input.item_description.trim(),
+    quantity: input.quantity,
+    currency: shop.currency,
+    unit_price_minor: input.unit_price_minor,
+    method: input.method,
+    sold_at: timestamp,
+    created_at: timestamp,
+    updated_at: timestamp,
+    ...(input.client_id ? { client_id: input.client_id } : {}),
+    ...(input.reference?.trim() ? { reference: input.reference.trim() } : {}),
+    ...(input.notes?.trim() ? { notes: input.notes.trim() } : {}),
+    ...(staffId ? { recorded_by: staffId } : {}),
+  }
+  await db.sales.insert(doc)
+  return doc
+}
+
+/**
+ * Voids a sale. Soft-deleted with a trail, like a payment: a voided sale
+ * changes a profit figure the shop may already have read, so "why is last
+ * month different now" needs an answer that is not just a missing row.
+ */
+export async function voidSale(
+  db: AppDatabase,
+  saleId: string,
+  reason?: string,
+  staffId?: string,
+): Promise<void> {
+  const doc = await db.sales.findOne(saleId).exec()
+  if (!doc) return
+
+  // As with voidPayment: remove() must run on the patched revision.
+  const patched = await doc.patch({
+    voided_at: now(),
+    ...(staffId ? { voided_by: staffId } : {}),
+    ...(reason?.trim() ? { void_reason: reason.trim() } : {}),
+  })
+  await patched.remove()
+}
+
+// ---------------------------------------------------------------- expenses
+
+export interface NewExpenseInput {
+  category: ExpenseCategory
+  description: string
+  amount_minor: number
+  /** ISO date (YYYY-MM-DD). */
+  spent_on: string
+  notes?: string
+}
+
+export async function recordExpense(
+  db: AppDatabase,
+  shop: Pick<ShopDoc, 'id' | 'currency'>,
+  input: NewExpenseInput,
+  staffId?: string,
+): Promise<ExpenseDoc> {
+  const timestamp = now()
+  const doc: ExpenseDoc = {
+    id: newId(),
+    shop_id: shop.id,
+    category: input.category,
+    description: input.description.trim(),
+    currency: shop.currency,
+    amount_minor: input.amount_minor,
+    spent_on: input.spent_on,
+    created_at: timestamp,
+    updated_at: timestamp,
+    ...(input.notes?.trim() ? { notes: input.notes.trim() } : {}),
+    ...(staffId ? { recorded_by: staffId } : {}),
+  }
+  await db.expenses.insert(doc)
+  return doc
+}
+
+export async function voidExpense(
+  db: AppDatabase,
+  expenseId: string,
+  reason?: string,
+  staffId?: string,
+): Promise<void> {
+  const doc = await db.expenses.findOne(expenseId).exec()
+  if (!doc) return
+
+  const patched = await doc.patch({
+    voided_at: now(),
+    ...(staffId ? { voided_by: staffId } : {}),
+    ...(reason?.trim() ? { void_reason: reason.trim() } : {}),
+  })
+  await patched.remove()
 }
