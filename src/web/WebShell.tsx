@@ -34,6 +34,8 @@ import { BackupSettings } from '../screens/settings/BackupSettings'
 import { FeatureSettings } from '../screens/settings/FeatureSettings'
 import { Catalogue } from '../screens/Catalogue'
 import { CatalogueDetail } from '../screens/CatalogueDetail'
+import { Suppliers } from '../screens/Suppliers'
+import { Materials } from '../screens/Materials'
 import { NotFound } from '../screens/NotFound'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
@@ -60,6 +62,8 @@ const BORROWED_FROM_PHONE = [
   { path: '/settings/features', component: FeatureSettings },
   { path: '/catalogue', component: Catalogue },
   { path: '/catalogue/:id', component: CatalogueDetail },
+  { path: '/suppliers', component: Suppliers },
+  { path: '/materials', component: Materials },
 ] as const
 
 export function WebShell({

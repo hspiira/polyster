@@ -219,3 +219,21 @@ export const IconToggle = (p: IconProps) => (
     <circle cx="16" cy="12" r="3" fill="currentColor" stroke="none" />
   </Icon>
 )
+
+/** A delivery truck: suppliers. */
+export const IconTruck = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 6.5h10v9H3z" />
+    <path d="M13 10h4l3 3v2.5h-7z" />
+    <circle cx="7" cy="17.5" r="1.6" />
+    <circle cx="16.5" cy="17.5" r="1.6" />
+  </Icon>
+)
+
+/** A spool of thread: materials. */
+export const IconSpool = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 4h12M6 20h12" />
+    <path d="M7 4c0 4 3 4 3 8s-3 4-3 8M17 4c0 4-3 4-3 8s3 4 3 8" />
+  </Icon>
+)

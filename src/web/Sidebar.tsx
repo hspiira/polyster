@@ -23,7 +23,9 @@ import {
   IconPlus,
   IconRuler,
   IconSettings,
+  IconSpool,
   IconTag,
+  IconTruck,
   IconUsers,
 } from '../components/icons'
 import { cn } from '../lib/cn'
@@ -85,6 +87,8 @@ export function Sidebar({
         { href: '/clients', label: 'Clients', Icon: IconUsers, count: clientDocs.length },
         { href: '/settings/measurements', label: 'Measurements', Icon: IconRuler, feature: 'measurements' },
         { href: '/catalogue', label: 'Catalogue', Icon: IconTag, feature: 'catalogue' },
+        { href: '/suppliers', label: 'Suppliers', Icon: IconTruck, feature: 'suppliers' },
+        { href: '/materials', label: 'Materials', Icon: IconSpool, feature: 'suppliers' },
       ],
     },
     {

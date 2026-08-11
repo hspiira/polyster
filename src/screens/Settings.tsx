@@ -21,8 +21,10 @@ import {
   IconLock,
   IconRuler,
   IconSettings,
+  IconSpool,
   IconTag,
   IconToggle,
+  IconTruck,
   IconUsers,
 } from '../components/icons'
 import { ThemeChoice } from '../components/ThemeChoice'
@@ -63,6 +65,18 @@ const SHOP_ENTRIES: readonly Entry[] = [
     Icon: IconTag,
   },
   {
+    href: '/suppliers',
+    label: 'Suppliers',
+    hint: 'Who supplies fabric, trims and outsourced work',
+    Icon: IconTruck,
+  },
+  {
+    href: '/materials',
+    label: 'Materials',
+    hint: 'Fabric, thread, buttons and what is on hand',
+    Icon: IconSpool,
+  },
+  {
     href: '/settings/features',
     label: 'Modules',
     hint: 'What shows up in navigation',
@@ -93,6 +107,7 @@ export function Settings() {
   const shopEntries = SHOP_ENTRIES.filter((entry) => {
     if (entry.href === '/settings/measurements') return flags.measurements
     if (entry.href === '/catalogue') return flags.catalogue
+    if (entry.href === '/suppliers' || entry.href === '/materials') return flags.suppliers
     return true
   })
 

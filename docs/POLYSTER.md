@@ -3075,23 +3075,24 @@ This is the foundation for both ordinary apparel businesses and NORTH//FOUND, th
 
 ### Priority: P1
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Built online-only per §46.1 (same reasoning as Phase 2). Implemented and verified live 2026-08-12: migration `0011_suppliers_materials.sql` applied, RLS structural check passes, and a 6-check live two-tenant test confirmed isolation on both tables and the `on delete set null` behaviour when a supplier is removed.
+
+**Bug found and fixed while verifying live:** the migration originally reused `set_modified_and_updated_at()` (the trigger function every RxDB-synced table uses) on `suppliers`/`materials`. That function unconditionally sets `NEW._modified`, but online-only tables correctly have no `_modified` column (there's no replication protocol to serve), so every insert failed with `record "new" has no field "_modified"`. Added a second trigger function, `set_updated_at()`, for online-only tables — caught by the live test before this ever reached the UI, not by code review.
 
 Implement:
 
 ```text
-suppliers
-materials
+suppliers -- real Postgres table, RLS, no RxDB collection (see §46.1)
+materials -- same
 ```
 
 Support:
 
-- fabric
-- thread
-- buttons
-- zippers
-- labels
-- packaging
+- ✅ fabric, thread, buttons, zippers, labels, packaging — `material_type` enum; fabric-only spec fields (composition/gsm/width/colour/pattern) shown conditionally in the form when type is fabric, matching §25's "must remain optional for ordinary tailoring businesses"
+
+**Note on `quantity_on_hand`:** per §24's own field list, this is a directly-editable number in Phase 3, not yet ledger-backed. Phase 4 introduces `inventory_movements`; when it lands, this field's role needs an explicit decision (cached running total updated by movements, or retired in favour of the ledger) rather than being left to silently drift out of sync — flagged here so Phase 4 doesn't skip it.
+
+Both screens reached via Settings (phone) / a real Work-group sidebar item (web), gated behind the `suppliers` feature flag — materials has no flag of its own in the original §9 list, so it shares the `suppliers` flag rather than inventing a new one.
 
 ---
 
