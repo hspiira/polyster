@@ -18,6 +18,12 @@ import {
 } from '../components/icons'
 import { useShop } from '../state/ShopProvider'
 import { useAuth } from '../hooks/useAuth'
+import {
+  automaticWouldPick,
+  chooseLayout,
+  currentPreference,
+  layoutOptions,
+} from '../components/layoutSwitch'
 
 /** Also rendered by Today's More sheet (A26), so the strings live in one place. */
 export const SECTIONS = [
@@ -111,6 +117,8 @@ export function Settings() {
           </section>
         )}
 
+        <LayoutSection />
+
         <section>
           <SectionTitle>Shop account</SectionTitle>
           <Card>
@@ -127,5 +135,63 @@ export function Settings() {
         </section>
       </div>
     </Screen>
+  )
+}
+
+/**
+ * The way to the desktop layout, and back.
+ *
+ * On this side it matters most: someone who pinned the phone layout on a laptop
+ * has no other route out, and the first version of this override shipped with a
+ * one-way button and no return.
+ */
+function LayoutSection() {
+  const preference = currentPreference()
+  const automatic = automaticWouldPick()
+
+  return (
+    <section>
+      <SectionTitle>Layout</SectionTitle>
+      <Card padded={false}>
+        <RowList>
+          {layoutOptions().map((option) => (
+            <li key={option.value}>
+              <button
+                type="button"
+                aria-pressed={preference === option.value}
+                onClick={() => chooseLayout(option.value)}
+                class="flex w-full items-center gap-3 px-4 py-3.5 text-left"
+              >
+                <span class="min-w-0 flex-1">
+                  <span class="block font-medium">
+                    {option.label}
+                    {option.value === 'auto' && (
+                      <span class="font-normal text-stone-500 dark:text-stone-400">
+                        {' '}
+                        · {automatic === 'web' ? 'desktop' : 'phone'} on this device
+                      </span>
+                    )}
+                  </span>
+                  <span class="block text-sm text-stone-500 dark:text-stone-400">
+                    {option.hint}
+                  </span>
+                </span>
+                {preference === option.value && (
+                  <span class="shrink-0 text-brand-700 dark:text-brand-300" aria-hidden="true">
+                    &#10003;
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </RowList>
+      </Card>
+      <div class="mt-2">
+        <InfoNote>
+          The desktop layout is denser and built for a mouse and keyboard. Changing this reloads
+          the app.
+        </InfoNote>
+      </div>
+    </section>
   )
 }

@@ -8,12 +8,13 @@
  */
 import { useShop } from '../state/ShopProvider'
 import { getInitials } from '../ui'
+import { UserMenu } from './UserMenu'
 import { IconAlert, IconChevronRight, IconSearch } from '../components/icons'
 import { cn } from '../lib/cn'
 import { CONTROL, RADIUS, TEXT_SM, TEXT_UI, TEXT_XS } from './chrome'
 
 export function AppBar({ onSearch }: { onSearch: () => void }) {
-  const { shop, activeStaff } = useShop()
+  const { shop } = useShop()
 
   return (
     <header
@@ -92,23 +93,7 @@ export function AppBar({ onSearch }: { onSearch: () => void }) {
         <IconAlert size={15} />
       </button>
 
-      <button
-        type="button"
-        class={cn(
-          'flex shrink-0 items-center gap-1.5 pl-0.5 pr-1.5 hover:bg-hover',
-          CONTROL,
-          RADIUS,
-        )}
-      >
-        <span
-          class="grid size-[22px] place-items-center rounded-full bg-accent-soft text-[9px]
-                 font-bold text-accent-on-soft"
-          aria-hidden="true"
-        >
-          {activeStaff ? getInitials(activeStaff.name) : '··'}
-        </span>
-        <IconChevronRight size={11} class="rotate-90 text-content-subtle" />
-      </button>
+      <UserMenu />
     </header>
   )
 }

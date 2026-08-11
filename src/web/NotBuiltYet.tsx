@@ -5,7 +5,7 @@
  * in the meantime. An honest gap beats an empty screen that reads as breakage,
  * and it beats quietly falling back, which hides how much is left.
  */
-import { savePlatformPreference } from '../lib/platform'
+import { chooseLayout } from '../components/layoutSwitch'
 import { cn } from '../lib/cn'
 import { CONTROL, RADIUS, TEXT_SM } from './chrome'
 import { Page } from './Page'
@@ -33,12 +33,11 @@ export function NotBuiltYet({ title, crumbs }: { title: string; crumbs?: string[
             >
               Go to Orders
             </a>
+            {/* Goes through the shared switch, so the way back exists: in the
+                account menu here, and under Layout in the phone's Settings. */}
             <button
               type="button"
-              onClick={() => {
-                savePlatformPreference('phone')
-                location.reload()
-              }}
+              onClick={() => chooseLayout('phone')}
               class={cn(
                 'flex items-center bg-surface-sunken px-3 font-semibold text-content hover:bg-pressed',
                 CONTROL,
