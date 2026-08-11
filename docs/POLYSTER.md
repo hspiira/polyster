@@ -3032,7 +3032,7 @@ Add:
 - ✅ feature loading — `src/db/features.ts` (`resolveFeatureFlags`, `observeFeatureFlags`)
 - ✅ feature caching in RxDB — `tenant_features` is a synced RxDB collection like any other
 - ✅ feature-aware navigation — Settings hides "Measurement fields" when `measurements` is off; the Money hub and desktop rail hide Sales/Expenses when their flags are off
-- 🔄 tenant branding — `logo_url` etc. are captured in Shop details, but nothing in the UI renders a shop's logo yet
+- ✅ tenant branding — `shop.logo_url` renders in the web shell's `AppBar` (the one persistent, per-route brand-mark slot that has shop context), replacing the initials square when set, closed 2026-08-12. The phone shell has no equivalent slot to swap into — its authenticated chrome (`TabBar`/`SideRail`) never showed app branding to begin with (deliberately minimal, four icons and a name only), so there's no existing gap there to close, not an oversight.
 - ✅ tenant configuration screen — Shop details extended (business type + presentation fields), new "Modules" screen for feature toggles
 
 ✅ **Create two development tenants (Generic Tailor, NORTH//FOUND) — done.** `src/dev/fixtures/` (`base.ts`, `tailor.ts`, `northfound.ts`), matching the `seedTenant()`/`seedNorthFound()` shape suggested in section 50. Dev-only console access via `window.__polyster` (wired in `main.tsx`, tree-shaken out of production builds — confirmed absent from the built bundle). Scoped to exactly what this phase needs (a correctly configured shop per persona); the full realistic datasets in sections 50-55 (40 clients, 60 orders, etc.) remain future work, not built as a side effect here.
