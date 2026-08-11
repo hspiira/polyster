@@ -12,7 +12,9 @@
 import { Route, Router } from 'preact-iso'
 import { AppBar } from './AppBar'
 import { Sidebar } from './Sidebar'
+import { TodayPage } from './TodayPage'
 import { OrdersPage } from './OrdersPage'
+import { ClientsPage } from './ClientsPage'
 import { NotBuiltYet } from './NotBuiltYet'
 import { ClientDetail } from '../screens/ClientDetail'
 import { OrderDetail } from '../screens/OrderDetail'
@@ -62,13 +64,10 @@ export function WebShell({
         <Sidebar online={online} auth={auth} replication={replication} />
         <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Router>
+            <Route path="/" component={TodayPage} />
             <Route path="/orders" component={OrdersPage} />
+            <Route path="/clients" component={ClientsPage} />
 
-            <Route path="/" component={() => <NotBuiltYet title="Today" crumbs={['Work']} />} />
-            <Route
-              path="/clients"
-              component={() => <NotBuiltYet title="Clients" crumbs={['Work']} />}
-            />
             <Route path="/sales" component={() => <NotBuiltYet title="Sales" crumbs={['Money']} />} />
             <Route
               path="/expenses"

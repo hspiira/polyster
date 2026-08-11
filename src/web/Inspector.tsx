@@ -26,6 +26,7 @@ import type { DueRow } from '../screens/today/todayModel'
 import { Chip } from '../ui'
 import { cn } from '../lib/cn'
 import { CONTROL, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
+import { PaymentDialog } from './PaymentDialog'
 
 type Tab = 'record' | 'units' | 'payments' | 'history'
 
@@ -39,6 +40,7 @@ const TABS: readonly { value: Tab; label: string }[] = [
 export function Inspector({ row }: { row: DueRow | null }) {
   const { db, shop, staff } = useCurrentShop()
   const [tab, setTab] = useState<Tab>('record')
+  const [paying, setPaying] = useState(false)
 
   const orderId = row?.order.id ?? '__none__'
   const balance = useRxQuery(() => observeBalance(db, orderId), [db, orderId], null)
@@ -278,12 +280,9 @@ export function Inspector({ row }: { row: DueRow | null }) {
       </div>
 
       <div class="flex gap-1.5 border-t border-line px-3.5 py-2.5">
-        {/* Routes to the record rather than opening a sheet here. The inline
-            payment flow is the next piece of web work, not something to fake
-            with a button that goes somewhere else under a label that says it
-            does not. */}
-        <a
-          href={`/orders/${order.id}`}
+        <button
+          type="button"
+          onClick={() => setPaying(true)}
           class={cn(
             'flex flex-1 items-center justify-center bg-accent font-semibold text-accent-content',
             'hover:brightness-110',
@@ -293,7 +292,7 @@ export function Inspector({ row }: { row: DueRow | null }) {
           )}
         >
           Take payment
-        </a>
+        </button>
         <a
           href={`/orders/${order.id}/edit`}
           class={cn(
@@ -307,6 +306,13 @@ export function Inspector({ row }: { row: DueRow | null }) {
           Edit
         </a>
       </div>
+
+      <PaymentDialog
+        open={paying}
+        orderId={order.id}
+        balance={balance}
+        onClose={() => setPaying(false)}
+      />
     </aside>
   )
 }
