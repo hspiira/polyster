@@ -163,6 +163,17 @@ export async function listProductVariants(productId: string): Promise<ProductVar
   return data
 }
 
+/** Every variant in the shop, across all products -- for pickers that aren't scoped to one product. */
+export async function listAllProductVariants(shopId: string): Promise<ProductVariant[]> {
+  const { data, error } = await getSupabase()
+    .from('product_variants')
+    .select()
+    .eq('shop_id', shopId)
+    .order('sku')
+  if (error) throw friendlyError(error)
+  return data
+}
+
 export interface NewProductVariantInput {
   sku: string
   size?: string

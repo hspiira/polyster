@@ -44,6 +44,8 @@ import { Catalogue } from './Catalogue'
 import { CatalogueDetail } from './CatalogueDetail'
 import { Suppliers } from './Suppliers'
 import { Materials } from './Materials'
+import { Inventory } from './Inventory'
+import { InventoryItemDetail } from './InventoryItemDetail'
 import { Money } from './Money'
 import { Reports } from './Reports'
 import { Sales } from './Sales'
@@ -120,6 +122,8 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/catalogue/:id" component={CatalogueDetail} />
           <Route path="/suppliers" component={Suppliers} />
           <Route path="/materials" component={Materials} />
+          <Route path="/inventory" component={Inventory} />
+          <Route path="/inventory/:id" component={InventoryItemDetail} />
           <Route default component={NotFound} />
         </Router>
       </main>

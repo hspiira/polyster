@@ -3100,25 +3100,25 @@ Both screens reached via Settings (phone) / a real Work-group sidebar item (web)
 
 ### Priority: P1
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Online-only per §46.1. Implemented and verified live 2026-08-12: migration `0012_inventory.sql` applied, RLS passes, and an 11-check live test confirmed the core invariant, cross-tenant isolation, and both check constraints (adjustment needs a reason; a movement can't be zero).
+
+**The section 28 invariant is enforced at the database level, not just in application code.** `inventory_items` has no UPDATE policy at all — confirmed live: a direct `UPDATE inventory_items SET quantity = 999` as an authenticated tenant affects zero rows and leaves the value unchanged. The only writer of `quantity` is a `SECURITY DEFINER` trigger on `inventory_movements` that applies each movement's signed delta after insert. `inventory_movements` itself is select/insert-only (no update, no delete) — a mistaken movement is corrected with an offsetting one, never edited away, keeping the audit trail honest.
 
 Implement:
 
 ```text
-inventory_items
-inventory_movements
+inventory_items     -- real Postgres table, RLS (select+insert only), no RxDB collection (see §46.1)
+inventory_movements -- same, append-only (select+insert only)
 ```
 
 Support:
 
-- purchases
-- production
-- sales
-- damage
-- loss
-- adjustments
-- samples
-- returns
+- ✅ purchases, production, sales, damage, loss, adjustments, samples, returns, order_reservation, order_fulfilment, repair — full `movement_type` enum, all 11 values from §27
+- ✅ adjustment reason required — `check` constraint at the database level, not just a UI validation (the UI's own check exists too, and was confirmed live to match the database's)
+
+**Resolved a real tension flagged in Phase 3:** `materials.quantity_on_hand` and this ledger would otherwise compete as two sources of truth for the same number. Resolved by making the ledger authoritative from Phase 4 onward: `createMaterial` now seeds the ledger with the starting quantity as an initial adjustment movement, `updateMaterial` never touches `quantity_on_hand` again, and the Materials screen displays the live ledger quantity (falling back to the frozen column only for a material that has never been tracked). No backfill migration was needed — no real material data exists yet in this pre-launch project.
+
+Reached via Settings (phone) / a Work-group sidebar item (web), gated behind the `inventory` feature flag from Phase 1. A "Track an item" flow lets a shop start tracking either a product variant (Phase 2) or a material (Phase 3) that isn't tracked yet.
 
 ---
 

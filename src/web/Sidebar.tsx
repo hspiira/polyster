@@ -18,6 +18,7 @@ import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { OPEN_STAGES } from '../screens/today/todayModel'
 import { SyncBadge } from '../components/SyncBadge'
 import {
+  IconBox,
   IconMoney,
   IconOrders,
   IconPlus,
@@ -89,6 +90,7 @@ export function Sidebar({
         { href: '/catalogue', label: 'Catalogue', Icon: IconTag, feature: 'catalogue' },
         { href: '/suppliers', label: 'Suppliers', Icon: IconTruck, feature: 'suppliers' },
         { href: '/materials', label: 'Materials', Icon: IconSpool, feature: 'suppliers' },
+        { href: '/inventory', label: 'Inventory', Icon: IconBox, feature: 'inventory' },
       ],
     },
     {

@@ -1,6 +1,16 @@
-/** Materials. Online-only, see catalogue.ts's header comment for why. */
+/**
+ * Materials. Online-only, see catalogue.ts's header comment for why.
+ *
+ * quantity_on_hand is a starting balance, set once at creation and never
+ * updated after that (see updateMaterial) -- from Phase 4 onward, actual
+ * stock changes go through the inventory ledger (src/online/inventory.ts),
+ * matching the section 28 invariant that a quantity never changes without a
+ * recorded movement. createMaterial seeds the ledger with that starting
+ * balance so the two numbers start in agreement.
+ */
 import { getSupabase } from '../lib/supabaseClient'
 import { friendlyError } from './friendlyError'
+import { getOrCreateInventoryItem, recordMovement } from './inventory'
 
 export type MaterialType = 'fabric' | 'thread' | 'button' | 'zipper' | 'label' | 'packaging' | 'other'
 export const MATERIAL_TYPES: readonly MaterialType[] = [
@@ -59,7 +69,6 @@ function toRow(input: MaterialInput) {
     description: input.description?.trim() || null,
     material_type: input.material_type,
     unit: input.unit.trim() || 'unit',
-    quantity_on_hand: input.quantity_on_hand,
     reorder_level: input.reorder_level,
     unit_cost_minor: input.unit_cost_minor,
     supplier_id: input.supplier_id || null,
@@ -85,13 +94,24 @@ export async function listMaterials(shopId: string): Promise<Material[]> {
 export async function createMaterial(shopId: string, input: MaterialInput): Promise<Material> {
   const { data, error } = await getSupabase()
     .from('materials')
-    .insert({ shop_id: shopId, ...toRow(input) })
+    .insert({ shop_id: shopId, ...toRow(input), quantity_on_hand: input.quantity_on_hand })
     .select()
     .single()
   if (error) throw friendlyError(error)
+
+  if (input.quantity_on_hand !== 0) {
+    const item = await getOrCreateInventoryItem(shopId, 'material', { materialId: data.id }, input.unit)
+    await recordMovement(shopId, item.id, {
+      movement_type: 'adjustment',
+      quantity: input.quantity_on_hand,
+      reason: 'Starting quantity, set when the material was created',
+    })
+  }
+
   return data
 }
 
+/** Never touches quantity_on_hand -- stock changes go through the inventory ledger instead. */
 export async function updateMaterial(id: string, input: MaterialInput): Promise<void> {
   const { error } = await getSupabase().from('materials').update(toRow(input)).eq('id', id)
   if (error) throw friendlyError(error)

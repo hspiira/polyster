@@ -17,6 +17,7 @@ import {
   InfoNote,
 } from '../components/ui'
 import {
+  IconBox,
   IconDownload,
   IconLock,
   IconRuler,
@@ -77,6 +78,12 @@ const SHOP_ENTRIES: readonly Entry[] = [
     Icon: IconSpool,
   },
   {
+    href: '/inventory',
+    label: 'Inventory',
+    hint: 'Stock levels and movement history',
+    Icon: IconBox,
+  },
+  {
     href: '/settings/features',
     label: 'Modules',
     hint: 'What shows up in navigation',
@@ -108,6 +115,7 @@ export function Settings() {
     if (entry.href === '/settings/measurements') return flags.measurements
     if (entry.href === '/catalogue') return flags.catalogue
     if (entry.href === '/suppliers' || entry.href === '/materials') return flags.suppliers
+    if (entry.href === '/inventory') return flags.inventory
     return true
   })
 

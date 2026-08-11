@@ -33,6 +33,7 @@ import {
   type MaterialType,
 } from '../online/materials'
 import { listSuppliers, type Supplier } from '../online/suppliers'
+import { findInventoryItem, listInventoryItems } from '../online/inventory'
 
 const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
   fabric: 'Fabric',
@@ -54,6 +55,7 @@ export function Materials() {
   const online = useOnlineFeature()
   const [materials, setMaterials] = useState<Material[] | null>(null)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [quantities, setQuantities] = useState<Map<string, number>>(new Map())
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
@@ -61,17 +63,28 @@ export function Materials() {
 
   async function reload() {
     try {
-      const [materialList, supplierList] = await withTimeout(
-        Promise.all([listMaterials(shop.id), listSuppliers(shop.id)]),
+      const [materialList, supplierList, items] = await withTimeout(
+        Promise.all([listMaterials(shop.id), listSuppliers(shop.id), listInventoryItems(shop.id)]),
         8000,
         'No response from the server. Check your connection and try again.',
       )
       setMaterials(materialList)
       setSuppliers(supplierList)
+      setQuantities(
+        new Map(
+          items.filter((item) => item.material_id).map((item) => [item.material_id as string, item.quantity]),
+        ),
+      )
       setLoadError(null)
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Could not load materials.')
     }
+  }
+
+  // Ledger quantity where tracked, falling back to the creation-time value
+  // for a material that has never had a movement recorded.
+  function quantityOf(material: Material): number {
+    return quantities.get(material.id) ?? material.quantity_on_hand
   }
 
   useEffect(() => {
@@ -161,7 +174,7 @@ export function Materials() {
                       <span class="min-w-0 flex-1">
                         <span class="block truncate font-medium">
                           {material.name}
-                          {material.quantity_on_hand <= material.reorder_level && (
+                          {quantityOf(material) <= material.reorder_level && (
                             <span class="ml-2 text-xs font-normal text-danger">Low stock</span>
                           )}
                           {!material.active && (
@@ -171,7 +184,7 @@ export function Materials() {
                         <span class="block truncate text-sm text-content-muted">
                           {[
                             MATERIAL_TYPE_LABELS[material.material_type],
-                            `${material.quantity_on_hand} ${material.unit}`,
+                            `${quantityOf(material)} ${material.unit}`,
                             supplierName(material.supplier_id),
                           ]
                             .filter(Boolean)
@@ -220,6 +233,18 @@ function MaterialSheet({
   const [materialType, setMaterialType] = useState<MaterialType>(material?.material_type ?? 'fabric')
   const [unit, setUnit] = useState(material?.unit ?? 'unit')
   const [quantity, setQuantity] = useState(String(material?.quantity_on_hand ?? 0))
+  const [liveQuantity, setLiveQuantity] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!material) return
+    let cancelled = false
+    void findInventoryItem('material', { materialId: material.id }).then((item) => {
+      if (!cancelled) setLiveQuantity(item?.quantity ?? material.quantity_on_hand)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [material])
   const [reorderLevel, setReorderLevel] = useState(String(material?.reorder_level ?? 0))
   const [unitCost, setUnitCost] = useState(String(material?.unit_cost_minor ?? 0))
   const [supplierId, setSupplierId] = useState(material?.supplier_id ?? '')
@@ -306,11 +331,15 @@ function MaterialSheet({
             </Field>
           </div>
           <div class="flex-1">
-            <Field label="On hand">
+            <Field
+              label={material ? 'On hand' : 'Starting quantity'}
+              hint={material ? 'Adjust from the material’s Inventory page instead.' : undefined}
+            >
               <Input
                 type="number"
                 inputmode="decimal"
-                value={quantity}
+                value={material ? (liveQuantity ?? '...') : quantity}
+                disabled={Boolean(material)}
                 onInput={(e) => setQuantity((e.target as HTMLInputElement).value)}
               />
             </Field>

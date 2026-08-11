@@ -237,3 +237,12 @@ export const IconSpool = (p: IconProps) => (
     <path d="M7 4c0 4 3 4 3 8s-3 4-3 8M17 4c0 4-3 4-3 8s3 4 3 8" />
   </Icon>
 )
+
+/** A stacked box: inventory. */
+export const IconBox = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 8 12 4l8 4-8 4-8-4Z" />
+    <path d="M4 8v9l8 4 8-4V8" />
+    <path d="M12 12v9" />
+  </Icon>
+)
