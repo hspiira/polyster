@@ -1,59 +1,49 @@
-@import "tailwindcss";
+/**
+ * Entry point for styles. Deliberately thin.
+ *
+ *   styles/theme.css       every colour, radius, space and type decision
+ *   styles/components.css  the few patterns that cannot be utilities
+ *   this file              Tailwind, base element styling, motion
+ *
+ * If you are here to change how something looks, you are probably in the wrong
+ * file -- see theme.css.
+ */
+@import 'tailwindcss';
+@import './styles/theme.css';
+@import './styles/components.css';
 
 /**
- * Design tokens.
+ * Migration scaffolding. Delete with the last `dark:` utility.
  *
- * Brand is blue (was teal -- teal's outdoor-contrast reasoning still holds,
- * this trades it away deliberately). 700/500/400 are the approved colour;
- * the rest are color-mix'd around them. Warm stone neutrals stay regardless.
+ * Tailwind's `dark:` follows `prefers-color-scheme`, but the redesign resolves
+ * the theme to a `data-theme` attribute so a user can override their system
+ * setting. Without this, a screen not yet converted would follow the system
+ * while a converted one followed the user, and a manual override would show
+ * half the app in each theme. Pointing the variant at the same attribute keeps
+ * them in step for as long as both styles coexist.
  *
- * Amber is reserved for "money outstanding" and nothing else.
- *
- * No web fonts: the system stack is instant and free on a metered connection.
- *
- * ## Surfaces: fills, not lines
- *
- * A surface is separated from the page by its fill and nothing else. No
- * border, no shadow, and a radius small enough to read as a cut edge rather
- * than a rounded tile. Page is stone-100/950, surfaces are white/stone-900,
- * recessed controls are stone-100/800. That is the whole system.
- *
- * Consequences, so they are not rediscovered as bugs:
- *  - Row lists have no dividers. Padding separates rows; on Clients the
- *    avatar column carries the scan.
- *  - Inputs have no resting border. They are a recessed fill, and the only
- *    ring they ever draw is the focus ring, which stays for accessibility.
- *  - Sticky headers are page-coloured, so a surface scrolling under one
- *    disappears behind the page rather than behind a floating bar.
- *
- * `--radius-control` stays a full pill. It is shared with the entry flow,
- * which is a separate fixed dark world with its own rules (spec E6), and
- * squaring it there was not asked for.
+ * Nothing new should use `dark:` -- see src/styles/theme.css for why there is
+ * no need for it.
  */
-@theme {
-  --color-brand-950: color-mix(in oklch, #12309e 55%, black);
-  --color-brand-900: color-mix(in oklch, #12309e 78%, black);
-  --color-brand-800: color-mix(in oklch, #12309e 92%, black);
-  --color-brand-700: #12309e;
-  --color-brand-600: color-mix(in oklch, #12309e 45%, #1a46e0 55%);
-  --color-brand-500: #1a46e0;
-  --color-brand-400: #5577f5;
-  --color-brand-300: color-mix(in oklch, #5577f5 72%, white);
-  --color-brand-200: color-mix(in oklch, #5577f5 45%, white);
-  --color-brand-100: color-mix(in oklch, #5577f5 22%, white);
-  --color-brand-50: color-mix(in oklch, #5577f5 10%, white);
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-  --font-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
-
-  /* A cut edge, not a rounded tile. Small enough to read as square at arm's
-     length, large enough not to look like a rendering mistake up close. */
-  --radius-card: 0.125rem;
-  --radius-boxed: 0.125rem;
-  /* Fully round: buttons, inputs and chips read as things you touch.
-     Shared with the entry flow -- see the note above before changing it. */
-  --radius-control: 999px;
+/**
+ * "There is room to set two things side by side" -- the condition the entry
+ * flow's landing composes against.
+ *
+ * Not a breakpoint dressed up: it is two conditions because there are two
+ * separate reasons to stop stacking. Desk width, where the bottom edge of the
+ * window is a long way from what you just read and there is no thumb that needs
+ * to reach it. And a short window -- a phone held in landscape -- where
+ * stacking is what pushes the action below the fold.
+ *
+ * Width alone would answer the second case wrongly, which is why it is a named
+ * condition in one place rather than a `lg:` repeated across four elements.
+ */
+@custom-variant entry-wide {
+  @media (width >= 64rem), (width >= 40rem) and (height <= 30rem) {
+    @slot;
+  }
 }
 
 @layer base {
@@ -65,17 +55,10 @@
 
   body {
     font-family: var(--font-sans);
-    background: var(--color-stone-100);
-    color: var(--color-stone-900);
-    /* Stops the whole page rubber-banding on iOS so the tab bar stays put. */
+    background: var(--page);
+    color: var(--content);
+    /* Stops the whole page rubber-banding on iOS so fixed chrome stays put. */
     overscroll-behavior-y: none;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    body {
-      background: var(--color-stone-950);
-      color: var(--color-stone-100);
-    }
   }
 
   /* Tapping anything should feel immediate, and never flash a grey box. */
@@ -86,6 +69,19 @@
   button,
   a {
     touch-action: manipulation;
+  }
+
+  /**
+   * One focus treatment for the whole app, defined once.
+   *
+   * `:focus-visible` rather than `:focus` so a mouse click does not draw a ring
+   * but a Tab key does. This is the reason no component needs to remember to
+   * style its own focus state, and the reason none of them may remove it.
+   */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--r-control);
   }
 
   /* Respect a user who has asked for less motion. */
@@ -100,88 +96,8 @@
   }
 }
 
-/**
- * Glass.
- *
- * The entry flow is a fixed dark world, which is the one place a translucent
- * surface reads as material rather than as a gimmick. Three pieces, so every
- * screen catches light the same way:
- *
- *  - `.glass`       raised surfaces: buttons, notes
- *  - `.glass-flat`  the same, minus the blur, for surfaces repeated many times
- *  - `.glass-inset` recessed surfaces: inputs, which should look pressed in
- *  - `.glass-sheen` the diagonal highlight, opt-in on top of any of them
- *
- * `backdrop-filter` is behind `@supports`: without it the fallback is a flat
- * translucent fill, which is fine, rather than an invisible control.
- */
-@layer components {
-  /**
-   * Raised surface. Neutral and low-contrast on purpose: the glow behind these
-   * screens supplies the colour, and a tinted surface on top of it reads as
-   * plastic rather than glass.
-   */
-  .glass {
-    position: relative;
-    background: color-mix(in oklch, white 5%, transparent);
-    border: 1px solid color-mix(in oklch, white 9%, transparent);
-    box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent);
-  }
-
-  /**
-   * Recessed glass, for inputs.
-   *
-   * Tinted with black rather than white, and with no `saturate()`: a
-   * white-tinted translucent field over the glow picks the colour up and the
-   * whole form turns blue. Darkening what is behind keeps it glass without
-   * that.
-   */
-  .glass-inset {
-    position: relative;
-    background: color-mix(in oklch, black 42%, transparent);
-    border: 1px solid color-mix(in oklch, white 12%, transparent);
-    box-shadow:
-      inset 0 1px 0 0 color-mix(in oklch, white 8%, transparent),
-      inset 0 2px 6px oklch(0 0 0 / 0.28);
-  }
-
-  /* No blur, for surfaces repeated many times: ten pad keys re-sampling their
-     backdrop every frame costs more than blurring a soft gradient is worth. */
-  .glass-flat {
-    position: relative;
-    background: color-mix(in oklch, white 6%, transparent);
-    border: 1px solid color-mix(in oklch, white 9%, transparent);
-    box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent);
-  }
-
-  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-    .glass {
-      -webkit-backdrop-filter: blur(24px) saturate(120%);
-      backdrop-filter: blur(24px) saturate(120%);
-    }
-
-    .glass-inset {
-      -webkit-backdrop-filter: blur(16px);
-      backdrop-filter: blur(16px);
-    }
-  }
-
-  /* One soft highlight travelling across the surface. Barely there by design. */
-  .glass-sheen::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background: linear-gradient(
-      100deg,
-      transparent 30%,
-      color-mix(in oklch, white 7%, transparent) 46%,
-      transparent 62%
-    );
-  }
-}
-
+/* Safe areas. The notch is not a breakpoint concern -- it applies at every
+   width an installed app can be opened at. */
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -210,11 +126,11 @@
 }
 
 @utility animate-sheet-in {
-  animation: sheet-in 240ms cubic-bezier(0.32, 0.72, 0, 1);
+  animation: sheet-in var(--dur-slow) var(--ease-out);
 }
 
 @utility animate-fade-in {
-  animation: fade-in 160ms ease-out;
+  animation: fade-in var(--dur-base) ease-out;
 }
 
 /* A wrong PIN shakes the dots and clears itself. Faster to read than an error
@@ -242,7 +158,8 @@
   animation: shake 400ms ease-in-out;
 }
 
-/* Slow drift for GlowBackdrop.tsx's two blobs. Reduce-motion rule above already freezes this. */
+/* Slow drift for the entry flow's two glow blobs. The reduce-motion rule above
+   already freezes these. */
 @keyframes glow-drift-a {
   0%,
   100% {

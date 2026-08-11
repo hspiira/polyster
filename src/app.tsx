@@ -21,9 +21,11 @@ import { isSupabaseConfigured } from './lib/supabaseClient'
 import { LockScreen } from './screens/entry/LockScreen'
 import { SetupFlow } from './screens/entry/SetupFlow'
 import { Shell } from './screens/Shell'
+import { WebShell } from './web/WebShell'
 import { Logomark } from './components/Logomark'
 import { decideEntryScreen } from './lib/entryState'
 import { DEFAULT_LOCK_AFTER_MINUTES } from './lib/lockPolicy'
+import { usePlatform } from './hooks/usePlatform'
 import type { AppDatabase } from './db/database'
 import type { AuthState } from './lib/auth'
 
@@ -73,6 +75,33 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
 
   if (screen === 'lock') return <LockScreen authStatus={auth.status} />
 
+  return <AppShell online={online} auth={auth} replication={replication} />
+}
+
+/**
+ * Picks one of the two designs (spec W1, W2).
+ *
+ * The entry flow above is deliberately outside this: setup, sign-in and the
+ * lock screen are a fixed dark world already, they are short, and drawing them
+ * twice would double the surface for no gain.
+ *
+ * Both shells surface sync state, so both take it -- the phone in its status
+ * strip, the web at the foot of its sidebar. Shared props, separate designs.
+ */
+function AppShell({
+  online,
+  auth,
+  replication,
+}: {
+  online: boolean
+  auth: AuthState
+  replication: ReturnType<typeof useReplication>
+}) {
+  const platform = usePlatform()
+
+  if (platform === 'web') {
+    return <WebShell online={online} auth={auth} replication={replication} />
+  }
   return <Shell online={online} auth={auth} replication={replication} />
 }
 

@@ -23,6 +23,8 @@ import {
   paymentSchema,
   orderStageHistorySchema,
   orderUnitSchema,
+  saleSchema,
+  expenseSchema,
   messageLogSchema,
   DEFAULT_COUNTRY,
   type ShopDoc,
@@ -36,6 +38,8 @@ import {
   type PaymentDoc,
   type OrderStageHistoryDoc,
   type OrderUnitDoc,
+  type SaleDoc,
+  type ExpenseDoc,
   type MessageLogDoc,
 } from './schema'
 import { DEFAULT_CURRENCY } from '../lib/money'
@@ -55,6 +59,8 @@ export type Collections = {
   payments: RxCollection<PaymentDoc>
   order_stage_history: RxCollection<OrderStageHistoryDoc>
   order_units: RxCollection<OrderUnitDoc>
+  sales: RxCollection<SaleDoc>
+  expenses: RxCollection<ExpenseDoc>
   message_log: RxCollection<MessageLogDoc>
 }
 
@@ -299,6 +305,8 @@ export async function createDatabase(
       },
     },
     order_units: { schema: orderUnitSchema, migrationStrategies: {} },
+    sales: { schema: saleSchema, migrationStrategies: {} },
+    expenses: { schema: expenseSchema, migrationStrategies: {} },
     message_log: { schema: messageLogSchema, migrationStrategies: {} },
   })
 

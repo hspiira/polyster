@@ -60,11 +60,11 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        // Approximates --color-brand-950 (see index.html's theme-color comment
-        // for why this can't just reference the token). Matches Landing.tsx's
-        // dark backdrop so the splash screen doesn't flash white before it.
-        background_color: '#0f1e52',
-        theme_color: '#0f1e52',
+        // Hand-matched to theme.css's dark `--meta-theme-color`; a manifest
+        // cannot read a CSS variable. Dark either way, because the entry flow
+        // the splash leads into is a dark world.
+        background_color: '#0d0c12',
+        theme_color: '#0d0c12',
         icons: [
           {
             src: '/icons/icon-192.png',

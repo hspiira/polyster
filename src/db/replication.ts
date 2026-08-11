@@ -42,6 +42,8 @@ export const REPLICATED_TABLES = [
   'payments',
   'order_stage_history',
   'order_units',
+  'sales',
+  'expenses',
   'message_log',
 ] as const satisfies readonly (keyof Collections)[]
 

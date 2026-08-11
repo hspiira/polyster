@@ -2,7 +2,7 @@
  * How order stages and types are presented, in one place so a stage never
  * reads as "in_progress" on one screen and "In progress" on another.
  */
-import type { ChipTone } from '../components/ui'
+import type { AnyTone } from '../ui/tones'
 import type { FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
@@ -14,7 +14,8 @@ export const STAGE_LABELS: Record<OrderStage, string> = {
   cancelled: 'Cancelled',
 }
 
-export const STAGE_TONES: Record<OrderStage, ChipTone> = {
+/** Legacy tone spellings; `ui/tones.ts` maps them. Rename in the final sweep. */
+export const STAGE_TONES: Record<OrderStage, AnyTone> = {
   measured: 'neutral',
   in_progress: 'info',
   ready: 'good',

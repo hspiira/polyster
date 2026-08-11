@@ -26,7 +26,6 @@ import {
   StatTile,
   Segmented,
   Sheet,
-  StatValue,
 } from '../components/ui'
 import {
   IconAlert,
@@ -278,16 +277,19 @@ function BalanceCard({
 
   return (
     <Card>
-      <p class="text-xs font-medium text-stone-500 dark:text-stone-400">
+      {/* Uppercase and small, then the figure very large: the label is read
+          once and the number is read across a counter. */}
+      <p class="text-[11px] font-semibold uppercase tracking-[0.05em] text-content-subtle">
         {owing ? 'Balance due' : overpaid ? 'Overpaid' : 'Fully paid'}
       </p>
-      <div class="mt-1.5">
-        <StatValue
-          value={formatMinor(Math.abs(balance.balance_minor), currency)}
-          tone={owing ? 'money' : 'default'}
-        />
-      </div>
-      <p class="mt-2 text-sm text-stone-500 dark:text-stone-400">
+      <p
+        class={`mt-1 text-[34px] font-semibold leading-none tracking-tight tabular-nums ${
+          owing ? 'text-money' : 'text-content'
+        }`}
+      >
+        {formatMinor(Math.abs(balance.balance_minor), currency)}
+      </p>
+      <p class="mt-1.5 text-[13px] text-content-muted">
         {formatMinor(balance.amount_paid_minor, currency)} paid of{' '}
         {formatMinor(balance.price_total_minor, currency)}
       </p>

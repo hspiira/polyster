@@ -20,12 +20,35 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
     <!--
-      Approximates --color-brand-950 from index.css. Manifest/theme-color
-      parsing doesn't reliably support oklch()/color-mix(), so this is a
-      plain hex stand-in for the same dark navy-blue, not a precise
-      conversion -- it only tints the OS status bar and PWA splash screen.
+      Starting value only. src/lib/theme.ts overwrites the content with
+      `--meta-theme-color` from the resolved theme as soon as the bundle runs;
+      this is what the OS reads in the gap before that, and what a splash screen
+      gets. Matches theme.css's dark `--meta-theme-color`, since the entry flow
+      the splash leads into is a dark world either way.
     -->
-    <meta name="theme-color" content="#0f1e52" />
+    <meta name="theme-color" content="#0d0c12" />
+
+    <script>
+      /**
+       * Theme, before the first paint. A deliberate copy of `resolve()` in
+       * src/lib/theme.ts -- that file cannot run until the bundle loads, by
+       * which point the browser has already painted the wrong theme.
+       */
+      (function () {
+        try {
+          var stored = localStorage.getItem('polyster.theme')
+          var resolved =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+          document.documentElement.dataset.theme = resolved
+        } catch (_) {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
