@@ -17,6 +17,7 @@ import {
   Button,
   Card,
   CONTAINER,
+  Disclosure,
   cn,
   ErrorNote,
   Field,
@@ -577,6 +578,18 @@ export function OrderForm() {
     if (type === 'repair') return flags.repairs || header.order_type === 'repair'
     return true
   })
+  const optionsSummary = [
+    isCorporate ? header.organisation_name.trim() || 'Corporate' : null,
+    header.adjustment_type === 'discount'
+      ? 'Discount'
+      : header.adjustment_type === 'charge'
+        ? 'Extra charge'
+        : null,
+    header.notes.trim() ? 'Notes' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   const visibleCustomerTypes = CUSTOMER_TYPES.filter(
     (type) => type !== 'corporate' || flags.corporate_orders || header.customer_type === 'corporate',
   )
@@ -667,91 +680,100 @@ export function OrderForm() {
                 </Field>
               )}
 
-              {(flags.corporate_orders || isCorporate) && (
-                <Field label="Customer">
+              <Disclosure
+                label="More options"
+                summary={optionsSummary}
+                forceOpen={
+                  invalid?.scope === 'header' &&
+                  (invalid.field === 'organisation_name' || invalid.field === 'adjustment_amount')
+                }
+              >
+                {(flags.corporate_orders || isCorporate) && (
+                  <Field label="Customer">
+                    <Segmented
+                      value={header.customer_type}
+                      options={visibleCustomerTypes.map((type) => ({
+                        value: type,
+                        label: CUSTOMER_TYPE_LABELS[type],
+                      }))}
+                      onChange={(customer_type) => updateHeader({ customer_type })}
+                      label="Customer type"
+                    />
+                  </Field>
+                )}
+
+                {isCorporate && (
+                  <>
+                    <Field label="Company" error={headerErrorFor('organisation_name')}>
+                      <Input
+                        value={header.organisation_name}
+                        placeholder="Company name"
+                        onInput={(e) =>
+                          updateHeader({ organisation_name: (e.target as HTMLInputElement).value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Purchase order reference" hint="Optional.">
+                      <Input
+                        value={header.purchase_order_reference}
+                        onInput={(e) =>
+                          updateHeader({ purchase_order_reference: (e.target as HTMLInputElement).value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Contact person" hint="Optional.">
+                      <Input
+                        value={header.contact_person}
+                        onInput={(e) => updateHeader({ contact_person: (e.target as HTMLInputElement).value })}
+                      />
+                    </Field>
+                  </>
+                )}
+
+                <Field label="Adjustment" hint="A haggled discount, a late fee, or a damage charge.">
                   <Segmented
-                    value={header.customer_type}
-                    options={visibleCustomerTypes.map((type) => ({
-                      value: type,
-                      label: CUSTOMER_TYPE_LABELS[type],
-                    }))}
-                    onChange={(customer_type) => updateHeader({ customer_type })}
-                    label="Customer type"
+                    value={header.adjustment_type}
+                    options={ADJUSTMENT_OPTIONS}
+                    onChange={(adjustment_type) => updateHeader({ adjustment_type })}
+                    label="Adjustment type"
                   />
                 </Field>
-              )}
 
-              {isCorporate && (
-                <>
-                  <Field label="Company" error={headerErrorFor('organisation_name')}>
-                    <Input
-                      value={header.organisation_name}
-                      placeholder="Company name"
-                      onInput={(e) =>
-                        updateHeader({ organisation_name: (e.target as HTMLInputElement).value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Purchase order reference" hint="Optional.">
-                    <Input
-                      value={header.purchase_order_reference}
-                      onInput={(e) =>
-                        updateHeader({ purchase_order_reference: (e.target as HTMLInputElement).value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Contact person" hint="Optional.">
-                    <Input
-                      value={header.contact_person}
-                      onInput={(e) => updateHeader({ contact_person: (e.target as HTMLInputElement).value })}
-                    />
-                  </Field>
-                </>
-              )}
+                {header.adjustment_type !== 'none' && (
+                  <>
+                    <Field
+                      label="Amount"
+                      hint={`Amount in ${currency}.`}
+                      error={headerErrorFor('adjustment_amount')}
+                    >
+                      <Input
+                        inputmode="decimal"
+                        placeholder="0"
+                        value={header.adjustment_amount}
+                        onInput={(e) =>
+                          updateHeader({ adjustment_amount: (e.target as HTMLInputElement).value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Reason">
+                      <Input
+                        value={header.adjustment_reason}
+                        placeholder={header.adjustment_type === 'discount' ? 'Loyal client' : 'Rush job'}
+                        onInput={(e) =>
+                          updateHeader({ adjustment_reason: (e.target as HTMLInputElement).value })
+                        }
+                      />
+                    </Field>
+                  </>
+                )}
 
-              <Field label="Adjustment" hint="A haggled discount, a late fee, or a damage charge.">
-                <Segmented
-                  value={header.adjustment_type}
-                  options={ADJUSTMENT_OPTIONS}
-                  onChange={(adjustment_type) => updateHeader({ adjustment_type })}
-                  label="Adjustment type"
-                />
-              </Field>
-
-              {header.adjustment_type !== 'none' && (
-                <>
-                  <Field
-                    label="Amount"
-                    hint={`Amount in ${currency}.`}
-                    error={headerErrorFor('adjustment_amount')}
-                  >
-                    <Input
-                      inputmode="decimal"
-                      placeholder="0"
-                      value={header.adjustment_amount}
-                      onInput={(e) =>
-                        updateHeader({ adjustment_amount: (e.target as HTMLInputElement).value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Reason">
-                    <Input
-                      value={header.adjustment_reason}
-                      placeholder={header.adjustment_type === 'discount' ? 'Loyal client' : 'Rush job'}
-                      onInput={(e) =>
-                        updateHeader({ adjustment_reason: (e.target as HTMLInputElement).value })
-                      }
-                    />
-                  </Field>
-                </>
-              )}
-
-              <Field label="Notes">
-                <Textarea
-                  value={header.notes}
-                  onInput={(e) => updateHeader({ notes: (e.target as HTMLTextAreaElement).value })}
-                />
-              </Field>
+                <Field label="Notes">
+                  <Textarea
+                    value={header.notes}
+                    onInput={(e) => updateHeader({ notes: (e.target as HTMLTextAreaElement).value })}
+                  />
+                </Field>
+              </Disclosure>
             </div>
           </Card>
 
@@ -894,6 +916,14 @@ function UnitCard({
   onSaveToClient: () => void
 }) {
   const retiredWithValue = retiredFields.filter((field) => unit.measurements[field.id] !== undefined)
+  const filledMeasurements = Object.values(unit.measurements).filter((v) => v.trim()).length
+  const detailSummary = [
+    unit.wearer_name.trim() || null,
+    FABRIC_SOURCE_LABELS[unit.fabric_source],
+    filledMeasurements > 0 ? `${filledMeasurements} measured` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <Card flush>
@@ -922,14 +952,6 @@ function UnitCard({
           />
         </Field>
 
-        <Field label="Wearer" hint="Who this is for, if not the client themselves.">
-          <Input
-            value={unit.wearer_name}
-            placeholder="Optional"
-            onInput={(e) => onChange({ wearer_name: (e.target as HTMLInputElement).value })}
-          />
-        </Field>
-
         <Field label="Price" hint={`Amount in ${currency}.`} error={errorFor('price')}>
           <Input
             inputmode="decimal"
@@ -939,30 +961,40 @@ function UnitCard({
           />
         </Field>
 
-        <Field label="Fabric">
-          <Segmented
-            value={unit.fabric_source}
-            options={FABRIC_SOURCES.map((value) => ({ value, label: FABRIC_SOURCE_LABELS[value] }))}
-            onChange={(fabric_source) => onChange({ fabric_source })}
-            label="Fabric source"
-          />
-        </Field>
+        <Disclosure label="Item details" summary={detailSummary}>
+          <Field label="Wearer" hint="Who this is for, if not the client themselves.">
+            <Input
+              value={unit.wearer_name}
+              placeholder="Optional"
+              onInput={(e) => onChange({ wearer_name: (e.target as HTMLInputElement).value })}
+            />
+          </Field>
 
-        {(activeFields.length > 0 || retiredWithValue.length > 0) && (
-          <MeasurementsBlock
-            fields={activeFields}
-            retiredWithValue={retiredWithValue}
-            values={unit.measurements}
-            clientId={clientId}
-            clientName={clientName}
-            hasClientProfile={hasClientProfile}
-            onChangeField={(fieldId, value) =>
-              onChange({ measurements: { ...unit.measurements, [fieldId]: value } })
-            }
-            onCopyFromClient={onCopyFromClient}
-            onSaveToClient={onSaveToClient}
-          />
-        )}
+          <Field label="Fabric">
+            <Segmented
+              value={unit.fabric_source}
+              options={FABRIC_SOURCES.map((value) => ({ value, label: FABRIC_SOURCE_LABELS[value] }))}
+              onChange={(fabric_source) => onChange({ fabric_source })}
+              label="Fabric source"
+            />
+          </Field>
+
+          {(activeFields.length > 0 || retiredWithValue.length > 0) && (
+            <MeasurementsBlock
+              fields={activeFields}
+              retiredWithValue={retiredWithValue}
+              values={unit.measurements}
+              clientId={clientId}
+              clientName={clientName}
+              hasClientProfile={hasClientProfile}
+              onChangeField={(fieldId, value) =>
+                onChange({ measurements: { ...unit.measurements, [fieldId]: value } })
+              }
+              onCopyFromClient={onCopyFromClient}
+              onSaveToClient={onSaveToClient}
+            />
+          )}
+        </Disclosure>
       </div>
     </Card>
   )
