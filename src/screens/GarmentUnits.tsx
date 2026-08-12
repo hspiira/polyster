@@ -22,9 +22,11 @@ import { IconChevronRight, IconFingerprint, IconPlus } from '../components/icons
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { withTimeout } from '../lib/withTimeout'
 import { listAllProductVariants, listProducts, type Product, type ProductVariant } from '../online/catalogue'
 import { listProductionBatches, type ProductionBatch } from '../online/production'
+import { garmentPassportUrl } from '../online/garmentPassport'
 import {
   GARMENT_UNIT_STATUSES,
   createGarmentUnit,
@@ -50,6 +52,7 @@ const STATUS_LABELS: Record<GarmentUnitStatus, string> = {
 export function GarmentUnits() {
   const { db, shop } = useCurrentShop()
   const online = useOnlineFeature()
+  const flags = useFeatureFlags(db, shop.id)
   const [units, setUnits] = useState<GarmentUnit[] | null>(null)
   const [variants, setVariants] = useState<ProductVariant[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -212,6 +215,7 @@ export function GarmentUnits() {
           batches={batches}
           clients={clients}
           variantLabel={variantLabel}
+          passportEnabled={flags.garment_passport}
           onClose={() => setEditing(null)}
           onSaved={reload}
         />
@@ -227,6 +231,7 @@ function GarmentUnitSheet({
   batches,
   clients,
   variantLabel,
+  passportEnabled,
   onClose,
   onSaved,
 }: {
@@ -236,10 +241,12 @@ function GarmentUnitSheet({
   batches: ProductionBatch[]
   clients: { id: string; name: string }[]
   variantLabel: (variantId: string) => string
+  passportEnabled?: boolean
   onClose: () => void
   onSaved: () => void
 }) {
   const { shop } = useCurrentShop()
+  const [copied, setCopied] = useState(false)
   const [variantId, setVariantId] = useState(unit?.product_variant_id ?? variants[0]?.id ?? '')
   const [batchId, setBatchId] = useState(unit?.production_batch_id ?? '')
   const [serialNumber, setSerialNumber] = useState(unit?.serial_number ?? '')
@@ -287,6 +294,25 @@ function GarmentUnitSheet({
   return (
     <Sheet open={open} title={unit ? 'Edit garment unit' : 'New garment unit'} onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
+        {unit && passportEnabled && (
+          <div class="flex items-center justify-between gap-2 rounded-control bg-surface-sunken px-3 py-2.5">
+            <span class="truncate font-mono text-xs text-content-muted">
+              {garmentPassportUrl(unit.public_token)}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void navigator.clipboard.writeText(garmentPassportUrl(unit.public_token))
+                setCopied(true)
+              }}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+        )}
+
         <Field label="Variant">
           <Select value={variantId} onChange={(e) => setVariantId((e.target as HTMLSelectElement).value)}>
             <option value="">Choose a variant</option>

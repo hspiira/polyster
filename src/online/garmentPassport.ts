@@ -1,0 +1,57 @@
+/**
+ * The public garment passport (sections 34, 68). Unlike every other module
+ * under src/online/, this is read by anonymous visitors -- no shop session,
+ * often no account at all. It calls the garment_passport() Postgres function
+ * (0019_garment_passport.sql) rather than selecting a table directly: that
+ * function is the entire security boundary, returning only fields section 68
+ * allows a stranger to see, and nothing at all if the token is wrong or the
+ * owning shop hasn't turned the feature on. There is deliberately no
+ * "garment_units select" path available to anon -- see the migration.
+ */
+import { getSupabase } from '../lib/supabaseClient'
+
+export interface GarmentPassport {
+  shopName: string
+  shopLogoUrl: string | null
+  shopCountry: string | null
+  productName: string
+  productBrand: string | null
+  variantSize: string | null
+  variantColour: string | null
+  serialNumber: string
+  collectionName: string | null
+  collectionTagline: string | null
+  collectionStory: string | null
+  collectionCoverImageUrl: string | null
+  collectionProductionLimit: number | null
+  batchNumber: string | null
+}
+
+/** Returns null for a wrong/unknown token or a shop that hasn't enabled this feature -- never which. */
+export async function getGarmentPassport(token: string): Promise<GarmentPassport | null> {
+  const { data, error } = await getSupabase().rpc('garment_passport', { p_token: token })
+  if (error) throw new Error(error.message)
+  const row = data?.[0]
+  if (!row) return null
+  return {
+    shopName: row.shop_name,
+    shopLogoUrl: row.shop_logo_url,
+    shopCountry: row.shop_country,
+    productName: row.product_name,
+    productBrand: row.product_brand,
+    variantSize: row.variant_size,
+    variantColour: row.variant_colour,
+    serialNumber: row.serial_number,
+    collectionName: row.collection_name,
+    collectionTagline: row.collection_tagline,
+    collectionStory: row.collection_story,
+    collectionCoverImageUrl: row.collection_cover_image_url,
+    collectionProductionLimit: row.collection_production_limit,
+    batchNumber: row.batch_number,
+  }
+}
+
+/** The shareable URL for a garment's passport -- QR codes (not yet rendered, see POLYSTER.md Phase 10) would encode this. */
+export function garmentPassportUrl(token: string): string {
+  return `${window.location.origin}/passport/${token}`
+}

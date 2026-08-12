@@ -3266,17 +3266,24 @@ status                -> stage, extended with three repair-only values (below)
 
 ### Priority: P2
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: 🔄 Mostly done** — token, security boundary, and public page shipped and verified live; QR code rendering deliberately deferred (see below). Migration `0019_garment_passport.sql` applied. A live 8-check test against a genuinely anonymous client (no session, matching what a QR scan actually gets) confirmed: the passport is unavailable while `garment_passport` is off for the shop (even with a correct token), becomes available the moment it's turned on, returns nothing for a wrong token, contains no field shaped like a customer/payment/staff column, and that disabling the feature again hides it immediately. Also drove the actual UI: opened the public page with zero authentication and confirmed it renders (shop name, product, size, serial number, collection name/tagline/production-limit, country) exactly per section 34's example shape, confirmed an unknown token shows a graceful message rather than an error, and confirmed the shop's own Garment identity screen shows a copyable passport link once the feature is on.
 
 Implement:
 
 ```text
-garment public token
-QR code
-public garment page
+garment_units.public_token  -- new column, random per row, the actual bearer of access
+garment_passport(token)     -- new Postgres function, the entire security boundary
+public garment page         -- new standalone route, /passport/:token
 ```
 
-Only enable this feature for tenants that have it turned on.
+- ✅ **the token is never the row's own uuid** (section 30, 68) -- `public_token` is a separate `encode(gen_random_bytes(16), 'hex')` value, unique per unit, confirmed distinct from `id` in the live test
+- ✅ **anonymous callers get no direct table grant at all** -- not on `garment_units`, not on anything it joins to. The lookup goes through `garment_passport(token)`, a `security definer` SQL function (the same pattern `current_shop_id()` already established in `0001_init.sql`, applied here at the anonymous boundary instead of the authenticated-tenant one) that returns only the specific columns section 34's example needs. This was a deliberate design choice over "RLS policy granting anon select where the flag is on": that policy would let anyone holding the public anon key (necessarily public, since it ships in the client bundle) enumerate every garment ever made by every passport-enabled tenant with an unfiltered request, token or not. A function with no listing capability structurally cannot be enumerated -- confirmed live: an anonymous direct `select` against `garment_units` returns nothing regardless of token
+- ✅ **only enabled per tenant** -- the function itself checks `tenant_features` for `garment_passport = true` before returning anything; confirmed live in both directions (turning it on makes a previously-invisible passport appear; turning it back off hides it again, same token, no caching)
+- ✅ **nothing unsafe returned** -- section 68's list (customer phone, address, private notes, payment info, staff info) is structurally absent from the function's return type, not merely filtered out at render time; confirmed live by asserting no key in the response even loosely matches customer/payment/staff
+- ✅ **public garment page** -- `src/screens/GarmentPassport.tsx`, mounted directly in `main.tsx` before `<App/>` even renders (matched against `/passport/:token` on `window.location.pathname`), deliberately bypassing `ShopProvider`/RxDB/the router entirely: a QR scanner has no shop session and no local database for this tenant, so the standalone page must not assume either exists
+- ✅ a "Passport link" with a copy button appears on a garment unit's edit sheet once `garment_passport` is on for the shop, using the same URL the QR code would encode
+
+**Scoping decision, disclosed rather than silently left off the list:** QR code image rendering was not implemented. No QR-generation library exists in this project yet, and hand-writing a QR encoder carries real correctness risk with no way to verify a hand-rolled encoding actually scans correctly in this environment (no camera, no phone) -- a QR image that looks plausible but doesn't decode would be a worse outcome than no QR image at all. The part with actual security substance -- the unguessable token, the security-definer boundary, the public page, the per-tenant gate -- is complete and independently verified live. What's missing is a presentational addition on top of already-working data: the shareable URL is already generated and displayed (`garmentPassportUrl()` in `src/online/garmentPassport.ts`, copy-to-clipboard button in the garment unit edit sheet); turning that same URL into a scannable image is a small, low-risk follow-up once a specific QR library is chosen and can be checked against a real device.
 
 ---
 

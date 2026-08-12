@@ -38,6 +38,8 @@ export interface GarmentUnit {
   status: GarmentUnitStatus
   customer_id: string | null
   sold_at: string | null
+  /** Bearer of access to this unit's public passport page (section 34) -- never the id above. */
+  public_token: string
   created_at: string
   updated_at: string
 }

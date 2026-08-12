@@ -1,6 +1,7 @@
 import { render } from 'preact'
 import './index.css'
 import { App } from './app.tsx'
+import { GarmentPassport } from './screens/GarmentPassport.tsx'
 import { startTheme } from './lib/theme.ts'
 import { forgetLayoutOverride } from './lib/platform.ts'
 
@@ -10,6 +11,14 @@ startTheme()
 
 // The layout picker is gone; release anyone it pinned to the wrong design.
 forgetLayoutOverride()
+
+/**
+ * A garment passport (sections 34, 68) is public: scanned by anyone, no
+ * account, no local database for this shop on the device. Matched here,
+ * before <App/> ever mounts, so it never touches ShopProvider/RxDB/the
+ * router the rest of the app assumes exists.
+ */
+const passportMatch = window.location.pathname.match(/^\/passport\/([^/]+)\/?$/)
 
 // Dev-only console tools: getDatabase().then(db => __polyster.seedNorthFound(db)),
 // then reload. Never bundled in production (see the DEV guard below).
@@ -73,7 +82,7 @@ if (!root) {
   document.body.textContent = 'Could not start: no #app element in the page.'
 } else {
   try {
-    render(<App />, root)
+    render(passportMatch ? <GarmentPassport token={passportMatch[1]!} /> : <App />, root)
   } catch (error) {
     console.error('[app] failed to mount:', error)
     showFatal(error)
