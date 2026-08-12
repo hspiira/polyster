@@ -47,7 +47,7 @@ there is one design, so every screen negotiates.
 | W7 | **Density is a constant per design, not a runtime negotiation.** Web is 32px controls, 34px rows, 13px UI text, 6px radius. Phone is 44px, 56px rows, 15px, pill. | A `--density` token both shells read | Once the shells are separate there is nothing to negotiate. A token that can hold either value invites a component to handle both. |
 | W8 | **Pure logic moves to `src/domain/`.** `todayModel`, `profit`, `orderStage`, `calculateBalance`, and the `lib/` calculators. | Leaving it under `db/` and `screens/` | Two shells must not derive a balance twice. This is the decision that makes two designs affordable, and the codebase is already most of the way there. |
 | W9 | **The web build never imports `components/ui`.** The shim stays for the phone build until the phone redesign retires it. | Converting all 19 files first | Blocking the web design on a migration of the design it replaces is backwards. The shim becomes phone-only scaffolding with a clear owner and end date. |
-| W10 | **A manual platform override, persisted**, resolved the way `data-theme` already is. | Detection only | Needed for testing both shells on one machine, and it is the escape hatch for whatever hardware reports its pointer oddly. |
+| W10 | ~~**A manual platform override, persisted.**~~ **Reversed 2026-08-11: detection only.** | The persisted override | The picker asked people to choose between two designs they had not seen, and every wrong answer was someone using the wrong app on their hardware. Testing both shells is a devtools pointer emulation away, which is not worth a permanent setting in a shop owner's app. `resolvePlatform` now takes `finePointer` alone. |
 | W11 | **`DataList` conversions stop until the web shell lands.** | Continuing in parallel | Every screen converted now gets converted again. `Orders` stays as the worked example. |
 
 ## Platform resolution
@@ -57,11 +57,10 @@ One decision, at the root, in a pure function:
 ```
 type Platform = 'web' | 'phone'
 
-resolvePlatform({ finePointer, override }): Platform
+resolvePlatform({ finePointer }): Platform
 ```
 
-- `override` wins when set (`'web' | 'phone'`), from `localStorage`.
-- Otherwise `finePointer ? 'web' : 'phone'`.
+`finePointer ? 'web' : 'phone'`. There is no override — see W10.
 
 `finePointer` comes from `matchMedia('(pointer: fine)')`, which reports the
 *primary* input. A touchscreen laptop reports `fine` because its mouse is
@@ -147,8 +146,8 @@ Focus must be visible at every stop; `index.css` already draws one
 ## Testing
 
 `resolvePlatform` is pure and gets `platform.test.ts` alongside it, matching
-`lockPolicy.ts`. Cases: fine pointer, coarse pointer, each override against
-each detection, and an unset override.
+`lockPolicy.ts`. Cases: fine pointer and coarse pointer. There is nothing else
+to pass since W10 was reversed.
 
 The `src/domain/` move must not change a single test. If the suite needs
 editing beyond import paths, the move was not a move.
@@ -175,9 +174,9 @@ Neither shell gets component tests, consistent with `ARCHITECTURE.md` §11.
 **The iPad case is the weakest part of W2.** A 12.9-inch tablet with no
 keyboard reports a coarse pointer and gets a phone design centred in a large
 screen. That is defensible — the input really is a thumb — but it is the
-scenario most likely to make someone say the app is wrong. W10's override is
-the mitigation, and a tablet treatment is recorded as deferred rather than
-denied.
+scenario most likely to make someone say the app is wrong. With W10 reversed
+there is no escape hatch, so a tablet treatment is the only mitigation left and
+it stays deferred rather than denied.
 
 **Pointer detection is unverified on real hardware.** Consistent with
 `ARCHITECTURE.md` §11 and `X2`, every claim above about what `(pointer: fine)`

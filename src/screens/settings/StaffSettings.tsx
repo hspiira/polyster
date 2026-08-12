@@ -10,7 +10,7 @@
  * number pad on one screen and a text field on the next is how a small app
  * starts feeling like two.
  */
-import { useMemo, useState } from 'preact/hooks'
+import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Avatar,
   Button,
@@ -32,9 +32,35 @@ import { useShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import { useAuth } from '../../hooks/useAuth'
 import { useOnline } from '../../hooks/useOnline'
-import { createStaff, setStaffActive, setStaffPin } from '../../db/writes'
+import {
+  createStaff,
+  setStaffActive,
+  setStaffPermissionOverrides,
+  setStaffPin,
+  setStaffRole,
+} from '../../db/writes'
 import { PIN_LENGTH } from '../../lib/pin'
-import type { StaffDoc, StaffRole } from '../../db/schema'
+import { ROLE_DEFAULT_PERMISSIONS } from '../../lib/permissions'
+import { PERMISSION_KEYS, STAFF_ROLES, type PermissionKey, type StaffDoc, type StaffRole } from '../../db/schema'
+
+const ROLE_LABELS: Record<StaffRole, string> = {
+  owner: 'Owner',
+  manager: 'Manager',
+  staff: 'Staff',
+}
+
+const PERMISSION_LABELS: Record<PermissionKey, string> = {
+  'orders.create': 'Create orders',
+  'orders.edit': 'Edit orders',
+  'orders.cancel': 'Cancel orders',
+  'payments.create': 'Record payments',
+  'payments.refund': 'Void or refund payments',
+  'inventory.view': 'View inventory',
+  'inventory.adjust': 'Adjust inventory',
+  'production.manage': 'Manage production',
+  'expenses.create': 'Record expenses',
+  'reports.view': 'View reports',
+}
 
 export function StaffSettings() {
   const { db, shop, activeStaff } = useShop()
@@ -56,6 +82,7 @@ export function StaffSettings() {
 
   const [adding, setAdding] = useState(false)
   const [resetting, setResetting] = useState<StaffDoc | null>(null)
+  const [managingPermissions, setManagingPermissions] = useState<StaffDoc | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   if (!shop) {
@@ -123,7 +150,7 @@ export function StaffSettings() {
                     <Avatar name={member.name} />
                     <span class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                       <span class="truncate font-medium">{member.name}</span>
-                      {member.role === 'owner' && <Chip tone="info">Owner</Chip>}
+                      {member.role !== 'staff' && <Chip tone="info">{ROLE_LABELS[member.role]}</Chip>}
                       {member.id === activeStaff?.id && <Chip tone="good">You</Chip>}
                       {!member.active && <Chip>Inactive</Chip>}
                     </span>
@@ -137,6 +164,14 @@ export function StaffSettings() {
                       onClick={() => setResetting(member)}
                     >
                       Change PIN
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      class="flex-1"
+                      onClick={() => setManagingPermissions(member)}
+                    >
+                      Permissions
                     </Button>
                     <Button
                       variant={member.active ? 'danger' : 'secondary'}
@@ -156,11 +191,14 @@ export function StaffSettings() {
         <InfoNote>
           A PIN records who did what. It is not a lock: anyone holding this unlocked device can act
           as anyone whose PIN they know. Deactivating someone keeps their name on past orders.
+          Permissions follow the same rule -- they shape what a person sees, not what a determined
+          person sharing this device could do anyway.
         </InfoNote>
       </div>
 
       <AddStaffSheet open={adding} shopId={shop.id} onClose={() => setAdding(false)} />
       <ChangePinSheet member={resetting} onClose={() => setResetting(null)} />
+      <PermissionsSheet member={managingPermissions} onClose={() => setManagingPermissions(null)} />
     </Screen>
   )
 }
@@ -227,13 +265,10 @@ function AddStaffSheet({
             />
           </Field>
 
-          <Field label="Role" hint="Owner is a label for now, not a permission level.">
+          <Field label="Role" hint="Sets what they can do by default -- adjust it for one person any time from their Permissions.">
             <Segmented
               value={role}
-              options={[
-                { value: 'staff' as const, label: 'Staff' },
-                { value: 'owner' as const, label: 'Owner' },
-              ]}
+              options={STAFF_ROLES.map((value) => ({ value, label: ROLE_LABELS[value] }))}
               onChange={setRole}
               label="Role"
             />
@@ -344,6 +379,119 @@ function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose:
           }}
         />
       </div>
+    </Sheet>
+  )
+}
+
+const TOGGLE_OPTIONS = [
+  { value: 'on', label: 'On' },
+  { value: 'off', label: 'Off' },
+] as const
+
+/**
+ * Role plus per-person exceptions, in one place -- changing role changes
+ * what every toggle below defaults to, so seeing both together is what
+ * makes an override legible as an override rather than a mystery setting.
+ */
+function PermissionsSheet({ member, onClose }: { member: StaffDoc | null; onClose: () => void }) {
+  const { db } = useShop()
+  const [role, setRole] = useState<StaffRole>(member?.role ?? 'staff')
+  const [overrides, setOverrides] = useState<Partial<Record<PermissionKey, boolean>>>(
+    member?.permission_overrides ?? {},
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Re-seeds whenever a different member's sheet opens (Sheet is modal, so
+  // this only ever happens between one member's close and the next member's
+  // open, never while the same sheet instance is mid-edit).
+  useEffect(() => {
+    setRole(member?.role ?? 'staff')
+    setOverrides(member?.permission_overrides ?? {})
+    setError(null)
+  }, [member])
+
+  function effective(key: PermissionKey): boolean {
+    return overrides[key] ?? ROLE_DEFAULT_PERMISSIONS[role][key]
+  }
+
+  function toggle(key: PermissionKey, value: boolean) {
+    setOverrides((current) => {
+      const next = { ...current }
+      if (value === ROLE_DEFAULT_PERMISSIONS[role][key]) {
+        delete next[key]
+      } else {
+        next[key] = value
+      }
+      return next
+    })
+  }
+
+  async function save() {
+    if (!member) return
+    setSaving(true)
+    setError(null)
+    try {
+      if (role !== member.role) await setStaffRole(db, member.id, role)
+      await setStaffPermissionOverrides(db, member.id, overrides)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save permissions.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet
+      open={member !== null}
+      title={member ? `Permissions for ${member.name}` : 'Permissions'}
+      onClose={onClose}
+    >
+      {member && (
+        <div class="space-y-4 pb-2">
+          <Field label="Role">
+            <Segmented
+              value={role}
+              options={STAFF_ROLES.map((value) => ({ value, label: ROLE_LABELS[value] }))}
+              onChange={setRole}
+              label="Role"
+            />
+          </Field>
+
+          <div class="space-y-3">
+            {PERMISSION_KEYS.map((key) => (
+              <div key={key} class="flex items-center justify-between gap-3">
+                <span class="min-w-0 flex-1 text-sm text-stone-700 dark:text-stone-300">
+                  {PERMISSION_LABELS[key]}
+                </span>
+                <Segmented
+                  value={effective(key) ? 'on' : 'off'}
+                  options={TOGGLE_OPTIONS}
+                  onChange={(value) => toggle(key, value === 'on')}
+                  label={PERMISSION_LABELS[key]}
+                />
+              </div>
+            ))}
+          </div>
+
+          {error && <ErrorNote>{error}</ErrorNote>}
+
+          <InfoNote>
+            Unchanged toggles follow the {ROLE_LABELS[role].toLowerCase()} role's defaults, so
+            switching role can change several of these at once.
+          </InfoNote>
+
+          <div class="flex gap-2 pt-1">
+            <Button variant="secondary" class="flex-1" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button class="flex-1" onClick={() => void save()} disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </div>
+      )}
     </Sheet>
   )
 }

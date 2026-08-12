@@ -1,22 +1,18 @@
-/**
- * The account menu, and the way back to the phone layout.
- *
- * The avatar in the app bar was a button that did nothing. It is now the one
- * place on the web side that holds who you are, which layout you are in, and
- * how to leave -- the things a person looks for under their own initials.
- */
+/** Who you are, the theme, and the way to Settings. */
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useShop } from '../state/ShopProvider'
 import { getInitials } from '../ui'
 import { IconChevronRight, IconSettings } from '../components/icons'
-import {
-  automaticWouldPick,
-  chooseLayout,
-  currentPreference,
-  layoutOptions,
-} from '../components/layoutSwitch'
+import { useTheme } from '../hooks/useTheme'
 import { cn } from '../lib/cn'
 import { CONTROL, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
+import type { ThemePreference } from '../lib/theme'
+
+const THEME_OPTIONS: readonly { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+]
 
 export function UserMenu() {
   const { shop, activeStaff } = useShop()
@@ -41,8 +37,7 @@ export function UserMenu() {
     }
   }, [open])
 
-  const preference = currentPreference()
-  const automatic = automaticWouldPick()
+  const [theme, chooseTheme] = useTheme()
 
   return (
     <div ref={wrap} class="relative shrink-0">
@@ -84,32 +79,24 @@ export function UserMenu() {
                 TEXT_XS,
               )}
             >
-              Layout
+              Theme
             </p>
-            {layoutOptions().map((option) => {
-              const active = preference === option.value
+            {THEME_OPTIONS.map((option) => {
+              const active = theme === option.value
               return (
                 <button
                   key={option.value}
                   type="button"
                   role="menuitemradio"
                   aria-checked={active}
-                  onClick={() => chooseLayout(option.value)}
+                  onClick={() => chooseTheme(option.value)}
                   class={cn(
                     'flex w-full items-baseline gap-2 px-2 py-1.5 text-left',
                     RADIUS,
                     active ? 'bg-accent-soft text-accent-on-soft' : 'hover:bg-hover',
                   )}
                 >
-                  <span class={cn('flex-1 font-medium', TEXT_SM)}>
-                    {option.label}
-                    {option.value === 'auto' && (
-                      <span class="font-normal text-content-subtle">
-                        {' '}
-                        · {automatic === 'web' ? 'desktop' : 'phone'} here
-                      </span>
-                    )}
-                  </span>
+                  <span class={cn('flex-1 font-medium', TEXT_SM)}>{option.label}</span>
                   {active && <span aria-hidden="true">✓</span>}
                 </button>
               )

@@ -1,47 +1,29 @@
 /**
- * RxDB collection schemas, mirroring the Postgres tables defined in
- * pwa-schema-and-screens.md.
+ * RxDB collection schemas, mirroring the Postgres tables.
  *
- * ## Why `_modified` is NOT declared here
+ * Do not declare `_modified` here: RxDB's dev-mode schema check rejects
+ * underscore-prefixed fields other than `_deleted`, so it breaks `pnpm dev`
+ * while `vite build` stays green (see database.test.ts). `_modified` and
+ * `_deleted` are Postgres/replication-only columns.
  *
- * The Supabase replication protocol uses a `_modified` timestamp column and a
- * `_deleted` soft-delete flag on every synced Postgres table. Neither belongs
- * in the RxDB schema:
- *
- *  - RxDB rejects any top-level field starting with `_` other than `_id` and
- *    `_deleted` (see checkFieldNameRegex / SC8 in rxdb/plugins/dev-mode/
- *    check-schema.js). Declaring `_modified` makes `addCollections()` throw,
- *    but only when the dev-mode plugin is loaded -- so it breaks `pnpm dev`
- *    while a production build appears fine. See the smoke test in
- *    database.test.ts, which exists specifically to catch that asymmetry.
- *  - The replication plugin does not need it. It reads `_modified` off the raw
- *    Postgres row for checkpointing, then strips it, and only copies it back
- *    onto the document if the schema happens to declare that property
- *    (rowToDoc in rxdb/plugins/replication-supabase/index.js).
- *  - `_modified` is server-owned regardless: the migration sets it from a
- *    BEFORE trigger and the plugin deletes it from every pushed row, so client
- *    code could not meaningfully set it even if it wanted to.
- *
- * `_deleted` is likewise omitted. RxDB manages it internally on every document
- * and the replication plugin maps the Postgres column onto it.
- *
- * ## Nullability
- *
- * Fields that are nullable in 0001_init.sql are optional here. Treating a
- * nullable column as a guaranteed `string` is how you get a runtime `null`
- * wearing a `string` type.
- *
- * catalogue_items is intentionally not defined yet -- it's a Phase 2 addition
- * per IMPLEMENTATION_PLAN.md.
+ * Nullable Postgres columns are optional here, not a guaranteed type.
  */
 import type { RxJsonSchema } from 'rxdb'
 
-// Every id is a Postgres uuid. RxDB requires maxLength on the primary key and
-// on any indexed string field, so this is declared once rather than retyped.
 const uuidField = { type: 'string' as const, maxLength: 36 }
 
 /** ISO 3166-1 alpha-2. Replaces the hardcoded dialling prefix as the default. */
 export const DEFAULT_COUNTRY = 'UG'
+
+/** Affects defaults and navigation only, never a permission boundary. */
+export type BusinessType = 'tailor' | 'rental' | 'apparel_brand' | 'corporate_supplier' | 'hybrid'
+export const BUSINESS_TYPES: readonly BusinessType[] = [
+  'tailor',
+  'rental',
+  'apparel_brand',
+  'corporate_supplier',
+  'hybrid',
+]
 
 export interface ShopDoc {
   id: string
@@ -55,11 +37,17 @@ export interface ShopDoc {
   address?: string
   /** 0 means never. */
   lock_after_minutes: number
+  business_type?: BusinessType
+  logo_url?: string
+  /** IANA zone name, e.g. "Africa/Kampala". Display only. */
+  timezone?: string
+  email?: string
+  website?: string
   created_at: string
   updated_at: string
 }
 export const shopSchema: RxJsonSchema<ShopDoc> = {
-  version: 2, // v2: currency, country, address, lock_after_minutes, updated_at
+  version: 3, // v3: business_type, logo_url, timezone, email, website
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -71,23 +59,148 @@ export const shopSchema: RxJsonSchema<ShopDoc> = {
     country: { type: 'string' },
     address: { type: 'string' },
     lock_after_minutes: { type: 'integer', minimum: 0 },
+    business_type: { type: 'string', enum: [...BUSINESS_TYPES] },
+    logo_url: { type: 'string' },
+    timezone: { type: 'string' },
+    email: { type: 'string' },
+    website: { type: 'string' },
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
   },
   required: ['id', 'name', 'currency', 'country', 'lock_after_minutes'],
 }
 
-export type StaffRole = 'owner' | 'staff'
+// -------------------------------------------------------- tenant features
+
+/** Gates navigation and optional workflows -- never the sole security mechanism. */
+export type FeatureKey =
+  | 'customers'
+  | 'measurements'
+  | 'orders'
+  | 'payments'
+  | 'expenses'
+  | 'sales'
+  | 'rentals'
+  | 'catalogue'
+  | 'inventory'
+  | 'suppliers'
+  | 'production'
+  | 'pre_orders'
+  | 'corporate_orders'
+  | 'collections'
+  | 'repairs'
+  | 'garment_identity'
+  | 'garment_passport'
+
+export const FEATURE_KEYS: readonly FeatureKey[] = [
+  'customers',
+  'measurements',
+  'orders',
+  'payments',
+  'expenses',
+  'sales',
+  'rentals',
+  'catalogue',
+  'inventory',
+  'suppliers',
+  'production',
+  'pre_orders',
+  'corporate_orders',
+  'collections',
+  'repairs',
+  'garment_identity',
+  'garment_passport',
+]
+
+/** Used when a tenant has no override row for a key. */
+export const DEFAULT_FEATURE_FLAGS: Record<FeatureKey, boolean> = {
+  customers: true,
+  measurements: true,
+  orders: true,
+  payments: true,
+  expenses: true,
+  sales: true,
+  rentals: false,
+  catalogue: false,
+  inventory: false,
+  suppliers: false,
+  production: false,
+  pre_orders: false,
+  corporate_orders: false,
+  collections: false,
+  repairs: true,
+  garment_identity: false,
+  garment_passport: false,
+}
+
+export interface TenantFeatureDoc {
+  id: string
+  shop_id: string
+  feature_key: FeatureKey
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+export const tenantFeatureSchema: RxJsonSchema<TenantFeatureDoc> = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: uuidField,
+    shop_id: uuidField,
+    feature_key: { type: 'string', enum: [...FEATURE_KEYS], maxLength: 20 },
+    enabled: { type: 'boolean' },
+    created_at: { type: 'string', format: 'date-time' },
+    updated_at: { type: 'string', format: 'date-time' },
+  },
+  required: ['id', 'shop_id', 'feature_key', 'enabled'],
+  indexes: [['shop_id', 'feature_key']],
+}
+
+/** Phase 12 (section 11, 83): 'manager' sits between the original two. */
+export type StaffRole = 'owner' | 'manager' | 'staff'
+export const STAFF_ROLES: readonly StaffRole[] = ['owner', 'manager', 'staff']
+
+/** Phase 12's own list (section 11) -- the "future permissions" it names explicitly. */
+export type PermissionKey =
+  | 'orders.create'
+  | 'orders.edit'
+  | 'orders.cancel'
+  | 'payments.create'
+  | 'payments.refund'
+  | 'inventory.view'
+  | 'inventory.adjust'
+  | 'production.manage'
+  | 'expenses.create'
+  | 'reports.view'
+
+export const PERMISSION_KEYS: readonly PermissionKey[] = [
+  'orders.create',
+  'orders.edit',
+  'orders.cancel',
+  'payments.create',
+  'payments.refund',
+  'inventory.view',
+  'inventory.adjust',
+  'production.manage',
+  'expenses.create',
+  'reports.view',
+]
 
 export interface StaffDoc {
   id: string
   shop_id: string
   name: string
+  pin_hash?: string
   phone?: string
-  pin_hash: string
   /** A PIN reset otherwise leaves no trace. */
   pin_updated_at?: string
   role: StaffRole
+  /**
+   * Per-person exceptions to their role's defaults (src/lib/permissions.ts).
+   * Absent means "use the role default" -- most staff need no overrides.
+   */
+  permission_overrides?: Partial<Record<PermissionKey, boolean>>
   active: boolean
   /** `active` records that someone left, never when. */
   deactivated_at?: string
@@ -95,7 +208,7 @@ export interface StaffDoc {
   updated_at: string
 }
 export const staffSchema: RxJsonSchema<StaffDoc> = {
-  version: 3, // v3: phone, pin_updated_at, deactivated_at, updated_at
+  version: 5, // v5: role gains 'manager', permission_overrides (Phase 12)
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -105,13 +218,14 @@ export const staffSchema: RxJsonSchema<StaffDoc> = {
     phone: { type: 'string' },
     pin_hash: { type: 'string' },
     pin_updated_at: { type: 'string', format: 'date-time' },
-    role: { type: 'string', enum: ['owner', 'staff'] },
+    role: { type: 'string', enum: [...STAFF_ROLES] },
+    permission_overrides: { type: 'object', additionalProperties: true },
     active: { type: 'boolean' },
     deactivated_at: { type: 'string', format: 'date-time' },
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
   },
-  required: ['id', 'shop_id', 'name', 'pin_hash', 'role', 'active'],
+  required: ['id', 'shop_id', 'name', 'role', 'active'],
   indexes: ['shop_id'],
 }
 
@@ -205,7 +319,7 @@ export const measurementProfileSchema: RxJsonSchema<MeasurementProfileDoc> = {
   indexes: ['client_id'],
 }
 
-export type OrderType = 'tailor_made' | 'rental' | 'purchase'
+export type OrderType = 'tailor_made' | 'rental' | 'purchase' | 'pre_order' | 'repair'
 export type OrderStage =
   | 'measured'
   | 'in_progress'
@@ -213,8 +327,18 @@ export type OrderStage =
   | 'picked_up'
   | 'returned'
   | 'cancelled'
+  /** Phase 9 (section 33), repair-only -- see orderStage.ts's FLOWS. */
+  | 'assessing'
+  | 'approved'
+  | 'repairing'
 
-export const ORDER_TYPES: readonly OrderType[] = ['tailor_made', 'rental', 'purchase']
+export const ORDER_TYPES: readonly OrderType[] = [
+  'tailor_made',
+  'rental',
+  'purchase',
+  'pre_order',
+  'repair',
+]
 export const ORDER_STAGES: readonly OrderStage[] = [
   'measured',
   'in_progress',
@@ -222,7 +346,14 @@ export const ORDER_STAGES: readonly OrderStage[] = [
   'picked_up',
   'returned',
   'cancelled',
+  'assessing',
+  'approved',
+  'repairing',
 ]
+
+/** Phase 7 (section 32): who the order is for, orthogonal to order_type. */
+export type CustomerType = 'individual' | 'corporate'
+export const CUSTOMER_TYPES: readonly CustomerType[] = ['individual', 'corporate']
 
 export interface OrderDoc {
   id: string
@@ -251,12 +382,37 @@ export interface OrderDoc {
   cancelled_at?: string
   cancellation_reason?: string
   notes?: string
+  /** Phase 7 (section 32). Absent means individual -- the common case. */
+  customer_type?: CustomerType
+  organisation_name?: string
+  purchase_order_reference?: string
+  contact_person?: string
+  /** Phase 7 (section 31), pre_order only. */
+  expected_fulfilment_date?: string
+  /**
+   * Phase 7 (section 31) reserved links -- product_variants and collections
+   * are online-only (section 46.1), so these are plain UUID strings with no
+   * RxDB-side validation of what they point to, same as order_units'
+   * catalogue_item_id since Phase 2. Not yet written from any UI; a variant/
+   * collection picker needs an online fetch that an otherwise fully offline
+   * form cannot require (section 47), so wiring these in is left for the
+   * garment-identity work in Phase 8 rather than done half-offline here.
+   */
+  product_variant_id?: string
+  collection_id?: string
+  production_batch_id?: string
+  /**
+   * Phase 9 (section 33), repair-only. Same "reserved, no picker UI yet"
+   * treatment as the Phase 7 links above -- garment_units is online-only
+   * (Phase 8), so resolving one inside this offline form is left for later.
+   */
+  garment_unit_id?: string
   created_by?: string
   created_at: string
   updated_at: string
 }
 export const orderSchema: RxJsonSchema<OrderDoc> = {
-  version: 1, // v1: money in minor units, reference, currency, adjustments, cancellation
+  version: 3, // v3: order_type/stage gain 'repair' values, garment_unit_id (Phase 9)
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -280,6 +436,15 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
     cancelled_at: { type: 'string', format: 'date-time' },
     cancellation_reason: { type: 'string' },
     notes: { type: 'string' },
+    customer_type: { type: 'string', enum: [...CUSTOMER_TYPES] },
+    organisation_name: { type: 'string' },
+    purchase_order_reference: { type: 'string' },
+    contact_person: { type: 'string' },
+    expected_fulfilment_date: { type: 'string', format: 'date' },
+    product_variant_id: uuidField,
+    collection_id: uuidField,
+    production_batch_id: uuidField,
+    garment_unit_id: uuidField,
     created_by: uuidField,
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },

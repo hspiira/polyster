@@ -37,8 +37,16 @@ import {
 import { IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { usePermission } from '../hooks/usePermission'
 import { observeBalance, type OrderBalance } from '../db/balances'
-import { changeOrderStage, logMessage, recordPayment, setUnitDone, voidPayment } from '../db/writes'
+import {
+  changeOrderStage,
+  logMessage,
+  recordPayment,
+  refundDeposit,
+  setUnitDone,
+  voidPayment,
+} from '../db/writes'
 import {
   PAYMENT_METHODS,
   type MessageTemplate,
@@ -51,6 +59,7 @@ import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate } from '../lib/dates'
 import { balanceReminder, suggestedMessage, waLink } from '../lib/whatsapp'
 import {
+  CUSTOMER_TYPE_LABELS,
   ORDER_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
   STAGE_LABELS,
@@ -63,6 +72,7 @@ export function OrderDetail() {
   const location = useLocation()
   const orderId = params.id ?? ''
   const { db, shop, activeStaff } = useCurrentShop()
+  const canEdit = usePermission('orders.edit')
 
   const orderDoc = useRxQuery(() => db.orders.findOne(orderId).$, [db, orderId], null)
   const order = orderDoc?.toJSON() ?? null
@@ -125,14 +135,16 @@ export function OrderDetail() {
       back="/orders"
       wide
       action={
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="Edit order"
-          onClick={() => location.route(`/orders/${orderId}/edit`)}
-        >
-          <IconEdit size={20} />
-        </Button>
+        canEdit ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Edit order"
+            onClick={() => location.route(`/orders/${orderId}/edit`)}
+          >
+            <IconEdit size={20} />
+          </Button>
+        ) : undefined
       }
     >
       <div class="space-y-5">
@@ -179,7 +191,7 @@ export function OrderDetail() {
           </Card>
         </section>
 
-        <MoneyBlock order={order} balance={balance} currency={order.currency} />
+        <MoneyBlock order={order} balance={balance} currency={order.currency} onError={setError} />
 
         <ItemsSection orderId={orderId} currency={order.currency} onError={setError} />
 
@@ -207,6 +219,21 @@ export function OrderDetail() {
               </DataRow>
               {order.return_due_date && (
                 <DataRow label="Return due">{formatDate(order.return_due_date)}</DataRow>
+              )}
+              {order.expected_fulfilment_date && (
+                <DataRow label="Expected fulfilment">{formatDate(order.expected_fulfilment_date)}</DataRow>
+              )}
+              {order.customer_type === 'corporate' && (
+                <>
+                  <DataRow label="Customer">{CUSTOMER_TYPE_LABELS.corporate}</DataRow>
+                  {order.organisation_name && <DataRow label="Company">{order.organisation_name}</DataRow>}
+                  {order.purchase_order_reference && (
+                    <DataRow label="PO reference">{order.purchase_order_reference}</DataRow>
+                  )}
+                  {order.contact_person && (
+                    <DataRow label="Contact person">{order.contact_person}</DataRow>
+                  )}
+                </>
               )}
             </dl>
             {order.notes && (
@@ -314,15 +341,33 @@ function MoneyBlock({
   order,
   balance,
   currency,
+  onError,
 }: {
   order: OrderDoc
   balance: OrderBalance | null
   currency: string
+  onError: (message: string | null) => void
 }) {
+  const { db } = useCurrentShop()
+  const canRefund = usePermission('payments.refund')
+  const [refunding, setRefunding] = useState(false)
+
   if (!balance) return null
 
   const subtotal = order.price_total_minor - order.price_adjustment_minor
   const adjustment = order.price_adjustment_minor
+
+  async function refund() {
+    setRefunding(true)
+    onError(null)
+    try {
+      await refundDeposit(db, order.id)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not refund this deposit.')
+    } finally {
+      setRefunding(false)
+    }
+  }
 
   return (
     <section>
@@ -341,12 +386,25 @@ function MoneyBlock({
           <DataRow label="Balance">{formatMinor(balance.balance_minor, currency)}</DataRow>
         </dl>
         {order.rental_deposit_minor > 0 && (
-          <p class="mt-3 border-t border-stone-100 pt-3 text-sm text-stone-600 dark:border-stone-800 dark:text-stone-300">
-            Deposit held: <span class="font-medium">{formatMinor(order.rental_deposit_minor, currency)}</span>
-            {order.deposit_refunded_at
-              ? ` -- refunded ${formatDate(order.deposit_refunded_at)}`
-              : ' -- held, not part of the balance above'}
-          </p>
+          <div class="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
+            <p class="text-sm text-stone-600 dark:text-stone-300">
+              Deposit held: <span class="font-medium">{formatMinor(order.rental_deposit_minor, currency)}</span>
+              {order.deposit_refunded_at
+                ? ` -- refunded ${formatDateTime(order.deposit_refunded_at)}`
+                : ' -- held, not part of the balance above'}
+            </p>
+            {!order.deposit_refunded_at && canRefund && (
+              <Button
+                variant="secondary"
+                size="sm"
+                class="mt-2"
+                onClick={() => void refund()}
+                disabled={refunding}
+              >
+                {refunding ? 'Refunding...' : 'Refund deposit'}
+              </Button>
+            )}
+          </div>
         )}
       </Card>
     </section>
@@ -493,6 +551,8 @@ function PaymentsSection({
   onError: (message: string | null) => void
 }) {
   const { db, activeStaff } = useCurrentShop()
+  const canRefund = usePermission('payments.refund')
+  const canCreatePayment = usePermission('payments.create')
   const [adding, setAdding] = useState(false)
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<PaymentMethod>('cash')
@@ -526,13 +586,15 @@ function PaymentsSection({
     <section>
       <SectionTitle
         action={
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            class="flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400"
-          >
-            <IconPlus size={14} /> Add
-          </button>
+          canCreatePayment ? (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              class="flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400"
+            >
+              <IconPlus size={14} /> Add
+            </button>
+          ) : undefined
         }
       >
         Payments
@@ -558,18 +620,20 @@ function PaymentsSection({
                     </span>
                   )}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    onError(null)
-                    void voidPayment(db, payment.id).catch((err: unknown) =>
-                      onError(err instanceof Error ? err.message : 'Could not void that payment.'),
-                    )
-                  }}
-                >
-                  Void
-                </Button>
+                {canRefund && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      onError(null)
+                      void voidPayment(db, payment.id).catch((err: unknown) =>
+                        onError(err instanceof Error ? err.message : 'Could not void that payment.'),
+                      )
+                    }}
+                  >
+                    Void
+                  </Button>
+                )}
               </li>
             ))}
           </ul>

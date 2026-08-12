@@ -198,10 +198,81 @@ export const IconTag = (p: IconProps) => (
   </Icon>
 )
 
+export const IconLock = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+    <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+  </Icon>
+)
+
 /** A receipt: money out. */
 export const IconReceipt = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5 3.5h14v17l-2.3-1.6-2.4 1.6-2.3-1.6-2.4 1.6L7.3 19 5 20.5Z" />
     <path d="M9 8h6M9 12h6" />
+  </Icon>
+)
+
+export const IconToggle = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.5" y="7" width="19" height="10" rx="5" />
+    <circle cx="16" cy="12" r="3" fill="currentColor" stroke="none" />
+  </Icon>
+)
+
+/** A delivery truck: suppliers. */
+export const IconTruck = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 6.5h10v9H3z" />
+    <path d="M13 10h4l3 3v2.5h-7z" />
+    <circle cx="7" cy="17.5" r="1.6" />
+    <circle cx="16.5" cy="17.5" r="1.6" />
+  </Icon>
+)
+
+/** A spool of thread: materials. */
+export const IconSpool = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 4h12M6 20h12" />
+    <path d="M7 4c0 4 3 4 3 8s-3 4-3 8M17 4c0 4-3 4-3 8s3 4 3 8" />
+  </Icon>
+)
+
+/** A stacked box: inventory. */
+export const IconBox = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 8 12 4l8 4-8 4-8-4Z" />
+    <path d="M4 8v9l8 4 8-4V8" />
+    <path d="M12 12v9" />
+  </Icon>
+)
+
+/** A factory: production. */
+export const IconFactory = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 20V11l5 3.5V11l5 3.5V11l5 3.5V20Z" />
+    <path d="M4 20h16" />
+    <path d="M7 11V8" />
+  </Icon>
+)
+
+/** Stacked layers: collections. */
+export const IconLayers = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3 3 8l9 5 9-5-9-5Z" />
+    <path d="M3 12l9 5 9-5" />
+    <path d="M3 16l9 5 9-5" />
+  </Icon>
+)
+
+/** A fingerprint: an individual garment's own identity. */
+export const IconFingerprint = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 4a8 8 0 0 1 8 8v3" />
+    <path d="M4 15v-3a8 8 0 0 1 4-6.93" />
+    <path d="M8 20a8 8 0 0 0 8-8" />
+    <path d="M12 8a4 4 0 0 1 4 4v4" />
+    <path d="M8 12a4 4 0 0 1 4-4" />
+    <path d="M12 12v4" />
   </Icon>
 )

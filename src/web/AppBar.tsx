@@ -24,13 +24,17 @@ export function AppBar({ onSearch }: { onSearch: () => void }) {
       )}
     >
       <span class="flex w-[13.25rem] shrink-0 items-center gap-2">
-        <span
-          class="grid size-5 shrink-0 place-items-center rounded bg-accent text-[10px]
-                 font-bold text-accent-content"
-          aria-hidden="true"
-        >
-          {shop ? getInitials(shop.name) : '·'}
-        </span>
+        {shop?.logo_url ? (
+          <img src={shop.logo_url} alt="" class="size-5 shrink-0 rounded object-cover" />
+        ) : (
+          <span
+            class="grid size-5 shrink-0 place-items-center rounded bg-accent text-[10px]
+                   font-bold text-accent-content"
+            aria-hidden="true"
+          >
+            {shop ? getInitials(shop.name) : '·'}
+          </span>
+        )}
         <b class="truncate text-[13px] font-semibold tracking-tight">Polyster</b>
       </span>
 

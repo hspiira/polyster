@@ -90,7 +90,16 @@ describe('suggestedMessage', () => {
   })
 
   it('produces a distinct message for every stage', () => {
-    const stages = ['measured', 'in_progress', 'ready', 'picked_up', 'returned'] as const
+    const stages = [
+      'measured',
+      'in_progress',
+      'ready',
+      'picked_up',
+      'returned',
+      'assessing',
+      'approved',
+      'repairing',
+    ] as const
     const messages = stages.map((stage) =>
       suggestedMessage({ ...base, order: { ...base.order, stage }, balance: owing }),
     )

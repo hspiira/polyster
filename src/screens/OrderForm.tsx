@@ -30,6 +30,7 @@ import {
 import { IconPlus, IconTrash } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import {
   addOrderUnit,
   createOrder,
@@ -42,15 +43,17 @@ import {
   type OrderUnitInput,
 } from '../db/writes'
 import {
+  CUSTOMER_TYPES,
   FABRIC_SOURCES,
   ORDER_TYPES,
+  type CustomerType,
   type FabricSource,
   type MeasurementFieldDoc,
   type OrderDoc,
   type OrderStage,
   type OrderType,
 } from '../db/schema'
-import { FABRIC_SOURCE_LABELS, ORDER_TYPE_LABELS } from './orderStage'
+import { CUSTOMER_TYPE_LABELS, FABRIC_SOURCE_LABELS, ORDER_TYPE_LABELS } from './orderStage'
 import { addDays, formatDate, today } from '../lib/dates'
 import { fromMinorUnits, parseToMinor } from '../lib/money'
 
@@ -74,6 +77,13 @@ interface HeaderDraft {
   adjustment_type: AdjustmentType
   adjustment_amount: string
   adjustment_reason: string
+  customer_type: CustomerType
+  organisation_name: string
+  purchase_order_reference: string
+  contact_person: string
+  expected_fulfilment_date: string
+  /** Rental only. */
+  deposit_amount: string
 }
 
 /** One item on the order. `key` is stable across renders; `id` exists once persisted. */
@@ -109,9 +119,21 @@ const BLANK_HEADER: HeaderDraft = {
   adjustment_type: 'none',
   adjustment_amount: '',
   adjustment_reason: '',
+  customer_type: 'individual',
+  organisation_name: '',
+  purchase_order_reference: '',
+  contact_person: '',
+  expected_fulfilment_date: '',
+  deposit_amount: '',
 }
 
-type HeaderFieldKey = 'client_id' | 'pickup_due_date' | 'return_due_date' | 'adjustment_amount'
+type HeaderFieldKey =
+  | 'client_id'
+  | 'pickup_due_date'
+  | 'return_due_date'
+  | 'adjustment_amount'
+  | 'organisation_name'
+  | 'deposit_amount'
 type UnitFieldKey = 'item_description' | 'price'
 
 /**
@@ -138,6 +160,7 @@ export function OrderForm() {
   const { params } = useRoute()
   const location = useLocation()
   const { db, shop, activeStaff } = useCurrentShop()
+  const flags = useFeatureFlags(db, shop.id)
 
   const orderId = params.id
   const isEdit = Boolean(orderId)
@@ -250,6 +273,15 @@ export function OrderForm() {
           ? ''
           : String(fromMinorUnits(Math.abs(order.price_adjustment_minor), order.currency)),
       adjustment_reason: order.adjustment_reason ?? '',
+      customer_type: order.customer_type ?? 'individual',
+      organisation_name: order.organisation_name ?? '',
+      purchase_order_reference: order.purchase_order_reference ?? '',
+      contact_person: order.contact_person ?? '',
+      expected_fulfilment_date: order.expected_fulfilment_date ?? '',
+      deposit_amount:
+        order.rental_deposit_minor > 0
+          ? String(fromMinorUnits(order.rental_deposit_minor, order.currency))
+          : '',
     })
     setUnits(
       existingUnits.map((unit) => ({
@@ -337,6 +369,26 @@ export function OrderForm() {
         message: 'The return date cannot be before the pickup date.',
       }
     }
+    if (header.customer_type === 'corporate' && !header.organisation_name.trim()) {
+      return {
+        scope: 'header',
+        field: 'organisation_name',
+        message: 'Name the company this order is for.',
+      }
+    }
+
+    let depositMinor = 0
+    if (header.order_type === 'rental' && header.deposit_amount.trim()) {
+      const parsed = parseToMinor(header.deposit_amount, currency)
+      if (parsed === null || parsed < 0) {
+        return {
+          scope: 'header',
+          field: 'deposit_amount',
+          message: 'Enter the deposit as a number.',
+        }
+      }
+      depositMinor = parsed
+    }
 
     let adjustmentMinor = 0
     if (header.adjustment_type !== 'none') {
@@ -390,6 +442,20 @@ export function OrderForm() {
         pickup_due_date: header.pickup_due_date,
         ...(header.return_due_date ? { return_due_date: header.return_due_date } : {}),
         ...(header.notes.trim() ? { notes: header.notes } : {}),
+        customer_type: header.customer_type,
+        ...(header.customer_type === 'corporate'
+          ? {
+              organisation_name: header.organisation_name,
+              ...(header.purchase_order_reference.trim()
+                ? { purchase_order_reference: header.purchase_order_reference }
+                : {}),
+              ...(header.contact_person.trim() ? { contact_person: header.contact_person } : {}),
+            }
+          : {}),
+        ...(header.order_type === 'pre_order' && header.expected_fulfilment_date
+          ? { expected_fulfilment_date: header.expected_fulfilment_date }
+          : {}),
+        ...(header.order_type === 'rental' ? { deposit_minor: depositMinor } : {}),
       },
       units: validatedUnits,
       adjustmentMinor,
@@ -500,6 +566,20 @@ export function OrderForm() {
   }
 
   const isRental = header.order_type === 'rental'
+  const isPreOrder = header.order_type === 'pre_order'
+  const isCorporate = header.customer_type === 'corporate'
+
+  // A flag turned off after an order was created must not hide that order's
+  // own type/customer -- only new selections it, so the value the order
+  // already has always stays visible even when the module is disabled.
+  const visibleOrderTypes = ORDER_TYPES.filter((type) => {
+    if (type === 'pre_order') return flags.pre_orders || header.order_type === 'pre_order'
+    if (type === 'repair') return flags.repairs || header.order_type === 'repair'
+    return true
+  })
+  const visibleCustomerTypes = CUSTOMER_TYPES.filter(
+    (type) => type !== 'corporate' || flags.corporate_orders || header.customer_type === 'corporate',
+  )
 
   return (
     <Screen title={isEdit ? 'Edit order' : 'New order'} back={backTo}>
@@ -526,7 +606,7 @@ export function OrderForm() {
               <Field label="Type">
                 <Segmented
                   value={header.order_type}
-                  options={ORDER_TYPES.map((type) => ({ value: type, label: ORDER_TYPE_LABELS[type] }))}
+                  options={visibleOrderTypes.map((type) => ({ value: type, label: ORDER_TYPE_LABELS[type] }))}
                   onChange={(order_type) => updateHeader({ order_type })}
                   label="Order type"
                 />
@@ -558,6 +638,75 @@ export function OrderForm() {
                     }
                   />
                 </Field>
+              )}
+
+              {isRental && (
+                <Field
+                  label="Deposit"
+                  hint={`Held and refundable, in ${currency}. Optional.`}
+                  error={headerErrorFor('deposit_amount')}
+                >
+                  <Input
+                    inputmode="decimal"
+                    placeholder="0"
+                    value={header.deposit_amount}
+                    onInput={(e) => updateHeader({ deposit_amount: (e.target as HTMLInputElement).value })}
+                  />
+                </Field>
+              )}
+
+              {isPreOrder && (
+                <Field label="Expected fulfilment date" hint="When the item is expected to be ready, if known.">
+                  <Input
+                    type="date"
+                    value={header.expected_fulfilment_date}
+                    onInput={(e) =>
+                      updateHeader({ expected_fulfilment_date: (e.target as HTMLInputElement).value })
+                    }
+                  />
+                </Field>
+              )}
+
+              {(flags.corporate_orders || isCorporate) && (
+                <Field label="Customer">
+                  <Segmented
+                    value={header.customer_type}
+                    options={visibleCustomerTypes.map((type) => ({
+                      value: type,
+                      label: CUSTOMER_TYPE_LABELS[type],
+                    }))}
+                    onChange={(customer_type) => updateHeader({ customer_type })}
+                    label="Customer type"
+                  />
+                </Field>
+              )}
+
+              {isCorporate && (
+                <>
+                  <Field label="Company" error={headerErrorFor('organisation_name')}>
+                    <Input
+                      value={header.organisation_name}
+                      placeholder="Company name"
+                      onInput={(e) =>
+                        updateHeader({ organisation_name: (e.target as HTMLInputElement).value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Purchase order reference" hint="Optional.">
+                    <Input
+                      value={header.purchase_order_reference}
+                      onInput={(e) =>
+                        updateHeader({ purchase_order_reference: (e.target as HTMLInputElement).value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Contact person" hint="Optional.">
+                    <Input
+                      value={header.contact_person}
+                      onInput={(e) => updateHeader({ contact_person: (e.target as HTMLInputElement).value })}
+                    />
+                  </Field>
+                </>
               )}
 
               <Field label="Adjustment" hint="A haggled discount, a late fee, or a damage charge.">

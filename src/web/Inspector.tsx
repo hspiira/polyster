@@ -13,6 +13,7 @@
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { usePermission } from '../hooks/usePermission'
 import { observeBalance, signedAmountMinor } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
@@ -28,6 +29,7 @@ import { IconChevronRight } from '../components/icons'
 import { cn } from '../lib/cn'
 import { CONTROL, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import { PaymentDialog } from './PaymentDialog'
+import { refundDeposit } from '../db/writes'
 
 type Tab = 'record' | 'units' | 'payments' | 'history'
 
@@ -53,6 +55,11 @@ export function Inspector({
   onClose?: () => void
 }) {
   const { db, shop, staff } = useCurrentShop()
+  const canCreatePayment = usePermission('payments.create')
+  const canEdit = usePermission('orders.edit')
+  const canRefund = usePermission('payments.refund')
+  const [refunding, setRefunding] = useState(false)
+  const [refundError, setRefundError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('record')
   const [paying, setPaying] = useState(false)
 
@@ -101,6 +108,18 @@ export function Inspector({
 
   const { order } = row
   const late = dueBucket(row.dueDate, today()) === 'overdue'
+
+  async function refund() {
+    setRefunding(true)
+    setRefundError(null)
+    try {
+      await refundDeposit(db, order.id)
+    } catch (err) {
+      setRefundError(err instanceof Error ? err.message : 'Could not refund this deposit.')
+    } finally {
+      setRefunding(false)
+    }
+  }
   const paidFraction =
     balance && balance.price_total_minor > 0
       ? Math.min(1, Math.max(0, balance.amount_paid_minor / balance.price_total_minor))
@@ -210,6 +229,33 @@ export function Inspector({
                 <p class={cn('whitespace-pre-wrap text-content-muted', TEXT_XS)}>{order.notes}</p>
               </Section>
             )}
+
+            {order.rental_deposit_minor > 0 && (
+              <Section label="Deposit">
+                <p class={cn('text-content-muted', TEXT_XS)}>
+                  {formatMinor(order.rental_deposit_minor, shop.currency)}
+                  {order.deposit_refunded_at
+                    ? ` -- refunded ${formatDateTime(order.deposit_refunded_at)}`
+                    : ' -- held, not part of the balance above'}
+                </p>
+                {refundError && <p class={cn('mt-1 text-danger', TEXT_XS)}>{refundError}</p>}
+                {!order.deposit_refunded_at && canRefund && (
+                  <button
+                    type="button"
+                    onClick={() => void refund()}
+                    disabled={refunding}
+                    class={cn(
+                      'mt-1.5 bg-surface-sunken px-2.5 py-1 font-semibold text-content hover:bg-pressed',
+                      'disabled:opacity-60',
+                      RADIUS,
+                      TEXT_XS,
+                    )}
+                  >
+                    {refunding ? 'Refunding...' : 'Refund deposit'}
+                  </button>
+                )}
+              </Section>
+            )}
           </>
         )}
 
@@ -312,33 +358,39 @@ export function Inspector({
         )}
       </div>
 
-      <div class="flex gap-1.5 border-t border-line px-3.5 py-2.5">
-        <button
-          type="button"
-          onClick={() => setPaying(true)}
-          class={cn(
-            'flex flex-1 items-center justify-center bg-accent font-semibold text-accent-content',
-            'hover:brightness-110',
-            CONTROL,
-            RADIUS,
-            TEXT_SM,
+      {(canCreatePayment || canEdit) && (
+        <div class="flex gap-1.5 border-t border-line px-3.5 py-2.5">
+          {canCreatePayment && (
+            <button
+              type="button"
+              onClick={() => setPaying(true)}
+              class={cn(
+                'flex flex-1 items-center justify-center bg-accent font-semibold text-accent-content',
+                'hover:brightness-110',
+                CONTROL,
+                RADIUS,
+                TEXT_SM,
+              )}
+            >
+              Take payment
+            </button>
           )}
-        >
-          Take payment
-        </button>
-        <a
-          href={`/orders/${order.id}/edit`}
-          class={cn(
-            'flex items-center justify-center bg-surface-sunken px-3 font-semibold text-content',
-            'hover:bg-pressed',
-            CONTROL,
-            RADIUS,
-            TEXT_SM,
+          {canEdit && (
+            <a
+              href={`/orders/${order.id}/edit`}
+              class={cn(
+                'flex items-center justify-center bg-surface-sunken px-3 font-semibold text-content',
+                'hover:bg-pressed',
+                CONTROL,
+                RADIUS,
+                TEXT_SM,
+              )}
+            >
+              Edit
+            </a>
           )}
-        >
-          Edit
-        </a>
-      </div>
+        </div>
+      )}
 
       <PaymentDialog
         open={paying}

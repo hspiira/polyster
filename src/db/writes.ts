@@ -1,30 +1,22 @@
 /**
- * Every write the app makes, in one place.
+ * Every write the app makes, in one place, so id generation, timestamps and
+ * attribution aren't repeated (or forgotten) per screen.
  *
- * Screens call these rather than touching collections directly, so that the
- * things easy to forget -- generating an id, stamping `created_at`, recording
- * who did it, writing the audit row -- cannot be forgotten in one screen and
- * remembered in another.
- *
- * ## On transactions
- *
- * RxDB has no cross-collection transaction, so "advance the stage and record
- * the history" cannot be atomic. The order below is deliberate: the history
- * row is written **first**. If the second write fails, the shop is left with a
- * history entry for a transition that did not happen -- visible, harmless, and
- * correctable. The other ordering fails the other way, silently dropping the
- * audit record, which is the one thing that table exists to guarantee.
- *
- * An earlier draft of IMPLEMENTATION_PLAN.md said these happen "in the same
- * transaction". They cannot; this comment is the correction.
+ * RxDB has no cross-collection transaction. Where a stage change and its
+ * history row both need writing, the history row goes first -- a failure
+ * after that leaves a visible, correctable orphan rather than silently
+ * dropping the audit record.
  */
 import type { AppDatabase } from './database'
 import {
   DEFAULT_COUNTRY,
+  type BusinessType,
   type ClientDoc,
   type FabricSource,
+  type FeatureKey,
   type MeasurementFieldDoc,
   type MeasurementFieldType,
+  type CustomerType,
   type MessageTemplate,
   type OrderDoc,
   type OrderStage,
@@ -33,12 +25,14 @@ import {
   type PaymentDoc,
   type PaymentKind,
   type PaymentMethod,
+  type PermissionKey,
   type ShopDoc,
   type StaffDoc,
   type StaffRole,
   type SaleDoc,
   type ExpenseDoc,
   type ExpenseCategory,
+  type TenantFeatureDoc,
 } from './schema'
 import { hashPin } from '../lib/pin'
 import { DEFAULT_CURRENCY } from '../lib/money'
@@ -209,7 +203,16 @@ export async function saveUnitMeasurementsToClient(
 
 // ----------------------------------------------------------------- orders
 
-export interface NewOrderInput {
+/** Phase 7 (sections 31-32): shared by creation and the header editor. */
+export interface OrderPartyInput {
+  customer_type?: CustomerType
+  organisation_name?: string
+  purchase_order_reference?: string
+  contact_person?: string
+  expected_fulfilment_date?: string
+}
+
+export interface NewOrderInput extends OrderPartyInput {
   client_id: string
   order_type: OrderType
   item_description: string
@@ -217,6 +220,21 @@ export interface NewOrderInput {
   pickup_due_date: string
   return_due_date?: string
   notes?: string
+  /** Rental only. Held and refundable, never part of price_total_minor -- see OrderDoc. */
+  deposit_minor?: number
+}
+
+/** Shared by createOrder and updateOrderHeader -- every field here is optional. */
+function partyFields(input: OrderPartyInput): Partial<OrderDoc> {
+  return {
+    ...(input.customer_type ? { customer_type: input.customer_type } : {}),
+    ...(input.organisation_name?.trim() ? { organisation_name: input.organisation_name.trim() } : {}),
+    ...(input.purchase_order_reference?.trim()
+      ? { purchase_order_reference: input.purchase_order_reference.trim() }
+      : {}),
+    ...(input.contact_person?.trim() ? { contact_person: input.contact_person.trim() } : {}),
+    ...(input.expected_fulfilment_date ? { expected_fulfilment_date: input.expected_fulfilment_date } : {}),
+  }
 }
 
 /**
@@ -248,13 +266,14 @@ export async function createOrder(
     stage: 'measured',
     price_total_minor: input.price_total_minor,
     price_adjustment_minor: 0,
-    rental_deposit_minor: 0,
+    rental_deposit_minor: input.deposit_minor ?? 0,
     pickup_due_date: input.pickup_due_date,
     created_at: timestamp,
     updated_at: timestamp,
     ...(input.return_due_date ? { return_due_date: input.return_due_date } : {}),
     ...(input.notes?.trim() ? { notes: input.notes.trim() } : {}),
     ...(staffId ? { created_by: staffId } : {}),
+    ...partyFields(input),
   }
 
   await db.orders.insert(doc)
@@ -293,12 +312,14 @@ export async function createOrder(
   return saved.toJSON()
 }
 
-export interface OrderHeaderInput {
+export interface OrderHeaderInput extends OrderPartyInput {
   client_id: string
   order_type: OrderType
   pickup_due_date: string
   return_due_date?: string
   notes?: string
+  /** Rental only. */
+  deposit_minor?: number
 }
 
 /**
@@ -321,8 +342,27 @@ export async function updateOrderHeader(
     pickup_due_date: input.pickup_due_date,
     return_due_date: input.return_due_date || undefined,
     notes: input.notes?.trim() || undefined,
+    customer_type: input.customer_type,
+    organisation_name: input.organisation_name?.trim() || undefined,
+    purchase_order_reference: input.purchase_order_reference?.trim() || undefined,
+    contact_person: input.contact_person?.trim() || undefined,
+    expected_fulfilment_date: input.expected_fulfilment_date || undefined,
+    rental_deposit_minor: input.order_type === 'rental' ? (input.deposit_minor ?? 0) : 0,
     updated_at: now(),
   })
+}
+
+/**
+ * Marks a rental deposit as returned to the client. Never touches
+ * price_total_minor or any balance -- a deposit is held, not earned (see
+ * OrderDoc's own note), so refunding it is a fact about the deposit alone.
+ */
+export async function refundDeposit(db: AppDatabase, orderId: string): Promise<void> {
+  const doc = await db.orders.findOne(orderId).exec()
+  if (!doc) throw new Error('That order no longer exists on this device.')
+  if (doc.rental_deposit_minor <= 0) throw new Error('This order has no deposit to refund.')
+  if (doc.deposit_refunded_at) throw new Error('This deposit has already been refunded.')
+  await doc.patch({ deposit_refunded_at: now() })
 }
 
 /** The column each terminal stage stamps, alongside `stage` itself. */
@@ -657,14 +697,14 @@ export async function logMessage(
 export async function createStaff(
   db: AppDatabase,
   shopId: string,
-  input: { name: string; pin: string; role: StaffRole },
+  input: { name: string; pin?: string; role: StaffRole },
 ): Promise<StaffDoc> {
   const timestamp = now()
   const doc: StaffDoc = {
     id: newId(),
     shop_id: shopId,
     name: input.name.trim(),
-    pin_hash: await hashPin(input.pin),
+    ...(input.pin ? { pin_hash: await hashPin(input.pin) } : {}),
     role: input.role,
     active: true,
     created_at: timestamp,
@@ -677,7 +717,14 @@ export async function createStaff(
 export async function setStaffPin(db: AppDatabase, staffId: string, pin: string): Promise<void> {
   const doc = await db.staff.findOne(staffId).exec()
   if (!doc) throw new Error('That staff member no longer exists on this device.')
-  await doc.patch({ pin_hash: await hashPin(pin) })
+  await doc.patch({ pin_hash: await hashPin(pin), pin_updated_at: now() })
+}
+
+/** Removes the lock. The device then opens straight into the shop. */
+export async function clearStaffPin(db: AppDatabase, staffId: string): Promise<void> {
+  const doc = await db.staff.findOne(staffId).exec()
+  if (!doc) throw new Error('That staff member no longer exists on this device.')
+  await doc.patch({ pin_hash: undefined, pin_updated_at: now() })
 }
 
 /**
@@ -692,6 +739,29 @@ export async function setStaffActive(
 ): Promise<void> {
   const doc = await db.staff.findOne(staffId).exec()
   await doc?.patch({ active })
+}
+
+/** Phase 12. Changing role never touches permission_overrides -- those stay
+ * whatever they were, layered on top of whichever role is now active. */
+export async function setStaffRole(db: AppDatabase, staffId: string, role: StaffRole): Promise<void> {
+  const doc = await db.staff.findOne(staffId).exec()
+  if (!doc) throw new Error('That staff member no longer exists on this device.')
+  await doc.patch({ role, updated_at: now() })
+}
+
+/** Phase 12. Replaces the whole override set -- the caller sends the full picture, not a delta. */
+export async function setStaffPermissionOverrides(
+  db: AppDatabase,
+  staffId: string,
+  overrides: Partial<Record<PermissionKey, boolean>>,
+): Promise<void> {
+  const doc = await db.staff.findOne(staffId).exec()
+  if (!doc) throw new Error('That staff member no longer exists on this device.')
+  const hasAny = Object.keys(overrides).length > 0
+  await doc.patch({
+    permission_overrides: hasAny ? overrides : undefined,
+    updated_at: now(),
+  })
 }
 
 // ------------------------------------------------------------------- shop
@@ -725,6 +795,11 @@ export async function updateShop(
     whatsapp_number?: string
     currency?: string
     lock_after_minutes?: number
+    business_type?: BusinessType
+    logo_url?: string
+    timezone?: string
+    email?: string
+    website?: string
   },
 ): Promise<void> {
   const doc = await db.shops.findOne(shopId).exec()
@@ -737,7 +812,65 @@ export async function updateShop(
     ...(input.lock_after_minutes !== undefined
       ? { lock_after_minutes: input.lock_after_minutes }
       : {}),
+    ...(input.business_type ? { business_type: input.business_type } : {}),
+    logo_url: input.logo_url?.trim() || undefined,
+    timezone: input.timezone?.trim() || undefined,
+    email: input.email?.trim() || undefined,
+    website: input.website?.trim() || undefined,
   })
+}
+
+/**
+ * Attaches a verified account to a shop that was set up without one.
+ *
+ * Refuses if the shop already belongs to a different account. Two shops on one
+ * number is the unreconciled case in ARCHITECTURE D14, and quietly overwriting
+ * the owner here would be how a device ends up syncing into someone else's shop.
+ */
+export async function claimShop(
+  db: AppDatabase,
+  shopId: string,
+  supabaseAuthUserId: string,
+): Promise<void> {
+  const doc = await db.shops.findOne(shopId).exec()
+  if (!doc) throw new Error('Shop record not found on this device.')
+
+  const existing = doc.get('supabase_auth_user_id') as string | undefined
+  if (existing && existing !== supabaseAuthUserId) {
+    throw new Error('This shop is already backed up under a different number.')
+  }
+
+  await doc.patch({ supabase_auth_user_id: supabaseAuthUserId })
+}
+
+// -------------------------------------------------------- tenant features
+
+/** Creates the override row on first toggle; patches it after that. */
+export async function setFeatureEnabled(
+  db: AppDatabase,
+  shopId: string,
+  featureKey: FeatureKey,
+  enabled: boolean,
+): Promise<void> {
+  const existing = await db.tenant_features
+    .findOne({ selector: { shop_id: shopId, feature_key: featureKey } })
+    .exec()
+
+  if (existing) {
+    await existing.patch({ enabled, updated_at: now() })
+    return
+  }
+
+  const timestamp = now()
+  const doc: TenantFeatureDoc = {
+    id: newId(),
+    shop_id: shopId,
+    feature_key: featureKey,
+    enabled,
+    created_at: timestamp,
+    updated_at: timestamp,
+  }
+  await db.tenant_features.insert(doc)
 }
 
 // ------------------------------------------------------------------- sales

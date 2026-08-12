@@ -23,7 +23,9 @@ export function LockScreen({ authStatus }: { authStatus: AuthState['status'] }) 
 
   // One device, one person (spec consequence 1), so this is the only candidate.
   const person = staff[0]
-  if (!person) return null
+  // App.tsx does not route here without a PIN, so this is belt and braces.
+  if (!person?.pin_hash) return null
+  const pinHash = person.pin_hash
 
   if (recovering) {
     return <PinRecovery person={person} onCancel={() => setRecovering(false)} />
@@ -51,7 +53,7 @@ export function LockScreen({ authStatus }: { authStatus: AuthState['status'] }) 
               const delay = backoffMs(failures.current)
               if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay))
 
-              const ok = await verifyPin(pin, person.pin_hash)
+              const ok = await verifyPin(pin, pinHash)
               failures.current = ok ? 0 : failures.current + 1
               if (ok) setActiveStaff(person)
               return ok

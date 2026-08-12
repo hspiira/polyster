@@ -1,11 +1,10 @@
 /**
- * Supabase client, used for two things: replication (see ../db/replication.ts)
- * and shop-level auth (see ARCHITECTURE.md section 4 -- one Supabase account
- * per shop, staff PINs are an app-layer attribution check on top).
- *
- * Never talk to Supabase directly from UI components -- reads/writes go
- * through RxDB (see ../db/database.ts). This client is only used by the
- * replication layer and the auth screen.
+ * Supabase client. Used by three things: replication (../db/replication.ts),
+ * shop-level auth (ARCHITECTURE.md section 4), and the online-only modules
+ * under ../online/ (features added after RxDB's free-tier collection limit
+ * was reached -- see docs/POLYSTER.md's Phase 2 status notes. Those modules
+ * query Supabase directly and do not work offline; everything else still
+ * goes through RxDB, see ../db/database.ts).
  *
  * The client is created lazily rather than at module load. `createClient()`
  * throws `supabaseUrl is required.` on an empty string, so constructing it

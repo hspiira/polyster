@@ -1,8 +1,8 @@
 /**
- * Sign in: a number, then a code.
+ * Sign in on a new phone: a number, then a code.
  *
- * The same two screens setup opens with -- only the backend knows whether a
- * number already has a shop, so there is nothing for the user to declare.
+ * Verifying signs the device in and replication pulls the shop down; app.tsx
+ * decides what comes next.
  */
 import { useState } from 'preact/hooks'
 import { PhoneStep } from './steps/PhoneStep'
@@ -10,13 +10,20 @@ import { CodeStep } from './steps/CodeStep'
 import { EntryQuietButton, EntryScreen } from './parts'
 
 export function SignIn({ onCancel }: { onCancel: () => void }) {
-  const [phone, setPhone] = useState<string | null>(null)
+  const [phone, setPhone] = useState('')
+  const [sent, setSent] = useState(false)
 
-  if (phone === null) {
+  if (!sent) {
     return (
       <EntryScreen>
         <PhoneStep
-          onSent={setPhone}
+          title="What is your number?"
+          body="The one your shop is already set up with. We'll send a code to check it's yours."
+          initialPhone={phone}
+          onSent={(value) => {
+            setPhone(value)
+            setSent(true)
+          }}
           footer={
             <div class="mt-4">
               <EntryQuietButton type="button" onClick={onCancel}>
@@ -31,8 +38,7 @@ export function SignIn({ onCancel }: { onCancel: () => void }) {
 
   return (
     <EntryScreen>
-      {/* Verifying signs the device in; the app root decides what comes next. */}
-      <CodeStep phone={phone} onVerified={() => {}} onResend={() => setPhone(null)} />
+      <CodeStep phone={phone} onVerified={() => {}} onEditNumber={() => setSent(false)} />
     </EntryScreen>
   )
 }

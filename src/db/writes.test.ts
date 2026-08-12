@@ -19,6 +19,7 @@ import {
   retireMeasurementField,
   saveMeasurements,
   saveUnitMeasurementsToClient,
+  setFeatureEnabled,
   setOrderAdjustment,
   setUnitDone,
   updateOrderHeader,
@@ -444,5 +445,29 @@ describe('logMessage', () => {
     expect(logged[0]?.sent_by).toBe(staffId)
     expect(logged[0]?.order_stage).toBe('ready')
     expect(logged[0]?.order_id).toBeUndefined()
+  })
+})
+
+describe('setFeatureEnabled', () => {
+  it('creates an override row on first toggle', async () => {
+    const db = await freshDatabase()
+
+    await setFeatureEnabled(db, shopId, 'catalogue', true)
+
+    const rows = await db.tenant_features.find({ selector: { shop_id: shopId } }).exec()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.feature_key).toBe('catalogue')
+    expect(rows[0]?.enabled).toBe(true)
+  })
+
+  it('patches the existing row rather than creating a second one', async () => {
+    const db = await freshDatabase()
+
+    await setFeatureEnabled(db, shopId, 'catalogue', true)
+    await setFeatureEnabled(db, shopId, 'catalogue', false)
+
+    const rows = await db.tenant_features.find({ selector: { shop_id: shopId } }).exec()
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.enabled).toBe(false)
   })
 })

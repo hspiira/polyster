@@ -3,7 +3,7 @@
  * reads as "in_progress" on one screen and "In progress" on another.
  */
 import type { AnyTone } from '../ui/tones'
-import type { FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
+import type { CustomerType, FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
   measured: 'Measured',
@@ -12,6 +12,9 @@ export const STAGE_LABELS: Record<OrderStage, string> = {
   picked_up: 'Picked up',
   returned: 'Returned',
   cancelled: 'Cancelled',
+  assessing: 'Assessing',
+  approved: 'Approved',
+  repairing: 'Repairing',
 }
 
 /** Legacy tone spellings; `ui/tones.ts` maps them. Rename in the final sweep. */
@@ -24,12 +27,22 @@ export const STAGE_TONES: Record<OrderStage, AnyTone> = {
   // The one stage that is an adverse outcome rather than progress or a plain
   // finish, so it gets the tone none of the others use.
   cancelled: 'bad',
+  assessing: 'neutral',
+  approved: 'info',
+  repairing: 'info',
 }
 
 export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
   tailor_made: 'Tailor-made',
   rental: 'Rental',
   purchase: 'Purchase',
+  pre_order: 'Pre-order',
+  repair: 'Repair',
+}
+
+export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
+  individual: 'Individual',
+  corporate: 'Corporate',
 }
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
@@ -59,6 +72,14 @@ const FLOWS: Record<OrderType, readonly OrderStage[]> = {
   tailor_made: ['measured', 'in_progress', 'ready', 'picked_up'],
   purchase: ['measured', 'ready', 'picked_up'],
   rental: ['measured', 'ready', 'picked_up', 'returned'],
+  // Same shape as purchase -- a pre-order is a purchase of something not
+  // made or in stock yet, so it needs no return leg either.
+  pre_order: ['measured', 'ready', 'picked_up'],
+  // 'measured' doubles as "received" and 'picked_up' as "collected" -- the
+  // same reuse every other type already makes of these two labels, not a
+  // repair-specific meaning. 'assessing'/'approved'/'repairing' are the
+  // three states section 33 asks for that nothing existing covers.
+  repair: ['measured', 'assessing', 'approved', 'repairing', 'ready', 'picked_up'],
 }
 
 export function stagesFor(orderType: OrderType): readonly OrderStage[] {

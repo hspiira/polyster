@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decideEntryScreen, type EntryInput } from './entryState'
+import { decideEntryScreen, isLocked, type EntryInput } from './entryState'
 
 function input(over: Partial<EntryInput> = {}): EntryInput {
   return {
@@ -7,7 +7,8 @@ function input(over: Partial<EntryInput> = {}): EntryInput {
     authStatus: 'signed_out',
     provisioned: false,
     locked: true,
-    setupStarted: false,
+    registering: false,
+    awaitingFirstPull: false,
     ...over,
   }
 }
@@ -27,13 +28,19 @@ describe('decideEntryScreen', () => {
     )
   })
 
-  // The whole point of the redesign: local data decides, not the session.
+  // Local data decides, not the session.
   it('sends an unprovisioned device to the landing screen', () => {
     expect(decideEntryScreen(input({ provisioned: false }))).toBe('landing')
   })
 
-  it('sends an unprovisioned but signed-in device straight to setup', () => {
-    expect(decideEntryScreen(input({ provisioned: false, authStatus: 'signed_in' }))).toBe('setup')
+  it('shows the form once the user has chosen to set up', () => {
+    expect(decideEntryScreen(input({ registering: true }))).toBe('register')
+  })
+
+  it('opens the app the moment registration writes the shop and owner', () => {
+    expect(
+      decideEntryScreen(input({ registering: true, provisioned: true, locked: false })),
+    ).toBe('shell')
   })
 
   it('locks a provisioned device', () => {
@@ -63,27 +70,35 @@ describe('decideEntryScreen', () => {
     expect(decideEntryScreen(input({ authStatus: 'signed_out', provisioned: true }))).toBe('lock')
   })
 
-  // Someone tapped through from the landing on a build that cannot send codes.
-  it('shows setup once it has been started, even with nothing provisioned', () => {
-    expect(decideEntryScreen(input({ setupStarted: true, provisioned: false }))).toBe('setup')
-  })
-
-  // The latch. Creating the owner makes `provisioned` true midway through, and
-  // without this the wizard is torn down before its last steps can render.
-  it('keeps setup up after the shop and staff exist, until it says it has finished', () => {
-    expect(decideEntryScreen(input({ setupStarted: true, provisioned: true, locked: true }))).toBe(
-      'setup',
-    )
-  })
-
-  it('leaves setup for the app once it reports finished', () => {
+  // A returning owner must not be shown the registration form while their shop
+  // is still coming down the wire.
+  it('waits on the splash after sign-in until the first pull settles', () => {
     expect(
-      decideEntryScreen(input({ setupStarted: false, provisioned: true, locked: false })),
-    ).toBe('shell')
+      decideEntryScreen(input({ authStatus: 'signed_in', awaitingFirstPull: true })),
+    ).toBe('splash')
   })
 
-  // A failure that must not be hidden behind a half-built wizard.
-  it('still reports a database failure while setup is running', () => {
-    expect(decideEntryScreen(input({ setupStarted: true, dbStatus: 'error' }))).toBe('fatal')
+  it('registers a signed-in device once the pull brings nothing back', () => {
+    expect(
+      decideEntryScreen(input({ authStatus: 'signed_in', awaitingFirstPull: false })),
+    ).toBe('register')
+  })
+
+  it('still reports a database failure while registering', () => {
+    expect(decideEntryScreen(input({ registering: true, dbStatus: 'error' }))).toBe('fatal')
+  })
+})
+
+describe('isLocked', () => {
+  it('never locks a shop that has not set a PIN', () => {
+    expect(isLocked([{ name: 'Ama' } as never], null)).toBe(false)
+  })
+
+  it('locks once a PIN exists and nobody is signed in for this session', () => {
+    expect(isLocked([{ pin_hash: 'pbkdf2$...' }], null)).toBe(true)
+  })
+
+  it('does not lock while someone is active', () => {
+    expect(isLocked([{ pin_hash: 'pbkdf2$...' }], { id: 'staff-1' })).toBe(false)
   })
 })

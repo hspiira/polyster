@@ -36,8 +36,22 @@ import { OrderForm } from './OrderForm'
 import { Settings } from './Settings'
 import { ShopSettings } from './settings/ShopSettings'
 import { MeasurementFieldSettings } from './settings/MeasurementFieldSettings'
+import { LockSettings } from './settings/LockSettings'
 import { StaffSettings } from './settings/StaffSettings'
 import { BackupSettings } from './settings/BackupSettings'
+import { FeatureSettings } from './settings/FeatureSettings'
+import { Catalogue } from './Catalogue'
+import { CatalogueDetail } from './CatalogueDetail'
+import { Suppliers } from './Suppliers'
+import { Materials } from './Materials'
+import { Inventory } from './Inventory'
+import { InventoryItemDetail } from './InventoryItemDetail'
+import { Production } from './Production'
+import { ProductionBatchDetail } from './ProductionBatchDetail'
+import { Collections } from './Collections'
+import { GarmentUnits } from './GarmentUnits'
+import { AdvancedReports } from './AdvancedReports'
+import { Money } from './Money'
 import { Reports } from './Reports'
 import { Sales } from './Sales'
 import { SaleForm } from './SaleForm'
@@ -97,15 +111,29 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/orders/new" component={OrderForm} />
           <Route path="/orders/:id" component={OrderDetail} />
           <Route path="/orders/:id/edit" component={OrderForm} />
+          <Route path="/money" component={Money} />
           <Route path="/reports" component={Reports} />
+          <Route path="/reports/advanced" component={AdvancedReports} />
           <Route path="/sales" component={Sales} />
           <Route path="/sales/new" component={SaleForm} />
           <Route path="/expenses" component={Expenses} />
           <Route path="/settings" component={Settings} />
           <Route path="/settings/shop" component={ShopSettings} />
           <Route path="/settings/measurements" component={MeasurementFieldSettings} />
+          <Route path="/settings/lock" component={LockSettings} />
           <Route path="/settings/staff" component={StaffSettings} />
           <Route path="/settings/backup" component={BackupSettings} />
+          <Route path="/settings/features" component={FeatureSettings} />
+          <Route path="/catalogue" component={Catalogue} />
+          <Route path="/catalogue/:id" component={CatalogueDetail} />
+          <Route path="/suppliers" component={Suppliers} />
+          <Route path="/materials" component={Materials} />
+          <Route path="/inventory" component={Inventory} />
+          <Route path="/inventory/:id" component={InventoryItemDetail} />
+          <Route path="/production" component={Production} />
+          <Route path="/production/:id" component={ProductionBatchDetail} />
+          <Route path="/collections" component={Collections} />
+          <Route path="/garment-units" component={GarmentUnits} />
           <Route default component={NotFound} />
         </Router>
       </main>

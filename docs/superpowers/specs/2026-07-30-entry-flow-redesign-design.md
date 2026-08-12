@@ -1,7 +1,9 @@
 # Entry flow redesign — design
 
 Date: 2026-07-30
-Status: approved, not implemented
+Status: implemented, then partly superseded by
+`2026-08-11-registration-redesign.md` — E3, E8 and E9, and the five-step setup
+in "Screens", no longer describe the code. The rest still holds.
 Scope: everything before the authenticated shell — landing, sign-in, first-run setup, and the PIN lock.
 
 ## Why
