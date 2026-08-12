@@ -21,9 +21,10 @@
 /* ═══════════════════════════════════════════════════════════ 1. THE KNOBS ═══
    Change these to change the app. */
 :root {
-  /* Iris. Far enough from money (75), danger (27) and success (158) that no
-     status colour can be mistaken for a brand colour. */
-  --hue-brand: 274;
+  /* Far enough from money (75), danger (27) and success (158) that no status
+     colour can be mistaken for a brand colour. */
+  /* --brand-600 is #013ef1. Chroma is capped to sRGB at every step. */
+  --hue-brand: 263.8;
   /* 0 is greyscale, 1 as designed, 1.2 loud. */
   --sat-brand: 1;
 
@@ -42,17 +43,17 @@
    these outside section 3. */
 :root {
   /* -- brand ------------------------------------------------------------- */
-  --brand-50: oklch(0.977 calc(0.012 * var(--sat-brand)) var(--hue-brand));
-  --brand-100: oklch(0.95 calc(0.028 * var(--sat-brand)) var(--hue-brand));
-  --brand-200: oklch(0.902 calc(0.056 * var(--sat-brand)) var(--hue-brand));
-  --brand-300: oklch(0.826 calc(0.098 * var(--sat-brand)) var(--hue-brand));
-  --brand-400: oklch(0.72 calc(0.148 * var(--sat-brand)) var(--hue-brand));
-  --brand-500: oklch(0.615 calc(0.182 * var(--sat-brand)) var(--hue-brand));
-  --brand-600: oklch(0.535 calc(0.196 * var(--sat-brand)) var(--hue-brand));
-  --brand-700: oklch(0.462 calc(0.182 * var(--sat-brand)) var(--hue-brand));
-  --brand-800: oklch(0.392 calc(0.152 * var(--sat-brand)) var(--hue-brand));
-  --brand-900: oklch(0.33 calc(0.118 * var(--sat-brand)) var(--hue-brand));
-  --brand-950: oklch(0.232 calc(0.082 * var(--sat-brand)) var(--hue-brand));
+  --brand-50: oklch(0.977 calc(0.0105 * var(--sat-brand)) var(--hue-brand));
+  --brand-100: oklch(0.95 calc(0.023 * var(--sat-brand)) var(--hue-brand));
+  --brand-200: oklch(0.902 calc(0.046 * var(--sat-brand)) var(--hue-brand));
+  --brand-300: oklch(0.826 calc(0.084 * var(--sat-brand)) var(--hue-brand));
+  --brand-400: oklch(0.72 calc(0.141 * var(--sat-brand)) var(--hue-brand));
+  --brand-500: oklch(0.615 calc(0.201 * var(--sat-brand)) var(--hue-brand));
+  --brand-600: oklch(0.483 calc(0.266 * var(--sat-brand)) var(--hue-brand));
+  --brand-700: oklch(0.425 calc(0.236 * var(--sat-brand)) var(--hue-brand));
+  --brand-800: oklch(0.36 calc(0.204 * var(--sat-brand)) var(--hue-brand));
+  --brand-900: oklch(0.3 calc(0.16 * var(--sat-brand)) var(--hue-brand));
+  --brand-950: oklch(0.215 calc(0.111 * var(--sat-brand)) var(--hue-brand));
 
   /* -- ink (neutrals) ---------------------------------------------------- */
   --ink-0: oklch(1 0 0);
@@ -67,6 +68,7 @@
   --ink-800: oklch(0.278 calc(1.1 * var(--chroma-ink)) var(--hue-ink));
   --ink-900: oklch(0.208 calc(1 * var(--chroma-ink)) var(--hue-ink));
   --ink-950: oklch(0.165 calc(1 * var(--chroma-ink)) var(--hue-ink));
+  --ink-975: oklch(0.142 calc(1 * var(--chroma-ink)) var(--hue-ink));
   --ink-1000: oklch(0.115 calc(1 * var(--chroma-ink)) var(--hue-ink));
 
   /* -- money. Outstanding balance, and nothing else. --------------------- */
@@ -151,7 +153,7 @@
 
   /* The OS status bar. A hand-matched hex of `--page`, because meta and
      manifest colour parsers do not reliably accept oklch(). Re-match on change. */
-  --meta-theme-color: #f4f3f7;
+  --meta-theme-color: #f3f4f7;
 
   /* Light theme can afford real shadows; there is somewhere for them to fall. */
   --elev-1: 0 1px 2px oklch(0.2 0.02 var(--hue-ink) / 0.06);
@@ -166,9 +168,13 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
+  /* Chroma reads far stronger at the dark end; the light-mode 0.01 turns a
+     dark surface visibly blue. */
+  --chroma-ink: 0.003;
+
   --page: var(--ink-1000);
-  --surface: var(--ink-950);
-  --surface-raised: var(--ink-900);
+  --surface: var(--ink-975);
+  --surface-raised: var(--ink-950);
   --surface-sunken: var(--ink-900);
   --hover: var(--ink-900);
   --pressed: var(--ink-800);
@@ -211,7 +217,7 @@
 
   /* See the light-theme note. Also the value in vite.config.ts's manifest and
      index.html's fallback, because a splash screen has no theme to read. */
-  --meta-theme-color: #0d0c12;
+  --meta-theme-color: #050506;
 
   /* Near-nothing: a shadow on a dark page is invisible work, and elevation is
      already carried by the lighter fill. Keeps one utility safe in both themes. */

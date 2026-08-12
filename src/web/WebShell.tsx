@@ -9,43 +9,44 @@
  * page. A back-office is a workspace: the sidebar and the table header stay put
  * while the rows move, which cannot be done if the document itself scrolls.
  */
-import { Route, Router, useLocation } from 'preact-iso'
+import { ErrorBoundary, Route, Router, lazy, useLocation } from 'preact-iso'
 import { useCallback, useState } from 'preact/hooks'
 import { AppBar } from './AppBar'
 import { CommandPalette } from './CommandPalette'
-import { useShortcuts } from './useShortcuts'
 import { Sidebar } from './Sidebar'
-import { TodayPage } from './TodayPage'
-import { OrdersPage } from './OrdersPage'
-import { ClientsPage } from './ClientsPage'
-import { ClientDetailPage } from './ClientDetailPage'
-import { SalesPage } from './SalesPage'
-import { ExpensesPage } from './ExpensesPage'
-import { ReportsPage } from './ReportsPage'
-import { OrderDetail } from '../screens/OrderDetail'
-import { OrderForm } from '../screens/OrderForm'
-import { SaleForm } from '../screens/SaleForm'
-import { Settings } from '../screens/Settings'
-import { ShopSettings } from '../screens/settings/ShopSettings'
-import { MeasurementFieldSettings } from '../screens/settings/MeasurementFieldSettings'
-import { LockSettings } from '../screens/settings/LockSettings'
-import { StaffSettings } from '../screens/settings/StaffSettings'
-import { BackupSettings } from '../screens/settings/BackupSettings'
-import { FeatureSettings } from '../screens/settings/FeatureSettings'
-import { Catalogue } from '../screens/Catalogue'
-import { CatalogueDetail } from '../screens/CatalogueDetail'
-import { Suppliers } from '../screens/Suppliers'
-import { Materials } from '../screens/Materials'
-import { Inventory } from '../screens/Inventory'
-import { InventoryItemDetail } from '../screens/InventoryItemDetail'
-import { Production } from '../screens/Production'
-import { ProductionBatchDetail } from '../screens/ProductionBatchDetail'
-import { Collections } from '../screens/Collections'
-import { GarmentUnits } from '../screens/GarmentUnits'
-import { AdvancedReports } from '../screens/AdvancedReports'
-import { NotFound } from '../screens/NotFound'
+import { useShortcuts } from './useShortcuts'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
+
+const TodayPage = lazy(() => import('./TodayPage').then((m) => m.TodayPage))
+const OrdersPage = lazy(() => import('./OrdersPage').then((m) => m.OrdersPage))
+const ClientsPage = lazy(() => import('./ClientsPage').then((m) => m.ClientsPage))
+const ClientDetailPage = lazy(() => import('./ClientDetailPage').then((m) => m.ClientDetailPage))
+const SalesPage = lazy(() => import('./SalesPage').then((m) => m.SalesPage))
+const ExpensesPage = lazy(() => import('./ExpensesPage').then((m) => m.ExpensesPage))
+const ReportsPage = lazy(() => import('./ReportsPage').then((m) => m.ReportsPage))
+const OrderDetail = lazy(() => import('../screens/OrderDetail').then((m) => m.OrderDetail))
+const OrderForm = lazy(() => import('../screens/OrderForm').then((m) => m.OrderForm))
+const SaleForm = lazy(() => import('../screens/SaleForm').then((m) => m.SaleForm))
+const Settings = lazy(() => import('../screens/Settings').then((m) => m.Settings))
+const ShopSettings = lazy(() => import('../screens/settings/ShopSettings').then((m) => m.ShopSettings))
+const MeasurementFieldSettings = lazy(() => import('../screens/settings/MeasurementFieldSettings').then((m) => m.MeasurementFieldSettings))
+const LockSettings = lazy(() => import('../screens/settings/LockSettings').then((m) => m.LockSettings))
+const StaffSettings = lazy(() => import('../screens/settings/StaffSettings').then((m) => m.StaffSettings))
+const BackupSettings = lazy(() => import('../screens/settings/BackupSettings').then((m) => m.BackupSettings))
+const FeatureSettings = lazy(() => import('../screens/settings/FeatureSettings').then((m) => m.FeatureSettings))
+const Catalogue = lazy(() => import('../screens/Catalogue').then((m) => m.Catalogue))
+const CatalogueDetail = lazy(() => import('../screens/CatalogueDetail').then((m) => m.CatalogueDetail))
+const Suppliers = lazy(() => import('../screens/Suppliers').then((m) => m.Suppliers))
+const Materials = lazy(() => import('../screens/Materials').then((m) => m.Materials))
+const Inventory = lazy(() => import('../screens/Inventory').then((m) => m.Inventory))
+const InventoryItemDetail = lazy(() => import('../screens/InventoryItemDetail').then((m) => m.InventoryItemDetail))
+const Production = lazy(() => import('../screens/Production').then((m) => m.Production))
+const ProductionBatchDetail = lazy(() => import('../screens/ProductionBatchDetail').then((m) => m.ProductionBatchDetail))
+const Collections = lazy(() => import('../screens/Collections').then((m) => m.Collections))
+const GarmentUnits = lazy(() => import('../screens/GarmentUnits').then((m) => m.GarmentUnits))
+const AdvancedReports = lazy(() => import('../screens/AdvancedReports').then((m) => m.AdvancedReports))
+const NotFound = lazy(() => import('../screens/NotFound').then((m) => m.NotFound))
 
 /**
  * Screens the web design has not been drawn for yet fall back to the phone
@@ -105,7 +106,8 @@ export function WebShell({
       <div class="flex min-h-0 flex-1">
         <Sidebar online={online} auth={auth} replication={replication} />
         <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <Router>
+          <ErrorBoundary>
+            <Router>
             <Route path="/" component={TodayPage} />
             <Route path="/orders" component={OrdersPage} />
             <Route path="/clients" component={ClientsPage} />
@@ -120,7 +122,8 @@ export function WebShell({
             ))}
 
             <Route default component={NotFound} />
-          </Router>
+            </Router>
+          </ErrorBoundary>
         </main>
       </div>
 

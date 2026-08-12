@@ -8,17 +8,31 @@ import type { ComponentChildren } from 'preact'
 import { useEffect } from 'preact/hooks'
 import { cn } from '../lib/cn'
 
+/** Edge to edge on a phone, inset card from `sm`. Cancels the page gutter so
+ *  rows pad once, not twice. */
+export const FLUSH_SURFACE =
+  '-mx-gutter overflow-hidden bg-surface sm:mx-0 sm:rounded-card sm:shadow-raise'
+
 export function Card({
   children,
   class: className,
   padded = true,
+  flush = false,
 }: {
   children: ComponentChildren
   class?: string
   padded?: boolean
+  /** Edge to edge on a phone. See FLUSH_SURFACE. */
+  flush?: boolean
 }) {
   return (
-    <div class={cn('rounded-card bg-surface shadow-raise', padded && 'p-gutter', className)}>
+    <div
+      class={cn(
+        flush ? FLUSH_SURFACE : 'rounded-card bg-surface shadow-raise',
+        padded && 'p-gutter',
+        className,
+      )}
+    >
       {children}
     </div>
   )

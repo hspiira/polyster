@@ -77,13 +77,15 @@ export async function seedVolume(
 ): Promise<void> {
   const staff = await db.staff.find({ selector: { shop_id: shop.id, active: true } }).exec()
   const staffIds = staff.map((doc) => doc.id)
+  if (staffIds.length === 0) throw new Error('seedVolume needs at least one active staff member.')
   const owner = staff.find((doc) => doc.role === 'owner')?.id ?? staffIds[0]!
 
   for (let i = 0; i < input.extraClients; i += 1) {
+    const notes = pick(CLIENT_NOTES, i, 5)
     await createClient(db, shop.id, {
       name: pick(NAMES, i, 1),
       phone: phoneFor(i),
-      ...(pick(CLIENT_NOTES, i, 5) ? { notes: pick(CLIENT_NOTES, i, 5)! } : {}),
+      ...(notes ? { notes } : {}),
     })
   }
 

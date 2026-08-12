@@ -685,7 +685,8 @@ export const saleSchema: RxJsonSchema<SaleDoc> = {
   // v1: money moved to minor units and gained `currency`, plus the void trail.
   // A v0 with `unit_price` in major units reached dev machines before the
   // rebase onto the minor-unit convention; see database.ts for the migration.
-  version: 1,
+  // v2: sold_at maxLength 30 -> 35.
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -698,7 +699,11 @@ export const saleSchema: RxJsonSchema<SaleDoc> = {
     unit_price_minor: { type: 'integer', minimum: 0 },
     method: { type: 'string', enum: [...PAYMENT_METHODS] },
     reference: { type: 'string' },
-    sold_at: { type: 'string', format: 'date-time', maxLength: 30 },
+    // 35, not 30: Postgres returns timestamptz as
+    // "2026-07-01T14:20:07.558761+00:00" -- 32 characters, microseconds plus a
+    // numeric offset. A 30 cap rejected every seeded sale on pull, which took
+    // the whole replication down. Indexed, so the cap is required.
+    sold_at: { type: 'string', format: 'date-time', maxLength: 35 },
     recorded_by: uuidField,
     notes: { type: 'string' },
     voided_by: uuidField,

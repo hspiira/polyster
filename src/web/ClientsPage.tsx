@@ -12,13 +12,15 @@
  * is how someone is looked up when the phone rings.
  */
 import { useMemo, useState } from 'preact/hooks'
+import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
+import { AddClientSheet } from '../components/AddClientSheet'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { OPEN_STAGES } from '../screens/today/todayModel'
 import { EmptyState, getInitials } from '../ui'
-import { IconSearch, IconUsers } from '../components/icons'
+import { IconPlus, IconSearch, IconUsers } from '../components/icons'
 import { cn } from '../lib/cn'
 import { Page } from './Page'
 import { Table, type TableColumn } from './Table'
@@ -34,7 +36,9 @@ interface ClientRow {
 
 export function ClientsPage() {
   const { db, shop } = useCurrentShop()
+  const location = useLocation()
   const [search, setSearch] = useState('')
+  const [adding, setAdding] = useState(false)
 
   const clientDocs = useRxQuery(
     () => db.clients.find({ selector: { shop_id: shop.id }, sort: [{ name: 'asc' }] }).$,
@@ -140,6 +144,21 @@ export function ClientsPage() {
     <Page
       crumbs={['Work']}
       title="Clients"
+      actions={
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          class={cn(
+            'flex items-center gap-1.5 bg-accent px-3 font-semibold text-accent-content',
+            'hover:brightness-110',
+            CONTROL_SM,
+            RADIUS,
+            TEXT_SM,
+          )}
+        >
+          <IconPlus size={14} /> Add client
+        </button>
+      }
       viewbar={
         <>
           <span class={cn('relative', CONTROL_SM)}>
@@ -182,8 +201,30 @@ export function ClientsPage() {
                 ? 'Add a client and their measurements, then you can take an order for them.'
                 : `Nothing found for "${search.trim()}". Check the spelling.`
             }
+            action={
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                class={cn(
+                  'flex items-center gap-1.5 bg-accent px-3 font-semibold text-accent-content',
+                  'hover:brightness-110',
+                  CONTROL_SM,
+                  RADIUS,
+                  TEXT_SM,
+                )}
+              >
+                <IconPlus size={14} /> {rows.length === 0 ? 'Add the first client' : 'Add client'}
+              </button>
+            }
           />
         }
+      />
+
+      <AddClientSheet
+        open={adding}
+        onClose={() => setAdding(false)}
+        // Straight to the new client, which is where you were heading anyway.
+        onCreated={(clientId) => location.route(`/clients/${clientId}`)}
       />
     </Page>
   )

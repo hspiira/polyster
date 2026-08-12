@@ -1,16 +1,6 @@
 /**
- * Today's top: sync state, the way to Settings, and the page's name.
- *
- * Replaces the profile header (spec A9). That header carried a greeting, the
- * shop name, an avatar ring and a "More" sheet holding Reports and the settings
- * pages -- roughly a fifth of the viewport spent telling someone their own name
- * on the one screen where the work is most urgent.
- *
- * What it carried is not lost, only moved. Reports is now the Money tab, so it
- * needs no sheet; Settings is the avatar; sync is a line, which is what
- * ARCHITECTURE section 9 asks for and all it asks for. The greeting is gone,
- * and the spec that introduced it already called it "untested copy" that "may
- * read as tone-deaf" above a hero saying two orders are late.
+ * Today's top: the date, sync state, and the way to Settings. The date is the
+ * heading rather than the word "Today", which the tab bar already says.
  */
 import { Avatar } from '../../components/ui'
 import { SyncBadge } from '../../components/SyncBadge'
@@ -18,19 +8,32 @@ import { IconSettings } from '../../components/icons'
 import type { AuthState } from '../../lib/auth'
 import type { ReplicationStatus } from '../../hooks/useReplication'
 
+const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long' })
+const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short' })
+
+function toLocalDate(isoDate: string): Date {
+  const [year, month, day] = isoDate.split('-').map(Number)
+  return new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1)
+}
+
 export function TodayTop({
+  date,
   staffName,
   online,
   auth,
   replication,
 }: {
+  /** YYYY-MM-DD. */
+  date: string
   staffName?: string
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
 }) {
+  const local = toLocalDate(date)
+
   return (
-    <header class="mb-4">
+    <header class="mb-3">
       <div class="flex items-center justify-between gap-3">
         <SyncBadge online={online} auth={auth} replication={replication} />
         <a
@@ -44,16 +47,15 @@ export function TodayTop({
         </a>
       </div>
 
-      {/*
-        Not an `h1`: `Screen label="Today"` already renders one, visually hidden,
-        so a second would announce the page name twice to a screen reader. This
-        is the same word made visible, and it is decorative by definition.
-      */}
-      <p
-        aria-hidden="true"
-        class="mt-1 text-[26px] font-semibold leading-tight tracking-tight"
-      >
-        Today
+      {/* Not an `h1`: `Screen label` already renders one, visually hidden. */}
+      <p aria-hidden="true" class="mt-0.5 flex items-baseline gap-2">
+        <span class="text-[32px] font-semibold leading-none tracking-tight tabular-nums">
+          {local.getDate()}
+        </span>
+        <span class="text-[22px] font-medium leading-none tracking-tight text-content-muted">
+          {WEEKDAY.format(local)}
+        </span>
+        <span class="text-[15px] leading-none text-content-subtle">{MONTH.format(local)}</span>
       </p>
     </header>
   )
