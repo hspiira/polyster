@@ -38,7 +38,9 @@ import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDueDate, today } from '../lib/dates'
-import { ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from './orderStage'
+import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from './orderStage'
+import { cn } from '../lib/cn'
+import { normalizeTone, TONE_SOFT } from '../ui/tones'
 import {
   OPEN_STAGES,
   buildBuckets,
@@ -118,7 +120,10 @@ const ORDER_COLUMNS: readonly Column<DueRow>[] = [
             <span class="font-normal text-content-muted"> · return</span>
           )}
         </span>
-        <span class="mt-0.5 block truncate text-xs font-normal text-content-subtle">
+        <span
+          class="mt-0.5 hidden truncate text-xs font-normal text-content-subtle
+                 @[44rem]/data-list:block"
+        >
           {row.order.reference}
         </span>
       </>
@@ -132,6 +137,7 @@ const ORDER_COLUMNS: readonly Column<DueRow>[] = [
   {
     id: 'type',
     label: 'Type',
+    wideOnly: true,
     render: (row) => ORDER_TYPE_LABELS[row.order.order_type],
   },
   {
@@ -165,7 +171,7 @@ const ORDER_COLUMNS: readonly Column<DueRow>[] = [
           {formatMinor(row.outstanding_minor, row.order.currency)}
         </span>
       ) : (
-        <span class="font-normal text-content-subtle">--</span>
+        <span class="hidden font-normal text-content-subtle @[44rem]/data-list:inline">--</span>
       ),
   },
 ]
@@ -254,9 +260,26 @@ export function Orders() {
           columns={ORDER_COLUMNS}
           getKey={(row) => `${row.order.id}-${row.kind}`}
           href={(row) => `/orders/${row.order.id}`}
+          leading={(row) => <OrderTypeTile row={row} />}
         />
       )}
     </Screen>
+  )
+}
+
+/** Type as shape, stage as colour. The same tile Today's list uses. */
+function OrderTypeTile({ row }: { row: DueRow }) {
+  const TypeIcon = ORDER_TYPE_ICONS[row.order.order_type]
+  return (
+    <span
+      class={cn(
+        'flex size-8 shrink-0 items-center justify-center rounded-[0.65rem]',
+        TONE_SOFT[normalizeTone(STAGE_TONES[row.order.stage])],
+      )}
+    >
+      <TypeIcon size={16} />
+      <span class="sr-only">{ORDER_TYPE_LABELS[row.order.order_type]}</span>
+    </span>
   )
 }
 

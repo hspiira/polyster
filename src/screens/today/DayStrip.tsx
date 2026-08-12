@@ -1,11 +1,6 @@
 /**
- * Seven days of workload. Informational: a cell links out to the order list
- * for that day rather than filtering this screen (spec N7).
- *
- * The strip runs from today forward, not Monday to Sunday. A tailor reads it
- * to answer "what is coming", so spending three cells on days already worked
- * would be three cells wasted -- and `buildDayStrip` already counts it this
- * way, under test.
+ * Seven days of workload, today first. A cell links out to that day's order
+ * list rather than filtering this screen (spec N7).
  */
 import { formatDate } from '../../lib/dates'
 import { cn } from '../../lib/cn'
@@ -26,9 +21,6 @@ export function DayStrip({ cells }: { cells: readonly DayCell[] }) {
           class={cn(
             'flex flex-1 flex-col items-center gap-1 rounded-control py-1.5',
             'transition-colors active:bg-pressed',
-            // Today is a filled tile, the way the rest of the app marks a
-            // current selection. Every other day stays flat so the fill means
-            // one thing only.
             cell.isToday ? 'bg-surface-sunken' : 'hover:bg-hover',
           )}
         >
@@ -41,11 +33,7 @@ export function DayStrip({ cells }: { cells: readonly DayCell[] }) {
           >
             {cell.dayOfMonth}
           </span>
-          {/*
-            A dot, not the number. The count is one glance's worth of "is this
-            day busy", and the exact figure is on the list the cell opens.
-            Fixed height whether or not it shows, so the row cannot jitter.
-          */}
+          {/* Fixed height whether or not the dot shows, so the row cannot jitter. */}
           <span class="flex h-1.5 items-center" aria-hidden="true">
             {cell.count > 0 && <span class="size-1.5 rounded-full bg-accent" />}
           </span>

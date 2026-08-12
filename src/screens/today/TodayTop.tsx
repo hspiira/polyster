@@ -1,13 +1,6 @@
 /**
- * Today's top: the date, sync state, and the way to Settings.
- *
- * The date is the heading rather than the word "Today" (which the tab bar
- * already says, and which tells nobody anything). A shop reading a due date
- * of "26 Sept" on an order needs today's number on screen to subtract from.
- *
- * What the old profile header carried is not lost, only moved: Reports is the
- * Money tab, Settings is the avatar, sync is a line -- see ARCHITECTURE.md
- * section 9.
+ * Today's top: the date, sync state, and the way to Settings. The date is the
+ * heading rather than the word "Today", which the tab bar already says.
  */
 import { Avatar } from '../../components/ui'
 import { SyncBadge } from '../../components/SyncBadge'
@@ -54,11 +47,7 @@ export function TodayTop({
         </a>
       </div>
 
-      {/*
-        Not an `h1`: `Screen label="Today"` already renders one, visually
-        hidden, so a second would announce the page twice. This is decorative
-        by definition -- the same day the strip below marks.
-      */}
+      {/* Not an `h1`: `Screen label` already renders one, visually hidden. */}
       <p aria-hidden="true" class="mt-0.5 flex items-baseline gap-2">
         <span class="text-[32px] font-semibold leading-none tracking-tight tabular-nums">
           {local.getDate()}

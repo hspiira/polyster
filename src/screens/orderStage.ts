@@ -41,14 +41,7 @@ export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
   repair: 'Repair',
 }
 
-/**
- * Kept beside the labels so a new order type cannot get one and not the other.
- *
- * A ruler for tailor-made, because being cut to measure is what separates it
- * from a purchase; a tag for a purchase, the same glyph the catalogue uses for
- * a ready-made thing; a clock for a pre-order, which is a thing that does not
- * exist yet.
- */
+/** Beside the labels so a new order type cannot get one and not the other. */
 export const ORDER_TYPE_ICONS: Record<OrderType, (props: { size?: number }) => preact.JSX.Element> = {
   tailor_made: IconRuler,
   rental: IconRepeat,

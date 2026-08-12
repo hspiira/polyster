@@ -33,6 +33,34 @@
   transition: background-color var(--dur-fast) ease-out;
 }
 
+/* A leading tile spans both text rows. */
+.data-row:has(> [data-cell='leading']) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+.data-row > [data-cell='leading'] {
+  grid-area: 1 / 1 / 3 / 2;
+  display: flex;
+  align-items: center;
+}
+.data-row:has(> [data-cell='leading']) > [data-cell='primary'] {
+  grid-area: 1 / 2;
+}
+.data-row:has(> [data-cell='leading']) > .data-meta {
+  grid-area: 2 / 2;
+}
+.data-row:has(> [data-cell='leading']) > [data-cell='status'] {
+  grid-area: 1 / 3;
+}
+.data-row:has(> [data-cell='leading']) > [data-cell='figure'] {
+  grid-area: 2 / 3;
+}
+
+/* Descendant, not child: meta cells live inside `.data-meta`. */
+.data-row [data-cell][data-wide-only] {
+  display: none;
+}
+
 .data-row > [data-cell='primary'] {
   grid-area: 1 / 1;
   min-width: 0;
@@ -44,6 +72,7 @@
   align-items: baseline;
   column-gap: 0.5rem;
   min-width: 0;
+  font-size: 0.8125rem;
 }
 .data-row > [data-cell='status'] {
   grid-area: 1 / 2;
@@ -100,6 +129,7 @@
   .data-list-head > .data-meta,
   .data-row > .data-meta {
     display: contents;
+    font-size: inherit;
   }
 
   /* Every cell placed by source order instead of by role. */
@@ -108,6 +138,15 @@
     grid-area: auto;
     justify-self: stretch;
     min-width: 0;
+  }
+
+  .data-list-head > [data-cell='leading'],
+  .data-row > [data-cell='leading'] {
+    display: none;
+  }
+  .data-list-head [data-cell][data-wide-only],
+  .data-row [data-cell][data-wide-only] {
+    display: block;
   }
 
   .data-row {

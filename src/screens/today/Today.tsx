@@ -5,7 +5,7 @@
  * figure is a reactive local query. All derivation lives in todayModel.ts.
  */
 import { useMemo } from 'preact/hooks'
-import { Avatar, Button, EmptyState, MoreLink, Screen, Skeleton } from '../../components/ui'
+import { Avatar, Button, EmptyState, FLUSH_SURFACE, MoreLink, Screen, Skeleton } from '../../components/ui'
 import { IconPlus } from '../../components/icons'
 import { IllustrationOrders } from '../../components/illustrations'
 import { ShopPrompts } from '../../components/ShopPrompts'
@@ -19,7 +19,7 @@ import type { ReplicationStatus } from '../../hooks/useReplication'
 import { Hero } from './Hero'
 import { TodayTop } from './TodayTop'
 import { DayStrip } from './DayStrip'
-import { DueList, SURFACE, type DueSection } from './DueList'
+import { DueList, type DueSection } from './DueList'
 import {
   buildBuckets,
   buildDayStrip,
@@ -160,18 +160,13 @@ export function Today({ online, auth, replication }: TodayProps) {
       <Hero segments={segments} />
       <ShopPrompts />
 
-      {/* One column on a phone. Two up on a desktop, where the width exists
-          and a busy shop stops having to scroll. */}
+      {/* One column on a phone, two up on a desktop. */}
       <div class="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
         <DueList sections={sections} />
 
         {money.outstanding_minor > 0 && (
-          /*
-            No headline figure here: the hero sentence above already gives the
-            total, and repeating it cost a 56px line to say nothing new. This
-            block answers the question the total raises -- who owes it.
-          */
-          <section class={SURFACE}>
+          /* No headline figure: the hero sentence already gives the total. */
+          <section class={FLUSH_SURFACE}>
             <h2 class="flex items-center gap-2 px-gutter pt-3 pb-1.5">
               <span class="size-1.5 shrink-0 rounded-full bg-money" aria-hidden="true" />
               <span class="text-[13px] font-semibold">Owed to you</span>
@@ -187,8 +182,6 @@ export function Today({ online, auth, replication }: TodayProps) {
                     class="flex min-h-tap items-center gap-3 px-gutter py-2 transition-colors
                            hover:bg-hover active:bg-pressed"
                   >
-                    {/* These rows are about a person, not a garment, so the
-                        tile is who rather than what. */}
                     <Avatar name={row.clientName} size="sm" />
                     <span class="min-w-0 flex-1">
                       <span class="flex items-baseline gap-2">

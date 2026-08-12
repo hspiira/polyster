@@ -20,7 +20,7 @@ export {
 } from './tones'
 
 export { MEASURE, MEASURE_WIDE, Screen, Sections, type ScreenWidth } from './Screen'
-export { Card, SectionCard, SectionTitle, Sheet } from './Surface'
+export { Card, FLUSH_SURFACE, SectionCard, SectionTitle, Sheet } from './Surface'
 export { Button, HeaderAction } from './Button'
 export { Field, Input, SearchInput, Segmented, Select, Textarea } from './Field'
 export { DataList, type CellRole, type Column } from './DataList'

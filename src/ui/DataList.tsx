@@ -11,6 +11,7 @@
  */
 import type { ComponentChildren } from 'preact'
 import { cn } from '../lib/cn'
+import { FLUSH_SURFACE } from './Surface'
 
 /**
  * Where a column lands in the card form. `primary` is the line you read first
@@ -35,6 +36,8 @@ export interface Column<T> {
   srLabel?: string
   /** Grid track in table form. Defaults by role. */
   width?: string
+  /** Dropped from the card form, kept in the table. */
+  wideOnly?: boolean
 }
 
 const ROLE_ORDER: Record<CellRole, number> = {
@@ -105,6 +108,7 @@ function Cell<T>({
     <span
       data-cell={role}
       data-align={role === 'figure' ? 'end' : undefined}
+      data-wide-only={column.wideOnly ? '' : undefined}
       class={cn('min-w-0', ROLE_CLASS[role])}
     >
       {column.srLabel && <span class="sr-only">{column.srLabel} </span>}
@@ -114,9 +118,14 @@ function Cell<T>({
 }
 
 /** The fixed primary / metas / trailing shape the header and every row share. */
-function cellRow<T>(layout: Layout<T>, content: (column: Column<T>) => ComponentChildren) {
+function cellRow<T>(
+  layout: Layout<T>,
+  content: (column: Column<T>) => ComponentChildren,
+  leading?: ComponentChildren,
+) {
   return (
     <>
+      {leading !== undefined && <span data-cell="leading">{leading}</span>}
       {layout.primary.map((column) => (
         <Cell key={column.id} column={column}>
           {content(column)}
@@ -146,6 +155,7 @@ export function DataList<T>({
   getKey,
   href,
   label,
+  leading,
   class: className,
 }: {
   items: readonly T[]
@@ -155,25 +165,27 @@ export function DataList<T>({
   href?: (item: T) => string
   /** Names the list for screen readers, e.g. "Orders". */
   label: string
+  /** Tile at the head of each card-form row. Hidden in the table form. */
+  leading?: (item: T) => ComponentChildren
   class?: string
 }) {
   const layout = layoutOf(columns)
 
   return (
     <div
-      class={cn('data-list overflow-hidden rounded-card bg-surface shadow-raise', className)}
+      class={cn('data-list', FLUSH_SURFACE, className)}
       style={`--data-cols: ${layout.template}`}
     >
       {/* Decorative: these are list items, not table cells, so the header
           aligns but does not label. Naming is `srLabel`'s job. */}
       <div class="data-list-head" aria-hidden="true">
-        {cellRow(layout, (column) => column.label)}
+        {cellRow(layout, (column) => column.label, leading ? null : undefined)}
       </div>
 
       <ul aria-label={label}>
         {items.map((item) => {
           const target = href?.(item)
-          const cells = cellRow(layout, (column) => column.render(item))
+          const cells = cellRow(layout, (column) => column.render(item), leading?.(item))
           return (
             <li key={getKey(item)}>
               {target ? (

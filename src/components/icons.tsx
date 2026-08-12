@@ -263,7 +263,7 @@ export const IconLayers = (p: IconProps) => (
   </Icon>
 )
 
-/** Two arrows round a loop: a rental, which goes out and comes back. */
+/** A loop: a rental, which goes out and comes back. */
 export const IconRepeat = (p: IconProps) => (
   <Icon {...p}>
     <path d="M4 12a8 8 0 0 1 8-8 8 8 0 0 1 6.9 4" />
@@ -273,13 +273,7 @@ export const IconRepeat = (p: IconProps) => (
   </Icon>
 )
 
-/**
- * Scissors: a repair, which is altering rather than making.
- *
- * A needle and thread would be the truer glyph, but at the 17px these render
- * at it collapsed into an ambiguous diagonal slash. Two circles and a cross
- * survive the size, and a tailor reads scissors as alteration.
- */
+/** Scissors: a repair. A needle and thread turns to mush at 16px. */
 export const IconScissors = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="6" cy="6" r="2.6" />
