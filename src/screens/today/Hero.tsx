@@ -17,8 +17,8 @@ const TONES: Record<HeroTone, string> = {
 
 export function Hero({ segments }: { segments: readonly HeroSegment[] }) {
   return (
-    <header class="mb-6 pt-1">
-      <p class="text-[28px] leading-[1.2] tracking-tight text-balance">
+    <header class="mt-1 mb-4">
+      <p class="text-[22px] leading-[1.25] tracking-tight text-balance">
         {segments.map((segment, index) => (
           <span key={index} class={cn(TONES[segment.tone])}>
             {segment.text}

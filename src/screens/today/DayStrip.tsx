@@ -1,55 +1,54 @@
 /**
  * Seven days of workload. Informational: a cell links out to the order list
  * for that day rather than filtering this screen (spec N7).
+ *
+ * The strip runs from today forward, not Monday to Sunday. A tailor reads it
+ * to answer "what is coming", so spending three cells on days already worked
+ * would be three cells wasted -- and `buildDayStrip` already counts it this
+ * way, under test.
  */
 import { formatDate } from '../../lib/dates'
 import { cn } from '../../lib/cn'
 import type { DayCell } from './todayModel'
 
-/**
- * Today is marked by a rule beneath its cell, not by a card. There is no
- * selection state to show -- tapping navigates away rather than filtering this
- * screen (spec N7) -- so a filled tile would be claiming something untrue.
- */
 export function DayStrip({ cells }: { cells: readonly DayCell[] }) {
   return (
-    <nav aria-label="The week ahead" class="mb-6 flex">
+    <nav aria-label="The week ahead" class="mb-4 flex gap-1">
       {cells.map((cell) => (
         <a
           key={cell.date}
           href={`/orders?due=${cell.date}`}
-          aria-label={cell.count === 0 ? `Nothing due on ${formatDate(cell.date)}` : `${cell.count} due on ${formatDate(cell.date)}`}
-          class="group flex min-h-16 flex-1 flex-col items-center gap-1 pt-1"
+          aria-label={
+            cell.count === 0
+              ? `Nothing due on ${formatDate(cell.date)}`
+              : `${cell.count} due on ${formatDate(cell.date)}`
+          }
+          class={cn(
+            'flex flex-1 flex-col items-center gap-1 rounded-control py-1.5',
+            'transition-colors active:bg-pressed',
+            // Today is a filled tile, the way the rest of the app marks a
+            // current selection. Every other day stays flat so the fill means
+            // one thing only.
+            cell.isToday ? 'bg-surface-sunken' : 'hover:bg-hover',
+          )}
         >
-          <span class="text-[11px] text-stone-500 dark:text-stone-400">
-            {cell.weekdayInitial}
-          </span>
+          <span class="text-[11px] leading-none text-content-subtle">{cell.weekdayInitial}</span>
           <span
             class={cn(
-              'text-[15px] tabular-nums',
-              cell.isToday
-                ? 'font-semibold text-stone-900 dark:text-stone-50'
-                : 'text-stone-500 dark:text-stone-400',
+              'text-[15px] leading-none tabular-nums',
+              cell.isToday ? 'font-semibold text-content' : 'text-content-muted',
             )}
           >
             {cell.dayOfMonth}
           </span>
-          {cell.countLabel ? (
-            <span class="text-[11px] font-semibold tabular-nums text-brand-700 dark:text-brand-300">
-              {cell.countLabel}
-            </span>
-          ) : (
-            <span class="text-[11px] text-stone-300 dark:text-stone-700" aria-hidden="true">
-              ·
-            </span>
-          )}
-          <span
-            aria-hidden="true"
-            class={cn(
-              'mt-auto h-0.5 w-5 rounded-full',
-              cell.isToday ? 'bg-brand-700 dark:bg-brand-400' : 'bg-transparent',
-            )}
-          />
+          {/*
+            A dot, not the number. The count is one glance's worth of "is this
+            day busy", and the exact figure is on the list the cell opens.
+            Fixed height whether or not it shows, so the row cannot jitter.
+          */}
+          <span class="flex h-1.5 items-center" aria-hidden="true">
+            {cell.count > 0 && <span class="size-1.5 rounded-full bg-accent" />}
+          </span>
         </a>
       ))}
     </nav>

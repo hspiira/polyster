@@ -5,17 +5,7 @@
  * figure is a reactive local query. All derivation lives in todayModel.ts.
  */
 import { useMemo } from 'preact/hooks'
-import {
-  AccentRow,
-  Button,
-  Chip,
-  EmptyState,
-  MoreLink,
-  Screen,
-  SectionCard,
-  Skeleton,
-  StatValue,
-} from '../../components/ui'
+import { Button, EmptyState, MoreLink, Screen, Skeleton } from '../../components/ui'
 import { IconPlus } from '../../components/icons'
 import { IllustrationOrders } from '../../components/illustrations'
 import { ShopPrompts } from '../../components/ShopPrompts'
@@ -23,23 +13,19 @@ import { useCurrentShop } from '../../state/ShopProvider'
 import { useRxQuery, useRxQueryStatus } from '../../hooks/useRxQuery'
 import { observeShopBalances } from '../../db/balances'
 import { formatMinor } from '../../lib/money'
-import { formatDueDate, today } from '../../lib/dates'
-import { STAGE_LABELS, STAGE_TONES } from '../orderStage'
-import type { FilterScope } from '../Orders'
+import { today } from '../../lib/dates'
 import type { AuthState } from '../../lib/auth'
 import type { ReplicationStatus } from '../../hooks/useReplication'
 import { Hero } from './Hero'
 import { TodayTop } from './TodayTop'
+import { DayStrip } from './DayStrip'
+import { DueList, type DueSection } from './DueList'
 import {
   buildBuckets,
+  buildDayStrip,
   buildMoneySummary,
-  capRows,
   heroSegments,
-  type DueRow,
 } from './todayModel'
-
-/** Rows shown per bucket before the "See all" link takes over. */
-const ROW_CAP = 4
 
 interface TodayProps {
   online: boolean
@@ -85,6 +71,7 @@ export function Today({ online, auth, replication }: TodayProps) {
     () => buildMoneySummary(orders, clientNames, balances),
     [orders, clientNames, balances],
   )
+  const dayCells = useMemo(() => buildDayStrip(orders, now), [orders, now])
 
   const segments = heroSegments({
     late: buckets.overdue.length,
@@ -98,6 +85,7 @@ export function Today({ online, auth, replication }: TodayProps) {
     return (
       <Screen label="Today">
         <TodayTop
+          date={now}
           staffName={activeStaff?.name}
           online={online}
           auth={auth}
@@ -121,6 +109,7 @@ export function Today({ online, auth, replication }: TodayProps) {
     return (
       <Screen label="Today">
         <TodayTop
+          date={now}
           staffName={activeStaff?.name}
           online={online}
           auth={auth}
@@ -151,128 +140,76 @@ export function Today({ online, auth, replication }: TodayProps) {
     )
   }
 
+  const sections: DueSection[] = [
+    { title: 'Overdue', tone: 'danger', filter: 'overdue', rows: buckets.overdue },
+    { title: 'Due today', tone: 'money', filter: 'today', rows: buckets.dueToday },
+    { title: 'Due this week', tone: 'neutral', filter: 'week', rows: buckets.dueThisWeek },
+    { title: 'Out on rental', tone: 'accent', filter: 'out', rows: buckets.outOnRental },
+  ]
+
   return (
     <Screen label="Today" wide>
       <TodayTop
-          staffName={activeStaff?.name}
-          online={online}
-          auth={auth}
-          replication={replication}
-        />
+        date={now}
+        staffName={activeStaff?.name}
+        online={online}
+        auth={auth}
+        replication={replication}
+      />
+      <DayStrip cells={dayCells} />
       <Hero segments={segments} />
       <ShopPrompts />
 
-      {/* One column on a phone, overdue first. Two up on a desktop, reading
-          left to right, so a busy shop stops having to scroll. */}
+      {/* One column on a phone. Two up on a desktop, where the width exists
+          and a busy shop stops having to scroll. */}
       <div class="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
-        <Bucket title="Overdue" tone="bad" filter="overdue" rows={buckets.overdue} />
-        <Bucket title="Due today" tone="warn" filter="today" rows={buckets.dueToday} />
-        <Bucket title="Due this week" tone="neutral" filter="week" rows={buckets.dueThisWeek} />
-
-        {buckets.outOnRental.length > 0 && (
-          <Bucket
-            title="Out on rental"
-            tone="info"
-            filter="out"
-            rows={buckets.outOnRental}
-          />
-        )}
+        <DueList sections={sections} />
 
         {money.outstanding_minor > 0 && (
-          <SectionCard
-            title="Owed to you"
-            subtitle={`across ${money.clientCount} ${money.clientCount === 1 ? 'client' : 'clients'}`}
-            footer={<MoreLink href="/reports">See reports</MoreLink>}
-          >
-            <div class="px-4 pb-3">
-              <StatValue value={formatMinor(money.outstanding_minor, shop.currency)} tone="money" />
-            </div>
+          /*
+            No headline figure here: the hero sentence above already gives the
+            total, and repeating it cost a 56px line to say nothing new. This
+            block answers the question the total raises -- who owes it.
+          */
+          <section class="overflow-hidden rounded-card bg-surface shadow-raise">
+            <h2 class="flex items-center gap-2 px-gutter pt-3 pb-1.5">
+              <span class="size-1.5 shrink-0 rounded-full bg-money" aria-hidden="true" />
+              <span class="text-[13px] font-semibold">Owed to you</span>
+              <span class="text-[13px] text-content-muted">
+                {money.clientCount} {money.clientCount === 1 ? 'client' : 'clients'}
+              </span>
+            </h2>
             <ul>
               {money.rows.map((row) => (
                 <li key={row.order.id}>
-                  <AccentRow
+                  <a
                     href={`/orders/${row.order.id}`}
-                    tone="warn"
-                    trailing={
-                      <span class="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                        {formatMinor(row.outstanding_minor, row.order.currency)}
-                      </span>
-                    }
+                    class="flex min-h-tap items-stretch gap-2.5 pr-gutter transition-colors
+                           hover:bg-hover active:bg-pressed"
                   >
-                    <span class="block truncate font-medium">{row.clientName}</span>
-                    <span class="block truncate text-sm text-stone-500 dark:text-stone-400">
-                      {row.order.summary}
-                      {row.collected && ' · collected'}
+                    <span class="w-1 shrink-0 rounded-r-full bg-money" aria-hidden="true" />
+                    <span class="min-w-0 flex-1 py-2">
+                      <span class="flex items-baseline gap-2">
+                        <span class="min-w-0 flex-1 truncate text-[15px] font-medium">
+                          {row.clientName}
+                        </span>
+                        <span class="shrink-0 text-[13px] font-semibold tabular-nums text-money">
+                          {formatMinor(row.outstanding_minor, row.order.currency)}
+                        </span>
+                      </span>
+                      <span class="mt-0.5 block truncate text-[13px] text-content-muted">
+                        {row.order.summary}
+                        {row.collected && ' · collected'}
+                      </span>
                     </span>
-                  </AccentRow>
+                  </a>
                 </li>
               ))}
             </ul>
-          </SectionCard>
+            <MoreLink href="/reports">See reports</MoreLink>
+          </section>
         )}
       </div>
     </Screen>
-  )
-}
-
-function Bucket({
-  title,
-  tone,
-  filter,
-  rows,
-}: {
-  title: string
-  tone: 'bad' | 'warn' | 'neutral' | 'info'
-  filter: FilterScope
-  rows: DueRow[]
-}) {
-  if (rows.length === 0) return null
-
-  const { rows: shown, hidden } = capRows(rows, ROW_CAP)
-
-  return (
-    <SectionCard
-      title={title}
-      count={rows.length}
-      footer={
-        hidden > 0 ? (
-          <MoreLink href={`/orders?filter=${filter}`}>See all {rows.length}</MoreLink>
-        ) : undefined
-      }
-    >
-      <ul>
-        {shown.map((row) => (
-          <li key={`${row.order.id}-${row.kind}`}>
-            <AccentRow
-              href={`/orders/${row.order.id}`}
-              tone={tone}
-              trailing={<Chip tone={STAGE_TONES[row.order.stage]}>{STAGE_LABELS[row.order.stage]}</Chip>}
-            >
-              <span class="block truncate font-medium">
-                {row.order.summary}
-                {row.kind === 'return' && (
-                  <span class="font-normal text-stone-500 dark:text-stone-400"> · return</span>
-                )}
-              </span>
-              <span class="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-stone-500 dark:text-stone-400">
-                <span class="truncate">{row.clientName}</span>
-                <span aria-hidden="true">·</span>
-                <span class={tone === 'bad' ? 'text-red-600 dark:text-red-400' : ''}>
-                  {formatDueDate(row.dueDate)}
-                </span>
-                {row.outstanding_minor > 0 && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span class="text-amber-700 dark:text-amber-400">
-                      {formatMinor(row.outstanding_minor, row.order.currency)} due
-                    </span>
-                  </>
-                )}
-              </span>
-            </AccentRow>
-          </li>
-        ))}
-      </ul>
-    </SectionCard>
   )
 }
