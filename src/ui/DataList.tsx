@@ -58,10 +58,10 @@ const DEFAULT_TRACK: Record<CellRole, string> = {
 const ROLE_CLASS: Record<CellRole, string> = {
   // No `truncate`: a primary cell is often two lines, and `white-space: nowrap`
   // on the wrapper would flatten them. It owns its own truncation.
-  primary: 'font-medium text-content',
+  primary: 'text-[15px] font-medium text-content',
   meta: 'truncate text-sm text-content-muted',
   status: '',
-  figure: 'text-sm font-semibold tabular-nums text-content',
+  figure: 'text-[13px] font-semibold tabular-nums text-content',
 }
 
 function roleOf<T>(column: Column<T>): CellRole {

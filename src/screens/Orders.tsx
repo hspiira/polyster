@@ -157,8 +157,14 @@ const ORDER_COLUMNS: readonly Column<DueRow>[] = [
   {
     id: 'stage',
     label: 'Stage',
-    role: 'status',
-    render: (row) => <Chip tone={STAGE_TONES[row.order.stage]}>{STAGE_LABELS[row.order.stage]}</Chip>,
+    render: (row) => (
+      <>
+        <span class="@[44rem]/data-list:hidden">{STAGE_LABELS[row.order.stage]}</span>
+        <span class="hidden @[44rem]/data-list:inline">
+          <Chip tone={STAGE_TONES[row.order.stage]}>{STAGE_LABELS[row.order.stage]}</Chip>
+        </span>
+      </>
+    ),
   },
   {
     id: 'outstanding',

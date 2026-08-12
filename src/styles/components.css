@@ -68,11 +68,14 @@
 .data-row > .data-meta {
   grid-area: 2 / 1;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
   align-items: baseline;
   column-gap: 0.5rem;
   min-width: 0;
   font-size: 0.8125rem;
+  /* Fades the clip so it reads as deliberate. Invisible when the line fits. */
+  mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
 }
 .data-row > [data-cell='status'] {
   grid-area: 1 / 2;
@@ -81,6 +84,21 @@
 .data-row > [data-cell='figure'] {
   grid-area: 2 / 2;
   justify-self: end;
+}
+/* With no status chip the figure takes the top right, matching Today's rows. */
+.data-row:not(:has(> [data-cell='status'])) > [data-cell='figure'] {
+  grid-area: 1 / 2;
+}
+.data-row:has(> [data-cell='leading']):not(:has(> [data-cell='status'])) > [data-cell='figure'] {
+  grid-area: 1 / 3;
+}
+
+/* One line that clips at the end, the way Today's rows read. Shrinking the
+   cells individually chopped every one of them to "Dav... 3 days ov... Re...". */
+.data-row > .data-meta > [data-cell] {
+  flex: 0 0 auto;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 /* `::before` rather than a rendered character, so the separators are never
@@ -116,6 +134,11 @@
     row-gap: 0;
   }
 
+  .data-row > [data-cell='primary'],
+  .data-row > [data-cell='figure'] {
+    font-size: 0.875rem;
+  }
+
   .data-list-head {
     display: grid;
     padding: 0.625rem var(--gutter);
@@ -130,6 +153,10 @@
   .data-row > .data-meta {
     display: contents;
     font-size: inherit;
+  }
+  .data-row > .data-meta {
+    overflow: visible;
+    mask-image: none;
   }
 
   /* Every cell placed by source order instead of by role. */
