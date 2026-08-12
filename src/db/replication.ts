@@ -9,6 +9,7 @@
  */
 import { replicateSupabase } from 'rxdb/plugins/replication-supabase'
 import type { RxReplicationState } from 'rxdb/plugins/replication'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient'
 import type { AppDatabase, Collections } from './database'
 
@@ -33,20 +34,80 @@ export const REPLICATED_TABLES = [
 ] as const satisfies readonly (keyof Collections)[]
 
 /**
- * The Supabase plugin's pull handler does a raw `flatClone(row)` -- an
- * optional column that is simply unset comes back as SQL NULL, but every
- * RxDB schema here types optional fields as plain `string`/`enum` (no
- * `null` in the type), so pulling a fresh row with any unset optional
- * column throws RC_PULL and wedges replication. Postgres NULL and "key
- * absent" both mean the same thing to RxDB's schema, so strip nulls before
- * validation rather than widen every optional property to allow null.
+ * Every RxDB schema here types an optional column as plain `string`/`enum`
+ * (no `null` in the type) -- Postgres NULL and "key absent" mean the same
+ * thing to RxDB, so a fetched row with any unset optional column needs its
+ * nulls stripped before RxDB will accept it.
  */
-function dropNullFields<T extends object>(doc: T): T {
-  const clean = { ...doc } as Record<string, unknown>
+function dropNullFields<T extends object>(row: T): T {
+  const clean = { ...row } as Record<string, unknown>
   for (const key of Object.keys(clean)) {
     if (clean[key] === null) delete clean[key]
   }
   return clean as T
+}
+
+/**
+ * The Supabase plugin's pull handler was the first place this bit -- it does
+ * a raw `flatClone(row)` with no null handling, so a fresh pull of any row
+ * with an unset optional column threw RC_PULL and wedged replication (fixed
+ * with the `pull.modifier` below). But the plugin *also* reads rows directly
+ * -- via `fetchById`, used to resolve a write conflict on push -- through
+ * its own un-modified `rowToDoc`, bypassing that modifier entirely. That
+ * second path surfaced as RC_PUSH the first time a real push conflict
+ * actually happened (rapid sequential patches racing the same document).
+ *
+ * `pull.modifier` cannot fix the second path -- it only wraps the main pull
+ * handler's own result, not the plugin's internal conflict-resolution
+ * fetch. So the strip has to happen one level lower, on every row the
+ * plugin ever reads, regardless of which of its internal code paths reads
+ * it. Wrapping the client's `.from()` is that one place: `select`/`insert`/
+ * `update` each start a fresh chain, and every filter/modifier call in
+ * postgrest-js (`.eq()`, `.order()`, `.limit()`, ...) returns the same
+ * builder instance (`return this`), so patching `.then()` once, right where
+ * the chain starts, catches the result no matter what gets chained after it.
+ *
+ * Scoped to a client used only for replication -- the shared `getSupabase()`
+ * client keeps real `null`s for `src/online/*`, whose types mean it (e.g.
+ * `Product.category_id: string | null`).
+ */
+function withNullStrippedRows<T extends PromiseLike<{ data: unknown; error: unknown }>>(builder: T): T {
+  // Patching a third-party builder's `.then` at runtime has no structurally
+  // sound generic type -- see the block comment above for what this does and why.
+  const mutable = builder as any
+  const originalThen = mutable.then.bind(builder)
+  mutable.then = (onFulfilled?: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>
+    originalThen((result: { data: unknown; error: unknown }) => {
+      const stripped = Array.isArray(result.data)
+        ? result.data.map((row) => (row && typeof row === 'object' ? dropNullFields(row) : row))
+        : result.data && typeof result.data === 'object'
+          ? dropNullFields(result.data)
+          : result.data
+      return onFulfilled?.({ ...result, data: stripped })
+    }, onRejected)
+  return builder
+}
+
+function replicationClient(client: SupabaseClient): SupabaseClient {
+  return {
+    channel: client.channel.bind(client),
+    removeChannel: client.removeChannel.bind(client),
+    from(table: string) {
+      const queryBuilder = client.from(table)
+      return {
+        select: (...args: Parameters<typeof queryBuilder.select>) =>
+          withNullStrippedRows(queryBuilder.select(...args)),
+        insert: (...args: Parameters<typeof queryBuilder.insert>) =>
+          withNullStrippedRows(queryBuilder.insert(...args)),
+        update: (...args: Parameters<typeof queryBuilder.update>) =>
+          withNullStrippedRows(queryBuilder.update(...args)),
+      }
+    },
+    // Nothing else in rxdb/plugins/replication-supabase calls the client --
+    // confirmed by reading its source, not assumed (see the git history for
+    // this file). Anything beyond from/channel/removeChannel throwing here
+    // is a signal the plugin changed and this wrapper needs to widen.
+  } as unknown as SupabaseClient
 }
 
 export type ReplicationHandle = {
@@ -73,7 +134,7 @@ export function startReplication(db: AppDatabase): ReplicationHandle | null {
     return null
   }
 
-  const client = getSupabase()
+  const client = replicationClient(getSupabase())
 
   const states = REPLICATED_TABLES.map((tableName) => {
     const collection = db.collections[tableName]

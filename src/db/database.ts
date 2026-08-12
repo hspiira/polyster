@@ -145,6 +145,9 @@ export const ordersStrategies = {
   // contact_person, expected_fulfilment_date, product_variant_id,
   // collection_id, production_batch_id -- all optional, no shape change.
   2: (doc: OrderDoc) => doc,
+  // v3 widened order_type/stage to include 'repair' values and added
+  // garment_unit_id (optional) -- no shape change for existing documents.
+  3: (doc: OrderDoc) => doc,
 }
 
 /** Exported so a test can exercise the strategy RxDB actually ships with. */

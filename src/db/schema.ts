@@ -285,7 +285,7 @@ export const measurementProfileSchema: RxJsonSchema<MeasurementProfileDoc> = {
   indexes: ['client_id'],
 }
 
-export type OrderType = 'tailor_made' | 'rental' | 'purchase' | 'pre_order'
+export type OrderType = 'tailor_made' | 'rental' | 'purchase' | 'pre_order' | 'repair'
 export type OrderStage =
   | 'measured'
   | 'in_progress'
@@ -293,8 +293,18 @@ export type OrderStage =
   | 'picked_up'
   | 'returned'
   | 'cancelled'
+  /** Phase 9 (section 33), repair-only -- see orderStage.ts's FLOWS. */
+  | 'assessing'
+  | 'approved'
+  | 'repairing'
 
-export const ORDER_TYPES: readonly OrderType[] = ['tailor_made', 'rental', 'purchase', 'pre_order']
+export const ORDER_TYPES: readonly OrderType[] = [
+  'tailor_made',
+  'rental',
+  'purchase',
+  'pre_order',
+  'repair',
+]
 export const ORDER_STAGES: readonly OrderStage[] = [
   'measured',
   'in_progress',
@@ -302,6 +312,9 @@ export const ORDER_STAGES: readonly OrderStage[] = [
   'picked_up',
   'returned',
   'cancelled',
+  'assessing',
+  'approved',
+  'repairing',
 ]
 
 /** Phase 7 (section 32): who the order is for, orthogonal to order_type. */
@@ -354,12 +367,18 @@ export interface OrderDoc {
   product_variant_id?: string
   collection_id?: string
   production_batch_id?: string
+  /**
+   * Phase 9 (section 33), repair-only. Same "reserved, no picker UI yet"
+   * treatment as the Phase 7 links above -- garment_units is online-only
+   * (Phase 8), so resolving one inside this offline form is left for later.
+   */
+  garment_unit_id?: string
   created_by?: string
   created_at: string
   updated_at: string
 }
 export const orderSchema: RxJsonSchema<OrderDoc> = {
-  version: 2, // v2: customer_type + corporate fields, pre_order fields (Phase 7)
+  version: 3, // v3: order_type/stage gain 'repair' values, garment_unit_id (Phase 9)
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -391,6 +410,7 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
     product_variant_id: uuidField,
     collection_id: uuidField,
     production_batch_id: uuidField,
+    garment_unit_id: uuidField,
     created_by: uuidField,
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },

@@ -3229,22 +3229,36 @@ garment_units     -- real Postgres table, RLS, no RxDB collection (see §46.1)
 
 ### Priority: P2
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Offline-capable, unlike every online-only phase since Phase 2 -- built as `order_type = 'repair'` on the existing `orders`/`order_units`/`payments`/`order_stage_history` machinery rather than a new table, which is the most literal possible reading of "Integrate with: clients, orders, garment_units, payments" and needs no new RxDB collection (the free slot under the 14-collection cap from §46.1 stays free, rather than being spent on this per my own tentative earlier plan -- see the scoping note below). Migration `0018_repairs.sql` applied, RLS unaffected, and a live 9-check test confirmed the widened `order_type`/`stage` check constraints (on both `orders` and `order_stage_history`), the new `garment_unit_id` link and its `on delete set null`, and that an invalid stage is still rejected. Also drove the actual UI end to end: created a repair order, advanced it through all six stages (measured → assessing → approved → repairing → ready → picked up), and confirmed the progress track, labels, and full timestamped history rendered correctly at every step.
 
-Implement:
-
-```text
-repairs
-```
-
-Integrate with:
+Field-by-field mapping from section 33's list onto the existing order model -- no new columns needed for any of these:
 
 ```text
-clients
-orders
-garment_units
-payments
+description          -> the order's one order_unit (item_description), same as every other order type
+quoted_amount_minor   -> price_total_minor, set when the order is created
+final_amount_minor    -> price_total_minor + price_adjustment_minor, via the existing "Adjustment" field once the
+                         final amount is known to differ -- a repair's quote-vs-final is exactly the "haggled
+                         discount, late fee, or damage charge" adjustment already built for every other order type
+received_at           -> created_at (the 'measured' stage, entered at creation, doubles as "received" the same
+                         way it already doubles as "item taken in" for every other order type)
+ready_at              -> available via order_stage_history, same as it already is for every other order type --
+                         no order type stamps a denormalized column for entering 'ready' today, so repairs are
+                         not missing anything the others have
+collected_at          -> picked_up_at, the existing terminal-stage timestamp
+status                -> stage, extended with three repair-only values (below)
 ```
+
+- ✅ `order_type` gains `'repair'`
+- ✅ `stage` gains `'assessing'`, `'approved'`, `'repairing'` -- the three states from section 33 nothing existing covers. `'measured'` and `'picked_up'` are reused as "received"/"collected" (the same relabelling-by-context every order type already does with these two names); repair's flow is `measured → assessing → approved → repairing → ready → picked_up`. `order_stage_history`'s own `from_stage`/`to_stage` check constraints were widened to match, or a repair's own history -- the exact thing that answers `ready_at` above -- would fail to write
+- ✅ deposit/payment tracking needs nothing new: the existing `payments` table already works against any order, repairs included
+- ✅ gated behind the `repairs` feature flag (already defaulting to `true` for every tailor per Phase 1's §9 table) via the same `visibleOrderTypes` mechanism Phase 7 built for `pre_orders`/`corporate_orders`
+- ✅ WhatsApp messaging (`suggestedMessage`) extended with copy for the three new stages, so a repair customer gets a real update at "assessing"/"approved"/"repairing" rather than a silent gap in an otherwise-covered switch
+
+**Scoping decision, documented rather than taken unilaterally:** an earlier note on this project (before this phase was reached) tentatively planned to spend the one RxDB collection slot still free under the §46.1 cap on `repairs`, since it is the one new-phase feature that defaults to enabled for an ordinary tailor. That note explicitly flagged itself as unconfirmed. Modelling repairs as an order type instead needed no new collection at all, which resolves the question in the most conservative way available: the last slot stays unspent, exactly matching the project owner's own standing instruction that the offline/online split for specific tables is a decision to make later in the project, not one for me to spend unilaterally -- even implicitly, by picking the one remaining slot's purpose myself.
+
+- ⬜ `garment_unit_id` was added to `orders` as a reserved, unwritten link (same treatment as Phase 7's product_variant_id/collection_id/production_batch_id) -- garment_units is online-only (Phase 8), and resolving one inside this offline form has the identical tension already documented in Phase 7. Confirmed correct at the database level in this phase's live test (FK insert, `on delete set null`); no picker UI yet.
+
+**A real, pre-existing bug found by this phase's live testing, outside this phase's scope to fix:** creating a repair order through the UI reproduced a background replication failure -- `rxdb/plugins/replication-supabase`'s push path calls `addDocEqualityToQuery` to build an optimistic-concurrency check for every UPDATE (not insert) push, and that function throws `unknown how to handle type: object` for any field whose value is a plain object. `order_units.measurements` (`Record<string, string | number>`, present on every unit since Phase 0/1) is exactly that shape, and `OrderForm.tsx` always issues an update to the first unit right after creating it (to attach fabric_source/measurements) -- so **this fires on every single order created through the form, of any type, not just repairs**, and would fire again on any later edit to an order's items. `measurement_profiles.values` has the identical shape and is affected the same way. It was not caught earlier because every previous phase's live UI testing used dev fixtures that write straight into local RxDB, never exercising a real push-then-update sequence against a fresh, server-provisioned tenant; this phase's repair-order test was the first to do that. It is not a silent failure -- the app's own existing "Sync problem, saved locally" indicator (already built for offline/stale sessions) correctly surfaces it, and the local write itself is unaffected -- but the affected row will never converge to the server as things stand, because the failure is deterministic (a code path, not a network flake), so retrying does not help. A real fix needs either an RxDB version check for a possible upstream fix, a patch to how that equality check is built, or a representation change for these two object-typed columns -- each carrying enough risk to Phase 0/1's already-shipped, heavily-relied-on code that it deserves its own dedicated pass rather than a fix folded into this one. Flagged here in full rather than patched around, per the instruction not to fill a gap like this with a guess.
 
 ---
 

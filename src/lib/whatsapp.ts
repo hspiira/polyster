@@ -98,6 +98,18 @@ export function suggestedMessage({ shopName, clientName, order, balance }: Messa
 
     case 'cancelled':
       return `Hello ${clientName}, your ${item} order at ${shopName} has been cancelled. Please get in touch with any questions.`
+
+    case 'assessing':
+      return `Hello ${clientName}, we are assessing your ${item} at ${shopName}. We will be in touch with next steps shortly.`
+
+    case 'approved':
+      return `Hello ${clientName}, thank you for approving the repair on your ${item}. We will get started at ${shopName}.`
+
+    case 'repairing':
+      return (
+        `Hello ${clientName}, your ${item} is being repaired at ${shopName} and is due on ` +
+        `${formatDate(order.pickup_due_date)}. We will let you know as soon as it is ready.`
+      )
   }
 }
 

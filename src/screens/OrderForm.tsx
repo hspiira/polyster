@@ -550,9 +550,11 @@ export function OrderForm() {
   // A flag turned off after an order was created must not hide that order's
   // own type/customer -- only new selections it, so the value the order
   // already has always stays visible even when the module is disabled.
-  const visibleOrderTypes = ORDER_TYPES.filter(
-    (type) => type !== 'pre_order' || flags.pre_orders || header.order_type === 'pre_order',
-  )
+  const visibleOrderTypes = ORDER_TYPES.filter((type) => {
+    if (type === 'pre_order') return flags.pre_orders || header.order_type === 'pre_order'
+    if (type === 'repair') return flags.repairs || header.order_type === 'repair'
+    return true
+  })
   const visibleCustomerTypes = CUSTOMER_TYPES.filter(
     (type) => type !== 'corporate' || flags.corporate_orders || header.customer_type === 'corporate',
   )
