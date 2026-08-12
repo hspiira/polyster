@@ -82,6 +82,8 @@ interface HeaderDraft {
   purchase_order_reference: string
   contact_person: string
   expected_fulfilment_date: string
+  /** Rental only. */
+  deposit_amount: string
 }
 
 /** One item on the order. `key` is stable across renders; `id` exists once persisted. */
@@ -122,6 +124,7 @@ const BLANK_HEADER: HeaderDraft = {
   purchase_order_reference: '',
   contact_person: '',
   expected_fulfilment_date: '',
+  deposit_amount: '',
 }
 
 type HeaderFieldKey =
@@ -130,6 +133,7 @@ type HeaderFieldKey =
   | 'return_due_date'
   | 'adjustment_amount'
   | 'organisation_name'
+  | 'deposit_amount'
 type UnitFieldKey = 'item_description' | 'price'
 
 /**
@@ -274,6 +278,10 @@ export function OrderForm() {
       purchase_order_reference: order.purchase_order_reference ?? '',
       contact_person: order.contact_person ?? '',
       expected_fulfilment_date: order.expected_fulfilment_date ?? '',
+      deposit_amount:
+        order.rental_deposit_minor > 0
+          ? String(fromMinorUnits(order.rental_deposit_minor, order.currency))
+          : '',
     })
     setUnits(
       existingUnits.map((unit) => ({
@@ -369,6 +377,19 @@ export function OrderForm() {
       }
     }
 
+    let depositMinor = 0
+    if (header.order_type === 'rental' && header.deposit_amount.trim()) {
+      const parsed = parseToMinor(header.deposit_amount, currency)
+      if (parsed === null || parsed < 0) {
+        return {
+          scope: 'header',
+          field: 'deposit_amount',
+          message: 'Enter the deposit as a number.',
+        }
+      }
+      depositMinor = parsed
+    }
+
     let adjustmentMinor = 0
     if (header.adjustment_type !== 'none') {
       const magnitude = parseToMinor(header.adjustment_amount, currency)
@@ -434,6 +455,7 @@ export function OrderForm() {
         ...(header.order_type === 'pre_order' && header.expected_fulfilment_date
           ? { expected_fulfilment_date: header.expected_fulfilment_date }
           : {}),
+        ...(header.order_type === 'rental' ? { deposit_minor: depositMinor } : {}),
       },
       units: validatedUnits,
       adjustmentMinor,
@@ -614,6 +636,21 @@ export function OrderForm() {
                     onInput={(e) =>
                       updateHeader({ return_due_date: (e.target as HTMLInputElement).value })
                     }
+                  />
+                </Field>
+              )}
+
+              {isRental && (
+                <Field
+                  label="Deposit"
+                  hint={`Held and refundable, in ${currency}. Optional.`}
+                  error={headerErrorFor('deposit_amount')}
+                >
+                  <Input
+                    inputmode="decimal"
+                    placeholder="0"
+                    value={header.deposit_amount}
+                    onInput={(e) => updateHeader({ deposit_amount: (e.target as HTMLInputElement).value })}
                   />
                 </Field>
               )}

@@ -220,6 +220,8 @@ export interface NewOrderInput extends OrderPartyInput {
   pickup_due_date: string
   return_due_date?: string
   notes?: string
+  /** Rental only. Held and refundable, never part of price_total_minor -- see OrderDoc. */
+  deposit_minor?: number
 }
 
 /** Shared by createOrder and updateOrderHeader -- every field here is optional. */
@@ -264,7 +266,7 @@ export async function createOrder(
     stage: 'measured',
     price_total_minor: input.price_total_minor,
     price_adjustment_minor: 0,
-    rental_deposit_minor: 0,
+    rental_deposit_minor: input.deposit_minor ?? 0,
     pickup_due_date: input.pickup_due_date,
     created_at: timestamp,
     updated_at: timestamp,
@@ -316,6 +318,8 @@ export interface OrderHeaderInput extends OrderPartyInput {
   pickup_due_date: string
   return_due_date?: string
   notes?: string
+  /** Rental only. */
+  deposit_minor?: number
 }
 
 /**
@@ -343,8 +347,22 @@ export async function updateOrderHeader(
     purchase_order_reference: input.purchase_order_reference?.trim() || undefined,
     contact_person: input.contact_person?.trim() || undefined,
     expected_fulfilment_date: input.expected_fulfilment_date || undefined,
+    rental_deposit_minor: input.order_type === 'rental' ? (input.deposit_minor ?? 0) : 0,
     updated_at: now(),
   })
+}
+
+/**
+ * Marks a rental deposit as returned to the client. Never touches
+ * price_total_minor or any balance -- a deposit is held, not earned (see
+ * OrderDoc's own note), so refunding it is a fact about the deposit alone.
+ */
+export async function refundDeposit(db: AppDatabase, orderId: string): Promise<void> {
+  const doc = await db.orders.findOne(orderId).exec()
+  if (!doc) throw new Error('That order no longer exists on this device.')
+  if (doc.rental_deposit_minor <= 0) throw new Error('This order has no deposit to refund.')
+  if (doc.deposit_refunded_at) throw new Error('This deposit has already been refunded.')
+  await doc.patch({ deposit_refunded_at: now() })
 }
 
 /** The column each terminal stage stamps, alongside `stage` itself. */

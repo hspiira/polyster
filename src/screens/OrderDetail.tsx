@@ -39,7 +39,14 @@ import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { usePermission } from '../hooks/usePermission'
 import { observeBalance, type OrderBalance } from '../db/balances'
-import { changeOrderStage, logMessage, recordPayment, setUnitDone, voidPayment } from '../db/writes'
+import {
+  changeOrderStage,
+  logMessage,
+  recordPayment,
+  refundDeposit,
+  setUnitDone,
+  voidPayment,
+} from '../db/writes'
 import {
   PAYMENT_METHODS,
   type MessageTemplate,
@@ -184,7 +191,7 @@ export function OrderDetail() {
           </Card>
         </section>
 
-        <MoneyBlock order={order} balance={balance} currency={order.currency} />
+        <MoneyBlock order={order} balance={balance} currency={order.currency} onError={setError} />
 
         <ItemsSection orderId={orderId} currency={order.currency} onError={setError} />
 
@@ -334,15 +341,33 @@ function MoneyBlock({
   order,
   balance,
   currency,
+  onError,
 }: {
   order: OrderDoc
   balance: OrderBalance | null
   currency: string
+  onError: (message: string | null) => void
 }) {
+  const { db } = useCurrentShop()
+  const canRefund = usePermission('payments.refund')
+  const [refunding, setRefunding] = useState(false)
+
   if (!balance) return null
 
   const subtotal = order.price_total_minor - order.price_adjustment_minor
   const adjustment = order.price_adjustment_minor
+
+  async function refund() {
+    setRefunding(true)
+    onError(null)
+    try {
+      await refundDeposit(db, order.id)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not refund this deposit.')
+    } finally {
+      setRefunding(false)
+    }
+  }
 
   return (
     <section>
@@ -361,12 +386,25 @@ function MoneyBlock({
           <DataRow label="Balance">{formatMinor(balance.balance_minor, currency)}</DataRow>
         </dl>
         {order.rental_deposit_minor > 0 && (
-          <p class="mt-3 border-t border-stone-100 pt-3 text-sm text-stone-600 dark:border-stone-800 dark:text-stone-300">
-            Deposit held: <span class="font-medium">{formatMinor(order.rental_deposit_minor, currency)}</span>
-            {order.deposit_refunded_at
-              ? ` -- refunded ${formatDate(order.deposit_refunded_at)}`
-              : ' -- held, not part of the balance above'}
-          </p>
+          <div class="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
+            <p class="text-sm text-stone-600 dark:text-stone-300">
+              Deposit held: <span class="font-medium">{formatMinor(order.rental_deposit_minor, currency)}</span>
+              {order.deposit_refunded_at
+                ? ` -- refunded ${formatDateTime(order.deposit_refunded_at)}`
+                : ' -- held, not part of the balance above'}
+            </p>
+            {!order.deposit_refunded_at && canRefund && (
+              <Button
+                variant="secondary"
+                size="sm"
+                class="mt-2"
+                onClick={() => void refund()}
+                disabled={refunding}
+              >
+                {refunding ? 'Refunding...' : 'Refund deposit'}
+              </Button>
+            )}
+          </div>
         )}
       </Card>
     </section>
