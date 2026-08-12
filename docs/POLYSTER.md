@@ -3291,20 +3291,14 @@ public garment page         -- new standalone route, /passport/:token
 
 ### Priority: P2
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done.** Splits cleanly along the same offline/online line every phase since Phase 2 has drawn: customer lifetime value and repair metrics need only `orders`/`payments`/`sales`/`clients` (all offline-capable since Phase 0/1), so they were added directly to the existing Reports screens (`Reports.tsx` and its desktop counterpart `ReportsPage.tsx`) as pure, unit-tested functions (`src/db/customerValue.ts`, `src/db/repairMetrics.ts`, 11 tests). Batch/product/collection profitability and inventory valuation need products, variants, collections, batches, garment units, materials, and inventory items — all online-only — so they became a new screen, `AdvancedReports.tsx` (`src/online/analytics.ts`, 7 tests), linked from both Reports screens and gated behind the `catalogue` flag. A live smoke test confirmed the underlying tables stay correctly RLS-scoped (nothing here needed a new policy, since every table it reads already had one), and a full Playwright pass against real seeded data confirmed every figure on both screens matches hand-computed expectations exactly -- inventory valuation, collection/product/batch revenue, cost, and margin, top customers, and repair counts/turnaround all checked pixel-for-value against the seed data.
 
-Implement:
+- ✅ **customer lifetime value** -- cash accounting, the same principle `db/profit.ts` already established and for the identical reason: a client with 500,000 of unpaid orders has not given the shop 500,000 of value yet. Counts payments actually received against their orders plus sales recorded directly against them; nets refunds automatically since it reuses `signedAmountMinor`
+- ✅ **repair metrics** -- open/completed/cancelled counts, money actually collected (same cash-accounting principle), and average turnaround measured only across repairs that actually reached `picked_up` (an in-flight repair has no turnaround yet, not a zero one)
+- ✅ **inventory valuation** -- finished goods valued at `product_variants.cost_minor`, materials at `materials.unit_cost_minor`, both real per-unit cost fields already in the schema since Phases 2 and 3; each line rounded to a whole minor unit rather than letting fractional quantities accumulate fractional cents
+- ✅ **batch / product / collection profitability**, in the exact `Revenue / Production Cost / Gross Profit / Margin %` shape section 37 specifies for a batch, extended to the product and collection levels the same way. Cost is real: the actual cost lines recorded against each batch (Phase 5). Margin is `null`, not `0`, when there is no revenue to divide by
 
-```text
-batch profitability
-product profitability
-collection performance
-inventory valuation
-customer lifetime value
-repair metrics
-```
-
-Keep calculations transparent.
+**The one methodology choice that needed disclosing, not guessing:** "revenue" for these three reports is counted at each **sold garment unit's list price** (`product_variants.price_minor`), not a reconciled transaction amount. `sales` and `payments` carry real cash the shop actually received, but neither has any column linking a transaction to a specific product, variant, or batch -- `sales.item_description` is free text a cashier typed, and `orders` link to a client, not a catalogue item. List-price-of-sold-units is the only revenue figure this data model can actually connect to a batch/product/collection at all. This is disclosed directly in the report's own info note, not just here, per the instruction to never present a number as more reconciled than it is. Order Profitability (section 38) was not implemented in this phase -- the spec's own wording marks it "eventually," separately from Phase 11's explicit six-item list, and it is not one of them.
 
 ---
 

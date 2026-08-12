@@ -144,6 +144,16 @@ export async function listBatchCosts(batchId: string): Promise<ProductionBatchCo
   return data
 }
 
+/** Every cost line across every batch in the shop -- for reporting (Phase 11), not a single batch's detail page. */
+export async function listAllBatchCosts(shopId: string): Promise<ProductionBatchCost[]> {
+  const { data, error } = await getSupabase()
+    .from('production_batch_costs')
+    .select()
+    .eq('shop_id', shopId)
+  if (error) throw friendlyError(error)
+  return data
+}
+
 export async function addBatchCost(
   shopId: string,
   batchId: string,

@@ -9,11 +9,14 @@
  * screen says so rather than presenting stale figures as fact.
  */
 import { useMemo, useState } from 'preact/hooks'
-import { Card, Chip, InfoNote, Screen, SectionTitle, Segmented } from '../components/ui'
+import { Card, Chip, HeaderAction, InfoNote, RowList, Screen, SectionTitle, Segmented } from '../components/ui'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { observeShopBalances, signedAmountMinor } from '../db/balances'
 import { profitAndLoss } from '../db/profit'
+import { customerLifetimeValues } from '../db/customerValue'
+import { repairMetrics } from '../db/repairMetrics'
 import { EXPENSE_CATEGORY_LABELS } from './Expenses'
 import { formatMinor } from '../lib/money'
 import { addDays, today } from '../lib/dates'
@@ -24,6 +27,7 @@ import { ORDER_STAGES } from '../db/schema'
 
 export function Reports() {
   const { db, shop } = useCurrentShop()
+  const flags = useFeatureFlags(db, shop.id)
   const now = today()
 
   const orderDocs = useRxQuery(
@@ -33,6 +37,16 @@ export function Reports() {
   )
   const paymentDocs = useRxQuery(() => db.payments.find().$, [db], [])
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const clientDocs = useRxQuery(
+    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
+  const saleDocsForValue = useRxQuery(
+    () => db.sales.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
 
   const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
 
@@ -93,11 +107,31 @@ export function Reports() {
 
   const maxStage = Math.max(1, ...stageCounts.values())
 
+  const topCustomers = useMemo(
+    () =>
+      customerLifetimeValues(
+        clientDocs.map((doc) => doc.toJSON()),
+        orders,
+        paymentDocs.map((doc) => doc.toJSON()),
+        saleDocsForValue.map((doc) => doc.toJSON()),
+      ).slice(0, 5),
+    [clientDocs, orders, paymentDocs, saleDocsForValue],
+  )
+
+  const repairs = useMemo(
+    () => repairMetrics(orders, paymentDocs.map((doc) => doc.toJSON())),
+    [orders, paymentDocs],
+  )
+
   return (
     // Pushed rather than a tab root (spec A15), reachable from a Settings row
     // and from Today's profile header -- `back` matches the four sibling
     // settings sub-screens rather than assuming either entry point.
-    <Screen title="Reports" back="/settings">
+    <Screen
+      title="Reports"
+      back="/settings"
+      action={flags.catalogue ? <HeaderAction href="/reports/advanced" label="Advanced" /> : undefined}
+    >
       <div class="space-y-5">
         <ProfitCard />
 
@@ -164,6 +198,62 @@ export function Reports() {
             </div>
           </Card>
         </section>
+
+        {topCustomers.length > 0 && (
+          <section>
+            <SectionTitle>Top customers</SectionTitle>
+            <Card padded={false}>
+              <RowList>
+                {topCustomers.map((customer) => (
+                  <li key={customer.clientId} class="flex items-center justify-between gap-3 px-gutter py-3">
+                    <span class="min-w-0 truncate text-sm font-medium">{customer.name}</span>
+                    <span class="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatMinor(customer.paidMinor, shop.currency)}
+                    </span>
+                  </li>
+                ))}
+              </RowList>
+            </Card>
+            <InfoNote>
+              Lifetime value counts money actually received -- payments and counter sales -- never an
+              order's face value.
+            </InfoNote>
+          </section>
+        )}
+
+        {flags.repairs && repairs.totalCount > 0 && (
+          <section>
+            <SectionTitle>Repairs</SectionTitle>
+            <Card>
+              <dl class="space-y-1.5 text-sm">
+                <div class="flex justify-between gap-4">
+                  <dt class="text-stone-500 dark:text-stone-400">Open</dt>
+                  <dd class="font-medium tabular-nums">{repairs.openCount}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                  <dt class="text-stone-500 dark:text-stone-400">Completed</dt>
+                  <dd class="font-medium tabular-nums">{repairs.completedCount}</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                  <dt class="text-stone-500 dark:text-stone-400">Cancelled</dt>
+                  <dd class="font-medium tabular-nums">{repairs.cancelledCount}</dd>
+                </div>
+                <div class="flex justify-between gap-4 border-t border-stone-100 pt-1.5 dark:border-stone-800">
+                  <dt class="text-stone-500 dark:text-stone-400">Collected</dt>
+                  <dd class="font-medium tabular-nums">{formatMinor(repairs.paidMinor, shop.currency)}</dd>
+                </div>
+                {repairs.averageTurnaroundDays !== null && (
+                  <div class="flex justify-between gap-4">
+                    <dt class="text-stone-500 dark:text-stone-400">Average turnaround</dt>
+                    <dd class="font-medium tabular-nums">
+                      {repairs.averageTurnaroundDays.toFixed(1)} days
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </Card>
+          </section>
+        )}
 
         <InfoNote>
           Figures come from what is on this device. If it has not synced recently, another device's

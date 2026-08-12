@@ -18,8 +18,11 @@
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { observeShopBalances } from '../db/balances'
 import { profitAndLoss } from '../db/profit'
+import { customerLifetimeValues } from '../db/customerValue'
+import { repairMetrics } from '../db/repairMetrics'
 import { formatMinor } from '../lib/money'
 import { addDays, today } from '../lib/dates'
 import { EXPENSE_CATEGORY_LABELS } from '../screens/Expenses'
@@ -32,6 +35,7 @@ import { PeriodSwitch, RANGES, type RangeKey } from './period'
 
 export function ReportsPage() {
   const { db, shop } = useCurrentShop()
+  const flags = useFeatureFlags(db, shop.id)
   const [range, setRange] = useState<RangeKey>('30')
   const now = today()
   const from = addDays(now, -(RANGES[range].days - 1))
@@ -51,11 +55,32 @@ export function ReportsPage() {
     [db, shop.id],
     [],
   )
+  const clientDocs = useRxQuery(
+    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
+    [db, shop.id],
+    [],
+  )
   const paymentDocs = useRxQuery(() => db.payments.find().$, [db], [])
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
   const orderIds = useMemo(() => new Set(orders.map((order) => order.id)), [orders])
+
+  const topCustomers = useMemo(
+    () =>
+      customerLifetimeValues(
+        clientDocs.map((doc) => doc.toJSON()),
+        orders,
+        paymentDocs.map((doc) => doc.toJSON()),
+        saleDocs.map((doc) => doc.toJSON()),
+      ).slice(0, 5),
+    [clientDocs, orders, paymentDocs, saleDocs],
+  )
+
+  const repairs = useMemo(
+    () => repairMetrics(orders, paymentDocs.map((doc) => doc.toJSON())),
+    [orders, paymentDocs],
+  )
 
   const pnl = useMemo(
     () =>
@@ -104,6 +129,11 @@ export function ReportsPage() {
           <span class={cn('text-content-subtle', TEXT_XS)}>
             From what this device has synced
           </span>
+          {flags.catalogue && (
+            <a href="/reports/advanced" class={cn('font-medium text-accent', TEXT_XS)}>
+              Advanced reports
+            </a>
+          )}
         </>
       }
     >
@@ -172,6 +202,29 @@ export function ReportsPage() {
               </div>
             ))}
           </Panel>
+
+          {topCustomers.length > 0 && (
+            <Panel title="Top customers">
+              {topCustomers.map((customer) => (
+                <Line key={customer.clientId} label={customer.name} value={formatMinor(customer.paidMinor, shop.currency)} />
+              ))}
+              <p class={cn('mt-2 leading-relaxed text-content-subtle', TEXT_XS)}>
+                Lifetime value counts money actually received, never an order's face value.
+              </p>
+            </Panel>
+          )}
+
+          {flags.repairs && repairs.totalCount > 0 && (
+            <Panel title="Repairs">
+              <Line label="Open" value={String(repairs.openCount)} />
+              <Line label="Completed" value={String(repairs.completedCount)} />
+              <Line label="Cancelled" value={String(repairs.cancelledCount)} />
+              <Line label="Collected" value={formatMinor(repairs.paidMinor, shop.currency)} />
+              {repairs.averageTurnaroundDays !== null && (
+                <Line label="Average turnaround" value={`${repairs.averageTurnaroundDays.toFixed(1)} days`} />
+              )}
+            </Panel>
+          )}
         </div>
       </div>
     </Page>

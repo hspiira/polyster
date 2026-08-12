@@ -42,6 +42,7 @@ import { Production } from '../screens/Production'
 import { ProductionBatchDetail } from '../screens/ProductionBatchDetail'
 import { Collections } from '../screens/Collections'
 import { GarmentUnits } from '../screens/GarmentUnits'
+import { AdvancedReports } from '../screens/AdvancedReports'
 import { NotFound } from '../screens/NotFound'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
@@ -76,6 +77,7 @@ const BORROWED_FROM_PHONE = [
   { path: '/production/:id', component: ProductionBatchDetail },
   { path: '/collections', component: Collections },
   { path: '/garment-units', component: GarmentUnits },
+  { path: '/reports/advanced', component: AdvancedReports },
 ] as const
 
 export function WebShell({

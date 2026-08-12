@@ -50,6 +50,7 @@ import { Production } from './Production'
 import { ProductionBatchDetail } from './ProductionBatchDetail'
 import { Collections } from './Collections'
 import { GarmentUnits } from './GarmentUnits'
+import { AdvancedReports } from './AdvancedReports'
 import { Money } from './Money'
 import { Reports } from './Reports'
 import { Sales } from './Sales'
@@ -112,6 +113,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
           <Route path="/orders/:id/edit" component={OrderForm} />
           <Route path="/money" component={Money} />
           <Route path="/reports" component={Reports} />
+          <Route path="/reports/advanced" component={AdvancedReports} />
           <Route path="/sales" component={Sales} />
           <Route path="/sales/new" component={SaleForm} />
           <Route path="/expenses" component={Expenses} />
