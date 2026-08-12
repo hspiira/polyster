@@ -5,13 +5,15 @@
  * moment either of them means anything, and both can be dismissed for good.
  * Backing up comes first: losing a shop is worse than losing a home screen icon.
  */
-import { useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import { useAuth } from '../hooks/useAuth'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { useShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { claimShop } from '../db/writes'
 import { ClaimShop } from '../screens/entry/ClaimShop'
+import { ReAuth } from '../screens/entry/ReAuth'
 import { IconAlert, IconDownload } from './icons'
 
 const DISMISSED_CLAIM = 'polyster.dismissed.claim'
@@ -38,35 +40,100 @@ export function ShopPrompts() {
   const { db, shop } = useShop()
   const install = useInstallPrompt()
   const [claiming, setClaiming] = useState(false)
+  const [reauthing, setReauthing] = useState(false)
+  const [claimError, setClaimError] = useState<string | null>(null)
   const [hidClaim, setHidClaim] = useState(() => dismissed(DISMISSED_CLAIM))
   const [hidInstall, setHidInstall] = useState(() => dismissed(DISMISSED_INSTALL))
+  const claimingNow = useRef(false)
 
   // "Real work" is one saved order. Before that there is nothing worth the
   // interruption, and the standing line in SyncBadge is telling the truth anyway.
   const orders = useRxQuery(() => db.orders.find({ limit: 1 }).$, [db], [])
   const hasWork = orders.length > 0
 
-  // Over the shell, not inside it: ClaimShop is an entry screen and would
-  // otherwise draw a dark panel in the middle of the page with the tab bar still up.
+  const unclaimed =
+    auth.status !== 'local_only' && shop !== null && !shop.supabase_auth_user_id
+
+  /**
+   * A live session plus an unclaimed local shop means the back-up flow finished.
+   * Reactive rather than a ClaimShop callback because a provider redirect
+   * unmounts that screen, so there is nothing left to call back into.
+   */
+  useEffect(() => {
+    if (auth.status !== 'signed_in' || !shop || shop.supabase_auth_user_id) return
+    if (claimingNow.current) return
+    claimingNow.current = true
+    claimShop(db, shop.id, auth.userId)
+      .then(() => {
+        setClaiming(false)
+        setClaimError(null)
+      })
+      .catch((err: unknown) => {
+        setClaimError(err instanceof Error ? err.message : 'Could not back up this shop.')
+      })
+      .finally(() => {
+        claimingNow.current = false
+      })
+  }, [auth, shop, db])
+
+  // Over the shell, not inside it: these are entry screens and would otherwise
+  // draw a dark panel in the middle of the page with the tab bar still up.
   if (claiming) {
     return (
       <div class="fixed inset-0 z-50 overflow-y-auto">
-        <ClaimShop onDone={() => setClaiming(false)} onCancel={() => setClaiming(false)} />
+        <ClaimShop onCancel={() => setClaiming(false)} />
       </div>
     )
   }
 
-  const unclaimed =
-    auth.status !== 'local_only' && shop !== null && !shop.supabase_auth_user_id
+  if (reauthing) {
+    return (
+      <div class="fixed inset-0 z-50 overflow-y-auto">
+        <ReAuth onDone={() => setReauthing(false)} onCancel={() => setReauthing(false)} />
+      </div>
+    )
+  }
+
+  // Outranks the others: nothing on this device reaches the server until it is
+  // fixed, and unlike them it cannot be dismissed into silence.
+  if (auth.status === 'session_expired') {
+    return (
+      <Prompt
+        icon={<IconAlert size={18} />}
+        tone="alert"
+        title="This phone has stopped syncing"
+        body="Its sign-in has expired. Nothing is lost -- new work is saving here and will go up once you sign in again."
+        actionLabel="Sign in again"
+        onAction={() => setReauthing(true)}
+      />
+    )
+  }
+
+  if (claimError) {
+    return (
+      <Prompt
+        icon={<IconAlert size={18} />}
+        tone="alert"
+        title="That account could not take this shop"
+        body={claimError}
+        actionLabel="Try another account"
+        onAction={() => {
+          setClaimError(null)
+          setClaiming(true)
+        }}
+        onDismiss={() => setClaimError(null)}
+      />
+    )
+  }
 
   if (hasWork && unclaimed && !hidClaim) {
     return (
       <Prompt
         icon={<IconAlert size={18} />}
-        tone="amber"
+        tone="money"
         title="Your work is only on this phone"
-        body="Add your number and it is saved off the device. It is also how you get back in on a new phone."
-        actionLabel="Add my number"
+        body="Add an email and password and it is saved off the device. It is also how you get back in on a new phone."
+        actionLabel="Back up my shop"
         onAction={() => setClaiming(true)}
         onDismiss={() => {
           dismiss(DISMISSED_CLAIM)
@@ -106,17 +173,20 @@ function Prompt({
   onDismiss,
 }: {
   icon: ComponentChildren
-  tone: 'amber' | 'neutral'
+  tone: 'money' | 'alert' | 'neutral'
   title: string
   body: string
   actionLabel: string
   onAction: () => void
-  onDismiss: () => void
+  /** Omitted where the prompt must not be dismissable. */
+  onDismiss?: () => void
 }) {
   const skin =
-    tone === 'amber'
-      ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
-      : 'bg-surface-raised text-content'
+    tone === 'money'
+      ? 'bg-money-soft text-money-on-soft'
+      : tone === 'alert'
+        ? 'bg-danger-soft text-danger-on-soft'
+        : 'bg-surface-raised text-content'
 
   return (
     <div class={`rounded-card p-4 ${skin}`}>
@@ -133,13 +203,15 @@ function Prompt({
         >
           {actionLabel}
         </button>
-        <button
-          type="button"
-          onClick={onDismiss}
-          class="min-h-11 rounded-control px-4 text-sm font-medium opacity-70"
-        >
-          Not now
-        </button>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            class="min-h-11 rounded-control px-4 text-sm font-medium opacity-70"
+          >
+            Not now
+          </button>
+        )}
       </div>
     </div>
   )

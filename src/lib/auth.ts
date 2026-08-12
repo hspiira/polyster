@@ -1,61 +1,67 @@
 /**
- * Shop-level authentication, by phone number and a one-time code.
+ * Shop-level authentication: email and password, or a social provider.
+ * One Supabase account per shop. Staff PINs are a separate device unlock.
  *
- * One Supabase account per shop (ARCHITECTURE.md section 4). Staff PINs are a
- * separate, app-layer device unlock layered on top -- they are not auth and are
- * not handled here.
+ * Phone OTP (decision E1) is withdrawn: Supabase cannot enable phone auth
+ * without a third-party SMS provider, and Twilio's Uganda rate is $0.3289 per
+ * message behind a ~3 week sender-ID pre-registration. If a provider is bought
+ * later, OTP returns as one more AuthDeps method.
  *
- * There is no password. The audience authenticates by phone and short code
- * every day through mobile money, and it lets the code screen and the PIN
- * screen be the same component. See the entry flow spec, decision E1.
- *
- * ## Why there is an `offline_stale` state
- *
- * Supabase persists the session in localStorage, so a shop that signed in once
- * reopens the app straight into it, with no network. But access tokens expire,
- * and refreshing one needs connectivity. An app whose core constraint is
- * "must keep working with no internet" cannot lock the till because a JWT
- * aged out overnight.
- *
- * So a device that has signed in before and cannot reach Supabase now enters
- * `offline_stale`: the local database is fully readable and writable, and
- * replication simply does not run. Writes queue in RxDB and push when the
- * session is restored. The UI is expected to say so plainly rather than hide
- * it -- unsynced work the user does not know about is the failure mode worth
- * avoiding here.
- *
- * This is not a security hole. RLS is enforced server-side on every synced
- * byte; an expired token syncs nothing at all. The local copy on a device is
- * data that device already legitimately pulled.
+ * `offline_stale` exists because access tokens expire and refreshing needs a
+ * network. A device that signed in before stays fully readable and writable
+ * with replication stopped, rather than locking the till because a JWT aged
+ * out overnight. RLS still gates every synced byte, so this leaks nothing.
  */
 import { getSupabase, isSupabaseConfigured } from './supabaseClient'
-import { toE164 } from './phone'
+import { emailProblem, normaliseEmail, passwordProblem } from './credentials'
 
 const REMEMBERED_USER_KEY = 'tailor_tracker.last_shop_user_id'
 
 export type AuthState =
-  /** Initial state, before the persisted session has been read. */
   | { status: 'checking' }
-  /** No Supabase credentials configured. Local-only, no sync, no code screen. */
+  /** No Supabase credentials configured. Local-only, no sync, no sign-in. */
   | { status: 'local_only' }
-  /** No session and no remembered login. */
   | { status: 'signed_out' }
-  /** Live session. Replication runs. */
   | { status: 'signed_in'; userId: string }
   /** Signed in before, no live session reachable now. Local-only until online. */
   | { status: 'offline_stale'; userId: string }
+  /**
+   * Reached Supabase and it had no session for us -- the refresh token is spent.
+   * Distinct from `offline_stale` because the fix is different: this one needs
+   * signing in again, and telling someone that while they are merely offline
+   * would be a lie. The till stays open either way.
+   */
+  | { status: 'session_expired'; userId: string }
 
 export type AuthListener = (state: AuthState) => void
 
-/** How a one-time code reaches a phone. Config, not a code decision -- spec E2. */
-export type CodeChannel = 'sms' | 'whatsapp'
+/**
+ * Why we are looking at a session. Only a `refresh` -- which `useAuth` fires
+ * exclusively when the device is online and reachable -- can conclude that a
+ * missing session is expired rather than merely unreachable.
+ */
+type Cause = 'boot' | 'event' | 'refresh'
+
+export type OAuthProvider = 'google'
+
+/** Config, because there is no way to ask Supabase which providers a project enabled. */
+export const OAUTH_PROVIDERS: readonly OAuthProvider[] = (
+  import.meta.env.VITE_OAUTH_PROVIDERS ?? ''
+)
+  .split(',')
+  .map((name: string) => name.trim())
+  .filter((name: string): name is OAuthProvider => name === 'google')
+
+/** `confirm_email` means the project still has email confirmation on: user, no session. */
+export type RegisterOutcome =
+  | { status: 'signed_in'; userId: string }
+  | { status: 'confirm_email' }
 
 function rememberUser(userId: string): void {
   try {
     localStorage.setItem(REMEMBERED_USER_KEY, userId)
   } catch {
-    // Private browsing or a full quota. Losing the hint costs an extra code
-    // prompt, nothing more, so it is not worth failing the sign-in over.
+    // Losing the hint costs one extra sign-in.
   }
 }
 
@@ -75,34 +81,31 @@ function rememberedUser(): string | null {
   }
 }
 
-/**
- * The Supabase surface this module uses, injectable so the controller can be
- * tested without a project or a configured SMS provider.
- */
 export interface AuthDeps {
   isConfigured(): boolean
   getSession(): Promise<{ userId: string } | null>
   onAuthStateChange(handler: (session: { userId: string } | null) => void): () => void
-  signInWithOtp(e164: string, channel: CodeChannel): Promise<void>
-  verifyOtp(e164: string, token: string): Promise<{ userId: string }>
+  /** Resolves with a null id when the project requires email confirmation. */
+  signUp(email: string, password: string): Promise<{ userId: string | null }>
+  signIn(email: string, password: string): Promise<{ userId: string }>
+  /** Navigates away. The session arrives on the trip back, not from this promise. */
+  startOAuth(provider: OAuthProvider): Promise<void>
+  sendPasswordReset(email: string): Promise<void>
   signOut(): Promise<void>
-  channel: CodeChannel
+  canEmailRecover: boolean
+  providers: readonly OAuthProvider[]
 }
 
 export interface AuthController {
   getState(): AuthState
   subscribe(listener: AuthListener): () => void
-  /** Sends a one-time code. Throws if the number is ambiguous or sync is unconfigured. */
-  requestCode(phone: string): Promise<void>
-  /**
-   * Verifies a code and signs in, returning the verified account id.
-   *
-   * The id is returned rather than only pushed into state because PIN recovery
-   * has to check it against the shop's own account before trusting it.
-   */
-  verifyCode(phone: string, token: string): Promise<string>
+  register(email: string, password: string): Promise<RegisterOutcome>
+  /** Returns the account id, which PIN recovery checks against the shop's own. */
+  signIn(email: string, password: string): Promise<string>
+  startOAuth(provider: OAuthProvider): Promise<void>
+  sendPasswordReset(email: string): Promise<void>
+  options(): { providers: readonly OAuthProvider[]; canEmailRecover: boolean }
   signOut(): Promise<void>
-  /** Re-checks for a live session. Called when the device comes back online. */
   refresh(): Promise<void>
   dispose(): void
 }
@@ -116,18 +119,22 @@ export function createAuthController(deps: AuthDeps = supabaseDeps()): AuthContr
     listeners.forEach((listener) => listener(state))
   }
 
-  function applySession(session: { userId: string } | null): void {
+  function applySession(session: { userId: string } | null, cause: Cause): void {
     if (session) {
       rememberUser(session.userId)
       setState({ status: 'signed_in', userId: session.userId })
       return
     }
 
-    // A previously signed-in device with no usable session. Offline is the
-    // common cause; an explicit sign-out clears the hint, so this does not
-    // trap a user who meant to log out.
     const remembered = rememberedUser()
-    setState(remembered ? { status: 'offline_stale', userId: remembered } : { status: 'signed_out' })
+    if (!remembered) {
+      setState({ status: 'signed_out' })
+      return
+    }
+    setState({
+      status: cause === 'refresh' ? 'session_expired' : 'offline_stale',
+      userId: remembered,
+    })
   }
 
   let unsubscribeAuth: (() => void) | null = null
@@ -137,18 +144,22 @@ export function createAuthController(deps: AuthDeps = supabaseDeps()): AuthContr
   } else {
     void deps
       .getSession()
-      .then(applySession)
-      .catch(() => applySession(null))
-    unsubscribeAuth = deps.onAuthStateChange(applySession)
+      .then((session) => applySession(session, 'boot'))
+      .catch(() => applySession(null, 'boot'))
+    unsubscribeAuth = deps.onAuthStateChange((session) => applySession(session, 'event'))
   }
 
-  function requireE164(phone: string): string {
+  function requireSync(): void {
     if (!deps.isConfigured()) {
-      throw new Error('Sync is not configured in this build, so codes cannot be sent.')
+      throw new Error('Sync is not configured in this build, so there is no account to use.')
     }
-    const e164 = toE164(phone)
-    if (!e164) throw new Error('That phone number was not recognised. Check it and try again.')
-    return e164
+  }
+
+  function requireCredentials(email: string, password: string): string {
+    requireSync()
+    const problem = emailProblem(email) ?? passwordProblem(password)
+    if (problem) throw new Error(problem)
+    return normaliseEmail(email)
   }
 
   return {
@@ -160,15 +171,32 @@ export function createAuthController(deps: AuthDeps = supabaseDeps()): AuthContr
       return () => listeners.delete(listener)
     },
 
-    async requestCode(phone) {
-      await deps.signInWithOtp(requireE164(phone), deps.channel)
+    async register(email, password) {
+      const { userId } = await deps.signUp(requireCredentials(email, password), password)
+      if (!userId) return { status: 'confirm_email' }
+      applySession({ userId }, 'event')
+      return { status: 'signed_in', userId }
     },
 
-    async verifyCode(phone, token) {
-      const { userId } = await deps.verifyOtp(requireE164(phone), token)
-      applySession({ userId })
+    async signIn(email, password) {
+      const { userId } = await deps.signIn(requireCredentials(email, password), password)
+      applySession({ userId }, 'event')
       return userId
     },
+
+    async startOAuth(provider) {
+      requireSync()
+      await deps.startOAuth(provider)
+    },
+
+    async sendPasswordReset(email) {
+      requireSync()
+      const problem = emailProblem(email)
+      if (problem) throw new Error(problem)
+      await deps.sendPasswordReset(normaliseEmail(email))
+    },
+
+    options: () => ({ providers: deps.providers, canEmailRecover: deps.canEmailRecover }),
 
     async signOut() {
       forgetUser()
@@ -179,9 +207,12 @@ export function createAuthController(deps: AuthDeps = supabaseDeps()): AuthContr
     async refresh() {
       if (!deps.isConfigured()) return
       try {
-        applySession(await deps.getSession())
+        applySession(await deps.getSession(), 'refresh')
       } catch {
-        applySession(null)
+        // Could not reach Supabase, so nothing has been learned about whether
+        // the session is still good. Stay soft rather than telling someone to
+        // sign in again over a dropped request.
+        applySession(null, 'boot')
       }
     },
 
@@ -192,17 +223,16 @@ export function createAuthController(deps: AuthDeps = supabaseDeps()): AuthContr
   }
 }
 
-/**
- * The real client. `verifyOtp`'s `type` is 'sms' for both channels -- the
- * channel picks how the code is delivered, not how it is checked.
- */
-function supabaseDeps(): AuthDeps {
-  const channel: CodeChannel =
-    import.meta.env.VITE_CODE_CHANNEL === 'whatsapp' ? 'whatsapp' : 'sms'
+/** The current path, so a redirect started from /settings comes back to /settings. */
+function redirectTarget(): string {
+  return `${window.location.origin}${window.location.pathname}`
+}
 
+function supabaseDeps(): AuthDeps {
   return {
-    channel,
     isConfigured: isSupabaseConfigured,
+    providers: OAUTH_PROVIDERS,
+    canEmailRecover: import.meta.env.VITE_EMAIL_RECOVERY === '1',
 
     async getSession() {
       const { data } = await getSupabase().auth.getSession()
@@ -216,27 +246,38 @@ function supabaseDeps(): AuthDeps {
       return () => data.subscription.unsubscribe()
     },
 
-    async signInWithOtp(e164, sendOn) {
-      const { error } = await getSupabase().auth.signInWithOtp({
-        phone: e164,
-        options: { channel: sendOn },
-      })
+    async signUp(email, password) {
+      const { data, error } = await getSupabase().auth.signUp({ email, password })
       if (error) throw error
+      return { userId: data.session?.user?.id ?? null }
     },
 
-    async verifyOtp(e164, token) {
-      const { data, error } = await getSupabase().auth.verifyOtp({
-        phone: e164,
-        token,
-        type: 'sms',
-      })
-      if (error) throw error
-      if (!data.session?.user) throw new Error('That code did not work. Ask for a new one.')
+    async signIn(email, password) {
+      const { data, error } = await getSupabase().auth.signInWithPassword({ email, password })
+      // One message for both failures: distinguishing them tells a stranger
+      // which shops have accounts.
+      if (error) throw new Error('That email and password do not match. Check both and try again.')
+      if (!data.session?.user) throw new Error('Signing in did not complete. Try again.')
       return { userId: data.session.user.id }
     },
 
+    async startOAuth(provider) {
+      const { error } = await getSupabase().auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: redirectTarget() },
+      })
+      if (error) throw error
+    },
+
+    async sendPasswordReset(email) {
+      const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
+        redirectTo: redirectTarget(),
+      })
+      if (error) throw error
+    },
+
     async signOut() {
-      // `local` scope: signing out here must not end the session on the shop's other phone.
+      // `local` scope: this must not end the session on the shop's other phone.
       await getSupabase().auth.signOut({ scope: 'local' })
     },
   }

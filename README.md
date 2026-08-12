@@ -51,24 +51,61 @@ Open the Supabase dashboard's SQL Editor and run [`supabase/migrations/0001_init
 
 Requires Postgres 15 or newer for `security_invoker` on the view. Supabase provides it; if you are pointing this at your own Postgres, check the version first, because the view silently leaks across tenants without that setting.
 
-### 3. Create shop accounts
+### 3. Configure Auth
 
-Each shop authenticates as one Supabase Auth user (see `ARCHITECTURE.md` section 4 for why). In the dashboard, go to **Authentication -> Users -> Add user**, then in the SQL Editor:
+Each shop authenticates as one Supabase Auth user with an **email and password** (see `ARCHITECTURE.md` section 4). Three settings in **Authentication**:
+
+| Where | Setting | Value |
+|---|---|---|
+| Providers -> Email | Enabled | on |
+| Providers -> Email | **Confirm email** | **off** |
+| URL Configuration | Redirect URLs | your origin plus `/**`, e.g. `http://localhost:5173/**` |
+
+**Confirm email off is not optional** unless you have configured custom SMTP. With it on, `signUp` returns a user but no session, and the shop is stuck on a "check your email" screen with no email arriving — Supabase's built-in sender is rate-limited and dev-only. The app detects this and says so rather than pretending to succeed.
+
+The redirect URLs matter for Google sign-in and password resets, which both come back to the path they started from.
+
+Optional, both off by default:
+
+- **Google sign-in** — enable the Google provider in Supabase, then set `VITE_OAUTH_PROVIDERS=google`. The button does not render without the env var, because there is no way to ask Supabase which providers a project has enabled.
+- **Password reset** — needs custom SMTP under **Project Settings -> Auth -> SMTP**. Then set `VITE_EMAIL_RECOVERY=1`. Without it the "forgotten my password" link is hidden rather than offered and silently doing nothing.
+
+Shops self-provision from the app (migration `0004`), so no manual `insert into shops` is needed. To create one out of band anyway:
 
 ```sql
 insert into shops (name, whatsapp_number, supabase_auth_user_id)
-values ('Your Shop Name', '+256700000000', '<the auth user id you just created>');
+values ('Your Shop Name', '+256700000000', '<an auth user id>');
 ```
 
-The RLS policies deliberately do not allow the app to insert a `shops` row, so this has to be done here.
-
-**Create two, not one.** Tenant isolation is the single most important thing to verify in Phase 0 and it cannot be tested with a single tenant. Give the second shop a client and an order so there is something for the first shop to fail to see.
+**Create two accounts, not one.** Tenant isolation is the single most important thing to verify and it cannot be tested with a single tenant. Give the second shop a client and an order so there is something for the first shop to fail to see.
 
 ### 3a. Verify the RLS role split (optional, recommended before step 3's manual test)
 
 `pnpm verify:rls` checks the structural half of tenant isolation: that `anon`/`authenticated` don't have `BYPASSRLS`, that every table in `public` has RLS enabled with at least one policy, and that `order_balances` has `security_invoker` on. It needs `SUPABASE_DB_URL` in `.env` -- the *direct* Postgres connection string from **Project Settings -> Database -> Connection string**, not the anon key (see the comment in `.env.example`; this connects as the `postgres` role, which bypasses RLS itself, so it must never be used anywhere else).
 
 This does not replace the two-shop-account login test in the Phase 0 exit checklist (`docs/IMPLEMENTATION_PLAN.md`) -- it can't verify that shop A's session actually can't read shop B's rows, only that the policies are in place for that test to be meaningful.
+
+### 3b. Give existing shops credentials
+
+Shops created before the move off phone OTP have an auth user with no password, so nobody can sign in on a second device. `pnpm shop:credentials` fixes that. It needs `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
+
+It is a **dry run unless you pass `--apply`**. Start there — it lists every shop, the auth user behind it, and what it currently has:
+
+```bash
+pnpm shop:credentials
+```
+
+Then write a map of shop name (or id) to email, and apply it:
+
+```json
+{ "Kampala Tailors": { "email": "owner@example.com" } }
+```
+
+```bash
+node scripts/set-shop-credentials.mjs --map shops.json --apply
+```
+
+Passwords are generated unless the map supplies one, and printed **once** — there is no way to read them back. `shops*.json` is gitignored because these files hold real addresses.
 
 ### 4. Run it
 

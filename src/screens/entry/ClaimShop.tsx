@@ -1,62 +1,27 @@
+import { CredentialStep } from './steps/CredentialStep'
+import { EntryQuietButton, EntryScreen } from './parts'
+
 /**
- * Attach a number to a shop that was set up without one.
- *
- * The same two screens as sign-in, but the shop already exists here, so the
- * verified account is written onto it and replication can start.
+ * Creates the shop's account. Binding it to the shop row is ShopPrompts' job,
+ * driven by auth state, because a provider redirect unmounts this screen before
+ * any callback here could run.
  */
-import { useState } from 'preact/hooks'
-import { useShop } from '../../state/ShopProvider'
-import { claimShop } from '../../db/writes'
-import { PhoneStep } from './steps/PhoneStep'
-import { CodeStep } from './steps/CodeStep'
-import { EntryError, EntryQuietButton, EntryScreen } from './parts'
-
-export function ClaimShop({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
-  const { db, shop } = useShop()
-  const [phone, setPhone] = useState('')
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  if (!sent) {
-    return (
-      <EntryScreen>
-        {error && <EntryError>{error}</EntryError>}
-        <PhoneStep
-          title="Back up your shop"
-          body="Add your number and your work is saved off this phone. It is also how you get back in if the phone is lost."
-          initialPhone={phone}
-          onSent={(value) => {
-            setPhone(value)
-            setError(null)
-            setSent(true)
-          }}
-          footer={
-            <div class="mt-4">
-              <EntryQuietButton type="button" onClick={onCancel}>
-                Not now
-              </EntryQuietButton>
-            </div>
-          }
-        />
-      </EntryScreen>
-    )
-  }
-
+export function ClaimShop({ onCancel }: { onCancel: () => void }) {
   return (
     <EntryScreen>
-      <CodeStep
-        phone={phone}
-        onEditNumber={() => setSent(false)}
-        onVerified={async (userId) => {
-          if (!shop) return
-          try {
-            await claimShop(db, shop.id, userId)
-            onDone()
-          } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not back up this shop.')
-            setSent(false)
-          }
-        }}
+      <CredentialStep
+        mode="create"
+        title="Back up your shop"
+        body="An email and a password, and your work is saved off this phone. It is also how you get back in if the phone is lost."
+        submitLabel="Back up my shop"
+        onSignedIn={() => {}}
+        footer={
+          <div class="mt-4">
+            <EntryQuietButton type="button" onClick={onCancel}>
+              Not now
+            </EntryQuietButton>
+          </div>
+        }
       />
     </EntryScreen>
   )
