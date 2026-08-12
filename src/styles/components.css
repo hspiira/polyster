@@ -73,7 +73,6 @@
   align-items: baseline;
   column-gap: 0.5rem;
   min-width: 0;
-  font-size: 0.8125rem;
   /* Fades the clip so it reads as deliberate. Invisible when the line fits. */
   mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
 }
@@ -135,7 +134,8 @@
   }
 
   .data-row > [data-cell='primary'],
-  .data-row > [data-cell='figure'] {
+  .data-row > [data-cell='figure'],
+  .data-row .data-meta > [data-cell] {
     font-size: 0.875rem;
   }
 
@@ -152,7 +152,6 @@
   .data-list-head > .data-meta,
   .data-row > .data-meta {
     display: contents;
-    font-size: inherit;
   }
   .data-row > .data-meta {
     overflow: visible;

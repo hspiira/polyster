@@ -553,7 +553,7 @@ export function OrderForm() {
   if (clients.length === 0) {
     return (
       <Screen title="New order" back="/orders">
-        <Card>
+        <Card flush>
           <p class="text-sm text-stone-600 dark:text-stone-300">
             An order belongs to a client, and there are none yet. Add the client first.
           </p>
@@ -587,7 +587,7 @@ export function OrderForm() {
         <div class="space-y-5">
           {error && <ErrorNote>{error}</ErrorNote>}
 
-          <Card>
+          <Card flush>
             <div class="space-y-4">
               <Field label="Client" error={headerErrorFor('client_id')}>
                 <Select
@@ -896,7 +896,7 @@ function UnitCard({
   const retiredWithValue = retiredFields.filter((field) => unit.measurements[field.id] !== undefined)
 
   return (
-    <Card>
+    <Card flush>
       <div class="mb-3 flex items-center justify-between gap-2">
         <p class="text-sm font-semibold text-stone-500 dark:text-stone-400">Item {index + 1}</p>
         {canRemove && (

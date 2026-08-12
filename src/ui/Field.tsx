@@ -68,6 +68,7 @@ export function Field({
  * Segmented control for a small, fixed set of filters. Use a `<select>` above
  * about five options, where the segments get too narrow to hit.
  */
+/** Wraps rather than scrolls: a hidden option is an option nobody picks. */
 export function Segmented<T extends string>({
   value,
   options,
@@ -83,7 +84,7 @@ export function Segmented<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      class="flex gap-1 overflow-x-auto rounded-control bg-surface-sunken p-1 [&::-webkit-scrollbar]:hidden"
+      class="flex flex-wrap gap-1 rounded-control bg-surface-sunken p-1"
     >
       {options.map((option) => {
         const active = option.value === value
@@ -95,8 +96,8 @@ export function Segmented<T extends string>({
             aria-selected={active}
             onClick={() => onChange(option.value)}
             class={cn(
-              'min-h-9 shrink-0 rounded-[calc(var(--r-control)-0.25rem)] px-3.5',
-              'text-sm font-medium transition-colors',
+              'min-h-9 flex-1 rounded-[calc(var(--r-control)-0.25rem)] px-3',
+              'text-sm font-medium whitespace-nowrap transition-colors',
               active
                 ? 'bg-surface text-content shadow-raise'
                 : 'text-content-muted hover:text-content',

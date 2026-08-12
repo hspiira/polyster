@@ -59,7 +59,7 @@ const ROLE_CLASS: Record<CellRole, string> = {
   // No `truncate`: a primary cell is often two lines, and `white-space: nowrap`
   // on the wrapper would flatten them. It owns its own truncation.
   primary: 'text-[15px] font-medium text-content',
-  meta: 'truncate text-sm text-content-muted',
+  meta: 'truncate text-[13px] text-content-muted',
   status: '',
   figure: 'text-[13px] font-semibold tabular-nums text-content',
 }
