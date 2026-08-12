@@ -41,7 +41,7 @@ begin
     (
       '10000000-0000-4000-8000-000000000001',
       'NORTH//FOUND',
-      '+256700000001',
+      '+256772418003',
       north_auth,
       'UGX',
       'UG',
@@ -55,7 +55,7 @@ begin
     (
       '10000000-0000-4000-8000-000000000002',
       'Mirembe Tailoring House',
-      '+256700000002',
+      '+256782640117',
       tailor_auth,
       'UGX',
       'UG',
@@ -118,8 +118,8 @@ begin
     ('41000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','Daniel Ouma','+256772410229','Corporate client.','20000000-0000-4000-8000-000000000002'),
     ('41000000-0000-4000-8000-000000000003','10000000-0000-4000-8000-000000000001','Sarah Atwine','+256755381440','Prefers neutral colours.','20000000-0000-4000-8000-000000000001'),
     ('41000000-0000-4000-8000-000000000004','10000000-0000-4000-8000-000000000001','Grace Achieng','+256704665391','Pre-order customer.','20000000-0000-4000-8000-000000000001'),
-    ('41000000-0000-4000-8000-000000000005','10000000-0000-4000-8000-000000000002','John Kato','+256701111222','Prefers two-button jackets.','20000000-0000-4000-8000-000000000004'),
-    ('41000000-0000-4000-8000-000000000006','10000000-0000-4000-8000-000000000002','Anita Nakato','+256772333444','Formal office wear.','20000000-0000-4000-8000-000000000004');
+    ('41000000-0000-4000-8000-000000000005','10000000-0000-4000-8000-000000000002','John Kato','+256774220185','Prefers two-button jackets.','20000000-0000-4000-8000-000000000004'),
+    ('41000000-0000-4000-8000-000000000006','10000000-0000-4000-8000-000000000002','Anita Nakato','+256703558140','Formal office wear.','20000000-0000-4000-8000-000000000004');
 
   insert into measurement_profiles (id,client_id,values,updated_by) values
     ('42000000-0000-4000-8000-000000000001','41000000-0000-4000-8000-000000000001',
@@ -195,8 +195,8 @@ begin
 
   -- ---------------- suppliers/materials ----------------
   insert into suppliers (id,shop_id,name,phone,email,address,active) values
-    ('34000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Kampala Textiles','+256700100100','sales@kampalatextiles.co.ug','Kampala',true),
-    ('34000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','Label & Trim Co.','+256700100200','hello@labeltrim.co.ug','Kampala',true);
+    ('34000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Kampala Textiles','+256772309441','sales@kampalatextiles.co.ug','Kampala',true),
+    ('34000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','Label & Trim Co.','+256758114620','hello@labeltrim.co.ug','Kampala',true);
 
   insert into materials (
     id,shop_id,supplier_id,name,description,material_type,unit,quantity_on_hand,
@@ -399,7 +399,7 @@ begin
     ('47000000-0000-4000-8000-000000000008','10000000-0000-4000-8000-000000000001',null,'FOUND 02 Tee',2,'UGX',180000,'cash',null,'2026-08-09T17:25:00+03','20000000-0000-4000-8000-000000000002',null),
     -- Zero-price giveaway: the P&L must count it as a sale worth nothing
     -- rather than skipping the row.
-    ('47000000-0000-4000-8000-000000000009','10000000-0000-4000-8000-000000000001',null,'Sample tote bag',1,'UGX',0,'cash',null,'2026-08-10T12:00:00+03','20000000-0000-4000-8000-000000000001','Promotional giveaway.'),
+    ('47000000-0000-4000-8000-000000000009','10000000-0000-4000-8000-000000000001',null,'FOUND 01 Tote',1,'UGX',0,'cash',null,'2026-08-10T12:00:00+03','20000000-0000-4000-8000-000000000001','Promotional giveaway.'),
     -- Two rows in the previous month, so period comparison has a baseline.
     ('47000000-0000-4000-8000-000000000010','10000000-0000-4000-8000-000000000001',null,'FOUND 02 Overshirt',1,'UGX',285000,'mobile_money','SALE-NF-005','2026-07-28T14:15:00+03','20000000-0000-4000-8000-000000000001',null),
     ('47000000-0000-4000-8000-000000000011','10000000-0000-4000-8000-000000000002','41000000-0000-4000-8000-000000000006','Pocket square',2,'UGX',25000,'cash',null,'2026-08-04T10:30:00+03','20000000-0000-4000-8000-000000000005',null),
@@ -442,6 +442,232 @@ begin
     ('3d000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002','3c000000-0000-4000-8000-000000000001',
      'Navy suiting fabric','fabric','metre',18,5,18000,'UGX','Wool blend','Navy',true);
   -- Legacy/feature-disabled cases are kept in the local edge-case fixture.
+
+  -- Bulk trading history, so lists, filters and reports have real volume.
+
+  insert into clients (shop_id, name, phone, notes, created_by)
+  select '10000000-0000-4000-8000-000000000001', c.name, c.phone, c.notes, '20000000-0000-4000-8000-000000000001'
+  from (values
+    ('Aisha Nakalema','+256772418117','Prefers a slim fit through the waist.'),
+    ('Brian Ssekandi','+256782604233','Collects on Saturdays.'),
+    ('Catherine Nabirye','+256701337815','Pays by mobile money.'),
+    ('David Wasswa','+256752119408','Repeat customer since 2024.'),
+    ('Gloria Nansubuga','+256774882051',null),
+    ('Henry Lubega','+256703445192','Wants the same tailor each time.'),
+    ('Joan Ssebbowa','+256758620374','Orders for her whole family.'),
+    ('Kevin Ochieng','+256776203841',null),
+    ('Lydia Namaganda','+256772915630','Prefers neutral colours.'),
+    ('Oscar Tumusiime','+256782037714','Corporate buyer at Kintu & Co.'),
+    ('Patience Aber','+256701882446',null),
+    ('Robert Mukasa','+256752640188','Always collects late.'),
+    ('Sylvia Nakayima','+256774113905','Bridal party orders.'),
+    ('Winnie Adong','+256703772518',null)
+  ) c(name, phone, notes);
+
+  insert into clients (shop_id, name, phone, notes, created_by)
+  select '10000000-0000-4000-8000-000000000002', c.name, c.phone, c.notes, '20000000-0000-4000-8000-000000000004'
+  from (values
+    ('Emmanuel Kiwanuka','+256772330614','Two suits a year.'),
+    ('Faith Nakimuli','+256782115947','Gomesi for functions.'),
+    ('Gerald Ssempijja','+256701604228',null),
+    ('Harriet Atim','+256752883170','School uniforms for three children.'),
+    ('Ivan Kyeyune','+256774209563','Prefers double-breasted.'),
+    ('Martin Otim','+256703517842',null),
+    ('Nancy Akello','+256758331096','Office wear, monthly.'),
+    ('Tony Bwambale','+256776840215','Alterations only.'),
+    ('Zahara Mbabazi','+256772608439','Kitenge dresses.'),
+    ('Grace Nabukera','+256782447120',null),
+    ('Peter Ssentongo','+256701229653','Kanzu for Eid.'),
+    ('Rita Kansiime','+256752706318','Bridesmaid dresses in March.')
+  ) c(name, phone, notes);
+
+  with cl as (
+    select id, (row_number() over (order by created_at, id) - 1) as rn, count(*) over () as n
+    from clients where shop_id = '10000000-0000-4000-8000-000000000001'
+  ), gm as (
+    select item, price, otype, (row_number() over () - 1) as rn, count(*) over () as n
+    from (values
+      ('FOUND 01 Overshirt',245000,'tailor_made'),
+      ('FOUND 01 Wide Trouser',210000,'tailor_made'),
+      ('FOUND 02 Camp Collar Shirt',185000,'pre_order'),
+      ('FOUND 02 Pleated Short',145000,'purchase'),
+      ('NF Utility Jacket',380000,'tailor_made'),
+      ('NF Oxford Shirt',195000,'purchase'),
+      ('FOUND 02 Linen Set',420000,'pre_order'),
+      ('NF Overshirt, sleeve shortened',35000,'repair'),
+      ('FOUND 01 Coat, event hire',260000,'rental')
+    ) g(item, price, otype)
+  ), rows as (
+    select i, cl.id as client_id, gm.item, gm.price, gm.otype,
+           (current_date + (((i * 11) % 60) - 35)) as due
+    from generate_series(0, 25) i
+    join cl on cl.rn = (i * 3) % cl.n
+    join gm on gm.rn = (i * 5) % gm.n
+  )
+  insert into orders (
+    shop_id, client_id, order_type, summary, stage, price_total_minor,
+    pickup_due_date, return_due_date, rental_deposit_minor, reference, currency,
+    created_by, customer_type
+  )
+  select '10000000-0000-4000-8000-000000000001', client_id, otype, item,
+    case
+      when due < current_date - 14 then (case when otype = 'rental' then 'returned' else 'picked_up' end)
+      when due < current_date - 3 then 'picked_up'
+      when due <= current_date + 3 then 'ready'
+      when i % 5 = 0 then 'in_progress'
+      else 'measured'
+    end,
+    price, due,
+    case when otype = 'rental' then due + 3 else null end,
+    case when otype = 'rental' then (price / 2)::bigint else 0 end,
+    'NFB-' || lpad((i + 1)::text, 4, '0'), 'UGX', '20000000-0000-4000-8000-000000000001', 'individual'
+  from rows;
+
+  insert into payments (order_id, amount_minor, method, recorded_by, payment_date)
+  select o.id,
+    case when o.stage in ('picked_up', 'returned') then o.price_total_minor
+         else greatest(1, (o.price_total_minor * 4 / 10))::bigint end,
+    case (substring(o.reference from 5)::int % 3)
+      when 0 then 'cash' when 1 then 'mobile_money' else 'bank' end,
+    '20000000-0000-4000-8000-000000000001',
+    now() - ((substring(o.reference from 5)::int % 30) || ' days')::interval
+  from orders o
+  where o.shop_id = '10000000-0000-4000-8000-000000000001' and o.reference like 'NFB-%'
+    and (substring(o.reference from 5)::int % 7) <> 0;
+
+  with cl as (
+    select id, (row_number() over (order by created_at, id) - 1) as rn, count(*) over () as n
+    from clients where shop_id = '10000000-0000-4000-8000-000000000002'
+  ), gm as (
+    select item, price, otype, (row_number() over () - 1) as rn, count(*) over () as n
+    from (values
+      ('Two-piece suit, navy',450000,'tailor_made'),
+      ('Kanzu, white cotton',130000,'tailor_made'),
+      ('Office shirt, long sleeve',55000,'tailor_made'),
+      ('Kitenge dress',165000,'tailor_made'),
+      ('School uniform set',45000,'purchase'),
+      ('Blazer, grey wool',320000,'tailor_made'),
+      ('Trouser taken in at the waist',15000,'repair'),
+      ('Gomesi for a wedding',380000,'tailor_made')
+    ) g(item, price, otype)
+  ), rows as (
+    select i, cl.id as client_id, gm.item, gm.price, gm.otype,
+           (current_date + (((i * 11) % 60) - 35)) as due
+    from generate_series(0, 19) i
+    join cl on cl.rn = (i * 3) % cl.n
+    join gm on gm.rn = (i * 5) % gm.n
+  )
+  insert into orders (
+    shop_id, client_id, order_type, summary, stage, price_total_minor,
+    pickup_due_date, return_due_date, rental_deposit_minor, reference, currency,
+    created_by, customer_type
+  )
+  select '10000000-0000-4000-8000-000000000002', client_id, otype, item,
+    case
+      when due < current_date - 14 then (case when otype = 'rental' then 'returned' else 'picked_up' end)
+      when due < current_date - 3 then 'picked_up'
+      when due <= current_date + 3 then 'ready'
+      when i % 5 = 0 then 'in_progress'
+      else 'measured'
+    end,
+    price, due,
+    case when otype = 'rental' then due + 3 else null end,
+    case when otype = 'rental' then (price / 2)::bigint else 0 end,
+    'MTB-' || lpad((i + 1)::text, 4, '0'), 'UGX', '20000000-0000-4000-8000-000000000004', 'individual'
+  from rows;
+
+  insert into payments (order_id, amount_minor, method, recorded_by, payment_date)
+  select o.id,
+    case when o.stage in ('picked_up', 'returned') then o.price_total_minor
+         else greatest(1, (o.price_total_minor * 4 / 10))::bigint end,
+    case (substring(o.reference from 5)::int % 3)
+      when 0 then 'cash' when 1 then 'mobile_money' else 'bank' end,
+    '20000000-0000-4000-8000-000000000004',
+    now() - ((substring(o.reference from 5)::int % 30) || ' days')::interval
+  from orders o
+  where o.shop_id = '10000000-0000-4000-8000-000000000002' and o.reference like 'MTB-%'
+    and (substring(o.reference from 5)::int % 7) <> 0;
+
+  with rt as (
+    select item, price, (row_number() over () - 1) as rn, count(*) over () as n
+    from (values
+      ('NF Cotton Tee',75000),
+      ('FOUND 01 Cap',85000),
+      ('NF Canvas Tote',65000),
+      ('FOUND 02 Socks, pair',25000),
+      ('NF Oxford Shirt',195000)
+    ) r(item, price)
+  )
+  insert into sales (
+    shop_id, item_description, quantity, currency, unit_price_minor, method,
+    reference, sold_at, recorded_by
+  )
+  select '10000000-0000-4000-8000-000000000001', rt.item, 1 + (i % 3), 'UGX', rt.price,
+    case (i % 3) when 0 then 'cash' when 1 then 'mobile_money' else 'bank' end,
+    'SALE-NF-' || lpad((i + 1)::text, 3, '0'),
+    now() - (((i * 3) % 45) || ' days')::interval,
+    '20000000-0000-4000-8000-000000000001'
+  from generate_series(0, 21) i
+  join rt on rt.rn = (i * 3) % rt.n;
+
+  with rt as (
+    select item, price, (row_number() over () - 1) as rn, count(*) over () as n
+    from (values
+      ('Kitenge fabric, 6 yards',90000),
+      ('Ready-made kanzu',120000),
+      ('Necktie',35000),
+      ('Shirt buttons, card',5000),
+      ('Sewing thread, box',18000)
+    ) r(item, price)
+  )
+  insert into sales (
+    shop_id, item_description, quantity, currency, unit_price_minor, method,
+    reference, sold_at, recorded_by
+  )
+  select '10000000-0000-4000-8000-000000000002', rt.item, 1 + (i % 3), 'UGX', rt.price,
+    case (i % 3) when 0 then 'cash' when 1 then 'mobile_money' else 'bank' end,
+    'SALE-MTH-' || lpad((i + 1)::text, 3, '0'),
+    now() - (((i * 3) % 45) || ' days')::interval,
+    '20000000-0000-4000-8000-000000000004'
+  from generate_series(0, 19) i
+  join rt on rt.rn = (i * 3) % rt.n;
+
+  with ex as (
+    select cat, descr, amount, (row_number() over () - 1) as rn, count(*) over () as n
+    from (values
+      ('materials','Cotton twill, 40m from Kampala Textiles',1240000),
+      ('wages','Machinists, fortnight',1400000),
+      ('rent','Studio rent, Ntinda',900000),
+      ('transport','Boda deliveries, Kampala',48000),
+      ('utilities','Umeme electricity',180000),
+      ('materials','Woven labels and swing tags',320000),
+      ('other','Overlocker service',120000),
+      ('utilities','Airtime and data',60000)
+    ) e(cat, descr, amount)
+  )
+  insert into expenses (shop_id, category, description, currency, amount_minor, spent_on, recorded_by)
+  select '10000000-0000-4000-8000-000000000001', ex.cat, ex.descr, 'UGX', ex.amount,
+    current_date - ((i * 5) % 50), '20000000-0000-4000-8000-000000000001'
+  from generate_series(0, 15) i
+  join ex on ex.rn = i % ex.n;
+
+  with ex as (
+    select cat, descr, amount, (row_number() over () - 1) as rn, count(*) over () as n
+    from (values
+      ('materials','Suiting fabric, 30m',840000),
+      ('rent','Shop rent, Kisenyi',600000),
+      ('wages','Two tailors, fortnight',700000),
+      ('transport','Fabric collection from town',25000),
+      ('utilities','Electricity and water',95000),
+      ('materials','Lining and interfacing',180000),
+      ('other','Machine needles and oil',40000)
+    ) e(cat, descr, amount)
+  )
+  insert into expenses (shop_id, category, description, currency, amount_minor, spent_on, recorded_by)
+  select '10000000-0000-4000-8000-000000000002', ex.cat, ex.descr, 'UGX', ex.amount,
+    current_date - ((i * 5) % 50), '20000000-0000-4000-8000-000000000004'
+  from generate_series(0, 13) i
+  join ex on ex.rn = i % ex.n;
 
 end $$;
 

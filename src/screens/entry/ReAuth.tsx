@@ -5,13 +5,6 @@ import { verifiedUserOwnsShop } from '../../lib/recovery'
 import { CredentialStep } from './steps/CredentialStep'
 import { EntryError, EntryQuietButton, EntryScreen } from './parts'
 
-/**
- * Signing in again after a refresh token has expired.
- *
- * Signing in as the wrong account is worse than staying signed out: replication
- * would push this shop's rows under an id RLS rejects, so the mismatch is
- * checked and the session dropped again rather than left live.
- */
 export function ReAuth({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const { controller } = useAuth()
   const { shop } = useShop()

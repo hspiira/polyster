@@ -14,6 +14,7 @@ import {
   setFeatureEnabled,
   type ShopDoc,
 } from './_fixture_helpers'
+import { seedVolume, type VolumeCatalogue } from './volume'
 
 /**
  * Full NORTH//FOUND local/offline fixture.
@@ -24,12 +25,43 @@ import {
  *
  * Default test PIN for all seeded staff: 123456
  */
+const NORTHFOUND_CATALOGUE: VolumeCatalogue = {
+  garments: [
+    { item: 'FOUND 01 Overshirt', price: 245000, type: 'tailor_made' },
+    { item: 'FOUND 01 Wide Trouser', price: 210000, type: 'tailor_made' },
+    { item: 'FOUND 02 Camp Collar Shirt', price: 185000, type: 'pre_order' },
+    { item: 'FOUND 02 Pleated Short', price: 145000, type: 'purchase' },
+    { item: 'NF Utility Jacket', price: 380000, type: 'tailor_made' },
+    { item: 'NF Oxford Shirt', price: 195000, type: 'purchase' },
+    { item: 'FOUND 02 Linen Set', price: 420000, type: 'pre_order' },
+    { item: 'NF Overshirt, sleeve shortened', price: 35000, type: 'repair' },
+    { item: 'FOUND 01 Coat, event hire', price: 260000, type: 'rental' },
+  ],
+  retail: [
+    { item: 'NF Cotton Tee', price: 75000 },
+    { item: 'FOUND 01 Cap', price: 85000 },
+    { item: 'NF Canvas Tote', price: 65000 },
+    { item: 'FOUND 02 Socks, pair', price: 25000 },
+    { item: 'NF Oxford Shirt', price: 195000 },
+  ],
+  expenses: [
+    { category: 'materials', description: 'Cotton twill, 40m from Kampala Textiles', amount: 1240000 },
+    { category: 'wages', description: 'Machinists, fortnight', amount: 1400000 },
+    { category: 'rent', description: 'Studio rent, Ntinda', amount: 900000 },
+    { category: 'transport', description: 'Boda deliveries, Kampala', amount: 48000 },
+    { category: 'utilities', description: 'Umeme electricity', amount: 180000 },
+    { category: 'materials', description: 'Woven labels and swing tags', amount: 320000 },
+    { category: 'other', description: 'Overlocker service', amount: 120000 },
+    { category: 'utilities', description: 'Airtime and data', amount: 60000 },
+  ],
+}
+
 export async function seedNorthFoundData(db: AppDatabase): Promise<ShopDoc> {
   const shop = await seedTenant(db, {
     name: 'NORTH//FOUND',
     businessType: 'apparel_brand',
     ownerName: 'Henry Piira',
-    whatsappNumber: '+256700000001',
+    whatsappNumber: '+256772418003',
     email: 'hello@northfound.ug',
     website: 'https://northfound.ug',
     featureOverrides: {
@@ -137,7 +169,7 @@ export async function seedNorthFoundData(db: AppDatabase): Promise<ShopDoc> {
     createClient(db, shop.id, {
       name: 'Kintu & Co.',
       phone: '+256 759 820 410',
-      notes: 'Corporate account used for sample corporate orders.',
+      notes: 'Law firm. Orders staff shirts twice a year, 12 to 20 pieces.',
     }),
   ])
 
@@ -297,11 +329,11 @@ export async function seedNorthFoundData(db: AppDatabase): Promise<ShopDoc> {
     reference: 'SALE-NF-001',
   }, maker.id)
   await recordSale(db, shop, {
-    item_description: 'Sample tote bag',
+    item_description: 'FOUND 01 Tote',
     quantity: 1,
     unit_price_minor: 0,
     method: 'cash',
-    notes: 'Promotional giveaway.',
+    notes: 'Giveaway at the Kampala pop-up.',
   }, owner.id)
 
   await recordExpense(db, shop, {
@@ -332,6 +364,15 @@ export async function seedNorthFoundData(db: AppDatabase): Promise<ShopDoc> {
   await setFeatureEnabled(db, shop.id, 'collections', true)
   await setFeatureEnabled(db, shop.id, 'garment_identity', true)
   await setFeatureEnabled(db, shop.id, 'garment_passport', true)
+
+  await seedVolume(db, shop, {
+    catalogue: NORTHFOUND_CATALOGUE,
+    extraClients: 18,
+    orders: 28,
+    sales: 22,
+    expenses: 16,
+    salePrefix: 'NF',
+  })
 
   return shop
 }

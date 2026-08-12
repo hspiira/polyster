@@ -1,24 +1,4 @@
 #!/usr/bin/env node
-// Gives existing shops an email and password, for the move off phone OTP.
-//
-// Dry run by default: it prints every shop, its auth user, and what it would
-// change, and touches nothing. `--apply` performs the writes.
-//
-// Needs SUPABASE_SERVICE_ROLE_KEY (Project Settings -> API -> service_role).
-// That key bypasses RLS and can rewrite any user's credentials, so it must
-// never carry a VITE_ prefix and must never reach the browser bundle.
-//
-// Usage:
-//   node scripts/set-shop-credentials.mjs                        # dry run, no map needed
-//   node scripts/set-shop-credentials.mjs --map shops.json       # dry run against a map
-//   node scripts/set-shop-credentials.mjs --map shops.json --apply
-//
-// The map is keyed by shop id or exact shop name:
-//   { "Kampala Tailors": { "email": "owner@example.com" },
-//     "8f3e...": { "email": "two@example.com", "password": "chosen-if-you-want" } }
-//
-// Passwords are generated when the map does not supply one, and printed once.
-// There is no way to read them back afterwards.
 
 import { readFileSync } from 'node:fs'
 import { randomInt } from 'node:crypto'
@@ -26,9 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 
 try {
   process.loadEnvFile()
-} catch {
-  // No .env file -- fine, the vars may be exported.
-}
+} catch {}
 
 const args = process.argv.slice(2)
 const apply = args.includes('--apply')
@@ -53,7 +31,6 @@ if (wantsMap && !mapPath) {
   process.exit(1)
 }
 
-/** @type {Record<string, { email?: string, password?: string }>} */
 let map = {}
 if (mapPath) {
   try {
@@ -64,8 +41,6 @@ if (mapPath) {
   }
 }
 
-// Ambiguous characters left out: this gets read off a screen and typed on a
-// phone keyboard, and 0/O l/1/I is where that goes wrong.
 const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'
 
 function generatePassword() {
@@ -97,9 +72,7 @@ if (live.length === 0) {
 
 console.log(`${live.length} shop(s).${apply ? '' : '  DRY RUN -- nothing will be written.'}\n`)
 
-/** @type {{ shop: string, email: string, password: string }[]} */
 const issued = []
-/** @type {string[]} */
 const problems = []
 
 for (const shop of live) {
@@ -140,9 +113,6 @@ for (const shop of live) {
     continue
   }
 
-  // email_confirm marks it verified so the account works immediately. Without
-  // it, a project with confirmations on leaves the shop unable to sign in and
-  // waiting for mail that may never be configured.
   const { error: updateError } = await supabase.auth.admin.updateUserById(
     shop.supabase_auth_user_id,
     { email, password, email_confirm: true },

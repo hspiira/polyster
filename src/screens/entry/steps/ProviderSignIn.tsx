@@ -1,12 +1,3 @@
-/**
- * Renders nothing unless VITE_OAUTH_PROVIDERS names a provider.
- *
- * startOAuth navigates away, so nothing can run "after" success here -- callers
- * must drive the next step from auth state once the app remounts.
- *
- * On iOS a standalone PWA can hand the redirect to Safari and keep the session
- * there. Email and password is the door that always works.
- */
 import { useState } from 'preact/hooks'
 import { useAuth } from '../../../hooks/useAuth'
 import type { OAuthProvider } from '../../../lib/auth'
@@ -59,7 +50,6 @@ function ProviderMark({ provider }: { provider: OAuthProvider }) {
   return null
 }
 
-/** Kept out of icons.tsx: Google's guidelines require its own four colours, not currentColor. */
 function GoogleMark() {
   return (
     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">

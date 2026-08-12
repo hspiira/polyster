@@ -1,11 +1,6 @@
 import { CredentialStep } from './steps/CredentialStep'
 import { EntryQuietButton, EntryScreen } from './parts'
 
-/**
- * Creates the shop's account. Binding it to the shop row is ShopPrompts' job,
- * driven by auth state, because a provider redirect unmounts this screen before
- * any callback here could run.
- */
 export function ClaimShop({ onCancel }: { onCancel: () => void }) {
   return (
     <EntryScreen>

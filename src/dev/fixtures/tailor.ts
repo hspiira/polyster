@@ -13,6 +13,7 @@ import {
   seedTenant,
   type ShopDoc,
 } from './_fixture_helpers'
+import { seedVolume, type VolumeCatalogue } from './volume'
 
 /**
  * Generic tailoring-shop fixture.
@@ -22,12 +23,41 @@ import {
  *
  * Default test PIN for all seeded staff: 123456
  */
+const MIREMBE_CATALOGUE: VolumeCatalogue = {
+  garments: [
+    { item: 'Two-piece suit, navy', price: 450000, type: 'tailor_made' },
+    { item: 'Kanzu, white cotton', price: 130000, type: 'tailor_made' },
+    { item: 'Office shirt, long sleeve', price: 55000, type: 'tailor_made' },
+    { item: 'Kitenge dress', price: 165000, type: 'tailor_made' },
+    { item: 'School uniform set', price: 45000, type: 'purchase' },
+    { item: 'Blazer, grey wool', price: 320000, type: 'tailor_made' },
+    { item: 'Trouser taken in at the waist', price: 15000, type: 'repair' },
+    { item: 'Zip replaced on a jacket', price: 20000, type: 'repair' },
+  ],
+  retail: [
+    { item: 'Kitenge fabric, 6 yards', price: 90000 },
+    { item: 'Shirt buttons, card', price: 5000 },
+    { item: 'Ready-made kanzu', price: 120000 },
+    { item: 'Necktie', price: 35000 },
+    { item: 'Sewing thread, box', price: 18000 },
+  ],
+  expenses: [
+    { category: 'materials', description: 'Suiting fabric, 30m', amount: 840000 },
+    { category: 'rent', description: 'Shop rent, Kisenyi', amount: 600000 },
+    { category: 'wages', description: 'Two tailors, fortnight', amount: 700000 },
+    { category: 'transport', description: 'Fabric collection from town', amount: 25000 },
+    { category: 'utilities', description: 'Electricity and water', amount: 95000 },
+    { category: 'materials', description: 'Lining and interfacing', amount: 180000 },
+    { category: 'other', description: 'Machine needles and oil', amount: 40000 },
+  ],
+}
+
 export async function seedGenericTailorData(db: AppDatabase): Promise<ShopDoc> {
   const shop = await seedTenant(db, {
     name: 'Mirembe Tailoring House',
     businessType: 'tailor',
     ownerName: 'Miriam Ssemanda',
-    whatsappNumber: '+256700000002',
+    whatsappNumber: '+256782640117',
     email: 'hello@mirembetailoring.co.ug',
     website: 'https://mirembetailoring.co.ug',
   })
@@ -82,9 +112,9 @@ export async function seedGenericTailorData(db: AppDatabase): Promise<ShopDoc> {
       phone: '+256 755 555 666',
     }),
     createClient(db, shop.id, {
-      name: 'Walk-in Example',
-      phone: '+256 700 000 999',
-      notes: 'Fixture for search/phone matching.',
+      name: 'Samuel Byaruhanga',
+      phone: '+256 772 604 118',
+      notes: 'Walk-in. Paid cash, no measurements taken.',
     }),
   ])
 
@@ -183,6 +213,15 @@ export async function seedGenericTailorData(db: AppDatabase): Promise<ShopDoc> {
     amount_minor: 280000,
     spent_on: '2026-08-05',
   }, tailor.id)
+
+  await seedVolume(db, shop, {
+    catalogue: MIREMBE_CATALOGUE,
+    extraClients: 14,
+    orders: 21,
+    sales: 20,
+    expenses: 14,
+    salePrefix: 'MTH',
+  })
 
   return shop
 }

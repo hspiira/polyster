@@ -52,6 +52,44 @@ describe('seedAll', () => {
     expect(shops).toHaveLength(0)
   }, 120000)
 
+  it('seeds enough of everything to exercise lists, filters and reports', async () => {
+    const db = await freshDatabase()
+    await seedAll(db, { force: true })
+
+    const counts = {
+      clients: (await db.clients.find().exec()).length,
+      orders: (await db.orders.find().exec()).length,
+      payments: (await db.payments.find().exec()).length,
+      sales: (await db.sales.find().exec()).length,
+      expenses: (await db.expenses.find().exec()).length,
+    }
+
+    expect(counts).toMatchObject({
+      clients: expect.any(Number),
+      orders: expect.any(Number),
+    })
+    expect(counts.clients).toBeGreaterThanOrEqual(35)
+    expect(counts.orders).toBeGreaterThanOrEqual(50)
+    expect(counts.payments).toBeGreaterThanOrEqual(50)
+    expect(counts.sales).toBeGreaterThanOrEqual(40)
+    expect(counts.expenses).toBeGreaterThanOrEqual(30)
+  }, 180000)
+
+  it('spreads sales and orders across dates rather than stacking them on today', async () => {
+    const db = await freshDatabase()
+    await seedAll(db, { force: true })
+
+    const soldDays = new Set(
+      (await db.sales.find().exec()).map((sale) => sale.sold_at.slice(0, 10)),
+    )
+    const dueDays = new Set(
+      (await db.orders.find().exec()).map((order) => order.pickup_due_date),
+    )
+
+    expect(soldDays.size).toBeGreaterThanOrEqual(10)
+    expect(dueDays.size).toBeGreaterThanOrEqual(15)
+  }, 180000)
+
   it('covers every order type the schema allows', async () => {
     const db = await freshDatabase()
     await seedAll(db, { force: true })

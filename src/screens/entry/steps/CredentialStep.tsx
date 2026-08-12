@@ -30,7 +30,6 @@ export function CredentialStep({
   title: string
   body: string
   submitLabel: string
-  /** Password path only -- a provider redirect leaves the page before this could fire. */
   onSignedIn: (userId: string) => void | Promise<void>
   onForgot?: () => void
   footer?: ComponentChildren
@@ -60,8 +59,6 @@ export function CredentialStep({
       emailRef.current?.focus()
       return
     }
-    // Length is only enforced on create: an existing account may predate the
-    // current minimum, and refusing to let it sign in would be absurd.
     const passwordIssue = mode === 'create' ? passwordProblem(password) : password ? null : 'Enter your password.'
     if (passwordIssue) {
       setInvalid('password')

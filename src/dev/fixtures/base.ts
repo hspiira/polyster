@@ -16,11 +16,11 @@ export interface SeedTenantInput {
 export async function seedTenant(db: AppDatabase, input: SeedTenantInput): Promise<ShopDoc> {
   const shop = await createShop(db, {
     name: input.name,
-    whatsapp_number: input.whatsappNumber ?? '+256700000000',
+    whatsapp_number: input.whatsappNumber ?? '+256772000418',
   })
   await updateShop(db, shop.id, {
     name: shop.name,
-    whatsapp_number: input.whatsappNumber ?? '+256700000000',
+    whatsapp_number: input.whatsappNumber ?? '+256772000418',
     business_type: input.businessType,
     currency: 'UGX',
     lock_after_minutes: 5,

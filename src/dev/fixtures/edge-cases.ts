@@ -18,9 +18,11 @@ import {
  */
 export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
   const shop = await seedTenant(db, {
-    name: 'Edge Case Workshop',
+    name: 'Ssenga Bridal & Tailoring',
     businessType: 'hybrid',
-    ownerName: 'Test Owner',
+    ownerName: 'Rebecca Nabukenya',
+    whatsappNumber: '+256701337204',
+    email: 'bookings@ssengabridal.co.ug',
     featureOverrides: {
       rentals: false,
       catalogue: false,
@@ -39,12 +41,12 @@ export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
   if (!ownerDoc) throw new Error('Seed owner was not created.')
   const owner = ownerDoc.toJSON()
   await createStaff(db, shop.id, {
-    name: 'Disabled Feature Manager',
+    name: 'Irene Nampijja',
     pin: '123456',
     role: 'manager',
   })
   const inactive = await createStaff(db, shop.id, {
-    name: 'Former Staff Member',
+    name: 'Moses Kigozi',
     role: 'staff',
   })
   const inactiveDoc = await db.staff.findOne(inactive.id).exec()
@@ -60,9 +62,9 @@ export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
     display_order: 0,
   })
   const client = await createClient(db, shop.id, {
-    name: 'Legacy Feature Client',
-    phone: '+256 700 123 456',
-    notes: 'Used for feature-disabled and historical-data tests.',
+    name: 'Esther Kirabo',
+    phone: '+256 772 845 190',
+    notes: 'Bridesmaid dresses in March. Wants the same tailor each time.',
   })
   await saveMeasurements(db, client.id, {
     [chest.id]: 96,
@@ -73,7 +75,7 @@ export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
   const historical = await createOrder(db, shop.id, {
     client_id: client.id,
     order_type: 'tailor_made',
-    item_description: 'Legacy navy blazer',
+    item_description: 'Navy wool blazer, single-breasted',
     price_total_minor: 410000,
     pickup_due_date: '2026-07-20',
   }, owner.id)

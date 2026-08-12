@@ -1,28 +1,15 @@
 #!/usr/bin/env node
-// Creates the two Supabase Auth accounts supabase/seed.sql binds its fixture
-// tenants to, so there is something to sign in as. Idempotent: an account that
-// already exists has its password reset to the dev one.
-//
-// Run this BEFORE supabase/seed.sql. The seed looks the accounts up by email
-// and fails with instructions if they are missing.
-//
-// Needs VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Development and
-// staging projects only -- it sets a published password on real accounts.
 
 import { createClient } from '@supabase/supabase-js'
 
 try {
   process.loadEnvFile()
-} catch {
-  // No .env file -- fine, the vars may be exported.
-}
+} catch {}
 
 const url = process.env.VITE_SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const password = process.env.SEED_PASSWORD ?? 'polyster-dev'
 
-// Keep email confirmations off on any project these run against: they are
-// placeholder addresses, not inboxes anyone is watching.
 const ACCOUNTS = [
   { email: 'owner@northfound.ug', shop: 'NORTH//FOUND' },
   { email: 'owner@mirembetailoring.co.ug', shop: 'Mirembe Tailoring House' },
@@ -50,11 +37,6 @@ const supabase = createClient(url, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 })
 
-/**
- * There is no admin "get user by email", so this pages through the list. Two
- * accounts on a dev project will be on the first page; the loop is here so it
- * still works on a project that has accumulated users.
- */
 async function findByEmail(email) {
   for (let page = 1; page <= 20; page += 1) {
     const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 })
@@ -66,9 +48,7 @@ async function findByEmail(email) {
   return null
 }
 
-/** @type {string[]} */
 const problems = []
-/** @type {{ shop: string, email: string, id: string, action: string }[]} */
 const results = []
 
 for (const account of ACCOUNTS) {
@@ -85,8 +65,6 @@ for (const account of ACCOUNTS) {
       continue
     }
 
-    // email_confirm so the account is usable straight away rather than waiting
-    // on mail that a dev project has no way to deliver.
     const { data, error } = await supabase.auth.admin.createUser({
       email: account.email,
       password,
@@ -105,13 +83,6 @@ for (const row of results) {
   console.log(`${''.padEnd(14)} ${row.id}`)
 }
 
-/**
- * Re-point an already-seeded shop at its proper account.
- *
- * Seeds run before this existed bound their shops to whichever two auth users
- * were oldest, which on this project were disposable RLS-test accounts. Skipped
- * with --no-bind if you would rather re-run supabase/seed.sql from scratch.
- */
 if (!process.argv.includes('--no-bind')) {
   console.log('')
   for (const row of results) {
@@ -140,8 +111,6 @@ if (!process.argv.includes('--no-bind')) {
       .eq('id', shop.id)
 
     if (bindError) {
-      // The unique constraint on supabase_auth_user_id means one account can
-      // hold one shop; a clash says this account already owns another.
       problems.push(`${row.shop}: ${bindError.message}`)
       continue
     }
