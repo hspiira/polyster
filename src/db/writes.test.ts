@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createDatabase, type AppDatabase } from './database'
 import { backfillOrderUnits } from './backfill'
+import { addDays, today } from '../lib/dates'
 import {
   addOrderUnit,
   archiveOrder,
@@ -309,6 +310,105 @@ describe('recordPayment', () => {
     })
     expect(refund.kind).toBe('refund')
     expect(refund.amount_minor).toBe(5000)
+  })
+
+  it('takes instalments up to the price', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+
+    await recordPayment(db, orderId, { amount_minor: 20000, method: 'cash' })
+    await recordPayment(db, orderId, { amount_minor: 25000, method: 'cash' })
+
+    const payments = await db.payments.find({ selector: { order_id: orderId } }).exec()
+    expect(payments.reduce((sum, p) => sum + p.amount_minor, 0)).toBe(45000)
+  })
+
+  // The bug: instalments could add up past the order total.
+  it('refuses an instalment that would take the total past the price', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    await recordPayment(db, orderId, { amount_minor: 40000, method: 'cash' })
+
+    await expect(
+      recordPayment(db, orderId, { amount_minor: 5001, method: 'cash' }),
+    ).rejects.toThrow(/more than the/)
+
+    const payments = await db.payments.find({ selector: { order_id: orderId } }).exec()
+    expect(payments).toHaveLength(1)
+  })
+
+  // The other half: a settled order could still take money.
+  it('refuses any payment once the order is settled', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    await recordPayment(db, orderId, { amount_minor: 45000, method: 'cash' })
+
+    await expect(recordPayment(db, orderId, { amount_minor: 1, method: 'cash' })).rejects.toThrow(
+      /fully paid/,
+    )
+  })
+
+  // Voiding frees the room back up, because the balance ignores deleted rows.
+  it('lets a payment through again after an earlier one is voided', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    const first = await recordPayment(db, orderId, { amount_minor: 45000, method: 'cash' })
+
+    await voidPayment(db, first.id)
+    await expect(
+      recordPayment(db, orderId, { amount_minor: 45000, method: 'cash' }),
+    ).resolves.toBeTruthy()
+  })
+
+  it('refuses to refund more than has been taken', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    await recordPayment(db, orderId, { amount_minor: 20000, method: 'cash' })
+
+    await expect(
+      recordPayment(db, orderId, { amount_minor: 20001, method: 'cash', kind: 'refund' }),
+    ).rejects.toThrow(/only refund up to/)
+  })
+
+  // A refund frees room, so the order can take money again.
+  it('lets a payment through after a refund reopens the balance', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    await recordPayment(db, orderId, { amount_minor: 45000, method: 'cash' })
+    await recordPayment(db, orderId, { amount_minor: 15000, method: 'cash', kind: 'refund' })
+
+    await expect(
+      recordPayment(db, orderId, { amount_minor: 15000, method: 'cash' }),
+    ).resolves.toBeTruthy()
+  })
+
+  it('backdates payment_date while created_at keeps the real entry time', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+
+    const payment = await recordPayment(db, orderId, {
+      amount_minor: 20000,
+      method: 'cash',
+      payment_date: '2026-07-02',
+    })
+
+    expect(payment.payment_date.slice(0, 10)).toBe('2026-07-02')
+    expect(payment.created_at.slice(0, 10)).toBe(new Date().toISOString().slice(0, 10))
+  })
+
+  // `today()` is the device's local day, so tomorrow has to be derived the same
+  // way -- a UTC-based one is the same day here whenever the offset is positive.
+  it('refuses a payment dated in the future', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+
+    await expect(
+      recordPayment(db, orderId, {
+        amount_minor: 20000,
+        method: 'cash',
+        payment_date: addDays(today(), 1),
+      }),
+    ).rejects.toThrow(/dated in the future/)
+  })
+
+  it('refuses money against an order with nothing on it yet', async () => {
+    const { db, orderId } = await orderWithUnits([])
+
+    await expect(recordPayment(db, orderId, { amount_minor: 1000, method: 'cash' })).rejects.toThrow(
+      /before taking money against it/,
+    )
   })
 })
 

@@ -56,7 +56,8 @@ import {
   type StaffDoc,
 } from '../db/schema'
 import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
-import { dueBucket, formatDate, formatDateTime, formatDueDate } from '../lib/dates'
+import { outstandingMinor, paymentDateError, paymentError } from '../lib/payments'
+import { dueBucket, formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
 import { balanceReminder, suggestedMessage, waLink } from '../lib/whatsapp'
 import {
   CUSTOMER_TYPE_LABELS,
@@ -557,23 +558,49 @@ function PaymentsSection({
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const [notes, setNotes] = useState('')
+  const [paidOn, setPaidOn] = useState(today)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
+  const outstanding = balance
+    ? outstandingMinor(balance.price_total_minor, balance.amount_paid_minor)
+    : 0
+  const settled = balance !== null && outstanding <= 0
+
+  // Checked as you type, so an over-payment is caught before the tap, not after.
+  const parsed = parseToMinor(amount, currency)
+  const liveError =
+    balance && amount.trim()
+      ? paymentError({
+          priceTotalMinor: balance.price_total_minor,
+          amountPaidMinor: balance.amount_paid_minor,
+          amountMinor: parsed ?? 0,
+          kind: 'payment',
+          currency,
+        })
+      : null
+
+  const dateError = paymentDateError(paidOn)
+
   async function submit(event: Event) {
     event.preventDefault()
-    const parsed = parseToMinor(amount, currency)
-    if (parsed === null || parsed <= 0) {
-      setFormError('Enter an amount greater than zero.')
+    if (liveError || dateError || parsed === null) {
+      setFormError(liveError ?? dateError ?? 'Enter an amount greater than zero.')
       return
     }
 
     setSaving(true)
     setFormError(null)
     try {
-      await recordPayment(db, orderId, { amount_minor: parsed, method, notes }, activeStaff?.id)
+      await recordPayment(
+        db,
+        orderId,
+        { amount_minor: parsed, method, notes, payment_date: paidOn },
+        activeStaff?.id,
+      )
       setAmount('')
       setNotes('')
+      setPaidOn(today())
       setAdding(false)
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Could not record this payment.')
@@ -586,7 +613,11 @@ function PaymentsSection({
     <section>
       <SectionTitle
         action={
-          canCreatePayment ? (
+          settled ? (
+            // Nothing is owed, so there is nothing to add. Say so rather than
+            // offering a form that can only refuse.
+            <span class="text-xs font-medium text-stone-500 dark:text-stone-400">Paid in full</span>
+          ) : canCreatePayment ? (
             <button
               type="button"
               onClick={() => setAdding(true)}
@@ -642,24 +673,52 @@ function PaymentsSection({
 
       <Sheet open={adding} title="Record a payment" onClose={() => setAdding(false)}>
         <form onSubmit={submit} class="space-y-4">
-          {balance && balance.balance_minor > 0 && (
+          {outstanding > 0 && (
             <button
               type="button"
-              onClick={() => setAmount(String(fromMinorUnits(balance.balance_minor, currency)))}
+              onClick={() => setAmount(String(fromMinorUnits(outstanding, currency)))}
               class="min-h-11 w-full rounded-control bg-brand-100 px-3 text-sm
                      font-medium text-brand-800 active:bg-brand-200
                      dark:bg-brand-950 dark:text-brand-300"
             >
-              Pay the full balance, {formatMinor(balance.balance_minor, currency)}
+              Pay the full balance, {formatMinor(outstanding, currency)}
             </button>
           )}
 
-          <Field label="Amount">
+          <Field
+            label="Amount"
+            error={liveError}
+            hint={
+              outstanding > 0
+                ? `${formatMinor(outstanding, currency)} still owed. You cannot take more than that.`
+                : undefined
+            }
+          >
             <Input
               inputmode="decimal"
               autofocus
               value={amount}
-              onInput={(e) => setAmount((e.target as HTMLInputElement).value)}
+              aria-invalid={liveError ? true : undefined}
+              onInput={(e) => {
+                setAmount((e.target as HTMLInputElement).value)
+                setFormError(null)
+              }}
+            />
+          </Field>
+
+          <Field
+            label="Date taken"
+            error={dateError}
+            hint="Change it if this money came in on an earlier day."
+          >
+            <Input
+              type="date"
+              max={today()}
+              value={paidOn}
+              onInput={(e) => {
+                setPaidOn((e.target as HTMLInputElement).value)
+                setFormError(null)
+              }}
             />
           </Field>
 
@@ -679,13 +738,17 @@ function PaymentsSection({
             <Input value={notes} onInput={(e) => setNotes((e.target as HTMLInputElement).value)} />
           </Field>
 
-          {formError && <ErrorNote>{formError}</ErrorNote>}
+          {formError && !liveError && <ErrorNote>{formError}</ErrorNote>}
 
           <div class="flex gap-2 pt-1">
             <Button variant="secondary" class="flex-1" type="button" onClick={() => setAdding(false)}>
               Cancel
             </Button>
-            <Button class="flex-1" type="submit" disabled={saving}>
+            <Button
+              class="flex-1"
+              type="submit"
+              disabled={saving || liveError !== null || dateError !== null || !amount.trim()}
+            >
               {saving ? 'Saving...' : 'Record payment'}
             </Button>
           </div>
