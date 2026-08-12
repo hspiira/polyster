@@ -78,7 +78,6 @@ describe('profitAndLoss', () => {
   })
 
   it('reports a loss as negative rather than clamping to zero', () => {
-    // A shop that spent more than it took needs to see exactly that.
     const result = profitAndLoss({ ...EMPTY, expenses: [expense({ amount_minor: 50000 })] })
     expect(result.profitMinor).toBe(-50000)
   })
@@ -99,9 +98,6 @@ describe('profitAndLoss', () => {
   })
 
   it('never counts an unpaid order as income', () => {
-    // Cash accounting: an order written up but not paid has no payment rows,
-    // so it contributes nothing. This is the property that keeps the figure
-    // equal to what is in the till.
     expect(profitAndLoss(EMPTY).incomeMinor).toBe(0)
     expect(profitAndLoss(EMPTY).profitMinor).toBe(0)
   })
@@ -163,8 +159,6 @@ describe('itemsSold', () => {
   })
 
   it('treats differently-cased and padded spellings as one product', () => {
-    // A shop types the same thing three ways across a week; three rows in a
-    // "what sold" report would be useless.
     const result = itemsSold(
       [
         sale({ item_description: 'Kitenge shirt' }),

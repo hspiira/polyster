@@ -886,17 +886,7 @@ export interface NewSaleInput {
   notes?: string
 }
 
-/**
- * Records a sale: money taken at the counter, now.
- *
- * No stage, no due date, no balance. A sale is paid in full by definition --
- * that is what separates it from an order, and it is what lets the profit
- * figure count every sale row as cash without consulting `payments`. Anything
- * part-paid is an order.
- *
- * `currency` is denormalised off the shop for the same reason orders carry it:
- * a shop that changes currency must not silently reinterpret its own history.
- */
+/** A sale is paid in full by definition; anything part-paid is an order. */
 export async function recordSale(
   db: AppDatabase,
   shop: Pick<ShopDoc, 'id' | 'currency'>,
@@ -924,11 +914,7 @@ export async function recordSale(
   return doc
 }
 
-/**
- * Voids a sale. Soft-deleted with a trail, like a payment: a voided sale
- * changes a profit figure the shop may already have read, so "why is last
- * month different now" needs an answer that is not just a missing row.
- */
+/** Soft-deleted with a trail: a void changes a profit figure already read. */
 export async function voidSale(
   db: AppDatabase,
   saleId: string,
@@ -938,7 +924,6 @@ export async function voidSale(
   const doc = await db.sales.findOne(saleId).exec()
   if (!doc) return
 
-  // As with voidPayment: remove() must run on the patched revision.
   const patched = await doc.patch({
     voided_at: now(),
     ...(staffId ? { voided_by: staffId } : {}),

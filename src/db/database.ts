@@ -168,20 +168,9 @@ export const paymentsStrategies = {
 }
 
 /**
- * v0 -> v1 for `sales`. The first cut of this table stored `unit_price` in
- * major units with no currency, before the rebase onto the minor-unit
- * convention 0005 established. It never shipped -- never pushed, never
- * deployed -- but it did reach dev machines, and changing a v0 schema in place
- * is what produced RxDB's DB6 ("another instance created this collection with
- * a different schema"), which refuses to open the database at all.
- *
- * Converted rather than dropped, so nothing typed in during that window is
- * lost. `DEFAULT_CURRENCY` is the right assumption for the only rows that can
- * exist: those machines had no shop currency other than the default, and for a
- * zero-decimal currency the major and minor values are identical anyway.
- *
- * Exported so database.test.ts can exercise it -- this is the exact bug that
- * bit a real device, so it belongs in CI rather than in a comment.
+ * v0 -> v1: `unit_price` in major units became `unit_price_minor`, plus
+ * `currency`. Converted rather than dropped. DEFAULT_CURRENCY is safe -- the
+ * v0 shape only ever reached dev machines, which had no other currency.
  */
 export const saleMigrations = {
   1: (doc: Record<string, unknown>) => {
@@ -199,7 +188,7 @@ export const saleMigrations = {
   },
 }
 
-/** v0 -> v1 for `expenses`. Same story: `amount` in major units, no currency. */
+/** v0 -> v1: `amount` in major units became `amount_minor`, plus currency. */
 export const expenseMigrations = {
   1: (doc: Record<string, unknown>) => {
     const { amount, ...rest } = doc as { amount?: number }
@@ -340,10 +329,8 @@ export async function createDatabase(
     message_log: {
       schema: messageLogSchema,
       migrationStrategies: {
-        // v1 widened order_stage to include the Phase 9 repair stages. Existing
-        // rows already satisfy it -- their values are a subset -- so this is
-        // identity. It still has to exist: a version bump with no strategy is
-        // COL12, and the database refuses to open at all.
+        // v1 widened an enum; existing values are a subset. Identity, but it
+        // must exist -- a bump with no strategy is COL12.
         1: (doc: MessageLogDoc) => doc,
       },
     },

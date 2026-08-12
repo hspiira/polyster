@@ -656,14 +656,8 @@ export const messageLogSchema: RxJsonSchema<MessageLogDoc> = {
 
 // ------------------------------------------------------------------- sales
 
-/**
- * A sale: money taken over the counter, now.
- *
- * Deliberately a smaller shape than an order -- no due date, no stages, no
- * units, no balance -- and `client_id` is optional, which is the whole reason
- * this exists rather than reusing `orders`. See 0006_sales_and_expenses.sql
- * for the friction it removes.
- */
+/** Money taken over the counter. Smaller than an order: no due date, no
+ * stages, no balance, and the client is optional. */
 export interface SaleDoc {
   id: string
   shop_id: string
@@ -701,8 +695,6 @@ export const saleSchema: RxJsonSchema<SaleDoc> = {
     item_description: { type: 'string' },
     quantity: { type: 'integer', minimum: 1 },
     currency: { type: 'string' },
-    // Zero allowed, unlike a payment: a giveaway recorded at zero is more
-    // honest than one not recorded at all.
     unit_price_minor: { type: 'integer', minimum: 0 },
     method: { type: 'string', enum: [...PAYMENT_METHODS] },
     reference: { type: 'string' },
@@ -748,10 +740,7 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   'other',
 ]
 
-/**
- * Money out. Without it there is no profit figure, only revenue -- the
- * half-picture 0005's design document flagged and deferred.
- */
+/** Money out. Without it there is no profit, only revenue. */
 export interface ExpenseDoc {
   id: string
   shop_id: string

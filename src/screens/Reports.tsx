@@ -264,16 +264,7 @@ export function Reports() {
   )
 }
 
-/**
- * Profit for a period: what came in, what went out, what is left.
- *
- * The pilot shop's "Profits", and the reason expenses exist at all.
- *
- * Cash accounting throughout -- see db/profit.ts. Money in is money received,
- * never the value of orders written up, so this figure equals what the shop
- * can count. Outstanding is reported below, as outstanding, and is
- * deliberately not folded in here.
- */
+/** Cash accounting -- see db/profit.ts. Outstanding is reported separately. */
 function ProfitCard() {
   const { db, shop } = useCurrentShop()
   const [range, setRange] = useState<'30' | '7'>('30')
@@ -366,8 +357,6 @@ function ProfitCard() {
               {formatMinor(pnl.incomeMinor, shop.currency)}
             </dd>
           </div>
-          {/* Broken out because "why is income higher than my sales" is the
-              first question a shop asks of a combined figure. */}
           <div class="flex justify-between gap-4 pl-3 text-xs text-stone-500 dark:text-stone-400">
             <dt>Counter sales</dt>
             <dd class="tabular-nums">{formatMinor(pnl.salesIncomeMinor, shop.currency)}</dd>

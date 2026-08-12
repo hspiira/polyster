@@ -477,15 +477,7 @@ describe('schema migration', () => {
   })
 })
 
-/**
- * The DB6 regression.
- *
- * `sales` and `expenses` shipped a v0 to dev machines, then had their v0 shape
- * changed in place during the rebase onto minor units. RxDB refuses that --
- * "another instance created this collection with a different schema" -- and
- * the app cannot open its own database at all, which is what a real device
- * hit. These pin the strategies that convert the old rows instead.
- */
+/** DB6 regression: a v0 shape changed in place stops the database opening. */
 describe('sales/expenses v0 -> v1 migration', () => {
   it('converts a v0 sale from major units to minor, adding currency', () => {
     const migrated = saleMigrations[1]({
@@ -498,8 +490,6 @@ describe('sales/expenses v0 -> v1 migration', () => {
       sold_at: '2026-08-10T10:00:00.000Z',
     })
 
-    // UGX is zero-decimal, so major and minor coincide -- the point is that the
-    // field is renamed and the currency supplied, not that the number changes.
     expect(migrated).toMatchObject({
       id: 's1',
       quantity: 2,
@@ -507,13 +497,10 @@ describe('sales/expenses v0 -> v1 migration', () => {
       currency: 'UGX',
     })
     expect(migrated).not.toHaveProperty('unit_price')
-    // Required by the v1 schema, so a missing value would fail validation.
     expect(migrated.created_at).toBe('2026-08-10T10:00:00.000Z')
   })
 
   it('leaves an already-converted sale alone', () => {
-    // Idempotence matters: a doc that somehow already carries the new fields
-    // must not be re-derived from a `unit_price` that is no longer there.
     const migrated = saleMigrations[1]({
       id: 's2',
       unit_price_minor: 12345,
@@ -539,8 +526,6 @@ describe('sales/expenses v0 -> v1 migration', () => {
   })
 
   it('actually opens a database that already holds v0 sales', async () => {
-    // The end-to-end version: plant a v0 collection exactly as the shipped
-    // build created it, then reopen with the real v1 schema and strategy.
     const name = `db6_${Date.now()}_${Math.random().toString(36).slice(2)}`
     const open = () =>
       createRxDatabase({

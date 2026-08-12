@@ -1,20 +1,8 @@
 /**
  * Record a sale: money taken over the counter, now.
  *
- * The direct answer to the pilot shop's "it feels like it is created for the
- * client and not the tailor". Selling a ready-made shirt used to mean creating
- * a client record for a stranger, inventing a pickup date for a garment being
- * carried out of the shop, and then advancing three stages of a transaction
- * that had already finished.
- *
- * So this form asks four things -- what, how many, how much, how paid -- and
- * only the first and third are required. The client field is last, optional,
- * and labelled as optional, because on most counter sales there is nobody to
- * attach.
- *
- * Item comes first because that is the order a tailor thinks in: "two kitenge
- * shirts, forty each". The order form asks for the client first, which is
- * correct there -- an order genuinely belongs to someone who will collect it.
+ * Item first, client last and optional -- a walk-in is not a client record.
+ * Anything part-paid or collected later is an order, not a sale.
  */
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
@@ -57,8 +45,6 @@ export function SaleForm() {
   )
   const clients = useMemo(() => clientDocs.map((doc) => doc.toJSON()), [clientDocs])
 
-  // Shown live, so the shop sees the total before committing rather than
-  // discovering it on the receipt. Quantity is the common mis-entry.
   const unitMinor = parseToMinor(price, shop.currency)
   const count = Number.parseInt(quantity, 10)
   const totalMinor =
