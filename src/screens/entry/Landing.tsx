@@ -35,8 +35,8 @@ export function Landing({
       {/* safe-top and safe-bottom set their own padding, so spacing goes on the
           children. One wrapper for both rows, so everything shares a left edge. */}
       <div
-        class="safe-top safe-bottom relative z-10 mx-auto flex w-full max-w-[28rem] flex-1 flex-col
-               entry-wide:max-w-[60rem]"
+        class="safe-top safe-bottom relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col
+               entry-wide:max-w-240"
       >
         <header class="flex items-center gap-2 pt-[clamp(1.75rem,1.6rem+0.4vmin,2.25rem)]">
           <Logomark size={28} class="text-brand-400" />
@@ -86,9 +86,9 @@ export function Landing({
               type="button"
               onClick={onStart}
               class="glass glass-sheen group flex w-full items-center justify-between gap-3
-                     overflow-hidden rounded-control py-1.5 pl-5 pr-1.5 text-white
+                     overflow-hidden rounded-pill py-1.5 pl-5 pr-1.5 text-white
                      transition-[transform,border-color] hover:border-white/24
-                     active:scale-[0.98] entry-wide:w-auto entry-wide:min-w-[19rem]"
+                     active:scale-[0.98] entry-wide:w-auto entry-wide:min-w-76"
             >
               <span class="relative z-10 text-base font-medium">Set up my shop</span>
               <span

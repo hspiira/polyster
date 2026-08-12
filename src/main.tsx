@@ -20,8 +20,9 @@ forgetLayoutOverride()
  */
 const passportMatch = window.location.pathname.match(/^\/passport\/([^/]+)\/?$/)
 
-// Dev-only console tools: getDatabase().then(db => __polyster.seedNorthFound(db)),
-// then reload. Never bundled in production (see the DEV guard below).
+// Dev-only console tools. Seed every fixture with
+// `__polyster.getDatabase().then(db => __polyster.seedAll(db))`, then reload.
+// Never bundled in production (see the DEV guard below).
 if (import.meta.env.DEV) {
   const { getDatabase } = await import('./db/database.ts')
   const { getSupabase } = await import('./lib/supabaseClient.ts')

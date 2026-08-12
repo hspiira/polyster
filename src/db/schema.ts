@@ -591,7 +591,7 @@ export interface OrderStageHistoryDoc {
   changed_at: string
 }
 export const orderStageHistorySchema: RxJsonSchema<OrderStageHistoryDoc> = {
-  version: 1, // v1: note
+  version: 2, // v1: note. v2: from_stage/to_stage gain repair stages (Phase 9).
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -636,7 +636,7 @@ export interface MessageLogDoc {
   sent_by?: string
 }
 export const messageLogSchema: RxJsonSchema<MessageLogDoc> = {
-  version: 0,
+  version: 1, // v1: order_stage gains repair stages (Phase 9).
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -656,14 +656,8 @@ export const messageLogSchema: RxJsonSchema<MessageLogDoc> = {
 
 // ------------------------------------------------------------------- sales
 
-/**
- * A sale: money taken over the counter, now.
- *
- * Deliberately a smaller shape than an order -- no due date, no stages, no
- * units, no balance -- and `client_id` is optional, which is the whole reason
- * this exists rather than reusing `orders`. See 0006_sales_and_expenses.sql
- * for the friction it removes.
- */
+/** Money taken over the counter. Smaller than an order: no due date, no
+ * stages, no balance, and the client is optional. */
 export interface SaleDoc {
   id: string
   shop_id: string
@@ -688,7 +682,10 @@ export interface SaleDoc {
   updated_at: string
 }
 export const saleSchema: RxJsonSchema<SaleDoc> = {
-  version: 0,
+  // v1: money moved to minor units and gained `currency`, plus the void trail.
+  // A v0 with `unit_price` in major units reached dev machines before the
+  // rebase onto the minor-unit convention; see database.ts for the migration.
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -698,8 +695,6 @@ export const saleSchema: RxJsonSchema<SaleDoc> = {
     item_description: { type: 'string' },
     quantity: { type: 'integer', minimum: 1 },
     currency: { type: 'string' },
-    // Zero allowed, unlike a payment: a giveaway recorded at zero is more
-    // honest than one not recorded at all.
     unit_price_minor: { type: 'integer', minimum: 0 },
     method: { type: 'string', enum: [...PAYMENT_METHODS] },
     reference: { type: 'string' },
@@ -745,10 +740,7 @@ export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
   'other',
 ]
 
-/**
- * Money out. Without it there is no profit figure, only revenue -- the
- * half-picture 0005's design document flagged and deferred.
- */
+/** Money out. Without it there is no profit, only revenue. */
 export interface ExpenseDoc {
   id: string
   shop_id: string
@@ -767,7 +759,9 @@ export interface ExpenseDoc {
   updated_at: string
 }
 export const expenseSchema: RxJsonSchema<ExpenseDoc> = {
-  version: 0,
+  // v1: as with sales -- `amount` in major units became `amount_minor`, plus
+  // `currency` and the void trail.
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {

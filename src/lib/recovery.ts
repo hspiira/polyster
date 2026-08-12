@@ -1,16 +1,16 @@
 /**
  * What a forgotten PIN can offer.
  *
- * Proving identity means a one-time code, which means a network. Offline --
- * or on a shop created offline that was never claimed by an account -- there
- * is nothing to check ownership against, so the only honest option left is to
+ * Proving identity means signing in, which means a network. Offline -- or on a
+ * shop created offline that was never backed up to an account -- there is
+ * nothing to check ownership against, so the only honest option left is to
  * remove the shop from the device and set it up again.
  *
  * That escape hatch adds no risk: anyone holding the phone could uninstall the
  * PWA for the same effect. It destroys local data, it never exposes it.
  */
 export type RecoveryPath =
-  /** Type your number, verify a code, choose a new PIN. */
+  /** Sign in to the shop's account, then choose a new PIN. */
   | 'verify'
   /** Nothing can be proven here. Remove the shop and start again, or wait. */
   | 'reset_only'

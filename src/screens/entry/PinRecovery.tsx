@@ -1,25 +1,20 @@
 /**
- * A forgotten PIN.
+ * A forgotten PIN. Two paths, decided by lib/recovery.ts.
  *
- * Two paths, decided by lib/recovery.ts. Online with a claimed shop: verify the
- * number, then choose a new PIN. Otherwise there is nothing to prove ownership
- * against, and the only honest option left is to remove the shop from this
- * device and set it up again.
- *
- * The number is typed rather than read from anywhere. Verifying a code proves
- * you own that number, so the account it resolves to is then checked against
- * the shop's own -- verify someone else's number and it will not match.
+ * Signing in proves you own that account, not that the account owns this shop,
+ * so the id it returns is checked against the shop's own before the PIN can be
+ * changed.
  */
 import { useState } from 'preact/hooks'
 import { PinPad } from '../../components/PinPad'
+import { useAuth } from '../../hooks/useAuth'
 import { useOnline } from '../../hooks/useOnline'
 import { useShop } from '../../state/ShopProvider'
 import { setStaffPin } from '../../db/writes'
 import { wipeLocalDatabase } from '../../db/database'
 import { recoveryPath, verifiedUserOwnsShop } from '../../lib/recovery'
 import { PIN_LENGTH } from '../../lib/pin'
-import { PhoneStep } from './steps/PhoneStep'
-import { CodeStep } from './steps/CodeStep'
+import { CredentialStep } from './steps/CredentialStep'
 import {
   EntryButton,
   EntryCentred,
@@ -32,14 +27,14 @@ import {
 } from './parts'
 import type { StaffDoc } from '../../db/schema'
 
-type Stage = 'choose' | 'phone' | 'code' | 'newPin' | 'confirmPin' | 'confirmReset'
+type Stage = 'choose' | 'signIn' | 'newPin' | 'confirmPin' | 'confirmReset'
 
 export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: () => void }) {
   const online = useOnline()
+  const { controller } = useAuth()
   const { db, shop } = useShop()
 
   const [stage, setStage] = useState<Stage>('choose')
-  const [phone, setPhone] = useState('')
   const [firstPin, setFirstPin] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -50,38 +45,33 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
     window.location.reload()
   }
 
-  if (stage === 'phone') {
+  if (stage === 'signIn') {
     return (
       <EntryScreen>
-        <PhoneStep
-          title="Verify your number"
-          body="The number this shop's account uses. We'll send a code to it."
-          initialPhone={phone}
-          onSent={(sent) => {
-            setPhone(sent)
-            setError(null)
-            setStage('code')
-          }}
-        />
-      </EntryScreen>
-    )
-  }
-
-  if (stage === 'code') {
-    return (
-      <EntryScreen>
-        <CodeStep
-          phone={phone}
-          onEditNumber={() => setStage('phone')}
-          onVerified={(userId) => {
+        <CredentialStep
+          mode="signIn"
+          title="Sign in to this shop"
+          body="The email and password this shop is backed up with. Then you can choose a new PIN."
+          submitLabel="Sign in"
+          onSignedIn={async (userId) => {
             if (!verifiedUserOwnsShop(userId, shop?.supabase_auth_user_id)) {
-              setError('That number does not belong to this shop.')
+              // Do not leave the wrong account signed in: replication would
+              // push this shop's rows under an id RLS rejects.
+              await controller.signOut()
+              setError('That account does not belong to this shop.')
               setStage('choose')
               return
             }
             setError(null)
             setStage('newPin')
           }}
+          footer={
+            <div class="mt-4">
+              <EntryQuietButton type="button" onClick={() => setStage('choose')}>
+                Back
+              </EntryQuietButton>
+            </div>
+          }
         />
       </EntryScreen>
     )
@@ -143,7 +133,6 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
             title="Remove this shop?"
             body="Everything recorded on this device goes with it. Anything that has not synced yet cannot be got back."
           />
-          {/* Only a claimed shop syncs anywhere, so only then is anything kept. */}
           <EntryNote>
             {shop?.supabase_auth_user_id
               ? `${shop.name} stays on any other device it syncs to. You can set this phone up again afterwards.`
@@ -168,7 +157,7 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
           title="Forgotten your PIN?"
           body={
             path === 'verify'
-              ? 'Verify the number this shop uses and choose a new one.'
+              ? "Sign in to this shop's account and choose a new one."
               : online
                 ? 'There is no account on this shop to check you against.'
                 : 'Proving who you are needs a connection, and there is not one right now.'
@@ -178,14 +167,14 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
         {error && <EntryError>{error}</EntryError>}
 
         {path === 'verify' ? (
-          <EntryButton class="mt-2" onClick={() => setStage('phone')}>
-            Verify your number
+          <EntryButton class="mt-2" onClick={() => setStage('signIn')}>
+            Sign in to this shop
           </EntryButton>
         ) : (
           <EntryNote>
             {online
-              ? 'This shop was set up on this device and never linked to a phone number. The only way back in is to remove it and start again.'
-              : 'Come back when you have a signal and you can verify your number and choose a new PIN.'}
+              ? 'This shop was set up on this device and never backed up to an account. The only way back in is to remove it and start again.'
+              : 'Come back when you have a signal and you can sign in and choose a new PIN.'}
           </EntryNote>
         )}
 

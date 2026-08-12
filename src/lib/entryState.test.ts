@@ -66,6 +66,14 @@ describe('decideEntryScreen', () => {
     )
   })
 
+  // A spent refresh token must not shut the till: the local database is intact,
+  // so the shop keeps working while sync waits for someone to sign in again.
+  it('opens the shell on a provisioned device whose session has expired', () => {
+    expect(
+      decideEntryScreen(input({ authStatus: 'session_expired', provisioned: true, locked: false })),
+    ).toBe('shell')
+  })
+
   it('locks rather than landing when a provisioned device is signed out', () => {
     expect(decideEntryScreen(input({ authStatus: 'signed_out', provisioned: true }))).toBe('lock')
   })

@@ -38,7 +38,7 @@ import {
   type MessageLogDoc,
   type TenantFeatureDoc,
 } from './schema'
-import { DEFAULT_CURRENCY } from '../lib/money'
+import { DEFAULT_CURRENCY, toMinorUnits } from '../lib/money'
 import { generateOrderReference } from '../lib/orderReference'
 import { DEFAULT_LOCK_AFTER_MINUTES } from '../lib/lockPolicy'
 import { backfillOrderUnits } from './backfill'
@@ -167,6 +167,43 @@ export const paymentsStrategies = {
   },
 }
 
+/**
+ * v0 -> v1: `unit_price` in major units became `unit_price_minor`, plus
+ * `currency`. Converted rather than dropped. DEFAULT_CURRENCY is safe -- the
+ * v0 shape only ever reached dev machines, which had no other currency.
+ */
+export const saleMigrations = {
+  1: (doc: Record<string, unknown>) => {
+    const { unit_price: unitPrice, ...rest } = doc as { unit_price?: number }
+    const currency = (doc.currency as string) ?? DEFAULT_CURRENCY
+    const timestamp = (doc.sold_at as string) ?? new Date().toISOString()
+    return {
+      ...rest,
+      currency,
+      unit_price_minor:
+        (doc.unit_price_minor as number) ?? toMinorUnits(unitPrice ?? 0, currency),
+      created_at: (doc.created_at as string) ?? timestamp,
+      updated_at: (doc.updated_at as string) ?? timestamp,
+    }
+  },
+}
+
+/** v0 -> v1: `amount` in major units became `amount_minor`, plus currency. */
+export const expenseMigrations = {
+  1: (doc: Record<string, unknown>) => {
+    const { amount, ...rest } = doc as { amount?: number }
+    const currency = (doc.currency as string) ?? DEFAULT_CURRENCY
+    const timestamp = new Date().toISOString()
+    return {
+      ...rest,
+      currency,
+      amount_minor: (doc.amount_minor as number) ?? toMinorUnits(amount ?? 0, currency),
+      created_at: (doc.created_at as string) ?? timestamp,
+      updated_at: (doc.updated_at as string) ?? timestamp,
+    }
+  },
+}
+
 let dbPromise: Promise<AppDatabase> | null = null
 
 /**
@@ -281,12 +318,22 @@ export async function createDatabase(
       migrationStrategies: {
         // v1 added note, which is optional -- no value to backfill.
         1: (doc: OrderStageHistoryDocV0): OrderStageHistoryDoc => doc,
+        // v2 added repair stages to the from_stage/to_stage enum; existing
+        // rows already satisfy it since their values are a subset.
+        2: (doc: OrderStageHistoryDoc): OrderStageHistoryDoc => doc,
       },
     },
     order_units: { schema: orderUnitSchema, migrationStrategies: {} },
-    sales: { schema: saleSchema, migrationStrategies: {} },
-    expenses: { schema: expenseSchema, migrationStrategies: {} },
-    message_log: { schema: messageLogSchema, migrationStrategies: {} },
+    sales: { schema: saleSchema, migrationStrategies: saleMigrations },
+    expenses: { schema: expenseSchema, migrationStrategies: expenseMigrations },
+    message_log: {
+      schema: messageLogSchema,
+      migrationStrategies: {
+        // v1 widened an enum; existing values are a subset. Identity, but it
+        // must exist -- a bump with no strategy is COL12.
+        1: (doc: MessageLogDoc) => doc,
+      },
+    },
     tenant_features: { schema: tenantFeatureSchema, migrationStrategies: {} },
   })
 

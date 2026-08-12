@@ -6,19 +6,33 @@ export interface SeedTenantInput {
   name: string
   businessType: BusinessType
   ownerName?: string
+  ownerPin?: string
+  whatsappNumber?: string
+  email?: string
+  website?: string
   featureOverrides?: Partial<Record<FeatureKey, boolean>>
 }
 
-/**
- * Creates a shop configured for dev/testing, with an owner staff row -- a
- * shop with no staff is not "provisioned" (see lib/entryState.ts) and the app
- * bounces back to onboarding. One shop per local database.
- */
 export async function seedTenant(db: AppDatabase, input: SeedTenantInput): Promise<ShopDoc> {
-  const shop = await createShop(db, { name: input.name })
-  await updateShop(db, shop.id, { name: shop.name, business_type: input.businessType })
-  await createStaff(db, shop.id, { name: input.ownerName ?? 'Owner', role: 'owner' })
-
+  const shop = await createShop(db, {
+    name: input.name,
+    whatsapp_number: input.whatsappNumber ?? '+256772000418',
+  })
+  await updateShop(db, shop.id, {
+    name: shop.name,
+    whatsapp_number: input.whatsappNumber ?? '+256772000418',
+    business_type: input.businessType,
+    currency: 'UGX',
+    lock_after_minutes: 5,
+    timezone: 'Africa/Kampala',
+    email: input.email,
+    website: input.website,
+  })
+  await createStaff(db, shop.id, {
+    name: input.ownerName ?? 'Owner',
+    pin: input.ownerPin ?? '123456',
+    role: 'owner',
+  })
   for (const [key, enabled] of Object.entries(input.featureOverrides ?? {})) {
     await setFeatureEnabled(db, shop.id, key as FeatureKey, enabled as boolean)
   }

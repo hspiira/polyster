@@ -100,6 +100,10 @@ export function describe(
   if (!claimed) {
     return { label: 'Only on this phone', tone: 'waiting' }
   }
+  // Needs a person to act, so it outranks every "we are just waiting" state.
+  if (auth.status === 'session_expired') {
+    return { label: 'Sign in again to sync', tone: 'bad' }
+  }
   if (auth.status === 'offline_stale') {
     return { label: 'Offline, not yet synced', tone: 'waiting' }
   }

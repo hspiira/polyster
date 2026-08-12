@@ -1,11 +1,4 @@
-/**
- * Expenses: money out.
- *
- * The other half of the picture 0005's design document called out as missing.
- * Recording is a sheet rather than its own screen: an expense is four short
- * fields, and a shop entering the day's receipts should not lose its place in
- * the list between each one.
- */
+/** Expenses: money out, without which profit means nothing. */
 import { useMemo, useState } from 'preact/hooks'
 import {
   Button,

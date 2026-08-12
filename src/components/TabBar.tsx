@@ -112,9 +112,6 @@ function isActive(currentPath: string, prefix: string): boolean {
 function isFullScreenTask(path: string): boolean {
   return (
     path === '/orders/new' ||
-    // Same reasoning: the sale form pins its own Cancel/Record pair at the
-    // bottom, and the floating pill sat on top of them -- the primary action
-    // was partly un-tappable.
     path === '/sales/new' ||
     /^\/orders\/[^/]+\/edit$/.test(path)
   )

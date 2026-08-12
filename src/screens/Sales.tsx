@@ -1,10 +1,4 @@
-/**
- * Sales: what went over the counter, and what sold most.
- *
- * Two questions the pilot shop asked for -- "Recording sales" and "Track
- * what's sold" -- answered on one screen, because they are the same data read
- * two ways and splitting them would mean two screens that must agree.
- */
+/** Sales: what went over the counter, and what sold most. */
 import { useMemo, useState } from 'preact/hooks'
 import {
   Button,
@@ -56,8 +50,6 @@ export function Sales() {
   )
   const sales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
 
-  // 'all' uses an epoch floor rather than a separate code path, so the window
-  // logic has exactly one shape.
   const from = range === 'all' ? '1970-01-01' : addDays(now, -(Number(range) - 1))
 
   const inRange = useMemo(

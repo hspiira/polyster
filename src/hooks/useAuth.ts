@@ -2,10 +2,6 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { createAuthController, type AuthController, type AuthState } from '../lib/auth'
 import { useOnline } from './useOnline'
 
-/**
- * The single auth controller for the app. Created once and shared, so a
- * remount does not open a second `onAuthStateChange` subscription.
- */
 let shared: AuthController | null = null
 
 function sharedController(): AuthController {
@@ -20,14 +16,21 @@ export function useAuth(): { state: AuthState; controller: AuthController } {
 
   useEffect(() => controller.subscribe(setState), [controller])
 
-  // Coming back online is the moment a stale session can be renewed. Without
-  // this the app stays in offline_stale until the next reload, and replication
-  // never restarts.
   useEffect(() => {
-    if (online && state.status === 'offline_stale') {
+    if (online && (state.status === 'offline_stale' || state.status === 'session_expired')) {
       void controller.refresh()
     }
   }, [online, state.status, controller])
+
+  useEffect(() => {
+    const onResume = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        void controller.refresh()
+      }
+    }
+    document.addEventListener('visibilitychange', onResume)
+    return () => document.removeEventListener('visibilitychange', onResume)
+  }, [controller])
 
   return { state, controller }
 }

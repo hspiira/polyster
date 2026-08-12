@@ -39,3 +39,7 @@ yarn.lock
 
 # Worktrees created for isolated agent work.
 .claude/worktrees/
+
+# Shop credential maps for scripts/set-shop-credentials.mjs. Contain real
+# emails and sometimes passwords -- never commit one.
+shops*.json

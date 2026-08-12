@@ -122,8 +122,12 @@ export function EntryField({
 export function EntryInput({
   class: className,
   inputRef,
+  trailing,
   ...props
-}: JSX.IntrinsicElements['input'] & { inputRef?: RefObject<HTMLInputElement> }) {
+}: JSX.IntrinsicElements['input'] & {
+  inputRef?: RefObject<HTMLInputElement>
+  trailing?: ComponentChildren
+}) {
   return (
     <span
       class={cn(
@@ -136,10 +140,40 @@ export function EntryInput({
       <input
         {...props}
         ref={inputRef}
-        class="relative z-10 min-h-13 w-full bg-transparent px-5 text-base text-white
-               outline-none placeholder:text-stone-400"
+        class={cn(
+          'relative z-10 min-h-13 w-full bg-transparent pl-5 text-base text-white',
+          'outline-none placeholder:text-stone-400',
+          trailing ? 'pr-13' : 'pr-5',
+        )}
       />
+      {trailing && (
+        <span class="absolute inset-y-0 right-1 z-10 flex items-center">{trailing}</span>
+      )}
     </span>
+  )
+}
+
+export function EntryReveal({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={shown ? 'Hide password' : 'Show password'}
+      class="flex min-h-11 items-center rounded-control px-3 text-xs font-semibold
+             text-stone-400 active:text-white"
+    >
+      {shown ? 'Hide' : 'Show'}
+    </button>
+  )
+}
+
+export function EntryDivider({ children }: { children: ComponentChildren }) {
+  return (
+    <div class="my-6 flex items-center gap-3" role="separator">
+      <span class="h-px flex-1 bg-white/12" />
+      <span class="text-xs font-medium text-stone-500">{children}</span>
+      <span class="h-px flex-1 bg-white/12" />
+    </div>
   )
 }
 
