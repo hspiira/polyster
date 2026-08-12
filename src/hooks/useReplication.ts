@@ -40,6 +40,13 @@ export function useReplication(db: AppDatabase | null, authenticated: boolean): 
       if (!cancelled) setStatus({ status: 'error', error })
     })
 
+    // Without this the first error latches: nothing ever moved the status off
+    // 'error', so a single failed batch left "Sync problem, saved locally" up
+    // for the rest of the session while sync carried on working.
+    const unsubscribeProgress = handle.onProgress(() => {
+      if (!cancelled) setStatus({ status: 'synced' })
+    })
+
     handle
       .awaitInitialReplication()
       .then(() => {
@@ -52,6 +59,7 @@ export function useReplication(db: AppDatabase | null, authenticated: boolean): 
     return () => {
       cancelled = true
       unsubscribeErrors()
+      unsubscribeProgress()
       void stopReplication()
     }
   }, [db, authenticated])

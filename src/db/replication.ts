@@ -117,6 +117,8 @@ export type ReplicationHandle = {
   stop(): Promise<void>
   /** Emits an error from any collection's replication. */
   onError(listener: (err: unknown) => void): () => void
+  /** Emits whenever a document actually moves, in either direction. */
+  onProgress(listener: () => void): () => void
 }
 
 let active: ReplicationHandle | null = null
@@ -165,6 +167,13 @@ export function startReplication(db: AppDatabase): ReplicationHandle | null {
     },
     onError(listener) {
       const subs = states.map((s) => s.error$.subscribe(listener))
+      return () => subs.forEach((sub) => sub.unsubscribe())
+    },
+    onProgress(listener) {
+      const subs = states.flatMap((s) => [
+        s.received$.subscribe(() => listener()),
+        s.sent$.subscribe(() => listener()),
+      ])
       return () => subs.forEach((sub) => sub.unsubscribe())
     },
   }

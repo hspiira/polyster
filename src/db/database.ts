@@ -186,6 +186,8 @@ export const saleMigrations = {
       updated_at: (doc.updated_at as string) ?? timestamp,
     }
   },
+  // v2 only widened sold_at's maxLength. No stored value changes.
+  2: (doc: Record<string, unknown>) => doc,
 }
 
 /** v0 -> v1: `amount` in major units became `amount_minor`, plus currency. */
