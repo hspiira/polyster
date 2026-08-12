@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "verify": "tsc -b && vitest run && vite build",
     "verify:rls": "node scripts/verify-rls.mjs",
-    "shop:credentials": "node scripts/set-shop-credentials.mjs"
+    "shop:credentials": "node scripts/set-shop-credentials.mjs",
+    "seed:auth": "node scripts/seed-auth-users.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.111.0",

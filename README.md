@@ -23,10 +23,34 @@ have been driven end to end in a desktop browser at phone dimensions.
   Phase 0 exit checklist in the implementation plan is the list of what remains,
   and none of it is ticked.
 
-To see it working without a Supabase project: `pnpm dev`, then use the "Seed
-sample shop data" button on the first screen. Every seeded PIN is `1234`.
+## Seeded data, and how to get in
 
-## Setup
+There are two seeds and they are not interchangeable.
+
+**Local, no Supabase.** `pnpm dev`, then in the console:
+
+```js
+__polyster.getDatabase().then(db => __polyster.seedAll(db))
+```
+
+Reload. No sign-in happens at all — the shops are local and unclaimed, so the app opens straight into the PIN gate. It refuses to run when Supabase is configured, because replication would push the fixtures upstream and duplicate what `supabase/seed.sql` already seeds.
+
+**Against Supabase.** Two steps, in this order:
+
+```bash
+pnpm seed:auth      # creates the two accounts, needs SUPABASE_SERVICE_ROLE_KEY
+```
+
+then run [`supabase/seed.sql`](supabase/seed.sql) in the SQL Editor. It matches those accounts **by email**, so the order matters — run the SQL first and it aborts with instructions rather than binding the fixtures to the wrong users.
+
+| Sign in as | Shop | Owner PIN |
+|---|---|---|
+| `owner@northfound.ug` | NORTH//FOUND | `123456` |
+| `owner@mirembetailoring.co.ug` | Mirembe Tailoring House | `123456` |
+
+Password for both: `polyster-dev` (override with `SEED_PASSWORD`). **Every seeded staff PIN is `123456`.**
+
+Signing in pulls the shop down over replication; you land on the PIN gate once it arrives.
 
 ## Setup
 

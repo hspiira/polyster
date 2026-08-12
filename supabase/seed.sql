@@ -1,7 +1,17 @@
 -- Polyster development seed
 -- Requires migrations 0001..0020 to have been applied.
--- Requires at least two Supabase Auth users. The first becomes NORTH//FOUND,
--- the second becomes Mirembe Tailoring House.
+--
+-- Run `pnpm seed:auth` first. It creates the two accounts matched by email
+-- below, which is what makes the seeded shops signable-in.
+--
+--   owner@northfound.ug           -> NORTH//FOUND
+--   owner@mirembetailoring.co.ug  -> Mirembe Tailoring House
+--   password: polyster-dev
+--
+-- Matched by email rather than `order by created_at`, which silently bound the
+-- fixtures to whichever two accounts happened to be oldest -- on any project
+-- with existing users that is the wrong pair, and the symptom is a successful
+-- sign-in to an empty shop.
 --
 -- Run only against a development/staging project.
 begin;
@@ -11,11 +21,12 @@ declare
   north_auth uuid;
   tailor_auth uuid;
 begin
-  select id into north_auth from auth.users order by created_at asc limit 1;
-  select id into tailor_auth from auth.users where id <> north_auth order by created_at asc limit 1;
+  select id into north_auth from auth.users where lower(email) = 'owner@northfound.ug';
+  select id into tailor_auth from auth.users where lower(email) = 'owner@mirembetailoring.co.ug';
 
   if north_auth is null or tailor_auth is null then
-    raise exception 'Create at least two Supabase Auth users before running this seed.';
+    raise exception
+      'Seed accounts missing. Run `pnpm seed:auth` first (needs SUPABASE_SERVICE_ROLE_KEY in .env), then re-run this seed.';
   end if;
 
   -- Clean only the two fixture tenants if they already exist.
@@ -38,8 +49,8 @@ begin
       5,
       'apparel_brand',
       'Africa/Kampala',
-      'hello@northfound.example',
-      'https://northfound.example'
+      'hello@northfound.ug',
+      'https://northfound.ug'
     ),
     (
       '10000000-0000-4000-8000-000000000002',
@@ -52,8 +63,8 @@ begin
       5,
       'tailor',
       'Africa/Kampala',
-      'hello@mirembe.example',
-      'https://mirembe.example'
+      'hello@mirembetailoring.co.ug',
+      'https://mirembetailoring.co.ug'
     );
 
   -- Staff. Every PIN is 123456, hashed with lib/pin.ts's own hashPin at the
@@ -184,8 +195,8 @@ begin
 
   -- ---------------- suppliers/materials ----------------
   insert into suppliers (id,shop_id,name,phone,email,address,active) values
-    ('34000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Kampala Textiles','+256700100100','sales@kampalatextiles.example','Kampala',true),
-    ('34000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','Label & Trim Co.','+256700100200','hello@labeltrim.example','Kampala',true);
+    ('34000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Kampala Textiles','+256700100100','sales@kampalatextiles.co.ug','Kampala',true),
+    ('34000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000001','Label & Trim Co.','+256700100200','hello@labeltrim.co.ug','Kampala',true);
 
   insert into materials (
     id,shop_id,supplier_id,name,description,material_type,unit,quantity_on_hand,

@@ -27,6 +27,9 @@ export async function seedGenericTailorData(db: AppDatabase): Promise<ShopDoc> {
     name: 'Mirembe Tailoring House',
     businessType: 'tailor',
     ownerName: 'Miriam Ssemanda',
+    whatsappNumber: '+256700000002',
+    email: 'hello@mirembetailoring.co.ug',
+    website: 'https://mirembetailoring.co.ug',
   })
 
   const ownerDoc = await db.staff.findOne({ selector: { shop_id: shop.id, role: 'owner' } }).exec()

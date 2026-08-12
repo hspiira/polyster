@@ -29,6 +29,9 @@ export async function seedNorthFoundData(db: AppDatabase): Promise<ShopDoc> {
     name: 'NORTH//FOUND',
     businessType: 'apparel_brand',
     ownerName: 'Henry Piira',
+    whatsappNumber: '+256700000001',
+    email: 'hello@northfound.ug',
+    website: 'https://northfound.ug',
     featureOverrides: {
       catalogue: true,
       inventory: true,

@@ -7,20 +7,26 @@ export interface SeedTenantInput {
   businessType: BusinessType
   ownerName?: string
   ownerPin?: string
+  whatsappNumber?: string
+  email?: string
+  website?: string
   featureOverrides?: Partial<Record<FeatureKey, boolean>>
 }
 
 export async function seedTenant(db: AppDatabase, input: SeedTenantInput): Promise<ShopDoc> {
   const shop = await createShop(db, {
     name: input.name,
-    whatsapp_number: '+256700000000',
+    whatsapp_number: input.whatsappNumber ?? '+256700000000',
   })
   await updateShop(db, shop.id, {
     name: shop.name,
+    whatsapp_number: input.whatsappNumber ?? '+256700000000',
     business_type: input.businessType,
     currency: 'UGX',
     lock_after_minutes: 5,
     timezone: 'Africa/Kampala',
+    email: input.email,
+    website: input.website,
   })
   await createStaff(db, shop.id, {
     name: input.ownerName ?? 'Owner',
