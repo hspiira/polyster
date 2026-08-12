@@ -7,6 +7,7 @@
  * an unresolved shop query as "no shop" is what reopened the first-run wizard
  * on every cold start. See lib/entryState.ts.
  */
+import type { VNode } from 'preact'
 import { LocationProvider } from 'preact-iso'
 import { useCallback, useEffect, useState } from 'preact/hooks'
 import { useAuth } from './hooks/useAuth'
@@ -20,8 +21,6 @@ import { SignIn } from './screens/entry/SignIn'
 import { isSupabaseConfigured } from './lib/supabaseClient'
 import { LockScreen } from './screens/entry/LockScreen'
 import { Register } from './screens/entry/Register'
-import { Shell } from './screens/Shell'
-import { WebShell } from './web/WebShell'
 import { Logomark } from './components/Logomark'
 import { decideEntryScreen, isLocked } from './lib/entryState'
 import { DEFAULT_LOCK_AFTER_MINUTES } from './lib/lockPolicy'
@@ -98,21 +97,39 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
  * Both shells surface sync state, so both take it -- the phone in its status
  * strip, the web at the foot of its sidebar. Shared props, separate designs.
  */
-function AppShell({
-  online,
-  auth,
-  replication,
-}: {
+type ShellProps = {
   online: boolean
   auth: AuthState
   replication: ReturnType<typeof useReplication>
-}) {
-  const platform = usePlatform()
+}
 
-  if (platform === 'web') {
-    return <WebShell online={online} auth={auth} replication={replication} />
-  }
-  return <Shell online={online} auth={auth} replication={replication} />
+/**
+ * Only the shell for this device is fetched. Imported statically, both shells
+ * and every screen they reach land in the entry chunk, which silently undoes
+ * the lazy() boundaries inside each of them.
+ */
+const SHELLS: Record<'web' | 'phone', () => Promise<(props: ShellProps) => VNode>> = {
+  web: () => import('./web/WebShell').then((m) => m.WebShell),
+  phone: () => import('./screens/Shell').then((m) => m.Shell),
+}
+
+function AppShell(props: ShellProps) {
+  const platform = usePlatform()
+  const [Shell, setShell] = useState<((props: ShellProps) => VNode) | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void SHELLS[platform === 'web' ? 'web' : 'phone']().then((component) => {
+      // Wrapped: a bare component would be read as a state updater.
+      if (!cancelled) setShell(() => component)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [platform])
+
+  if (!Shell) return <Splash />
+  return <Shell {...props} />
 }
 
 /**

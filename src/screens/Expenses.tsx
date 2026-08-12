@@ -23,15 +23,7 @@ import { recordExpense, voidExpense } from '../db/writes'
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../db/schema'
 import { formatMinor, parseToMinor } from '../lib/money'
 import { addDays, formatDate, today } from '../lib/dates'
-
-export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
-  materials: 'Materials',
-  rent: 'Rent',
-  wages: 'Wages',
-  transport: 'Transport',
-  utilities: 'Utilities',
-  other: 'Other',
-}
+import { EXPENSE_CATEGORY_LABELS } from './expenseCategories'
 
 type Range = '7' | '30' | 'all'
 
