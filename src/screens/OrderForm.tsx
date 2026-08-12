@@ -24,16 +24,18 @@ import {
   Input,
   Screen,
   Segmented,
-  Select,
   Sheet,
   Textarea,
 } from '../components/ui'
 import { IconPlus, IconTrash } from '../components/icons'
+import { ClientPicker } from '../components/ClientPicker'
+import { OrderTypePicker } from '../components/OrderTypePicker'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import {
   addOrderUnit,
+  createClient,
   createOrder,
   removeOrderUnit,
   saveMeasurements,
@@ -54,9 +56,16 @@ import {
   type OrderStage,
   type OrderType,
 } from '../db/schema'
-import { CUSTOMER_TYPE_LABELS, FABRIC_SOURCE_LABELS, ORDER_TYPE_LABELS } from './orderStage'
+import { CUSTOMER_TYPE_LABELS, FABRIC_SOURCE_LABELS } from './orderStage'
 import { addDays, formatDate, today } from '../lib/dates'
-import { fromMinorUnits, parseToMinor } from '../lib/money'
+import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
+import {
+  dueDateLabel,
+  needsFulfilmentDate,
+  needsMeasurements,
+  needsReturn,
+  usualOrderType,
+} from '../lib/orderTypes'
 
 /** A same-day match must still be open -- a finished order is not a candidate. */
 const CLOSED_STAGES: readonly OrderStage[] = ['picked_up', 'returned', 'cancelled']
@@ -219,6 +228,14 @@ export function OrderForm() {
   const [invalid, setInvalid] = useState<Invalid | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Once the user picks a type themselves, stop second-guessing them.
+  const typeTouched = useRef(false)
+
+  // A sheet owns the screen while it is up. The pinned bar is `bottom-0` but a
+  // sheet's `inset-0` stops at the safe area, so it would otherwise show through
+  // the last few pixels -- and stay tappable behind a modal.
+  const [sheetOpen, setSheetOpen] = useState(false)
+
   const [sameDayMatches, setSameDayMatches] = useState<OrderDoc[]>([])
   // The client a same-day check has already run (and been answered) for --
   // so re-renders and unrelated field edits never reopen the prompt.
@@ -299,6 +316,25 @@ export function OrderForm() {
     )
     setLoaded(true)
   }, [isEdit, loaded, orderDoc, existingUnits])
+
+  // A new order opens on whatever this shop takes most often, so the usual
+  // order needs no choice at all.
+  const recentOrderDocs = useRxQuery(
+    () =>
+      db.orders.find({
+        selector: { shop_id: shop.id },
+        sort: [{ created_at: 'desc' }],
+        limit: 20,
+      }).$,
+    [db, shop.id],
+    [],
+  )
+
+  useEffect(() => {
+    if (isEdit || typeTouched.current || recentOrderDocs.length === 0) return
+    const usual = usualOrderType(recentOrderDocs.map((doc) => doc.order_type))
+    setHeader((current) => (current.order_type === usual ? current : { ...current, order_type: usual }))
+  }, [isEdit, recentOrderDocs])
 
   // The order's own snapshotted currency once one is in scope (editing);
   // otherwise the shop's, since no order exists yet to snapshot from.
@@ -542,24 +578,19 @@ export function OrderForm() {
 
   const backTo = orderId ? `/orders/${orderId}` : '/orders'
 
-  if (clients.length === 0) {
-    return (
-      <Screen title="New order" back="/orders">
-        <Card flush>
-          <p class="text-sm text-stone-600 dark:text-stone-300">
-            An order belongs to a client, and there are none yet. Add the client first.
-          </p>
-          <Button linkTo="/clients" block class="mt-3">
-            Go to clients
-          </Button>
-        </Card>
-      </Screen>
-    )
-  }
-
-  const isRental = header.order_type === 'rental'
-  const isPreOrder = header.order_type === 'pre_order'
   const isCorporate = header.customer_type === 'corporate'
+
+  // Shown while you type, because it is the figure the client asks for.
+  const unitsTotalMinor = units.reduce(
+    (sum, unit) => sum + (parseToMinor(unit.price, currency) ?? 0),
+    0,
+  )
+  const adjustmentMinor =
+    header.adjustment_type === 'none'
+      ? 0
+      : (parseToMinor(header.adjustment_amount, currency) ?? 0) *
+        (header.adjustment_type === 'discount' ? -1 : 1)
+  const totalMinor = Math.max(0, unitsTotalMinor + adjustmentMinor)
 
   // A flag turned off after an order was created must not hide that order's
   // own type/customer -- only new selections it, so the value the order
@@ -594,6 +625,7 @@ export function OrderForm() {
           <OrderTypePicker
             value={header.order_type}
             options={visibleOrderTypes}
+            onOpenChange={setSheetOpen}
             onChange={(order_type) => {
               typeTouched.current = true
               updateHeader({ order_type })
@@ -604,6 +636,7 @@ export function OrderForm() {
             clients={clients}
             selectedId={header.client_id}
             error={headerErrorFor('client_id')}
+            onOpenChange={setSheetOpen}
             onSelect={(id) => void selectClient(id)}
             onCreate={async (name, phone) => {
               const created = await createClient(db, shop.id, {
@@ -613,101 +646,9 @@ export function OrderForm() {
               return created.id
             }}
           />
-                {(flags.corporate_orders || isCorporate) && (
-                  <Field label="Customer">
-                    <Segmented
-                      value={header.customer_type}
-                      options={visibleCustomerTypes.map((type) => ({
-                        value: type,
-                        label: CUSTOMER_TYPE_LABELS[type],
-                      }))}
-                      onChange={(customer_type) => updateHeader({ customer_type })}
-                      label="Customer type"
-                    />
-                  </Field>
-                )}
 
-                {isCorporate && (
-                  <>
-                    <Field label="Company" error={headerErrorFor('organisation_name')}>
-                      <Input
-                        value={header.organisation_name}
-                        placeholder="Company name"
-                        onInput={(e) =>
-                          updateHeader({ organisation_name: (e.target as HTMLInputElement).value })
-                        }
-                      />
-                    </Field>
-                    <Field label="Purchase order reference" hint="Optional.">
-                      <Input
-                        value={header.purchase_order_reference}
-                        onInput={(e) =>
-                          updateHeader({ purchase_order_reference: (e.target as HTMLInputElement).value })
-                        }
-                      />
-                    </Field>
-                    <Field label="Contact person" hint="Optional.">
-                      <Input
-                        value={header.contact_person}
-                        onInput={(e) => updateHeader({ contact_person: (e.target as HTMLInputElement).value })}
-                      />
-                    </Field>
-                  </>
-                )}
-
-                <Field label="Adjustment" hint="A haggled discount, a late fee, or a damage charge.">
-                  <Segmented
-                    value={header.adjustment_type}
-                    options={ADJUSTMENT_OPTIONS}
-                    onChange={(adjustment_type) => updateHeader({ adjustment_type })}
-                    label="Adjustment type"
-                  />
-                </Field>
-
-                {header.adjustment_type !== 'none' && (
-                  <>
-                    <Field
-                      label="Amount"
-                      hint={`Amount in ${currency}.`}
-                      error={headerErrorFor('adjustment_amount')}
-                    >
-                      <Input
-                        inputmode="decimal"
-                        placeholder="0"
-                        value={header.adjustment_amount}
-                        onInput={(e) =>
-                          updateHeader({ adjustment_amount: (e.target as HTMLInputElement).value })
-                        }
-                      />
-                    </Field>
-                    <Field label="Reason">
-                      <Input
-                        value={header.adjustment_reason}
-                        placeholder={header.adjustment_type === 'discount' ? 'Loyal client' : 'Rush job'}
-                        onInput={(e) =>
-                          updateHeader({ adjustment_reason: (e.target as HTMLInputElement).value })
-                        }
-                      />
-                    </Field>
-                  </>
-                )}
-
-                <Field label="Notes">
-                  <Textarea
-                    value={header.notes}
-                    onInput={(e) => updateHeader({ notes: (e.target as HTMLTextAreaElement).value })}
-                  />
-                </Field>
-              </Disclosure>
-            </div>
-          </Card>
-
-          <section class="space-y-4">
-            <div class="flex items-center justify-between px-1">
-              <h2 class="text-xs font-semibold tracking-wide text-stone-500 dark:text-stone-400">
-                Items
-              </h2>
-            </div>
+          <section class="space-y-3">
+            <h2 class="px-1 text-[13px] font-semibold">Items</h2>
 
             {activeFields.length === 0 && (
               <p class="px-1 text-xs text-stone-500 dark:text-stone-400">
@@ -730,6 +671,7 @@ export function OrderForm() {
                 retiredFields={retiredFields}
                 clientId={header.client_id}
                 clientName={clientName}
+                showMeasurements={needsMeasurements(header.order_type)}
                 hasClientProfile={clientProfileValues !== null}
                 errorFor={(field) => unitErrorFor(unit.key, field)}
                 onChange={(patch) => updateUnit(unit.key, patch)}
@@ -743,37 +685,194 @@ export function OrderForm() {
               <IconPlus size={16} /> Add another item
             </Button>
           </section>
+
+          <Card flush>
+            <div class="space-y-4">
+              <Field label={dueDateLabel(header.order_type)} error={headerErrorFor('pickup_due_date')}>
+                <Input
+                  type="date"
+                  value={header.pickup_due_date}
+                  onInput={(e) => updateHeader({ pickup_due_date: (e.target as HTMLInputElement).value })}
+                />
+              </Field>
+
+              {needsReturn(header.order_type) && (
+                <>
+                  <Field
+                    label="Return date"
+                    hint="When the item is due back."
+                    error={headerErrorFor('return_due_date')}
+                  >
+                    <Input
+                      type="date"
+                      min={header.pickup_due_date}
+                      value={header.return_due_date}
+                      onInput={(e) =>
+                        updateHeader({ return_due_date: (e.target as HTMLInputElement).value })
+                      }
+                    />
+                  </Field>
+                  <Field
+                    label="Deposit"
+                    hint={`Held and refundable, in ${currency}. Optional.`}
+                    error={headerErrorFor('deposit_amount')}
+                  >
+                    <Input
+                      inputmode="decimal"
+                      placeholder="0"
+                      value={header.deposit_amount}
+                      onInput={(e) =>
+                        updateHeader({ deposit_amount: (e.target as HTMLInputElement).value })
+                      }
+                    />
+                  </Field>
+                </>
+              )}
+
+              {needsFulfilmentDate(header.order_type) && (
+                <Field label="Expected date" hint="When it should be ready, if you know.">
+                  <Input
+                    type="date"
+                    value={header.expected_fulfilment_date}
+                    onInput={(e) =>
+                      updateHeader({ expected_fulfilment_date: (e.target as HTMLInputElement).value })
+                    }
+                  />
+                </Field>
+              )}
+            </div>
+          </Card>
+
+          <Disclosure
+            label="More"
+            summary={optionsSummary}
+            forceOpen={
+              invalid?.scope === 'header' &&
+              (invalid.field === 'organisation_name' || invalid.field === 'adjustment_amount')
+            }
+          >
+            {(flags.corporate_orders || isCorporate) && (
+              <Field label="Customer">
+                <Segmented
+                  value={header.customer_type}
+                  options={visibleCustomerTypes.map((type) => ({
+                    value: type,
+                    label: CUSTOMER_TYPE_LABELS[type],
+                  }))}
+                  onChange={(customer_type) => updateHeader({ customer_type })}
+                  label="Customer type"
+                />
+              </Field>
+            )}
+
+            {isCorporate && (
+              <>
+                <Field label="Company" error={headerErrorFor('organisation_name')}>
+                  <Input
+                    value={header.organisation_name}
+                    placeholder="Company name"
+                    onInput={(e) =>
+                      updateHeader({ organisation_name: (e.target as HTMLInputElement).value })
+                    }
+                  />
+                </Field>
+                <Field label="Purchase order reference" hint="Optional.">
+                  <Input
+                    value={header.purchase_order_reference}
+                    onInput={(e) =>
+                      updateHeader({ purchase_order_reference: (e.target as HTMLInputElement).value })
+                    }
+                  />
+                </Field>
+                <Field label="Contact person" hint="Optional.">
+                  <Input
+                    value={header.contact_person}
+                    onInput={(e) => updateHeader({ contact_person: (e.target as HTMLInputElement).value })}
+                  />
+                </Field>
+              </>
+            )}
+
+            <Field label="Adjustment" hint="A haggled discount, a late fee, or a damage charge.">
+              <Segmented
+                value={header.adjustment_type}
+                options={ADJUSTMENT_OPTIONS}
+                onChange={(adjustment_type) => updateHeader({ adjustment_type })}
+                label="Adjustment type"
+              />
+            </Field>
+
+            {header.adjustment_type !== 'none' && (
+              <>
+                <Field
+                  label="Amount"
+                  hint={`Amount in ${currency}.`}
+                  error={headerErrorFor('adjustment_amount')}
+                >
+                  <Input
+                    inputmode="decimal"
+                    placeholder="0"
+                    value={header.adjustment_amount}
+                    onInput={(e) =>
+                      updateHeader({ adjustment_amount: (e.target as HTMLInputElement).value })
+                    }
+                  />
+                </Field>
+                <Field label="Reason">
+                  <Input
+                    value={header.adjustment_reason}
+                    placeholder={header.adjustment_type === 'discount' ? 'Loyal client' : 'Rush job'}
+                    onInput={(e) =>
+                      updateHeader({ adjustment_reason: (e.target as HTMLInputElement).value })
+                    }
+                  />
+                </Field>
+              </>
+            )}
+
+            <Field label="Notes">
+              <Textarea
+                value={header.notes}
+                onInput={(e) => updateHeader({ notes: (e.target as HTMLTextAreaElement).value })}
+              />
+            </Field>
+          </Disclosure>
         </div>
 
-        {/*
-          Pinned to the bottom edge so it is reachable without scrolling back
-          past every field.
-
-          `bottom-0`, not `bottom-14`: the tab bar hides itself on this route
-          (see TabBar.isFullScreenTask), so there is nothing beneath to clear.
-          The old offset was a guess at the bar's height that stopped being
-          true, and the tab bar's centre action ended up overlapping the submit
-          button.
-        */}
-        {/* `lg:left-56` clears the side rail. `inset-x-0` alone is measured
-            from the viewport, not from the padded page, so on desktop this bar
-            ran underneath the rail. */}
+        {/* Pinned so the total and the save are reachable without scrolling back
+            past every field. `bottom-0` because the tab bar hides itself on this
+            route; `lg:left-56` clears the side rail. */}
         <div
-          class="fixed inset-x-0 bottom-0 z-20 bg-white px-4 pt-3 lg:left-56 dark:bg-stone-900
-                 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+          class={cn(
+            'fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface px-4 pt-2.5 lg:left-56',
+            'pb-[calc(0.75rem+env(safe-area-inset-bottom))]',
+            sheetOpen && 'hidden',
+          )}
         >
-          <div class={cn(CONTAINER, 'flex gap-2')}>
-            <Button
-              variant="secondary"
-              class="flex-1"
-              type="button"
-              onClick={() => location.route(backTo)}
-            >
-              Cancel
-            </Button>
-            <Button class="flex-2" type="submit" disabled={saving || (isEdit && !loaded)}>
-              {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create order'}
-            </Button>
+          <div class={cn(CONTAINER, 'space-y-2')}>
+            {/* The one figure you are asked for out loud, kept in view while you type. */}
+            <div class="flex items-baseline justify-between px-0.5">
+              <span class="text-[13px] text-content-muted">
+                {units.length === 1 ? 'Total' : `Total of ${units.length} items`}
+                {adjustmentMinor !== 0 && (adjustmentMinor < 0 ? ' after discount' : ' with charge')}
+              </span>
+              <span class="text-[17px] font-semibold tabular-nums">
+                {formatMinor(totalMinor, currency)}
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <Button
+                variant="secondary"
+                class="flex-1"
+                type="button"
+                onClick={() => location.route(backTo)}
+              >
+                Cancel
+              </Button>
+              <Button class="flex-2" type="submit" disabled={saving || (isEdit && !loaded)}>
+                {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create order'}
+              </Button>
+            </div>
           </div>
         </div>
       </form>
@@ -818,6 +917,7 @@ function UnitCard({
   retiredFields,
   clientId,
   clientName,
+  showMeasurements,
   hasClientProfile,
   errorFor,
   onChange,
@@ -833,6 +933,8 @@ function UnitCard({
   retiredFields: MeasurementFieldDoc[]
   clientId: string
   clientName: string
+  /** Only where something is made or altered to fit. */
+  showMeasurements: boolean
   hasClientProfile: boolean
   errorFor: (field: UnitFieldKey) => string | null
   onChange: (patch: Partial<UnitDraft>) => void
@@ -886,7 +988,26 @@ function UnitCard({
           />
         </Field>
 
-        <Disclosure label="Item details" summary={detailSummary}>
+        {/* Measurements are the point of a tailored item, so they sit on the card
+            rather than behind a disclosure. A rental or a shelf purchase is not
+            being made to fit, so it does not ask. */}
+        {showMeasurements && (activeFields.length > 0 || retiredWithValue.length > 0) && (
+          <MeasurementsBlock
+            fields={activeFields}
+            retiredWithValue={retiredWithValue}
+            values={unit.measurements}
+            clientId={clientId}
+            clientName={clientName}
+            hasClientProfile={hasClientProfile}
+            onChangeField={(fieldId, value) =>
+              onChange({ measurements: { ...unit.measurements, [fieldId]: value } })
+            }
+            onCopyFromClient={onCopyFromClient}
+            onSaveToClient={onSaveToClient}
+          />
+        )}
+
+        <Disclosure label="Wearer and fabric" summary={detailSummary}>
           <Field label="Wearer" hint="Who this is for, if not the client themselves.">
             <Input
               value={unit.wearer_name}
@@ -903,22 +1024,6 @@ function UnitCard({
               label="Fabric source"
             />
           </Field>
-
-          {(activeFields.length > 0 || retiredWithValue.length > 0) && (
-            <MeasurementsBlock
-              fields={activeFields}
-              retiredWithValue={retiredWithValue}
-              values={unit.measurements}
-              clientId={clientId}
-              clientName={clientName}
-              hasClientProfile={hasClientProfile}
-              onChangeField={(fieldId, value) =>
-                onChange({ measurements: { ...unit.measurements, [fieldId]: value } })
-              }
-              onCopyFromClient={onCopyFromClient}
-              onSaveToClient={onSaveToClient}
-            />
-          )}
         </Disclosure>
       </div>
     </Card>
