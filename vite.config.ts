@@ -20,6 +20,22 @@ export default defineConfig({
       ? { port: Number(process.env.PORT), strictPort: true }
       : {}),
   },
+  build: {
+    /**
+     * Raised from 500 to just above where the entry chunk actually sits, so
+     * the warning still fires on new growth instead of being permanently red.
+     *
+     * The floor is RxDB: the database opens before anything renders, so it
+     * cannot be deferred in an offline-first app. Screens are already
+     * route-split (see Shell.tsx) and load on navigation.
+     *
+     * The remaining prize is @supabase/supabase-js, ~203 kB that a local-only
+     * shop never uses but still downloads, because `getSupabase()` is
+     * synchronous and ~70 call sites across src/online/ depend on that. Making
+     * it async would take it off the boot path.
+     */
+    chunkSizeWarningLimit: 550,
+  },
   resolve: {
     /**
      * Belt and braces, not a fix for anything currently broken.
