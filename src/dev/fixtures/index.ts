@@ -1,3 +1,4 @@
 export { seedTenant, type SeedTenantInput } from './base'
-export { seedGenericTailor } from './tailor'
-export { seedNorthFound } from './northfound'
+export { seedGenericTailorData } from './tailor'
+export { seedNorthFoundData } from './northfound'
+export { seedEdgeCaseTenant } from './edge-cases'

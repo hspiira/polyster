@@ -591,7 +591,7 @@ export interface OrderStageHistoryDoc {
   changed_at: string
 }
 export const orderStageHistorySchema: RxJsonSchema<OrderStageHistoryDoc> = {
-  version: 1, // v1: note
+  version: 2, // v1: note. v2: from_stage/to_stage gain repair stages (Phase 9).
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -636,7 +636,7 @@ export interface MessageLogDoc {
   sent_by?: string
 }
 export const messageLogSchema: RxJsonSchema<MessageLogDoc> = {
-  version: 0,
+  version: 1, // v1: order_stage gains repair stages (Phase 9).
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -688,7 +688,10 @@ export interface SaleDoc {
   updated_at: string
 }
 export const saleSchema: RxJsonSchema<SaleDoc> = {
-  version: 0,
+  // v1: money moved to minor units and gained `currency`, plus the void trail.
+  // A v0 with `unit_price` in major units reached dev machines before the
+  // rebase onto the minor-unit convention; see database.ts for the migration.
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -767,7 +770,9 @@ export interface ExpenseDoc {
   updated_at: string
 }
 export const expenseSchema: RxJsonSchema<ExpenseDoc> = {
-  version: 0,
+  // v1: as with sales -- `amount` in major units became `amount_minor`, plus
+  // `currency` and the void trail.
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {

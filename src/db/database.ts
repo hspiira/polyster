@@ -38,7 +38,7 @@ import {
   type MessageLogDoc,
   type TenantFeatureDoc,
 } from './schema'
-import { DEFAULT_CURRENCY } from '../lib/money'
+import { DEFAULT_CURRENCY, toMinorUnits } from '../lib/money'
 import { generateOrderReference } from '../lib/orderReference'
 import { DEFAULT_LOCK_AFTER_MINUTES } from '../lib/lockPolicy'
 import { backfillOrderUnits } from './backfill'
@@ -167,6 +167,54 @@ export const paymentsStrategies = {
   },
 }
 
+/**
+ * v0 -> v1 for `sales`. The first cut of this table stored `unit_price` in
+ * major units with no currency, before the rebase onto the minor-unit
+ * convention 0005 established. It never shipped -- never pushed, never
+ * deployed -- but it did reach dev machines, and changing a v0 schema in place
+ * is what produced RxDB's DB6 ("another instance created this collection with
+ * a different schema"), which refuses to open the database at all.
+ *
+ * Converted rather than dropped, so nothing typed in during that window is
+ * lost. `DEFAULT_CURRENCY` is the right assumption for the only rows that can
+ * exist: those machines had no shop currency other than the default, and for a
+ * zero-decimal currency the major and minor values are identical anyway.
+ *
+ * Exported so database.test.ts can exercise it -- this is the exact bug that
+ * bit a real device, so it belongs in CI rather than in a comment.
+ */
+export const saleMigrations = {
+  1: (doc: Record<string, unknown>) => {
+    const { unit_price: unitPrice, ...rest } = doc as { unit_price?: number }
+    const currency = (doc.currency as string) ?? DEFAULT_CURRENCY
+    const timestamp = (doc.sold_at as string) ?? new Date().toISOString()
+    return {
+      ...rest,
+      currency,
+      unit_price_minor:
+        (doc.unit_price_minor as number) ?? toMinorUnits(unitPrice ?? 0, currency),
+      created_at: (doc.created_at as string) ?? timestamp,
+      updated_at: (doc.updated_at as string) ?? timestamp,
+    }
+  },
+}
+
+/** v0 -> v1 for `expenses`. Same story: `amount` in major units, no currency. */
+export const expenseMigrations = {
+  1: (doc: Record<string, unknown>) => {
+    const { amount, ...rest } = doc as { amount?: number }
+    const currency = (doc.currency as string) ?? DEFAULT_CURRENCY
+    const timestamp = new Date().toISOString()
+    return {
+      ...rest,
+      currency,
+      amount_minor: (doc.amount_minor as number) ?? toMinorUnits(amount ?? 0, currency),
+      created_at: (doc.created_at as string) ?? timestamp,
+      updated_at: (doc.updated_at as string) ?? timestamp,
+    }
+  },
+}
+
 let dbPromise: Promise<AppDatabase> | null = null
 
 /**
@@ -281,12 +329,24 @@ export async function createDatabase(
       migrationStrategies: {
         // v1 added note, which is optional -- no value to backfill.
         1: (doc: OrderStageHistoryDocV0): OrderStageHistoryDoc => doc,
+        // v2 added repair stages to the from_stage/to_stage enum; existing
+        // rows already satisfy it since their values are a subset.
+        2: (doc: OrderStageHistoryDoc): OrderStageHistoryDoc => doc,
       },
     },
     order_units: { schema: orderUnitSchema, migrationStrategies: {} },
-    sales: { schema: saleSchema, migrationStrategies: {} },
-    expenses: { schema: expenseSchema, migrationStrategies: {} },
-    message_log: { schema: messageLogSchema, migrationStrategies: {} },
+    sales: { schema: saleSchema, migrationStrategies: saleMigrations },
+    expenses: { schema: expenseSchema, migrationStrategies: expenseMigrations },
+    message_log: {
+      schema: messageLogSchema,
+      migrationStrategies: {
+        // v1 widened order_stage to include the Phase 9 repair stages. Existing
+        // rows already satisfy it -- their values are a subset -- so this is
+        // identity. It still has to exist: a version bump with no strategy is
+        // COL12, and the database refuses to open at all.
+        1: (doc: MessageLogDoc) => doc,
+      },
+    },
     tenant_features: { schema: tenantFeatureSchema, migrationStrategies: {} },
   })
 

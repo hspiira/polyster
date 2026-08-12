@@ -16,9 +16,16 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createRxDatabase, type RxJsonSchema } from 'rxdb'
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
 import { wrappedValidateAjvStorage } from 'rxdb/plugins/validate-ajv'
-import { createDatabase, ordersStrategies, paymentsStrategies, type AppDatabase } from './database'
+import {
+  createDatabase,
+  expenseMigrations,
+  ordersStrategies,
+  paymentsStrategies,
+  saleMigrations,
+  type AppDatabase,
+} from './database'
 import { REPLICATED_TABLES } from './replication'
-import { orderSchema, paymentSchema } from './schema'
+import { orderSchema, paymentSchema, saleSchema } from './schema'
 
 const created: AppDatabase[] = []
 
@@ -465,6 +472,123 @@ describe('schema migration', () => {
     expect(Number.isInteger(migrated?.get('amount_minor'))).toBe(true)
     expect(migrated?.get('amount_minor')).toBeGreaterThan(0)
     expect(migrated?.toJSON()).not.toHaveProperty('amount')
+
+    await after.remove()
+  })
+})
+
+/**
+ * The DB6 regression.
+ *
+ * `sales` and `expenses` shipped a v0 to dev machines, then had their v0 shape
+ * changed in place during the rebase onto minor units. RxDB refuses that --
+ * "another instance created this collection with a different schema" -- and
+ * the app cannot open its own database at all, which is what a real device
+ * hit. These pin the strategies that convert the old rows instead.
+ */
+describe('sales/expenses v0 -> v1 migration', () => {
+  it('converts a v0 sale from major units to minor, adding currency', () => {
+    const migrated = saleMigrations[1]({
+      id: 's1',
+      shop_id: 'shop-1',
+      item_description: 'Kitenge shirt',
+      quantity: 2,
+      unit_price: 40000,
+      method: 'cash',
+      sold_at: '2026-08-10T10:00:00.000Z',
+    })
+
+    // UGX is zero-decimal, so major and minor coincide -- the point is that the
+    // field is renamed and the currency supplied, not that the number changes.
+    expect(migrated).toMatchObject({
+      id: 's1',
+      quantity: 2,
+      unit_price_minor: 40000,
+      currency: 'UGX',
+    })
+    expect(migrated).not.toHaveProperty('unit_price')
+    // Required by the v1 schema, so a missing value would fail validation.
+    expect(migrated.created_at).toBe('2026-08-10T10:00:00.000Z')
+  })
+
+  it('leaves an already-converted sale alone', () => {
+    // Idempotence matters: a doc that somehow already carries the new fields
+    // must not be re-derived from a `unit_price` that is no longer there.
+    const migrated = saleMigrations[1]({
+      id: 's2',
+      unit_price_minor: 12345,
+      currency: 'KES',
+      sold_at: '2026-08-10T10:00:00.000Z',
+    })
+    expect(migrated.unit_price_minor).toBe(12345)
+    expect(migrated.currency).toBe('KES')
+  })
+
+  it('converts a v0 expense', () => {
+    const migrated = expenseMigrations[1]({
+      id: 'e1',
+      shop_id: 'shop-1',
+      category: 'materials',
+      description: 'Fabric',
+      amount: 30000,
+      spent_on: '2026-08-10',
+    })
+
+    expect(migrated).toMatchObject({ amount_minor: 30000, currency: 'UGX' })
+    expect(migrated).not.toHaveProperty('amount')
+  })
+
+  it('actually opens a database that already holds v0 sales', async () => {
+    // The end-to-end version: plant a v0 collection exactly as the shipped
+    // build created it, then reopen with the real v1 schema and strategy.
+    const name = `db6_${Date.now()}_${Math.random().toString(36).slice(2)}`
+    const open = () =>
+      createRxDatabase({
+        name,
+        storage: wrappedValidateAjvStorage({ storage: getRxStorageDexie() }),
+        multiInstance: false,
+      })
+
+    const v0: RxJsonSchema<Record<string, unknown>> = {
+      version: 0,
+      primaryKey: 'id',
+      type: 'object',
+      properties: {
+        id: { type: 'string', maxLength: 36 },
+        shop_id: { type: 'string', maxLength: 36 },
+        item_description: { type: 'string' },
+        quantity: { type: 'integer', minimum: 1 },
+        unit_price: { type: 'number', minimum: 0 },
+        method: { type: 'string', enum: ['cash', 'mobile_money', 'bank', 'other'] },
+        sold_at: { type: 'string', format: 'date-time', maxLength: 30 },
+      },
+      required: ['id', 'shop_id', 'item_description', 'quantity', 'unit_price', 'sold_at', 'method'],
+      indexes: [['shop_id', 'sold_at']],
+    }
+
+    const before = await open()
+    await before.addCollections({ sales: { schema: v0, migrationStrategies: {} } })
+    await before.collections.sales?.insert({
+      id: 'legacy-1',
+      shop_id: 'shop-1',
+      item_description: 'Legacy shirt',
+      quantity: 2,
+      unit_price: 40000,
+      method: 'cash',
+      sold_at: '2026-08-10T10:00:00.000Z',
+    })
+    await before.close()
+
+    const after = await open()
+    await after.addCollections({ sales: { schema: saleSchema, migrationStrategies: saleMigrations } })
+
+    const row = await after.collections.sales?.findOne('legacy-1').exec()
+    expect(row?.toJSON()).toMatchObject({
+      item_description: 'Legacy shirt',
+      quantity: 2,
+      unit_price_minor: 40000,
+      currency: 'UGX',
+    })
 
     await after.remove()
   })
