@@ -67,6 +67,9 @@
   --ink-800: oklch(0.278 calc(1.1 * var(--chroma-ink)) var(--hue-ink));
   --ink-900: oklch(0.208 calc(1 * var(--chroma-ink)) var(--hue-ink));
   --ink-950: oklch(0.165 calc(1 * var(--chroma-ink)) var(--hue-ink));
+  /* Between 950 and 1000, so a dark surface can lift off the page without
+     the 0.05 jump that made the brand tint obvious. */
+  --ink-975: oklch(0.142 calc(1 * var(--chroma-ink)) var(--hue-ink));
   --ink-1000: oklch(0.115 calc(1 * var(--chroma-ink)) var(--hue-ink));
 
   /* -- money. Outstanding balance, and nothing else. --------------------- */
@@ -166,9 +169,22 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
+  /*
+    A third of the light-mode tint. The ink ramp leans on `--hue-brand` so
+    neutrals belong to the palette rather than sitting outside it, but chroma
+    is perceived far more strongly at the dark end: the same 0.01 that reads
+    as a warm-neutral grey at `--ink-100` reads as visibly blue at
+    `--ink-950`, and a dark surface is mostly made of that colour. Overridden
+    here rather than in `:root` so light mode keeps the tint it was drawn with.
+  */
+  --chroma-ink: 0.003;
+
   --page: var(--ink-1000);
-  --surface: var(--ink-950);
-  --surface-raised: var(--ink-900);
+  /* One step off the page, not two. `--ink-950` lifted the card 0.05 in
+     lightness, which read as a distinctly different -- and bluer -- material
+     rather than the same page catching a little more light. */
+  --surface: var(--ink-975);
+  --surface-raised: var(--ink-950);
   --surface-sunken: var(--ink-900);
   --hover: var(--ink-900);
   --pressed: var(--ink-800);
