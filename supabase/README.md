@@ -19,11 +19,12 @@ These fixtures were generated against the current `main` branch of
 
 ## Test PIN
 
-Local fixtures use `123456` for seeded staff.
+`123456`, for both the local fixtures and the SQL seed.
 
-The Supabase seed deliberately does not write PIN hashes. Use the local fixtures
-for PIN-gate testing; for a real Supabase environment, set PINs through the
-application.
+The SQL seed's hashes were produced by `lib/pin.ts`'s own `hashPin` at the
+current `DEFAULT_ITERATIONS`, each with its own salt. `src/lib/seedPins.test.ts`
+verifies they still accept that PIN, so a change to the hashing parameters
+cannot silently lock the seeded staff out.
 
 ## Which seed do you want
 
