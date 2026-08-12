@@ -242,6 +242,9 @@ export async function createDatabase(
         3: (doc: StaffDocV2): StaffDoc => ({ ...doc, updated_at: doc.created_at }),
         // v4 only relaxed `required`: pin_hash is now optional. No shape change.
         4: (doc: StaffDoc) => doc,
+        // v5 widened role to include 'manager' and added permission_overrides
+        // (optional) -- no existing document's role or shape is affected.
+        5: (doc: StaffDoc) => doc,
       },
     },
     clients: {

@@ -37,6 +37,7 @@ import {
 import { IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { usePermission } from '../hooks/usePermission'
 import { observeBalance, type OrderBalance } from '../db/balances'
 import { changeOrderStage, logMessage, recordPayment, setUnitDone, voidPayment } from '../db/writes'
 import {
@@ -64,6 +65,7 @@ export function OrderDetail() {
   const location = useLocation()
   const orderId = params.id ?? ''
   const { db, shop, activeStaff } = useCurrentShop()
+  const canEdit = usePermission('orders.edit')
 
   const orderDoc = useRxQuery(() => db.orders.findOne(orderId).$, [db, orderId], null)
   const order = orderDoc?.toJSON() ?? null
@@ -126,14 +128,16 @@ export function OrderDetail() {
       back="/orders"
       wide
       action={
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="Edit order"
-          onClick={() => location.route(`/orders/${orderId}/edit`)}
-        >
-          <IconEdit size={20} />
-        </Button>
+        canEdit ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Edit order"
+            onClick={() => location.route(`/orders/${orderId}/edit`)}
+          >
+            <IconEdit size={20} />
+          </Button>
+        ) : undefined
       }
     >
       <div class="space-y-5">
@@ -509,6 +513,8 @@ function PaymentsSection({
   onError: (message: string | null) => void
 }) {
   const { db, activeStaff } = useCurrentShop()
+  const canRefund = usePermission('payments.refund')
+  const canCreatePayment = usePermission('payments.create')
   const [adding, setAdding] = useState(false)
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<PaymentMethod>('cash')
@@ -542,13 +548,15 @@ function PaymentsSection({
     <section>
       <SectionTitle
         action={
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            class="flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400"
-          >
-            <IconPlus size={14} /> Add
-          </button>
+          canCreatePayment ? (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              class="flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400"
+            >
+              <IconPlus size={14} /> Add
+            </button>
+          ) : undefined
         }
       >
         Payments
@@ -574,18 +582,20 @@ function PaymentsSection({
                     </span>
                   )}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    onError(null)
-                    void voidPayment(db, payment.id).catch((err: unknown) =>
-                      onError(err instanceof Error ? err.message : 'Could not void that payment.'),
-                    )
-                  }}
-                >
-                  Void
-                </Button>
+                {canRefund && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      onError(null)
+                      void voidPayment(db, payment.id).catch((err: unknown) =>
+                        onError(err instanceof Error ? err.message : 'Could not void that payment.'),
+                      )
+                    }}
+                  >
+                    Void
+                  </Button>
+                )}
               </li>
             ))}
           </ul>

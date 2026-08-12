@@ -15,6 +15,7 @@ import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
+import { usePermission } from '../hooks/usePermission'
 import { OPEN_STAGES } from '../screens/today/todayModel'
 import { SyncBadge } from '../components/SyncBadge'
 import {
@@ -63,6 +64,7 @@ export function Sidebar({
   const { db, shop } = useCurrentShop()
   const { path } = useLocation()
   const flags = useFeatureFlags(db, shop.id)
+  const canViewReports = usePermission('reports.view')
 
   const orderDocs = useRxQuery(
     () => db.orders.find({ selector: { shop_id: shop.id } }).$,
@@ -117,7 +119,14 @@ export function Sidebar({
   ]
 
   const groups = rawGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => !item.feature || flags[item.feature]) }))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (item.feature && !flags[item.feature]) return false
+        if (item.href === '/reports' && !canViewReports) return false
+        return true
+      }),
+    }))
     .filter((group) => group.items.length > 0)
 
   return (

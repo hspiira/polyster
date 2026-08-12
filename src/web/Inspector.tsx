@@ -13,6 +13,7 @@
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { usePermission } from '../hooks/usePermission'
 import { observeBalance, signedAmountMinor } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
@@ -53,6 +54,8 @@ export function Inspector({
   onClose?: () => void
 }) {
   const { db, shop, staff } = useCurrentShop()
+  const canCreatePayment = usePermission('payments.create')
+  const canEdit = usePermission('orders.edit')
   const [tab, setTab] = useState<Tab>('record')
   const [paying, setPaying] = useState(false)
 
@@ -312,33 +315,39 @@ export function Inspector({
         )}
       </div>
 
-      <div class="flex gap-1.5 border-t border-line px-3.5 py-2.5">
-        <button
-          type="button"
-          onClick={() => setPaying(true)}
-          class={cn(
-            'flex flex-1 items-center justify-center bg-accent font-semibold text-accent-content',
-            'hover:brightness-110',
-            CONTROL,
-            RADIUS,
-            TEXT_SM,
+      {(canCreatePayment || canEdit) && (
+        <div class="flex gap-1.5 border-t border-line px-3.5 py-2.5">
+          {canCreatePayment && (
+            <button
+              type="button"
+              onClick={() => setPaying(true)}
+              class={cn(
+                'flex flex-1 items-center justify-center bg-accent font-semibold text-accent-content',
+                'hover:brightness-110',
+                CONTROL,
+                RADIUS,
+                TEXT_SM,
+              )}
+            >
+              Take payment
+            </button>
           )}
-        >
-          Take payment
-        </button>
-        <a
-          href={`/orders/${order.id}/edit`}
-          class={cn(
-            'flex items-center justify-center bg-surface-sunken px-3 font-semibold text-content',
-            'hover:bg-pressed',
-            CONTROL,
-            RADIUS,
-            TEXT_SM,
+          {canEdit && (
+            <a
+              href={`/orders/${order.id}/edit`}
+              class={cn(
+                'flex items-center justify-center bg-surface-sunken px-3 font-semibold text-content',
+                'hover:bg-pressed',
+                CONTROL,
+                RADIUS,
+                TEXT_SM,
+              )}
+            >
+              Edit
+            </a>
           )}
-        >
-          Edit
-        </a>
-      </div>
+        </div>
+      )}
 
       <PaymentDialog
         open={paying}

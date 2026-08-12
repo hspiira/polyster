@@ -157,7 +157,35 @@ export const tenantFeatureSchema: RxJsonSchema<TenantFeatureDoc> = {
   indexes: [['shop_id', 'feature_key']],
 }
 
-export type StaffRole = 'owner' | 'staff'
+/** Phase 12 (section 11, 83): 'manager' sits between the original two. */
+export type StaffRole = 'owner' | 'manager' | 'staff'
+export const STAFF_ROLES: readonly StaffRole[] = ['owner', 'manager', 'staff']
+
+/** Phase 12's own list (section 11) -- the "future permissions" it names explicitly. */
+export type PermissionKey =
+  | 'orders.create'
+  | 'orders.edit'
+  | 'orders.cancel'
+  | 'payments.create'
+  | 'payments.refund'
+  | 'inventory.view'
+  | 'inventory.adjust'
+  | 'production.manage'
+  | 'expenses.create'
+  | 'reports.view'
+
+export const PERMISSION_KEYS: readonly PermissionKey[] = [
+  'orders.create',
+  'orders.edit',
+  'orders.cancel',
+  'payments.create',
+  'payments.refund',
+  'inventory.view',
+  'inventory.adjust',
+  'production.manage',
+  'expenses.create',
+  'reports.view',
+]
 
 export interface StaffDoc {
   id: string
@@ -168,6 +196,11 @@ export interface StaffDoc {
   /** A PIN reset otherwise leaves no trace. */
   pin_updated_at?: string
   role: StaffRole
+  /**
+   * Per-person exceptions to their role's defaults (src/lib/permissions.ts).
+   * Absent means "use the role default" -- most staff need no overrides.
+   */
+  permission_overrides?: Partial<Record<PermissionKey, boolean>>
   active: boolean
   /** `active` records that someone left, never when. */
   deactivated_at?: string
@@ -175,7 +208,7 @@ export interface StaffDoc {
   updated_at: string
 }
 export const staffSchema: RxJsonSchema<StaffDoc> = {
-  version: 4, // v4: pin_hash optional -- the PIN is set after registration, not during
+  version: 5, // v5: role gains 'manager', permission_overrides (Phase 12)
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -185,7 +218,8 @@ export const staffSchema: RxJsonSchema<StaffDoc> = {
     phone: { type: 'string' },
     pin_hash: { type: 'string' },
     pin_updated_at: { type: 'string', format: 'date-time' },
-    role: { type: 'string', enum: ['owner', 'staff'] },
+    role: { type: 'string', enum: [...STAFF_ROLES] },
+    permission_overrides: { type: 'object', additionalProperties: true },
     active: { type: 'boolean' },
     deactivated_at: { type: 'string', format: 'date-time' },
     created_at: { type: 'string', format: 'date-time' },

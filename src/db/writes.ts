@@ -25,6 +25,7 @@ import {
   type PaymentDoc,
   type PaymentKind,
   type PaymentMethod,
+  type PermissionKey,
   type ShopDoc,
   type StaffDoc,
   type StaffRole,
@@ -720,6 +721,29 @@ export async function setStaffActive(
 ): Promise<void> {
   const doc = await db.staff.findOne(staffId).exec()
   await doc?.patch({ active })
+}
+
+/** Phase 12. Changing role never touches permission_overrides -- those stay
+ * whatever they were, layered on top of whichever role is now active. */
+export async function setStaffRole(db: AppDatabase, staffId: string, role: StaffRole): Promise<void> {
+  const doc = await db.staff.findOne(staffId).exec()
+  if (!doc) throw new Error('That staff member no longer exists on this device.')
+  await doc.patch({ role, updated_at: now() })
+}
+
+/** Phase 12. Replaces the whole override set -- the caller sends the full picture, not a delta. */
+export async function setStaffPermissionOverrides(
+  db: AppDatabase,
+  staffId: string,
+  overrides: Partial<Record<PermissionKey, boolean>>,
+): Promise<void> {
+  const doc = await db.staff.findOne(staffId).exec()
+  if (!doc) throw new Error('That staff member no longer exists on this device.')
+  const hasAny = Object.keys(overrides).length > 0
+  await doc.patch({
+    permission_overrides: hasAny ? overrides : undefined,
+    updated_at: now(),
+  })
 }
 
 // ------------------------------------------------------------------- shop

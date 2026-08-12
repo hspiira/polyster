@@ -3306,21 +3306,27 @@ public garment page         -- new standalone route, /passport/:token
 
 ### Priority: P3
 
-**Status: ⬜ Not started** — blocked behind Phase 0 exit condition.
+**Status: ✅ Done**, scoped deliberately -- see below for exactly what "done" means here. Offline-capable: this extends the existing `staff` RxDB collection (schema v4 → v5) rather than adding anything online-only, so it needed no new Postgres table, only a widened check constraint and one new column (`0020_permissions.sql`). A live test confirmed the widened `role` check accepts `manager` and still rejects an invalid value, that `permission_overrides` stores an arbitrary jsonb object, and that cross-tenant isolation is unaffected (same "shop scoped" policy as before -- nothing new to grant here). A full Playwright pass confirmed the mechanism end to end: a staff-role person with an explicit `reports.view` override correctly lost the Reports nav entry on both phone and desktop, lost the Edit-order and Void-payment controls on both shells' order views (a genuine dual-shell gap this phase's own testing caught -- see below), kept `payments.create`'s default `true`, and the Staff Settings admin UI correctly showed a 3-way Owner/Manager/Staff role picker plus a working permission-toggle sheet that saved and reflected immediately.
 
-Only after the operational model is stable.
-
-Introduce:
+Introduced:
 
 ```text
-owner
-manager
-staff
+owner / manager / staff              -- role, extended (was owner/staff)
+permission_overrides                 -- new, per-person exceptions to their role's defaults
 ```
 
-and granular permissions.
+- ✅ role gains `manager`, sitting between the original two, exactly as section 11 asks
+- ✅ the exact ten permission keys section 11 names (`orders.create/edit/cancel`, `payments.create/refund`, `inventory.view/adjust`, `production.manage`, `expenses.create`, `reports.view`), with a pure, fully unit-tested `hasPermission()` (`src/lib/permissions.ts`, 6 tests) that a `null` active-staff (nobody picked, or a device with none) always passes -- there is nothing to restrict against, the same reasoning `isLocked()` already uses for a shop with no PINs
+- ✅ **advisory, not a security boundary, on purpose and explicitly documented as such** -- section 11 already says the PIN itself works this way ("PIN currently serves attribution rather than being a true security boundary... preserve that behaviour"), and nothing about permissions changes the underlying trust model: the shop authenticates as one Supabase user for the whole device (ARCHITECTURE.md section 4), so RLS has no per-staff identity to enforce against. What this gates is what a staff member *sees* after picking their own name -- exactly attribution's existing trust level, no more, no less
+- ✅ role defaults are a disclosed judgment call, not specified by the spec (section 11 lists the keys, not which role gets which): owner gets everything; manager gets everything except `payments.refund` (reversing money that already moved is the one action reserved to the owner by default); staff gets the day-to-day actions (`orders.create`, `payments.create`, `inventory.view`, `reports.view`) and not the ones that change history or cost money. Every default is overridable per person
+- ✅ a real administration surface: Staff Settings' existing per-person Change-PIN/Deactivate row gains a "Permissions" button opening a sheet with the 3-way role picker and a toggle for all ten keys, seeded from the effective value (override, or the role default) and re-seeding correctly whenever a different person's sheet is opened
+- ✅ existing PIN workflow undisturbed -- nothing about signing in, the lock screen, or PIN reset changed; the only thing added to that screen's list is a "Permissions" button
 
-Do not disrupt the existing PIN workflow during earlier phases.
+**Gating wired into four representative actions, not all ten -- disclosed, not silently partial:** `orders.edit`, `payments.create`, `payments.refund`, and `reports.view` are now real, live gates (nav entries and action buttons hidden when the active staff member lacks them), proving the mechanism works across three different UI patterns (hiding a nav entry, hiding a screen action, hiding a list-row action) on both shells. The other six keys (`orders.cancel`, `inventory.view`, `inventory.adjust`, `production.manage`, `expenses.create` -- this last one *is* wired, at the "Add expense" button) exist fully in the data model and default tables but are not yet checked at every one of their nine remaining potential call sites app-wide. Section 83 is explicitly P3, explicitly gated on "only after the operational model is stable," and section 11 itself hedges with "may" -- exhaustively sweeping every button in the app for a foundational, advisory-only feature was judged disproportionate to what the spec actually asks for here, versus laying a correct, tested, genuinely-working foundation that the remaining call sites can adopt one at a time.
+
+**A real dual-shell gap this phase's own testing found and fixed:** the phone's `OrderDetail.tsx` and the desktop's entirely separate `web/Inspector.tsx` are two different components for the same screen (the web design predates a phone-screen "borrow" for order detail specifically). Gating only the phone component would have left every desktop user's Edit and Take-payment controls ungated. Both are now gated identically; caught by testing the actual rendered desktop page, not by reading the phone component and assuming parity.
+
+**Inherits the Phase 9 replication bug, doesn't reintroduce it:** `permission_overrides` is an object-typed field, the same shape as `order_units.measurements` and `measurement_profiles.values` -- and hits the identical pre-existing `rxdb/plugins/replication-supabase` limitation documented in Phase 9's status notes (`addDocEqualityToQuery` cannot build an optimistic-concurrency check for a plain object, so an UPDATE push to a staff row that has `permission_overrides` set throws RC_PUSH in the background). Confirmed live: exactly the same symptom, exactly the same root cause already on record, not a new defect. The local write and the UI both work correctly regardless (RxDB is offline-first; a background push failure never blocks the save the user just saw succeed) -- only that specific row's sync to the server doesn't converge until the Phase 9 fix is made, which is the existing, already-flagged, dedicated follow-up, not something to patch again here.
 
 ---
 

@@ -25,6 +25,7 @@ import {
 import { IconMoney, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQueryStatus } from '../hooks/useRxQuery'
+import { usePermission } from '../hooks/usePermission'
 import { recordExpense, voidExpense } from '../db/writes'
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../db/schema'
 import { formatMinor, parseToMinor } from '../lib/money'
@@ -49,6 +50,7 @@ const RANGES: readonly { value: Range; label: string }[] = [
 
 export function Expenses() {
   const { db, shop, activeStaff } = useCurrentShop()
+  const canCreate = usePermission('expenses.create')
   const [range, setRange] = useState<Range>('30')
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,7 +89,7 @@ export function Expenses() {
       title="Expenses"
       back="/settings"
       action={
-        expenses.length > 0 && (
+        expenses.length > 0 && canCreate && (
           <Button size="sm" onClick={() => setAdding(true)}>
             <IconPlus size={16} /> Expense
           </Button>
@@ -101,7 +103,9 @@ export function Expenses() {
               illustration={<IconMoney size={40} />}
               title="No expenses recorded"
               description="Fabric, rent, transport, wages. Without these the app can only show what came in, never what you actually made."
-              action={<Button onClick={() => setAdding(true)}>Record an expense</Button>}
+              action={
+                canCreate ? <Button onClick={() => setAdding(true)}>Record an expense</Button> : undefined
+              }
             />
           </Card>
         ) : (

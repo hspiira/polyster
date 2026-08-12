@@ -9,6 +9,7 @@ import { IconChart, IconReceipt, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
+import { usePermission } from '../hooks/usePermission'
 import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import type { FeatureKey } from '../db/schema'
@@ -41,7 +42,12 @@ export function Money() {
   const { db, shop } = useCurrentShop()
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
   const flags = useFeatureFlags(db, shop.id)
-  const sections = SECTIONS.filter((section) => !section.feature || flags[section.feature])
+  const canViewReports = usePermission('reports.view')
+  const sections = SECTIONS.filter((section) => {
+    if (section.feature && !flags[section.feature]) return false
+    if (section.href === '/reports' && !canViewReports) return false
+    return true
+  })
 
   const outstanding = [...balances.values()].reduce(
     (total, balance) => total + Math.max(0, balance.balance_minor),
