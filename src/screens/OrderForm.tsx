@@ -517,21 +517,12 @@ export function OrderForm() {
             ...result.header,
             item_description: firstUnit.item_description,
             price_total_minor: firstUnit.price_minor,
-          },
-          activeStaff?.id,
-        )
-
-        // createOrder's own unit only knows description and price -- the rest
-        // of what this form collects for item 1 has to be patched in after.
-        const createdUnits = await db.order_units.find({ selector: { order_id: created.id } }).exec()
-        const createdFirstUnit = createdUnits[0]
-        if (createdFirstUnit) {
-          await updateOrderUnit(db, createdFirstUnit.id, {
             fabric_source: firstUnit.fabric_source,
             measurements: firstUnit.measurements,
             ...(firstUnit.wearer_name ? { wearer_name: firstUnit.wearer_name } : {}),
-          })
-        }
+          },
+          activeStaff?.id,
+        )
 
         for (const unit of restUnits) {
           await addOrderUnit(db, created.id, unit)
@@ -600,94 +591,28 @@ export function OrderForm() {
         <div class="space-y-5">
           {error && <ErrorNote>{error}</ErrorNote>}
 
-          <Card flush>
-            <div class="space-y-4">
-              <Field label="Client" error={headerErrorFor('client_id')}>
-                <Select
-                  value={header.client_id}
-                  onChange={(e) => void selectClient((e.target as HTMLSelectElement).value)}
-                >
-                  <option value="">Choose a client</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+          <OrderTypePicker
+            value={header.order_type}
+            options={visibleOrderTypes}
+            onChange={(order_type) => {
+              typeTouched.current = true
+              updateHeader({ order_type })
+            }}
+          />
 
-              <Field label="Type">
-                <Segmented
-                  value={header.order_type}
-                  options={visibleOrderTypes.map((type) => ({ value: type, label: ORDER_TYPE_LABELS[type] }))}
-                  onChange={(order_type) => updateHeader({ order_type })}
-                  label="Order type"
-                />
-              </Field>
-
-              <Field
-                label={isRental ? 'Collection date' : 'Pickup date'}
-                error={headerErrorFor('pickup_due_date')}
-              >
-                <Input
-                  type="date"
-                  value={header.pickup_due_date}
-                  onInput={(e) => updateHeader({ pickup_due_date: (e.target as HTMLInputElement).value })}
-                />
-              </Field>
-
-              {isRental && (
-                <Field
-                  label="Return date"
-                  hint="When the item is due back."
-                  error={headerErrorFor('return_due_date')}
-                >
-                  <Input
-                    type="date"
-                    min={header.pickup_due_date}
-                    value={header.return_due_date}
-                    onInput={(e) =>
-                      updateHeader({ return_due_date: (e.target as HTMLInputElement).value })
-                    }
-                  />
-                </Field>
-              )}
-
-              {isRental && (
-                <Field
-                  label="Deposit"
-                  hint={`Held and refundable, in ${currency}. Optional.`}
-                  error={headerErrorFor('deposit_amount')}
-                >
-                  <Input
-                    inputmode="decimal"
-                    placeholder="0"
-                    value={header.deposit_amount}
-                    onInput={(e) => updateHeader({ deposit_amount: (e.target as HTMLInputElement).value })}
-                  />
-                </Field>
-              )}
-
-              {isPreOrder && (
-                <Field label="Expected fulfilment date" hint="When the item is expected to be ready, if known.">
-                  <Input
-                    type="date"
-                    value={header.expected_fulfilment_date}
-                    onInput={(e) =>
-                      updateHeader({ expected_fulfilment_date: (e.target as HTMLInputElement).value })
-                    }
-                  />
-                </Field>
-              )}
-
-              <Disclosure
-                label="More options"
-                summary={optionsSummary}
-                forceOpen={
-                  invalid?.scope === 'header' &&
-                  (invalid.field === 'organisation_name' || invalid.field === 'adjustment_amount')
-                }
-              >
+          <ClientPicker
+            clients={clients}
+            selectedId={header.client_id}
+            error={headerErrorFor('client_id')}
+            onSelect={(id) => void selectClient(id)}
+            onCreate={async (name, phone) => {
+              const created = await createClient(db, shop.id, {
+                name,
+                ...(phone.trim() ? { phone: phone.trim() } : {}),
+              })
+              return created.id
+            }}
+          />
                 {(flags.corporate_orders || isCorporate) && (
                   <Field label="Customer">
                     <Segmented

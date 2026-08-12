@@ -224,6 +224,15 @@ export interface NewOrderInput extends OrderPartyInput {
   notes?: string
   /** Rental only. Held and refundable, never part of price_total_minor -- see OrderDoc. */
   deposit_minor?: number
+  /**
+   * The rest of the first unit. Passed in rather than patched on afterwards:
+   * a create-then-patch pushes an UPDATE, and the Supabase replication plugin
+   * cannot build its conflict query for a row holding an object field
+   * (`measurements`), so every new order left a failed push behind it.
+   */
+  wearer_name?: string
+  fabric_source?: FabricSource
+  measurements?: Record<string, string | number>
 }
 
 /** Shared by createOrder and updateOrderHeader -- every field here is optional. */
@@ -298,11 +307,12 @@ export async function createOrder(
     position: 0,
     item_description: description,
     price_minor: input.price_total_minor,
-    measurements: {},
-    fabric_source: 'shop',
+    measurements: input.measurements ?? {},
+    fabric_source: input.fabric_source ?? 'shop',
     done: false,
     created_at: timestamp,
     updated_at: timestamp,
+    ...(input.wearer_name?.trim() ? { wearer_name: input.wearer_name.trim() } : {}),
   })
 
   // recalculateOrder is the only writer of summary/price_total_minor
