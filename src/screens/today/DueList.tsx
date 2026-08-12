@@ -14,8 +14,8 @@ import { cn } from '../../lib/cn'
 import { formatMinor } from '../../lib/money'
 import { formatDueDate } from '../../lib/dates'
 import { MoreLink } from '../../components/ui'
-import { STAGE_LABELS, STAGE_TONES } from '../orderStage'
-import { normalizeTone, TONE_SOLID } from '../../ui/tones'
+import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from '../orderStage'
+import { normalizeTone, TONE_SOFT, TONE_SOLID } from '../../ui/tones'
 import { capRows } from './todayModel'
 import type { DueRow } from './todayModel'
 import type { FilterScope } from '../Orders'
@@ -31,12 +31,26 @@ export interface DueSection {
   rows: DueRow[]
 }
 
+/**
+ * Full bleed on a phone, an inset card from `sm` up.
+ *
+ * The page pads by `--gutter` and a card pads by `--gutter` again, so on a
+ * 390px screen 64px -- one sixth of the width -- went on two nested margins
+ * that look like one. Cancelling the outer one with `-mx-gutter` lets the
+ * surface reach both edges while the rows keep their own padding, so row text
+ * lands on the same left margin as the heading above it rather than indented
+ * from it. This is the plain-vs-inset list distinction iOS draws, and a phone
+ * is where plain wins.
+ */
+export const SURFACE =
+  '-mx-gutter overflow-hidden bg-surface sm:mx-0 sm:rounded-card sm:shadow-raise'
+
 export function DueList({ sections }: { sections: readonly DueSection[] }) {
   const visible = sections.filter((section) => section.rows.length > 0)
   if (visible.length === 0) return null
 
   return (
-    <section class="overflow-hidden rounded-card bg-surface shadow-raise">
+    <section class={SURFACE}>
       {visible.map((section) => (
         <Section key={section.title} section={section} />
       ))}
@@ -92,22 +106,38 @@ function Row({ row }: { row: DueRow }) {
   const { order } = row
   const stageTone = normalizeTone(STAGE_TONES[order.stage])
   const overdue = formatDueDate(row.dueDate).includes('overdue')
+  const TypeIcon = ORDER_TYPE_ICONS[order.order_type]
 
   return (
     <a
       href={`/orders/${order.id}`}
-      class="flex min-h-tap items-stretch gap-2.5 pr-gutter transition-colors
+      class="flex min-h-tap items-center gap-2.5 px-gutter py-2 transition-colors
              hover:bg-hover active:bg-pressed"
     >
       {/*
-        The bar carries the stage. Urgency is already said by which section the
-        row sits in, so repeating it here would spend the only colour a row has
-        on a fact the reader just read. The stage is still written out in the
-        meta line -- colour is never the only carrier.
+        Shape says what kind of order it is, colour says what stage it is in.
+        The accent bar this replaced carried only the stage, which the meta
+        line already spells out -- so a whole visual channel was spent
+        repeating one word. Order type was shown nowhere on the row at all,
+        and "a rental due back" reads very differently from "a repair".
+        Both remain in text: the stage below, the type on the order itself.
       */}
-      <span class={cn('w-1 shrink-0 rounded-r-full', TONE_SOLID[stageTone])} aria-hidden="true" />
+      <span
+        class={cn(
+          'flex size-8 shrink-0 items-center justify-center rounded-[0.65rem]',
+          TONE_SOFT[stageTone],
+        )}
+      >
+        <TypeIcon size={16} />
+        {/*
+          The glyph is the only place the row states its type, so it cannot be
+          decorative. Reading it out costs a screen reader one word and gives
+          it a fact the old accent bar never carried at all.
+        */}
+        <span class="sr-only">{ORDER_TYPE_LABELS[order.order_type]}</span>
+      </span>
 
-      <span class="min-w-0 flex-1 py-2">
+      <span class="min-w-0 flex-1">
         <span class="flex items-baseline gap-2">
           <span class="min-w-0 flex-1 truncate text-[15px] font-medium">{order.summary}</span>
           {row.outstanding_minor > 0 && (

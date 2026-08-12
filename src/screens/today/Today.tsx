@@ -5,7 +5,7 @@
  * figure is a reactive local query. All derivation lives in todayModel.ts.
  */
 import { useMemo } from 'preact/hooks'
-import { Button, EmptyState, MoreLink, Screen, Skeleton } from '../../components/ui'
+import { Avatar, Button, EmptyState, MoreLink, Screen, Skeleton } from '../../components/ui'
 import { IconPlus } from '../../components/icons'
 import { IllustrationOrders } from '../../components/illustrations'
 import { ShopPrompts } from '../../components/ShopPrompts'
@@ -19,7 +19,7 @@ import type { ReplicationStatus } from '../../hooks/useReplication'
 import { Hero } from './Hero'
 import { TodayTop } from './TodayTop'
 import { DayStrip } from './DayStrip'
-import { DueList, type DueSection } from './DueList'
+import { DueList, SURFACE, type DueSection } from './DueList'
 import {
   buildBuckets,
   buildDayStrip,
@@ -171,7 +171,7 @@ export function Today({ online, auth, replication }: TodayProps) {
             total, and repeating it cost a 56px line to say nothing new. This
             block answers the question the total raises -- who owes it.
           */
-          <section class="overflow-hidden rounded-card bg-surface shadow-raise">
+          <section class={SURFACE}>
             <h2 class="flex items-center gap-2 px-gutter pt-3 pb-1.5">
               <span class="size-1.5 shrink-0 rounded-full bg-money" aria-hidden="true" />
               <span class="text-[13px] font-semibold">Owed to you</span>
@@ -184,11 +184,13 @@ export function Today({ online, auth, replication }: TodayProps) {
                 <li key={row.order.id}>
                   <a
                     href={`/orders/${row.order.id}`}
-                    class="flex min-h-tap items-stretch gap-2.5 pr-gutter transition-colors
+                    class="flex min-h-tap items-center gap-3 px-gutter py-2 transition-colors
                            hover:bg-hover active:bg-pressed"
                   >
-                    <span class="w-1 shrink-0 rounded-r-full bg-money" aria-hidden="true" />
-                    <span class="min-w-0 flex-1 py-2">
+                    {/* These rows are about a person, not a garment, so the
+                        tile is who rather than what. */}
+                    <Avatar name={row.clientName} size="sm" />
+                    <span class="min-w-0 flex-1">
                       <span class="flex items-baseline gap-2">
                         <span class="min-w-0 flex-1 truncate text-[15px] font-medium">
                           {row.clientName}

@@ -263,6 +263,33 @@ export const IconLayers = (p: IconProps) => (
   </Icon>
 )
 
+/** Two arrows round a loop: a rental, which goes out and comes back. */
+export const IconRepeat = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 12a8 8 0 0 1 8-8 8 8 0 0 1 6.9 4" />
+    <path d="M20 12a8 8 0 0 1-8 8 8 8 0 0 1-6.9-4" />
+    <path d="M19 3v5h-5" />
+    <path d="M5 21v-5h5" />
+  </Icon>
+)
+
+/**
+ * Scissors: a repair, which is altering rather than making.
+ *
+ * A needle and thread would be the truer glyph, but at the 17px these render
+ * at it collapsed into an ambiguous diagonal slash. Two circles and a cross
+ * survive the size, and a tailor reads scissors as alteration.
+ */
+export const IconScissors = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="6" cy="6" r="2.6" />
+    <circle cx="6" cy="18" r="2.6" />
+    <path d="M20 4 8.4 15.6" />
+    <path d="M14.6 14.6 20 20" />
+    <path d="M8.4 8.4 12 12" />
+  </Icon>
+)
+
 /** A fingerprint: an individual garment's own identity. */
 export const IconFingerprint = (p: IconProps) => (
   <Icon {...p}>
