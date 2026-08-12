@@ -25,6 +25,34 @@ The Supabase seed deliberately does not write PIN hashes. Use the local fixtures
 for PIN-gate testing; for a real Supabase environment, set PINs through the
 application.
 
+## Which seed do you want
+
+They are not interchangeable, and running both is usually wrong.
+
+`supabase/seed.sql` writes the remote Postgres. Because replication is
+bidirectional across every table in `REPLICATED_TABLES`, signing in as one of
+the seeded auth users pulls that data into the browser on its own. This is the
+path to use when Supabase is configured.
+
+The local fixtures write IndexedDB directly and are for working offline, with
+no Supabase configured. They also cover ground the SQL seed does not: rental,
+repair and purchase orders, corporate order fields, and staff PINs.
+
+Seeding locally while replication is live would push a second set of tenants
+upstream, so `seedAll` refuses unless passed `{ force: true }`.
+
+## Running the local fixtures
+
+In a dev build, from the browser console:
+
+```js
+const db = await __polyster.getDatabase()
+await __polyster.seedAll(db)   // NORTH//FOUND, generic tailor, edge cases
+```
+
+Then reload. IndexedDB is per browser profile, so this seeds only the browser
+it is run in.
+
 ## Running the SQL seed
 
 Migrations `0001..0020` must already be applied.
