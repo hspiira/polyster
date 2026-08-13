@@ -31,23 +31,17 @@ import {
   setOrderAdjustment,
   updateOrderHeader,
   updateOrderUnit,
-  type OrderHeaderInput,
-  type OrderUnitInput,
 } from '../db/writes'
 import {
   CUSTOMER_TYPES,
   FABRIC_SOURCES,
   ORDER_TYPES,
-  type CustomerType,
-  type FabricSource,
   type MeasurementFieldDoc,
   type OrderDoc,
-  type OrderStage,
-  type OrderType,
 } from '../db/schema'
 import { CUSTOMER_TYPE_LABELS, FABRIC_SOURCE_LABELS } from './orderStage'
-import { addDays, formatDate, today } from '../lib/dates'
-import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
+import { formatDate } from '../lib/dates'
+import { formatMinor, parseToMinor } from '../lib/money'
 import {
   dueDateLabel,
   needsFulfilmentDate,
@@ -55,103 +49,28 @@ import {
   needsReturn,
   usualOrderType,
 } from '../lib/orderTypes'
-
-/** A same-day match must still be open -- a finished order is not a candidate. */
-const CLOSED_STAGES: readonly OrderStage[] = ['picked_up', 'returned', 'cancelled']
-
-type AdjustmentType = 'none' | 'discount' | 'charge'
+import {
+  CLOSED_STAGES,
+  blankHeader,
+  blankUnit,
+  draftFromOrder,
+  isInvalid,
+  planUnitWrites,
+  unitsSubtotalMinor,
+  validateOrderForm,
+  type AdjustmentType,
+  type HeaderDraft,
+  type HeaderFieldKey,
+  type Invalid,
+  type UnitDraft,
+  type UnitFieldKey,
+} from './orderFormModel'
 
 const ADJUSTMENT_OPTIONS: { value: AdjustmentType; label: string }[] = [
   { value: 'none', label: 'None' },
   { value: 'discount', label: 'Discount' },
   { value: 'charge', label: 'Extra charge' },
 ]
-
-interface HeaderDraft {
-  client_id: string
-  order_type: OrderType
-  pickup_due_date: string
-  return_due_date: string
-  notes: string
-  adjustment_type: AdjustmentType
-  adjustment_amount: string
-  adjustment_reason: string
-  customer_type: CustomerType
-  organisation_name: string
-  purchase_order_reference: string
-  contact_person: string
-  expected_fulfilment_date: string
-  /** Rental only. */
-  deposit_amount: string
-}
-
-/** One item on the order. `key` is stable across renders; `id` exists once persisted. */
-interface UnitDraft {
-  key: string
-  id?: string
-  wearer_name: string
-  item_description: string
-  price: string
-  fabric_source: FabricSource
-  measurements: Record<string, string>
-}
-
-function blankUnit(): UnitDraft {
-  return {
-    key: crypto.randomUUID(),
-    wearer_name: '',
-    item_description: '',
-    price: '',
-    fabric_source: 'shop',
-    measurements: {},
-  }
-}
-
-const BLANK_HEADER: HeaderDraft = {
-  client_id: '',
-  order_type: 'tailor_made',
-  // A week out is the common case and saves a date-picker interaction on
-  // nearly every order.
-  pickup_due_date: addDays(today(), 7),
-  return_due_date: '',
-  notes: '',
-  adjustment_type: 'none',
-  adjustment_amount: '',
-  adjustment_reason: '',
-  customer_type: 'individual',
-  organisation_name: '',
-  purchase_order_reference: '',
-  contact_person: '',
-  expected_fulfilment_date: '',
-  deposit_amount: '',
-}
-
-type HeaderFieldKey =
-  | 'client_id'
-  | 'pickup_due_date'
-  | 'return_due_date'
-  | 'adjustment_amount'
-  | 'organisation_name'
-  | 'deposit_amount'
-type UnitFieldKey = 'item_description' | 'price'
-
-/* A rejection carries which field it is about, so the message shows beside that
-   field rather than in one note at the foot of the form. */
-type Invalid =
-  | { scope: 'header'; field: HeaderFieldKey; message: string }
-  | { scope: 'unit'; key: string; field: UnitFieldKey; message: string }
-
-interface ValidatedUnit extends OrderUnitInput {
-  key: string
-  id?: string
-}
-
-interface ValidatedForm {
-  header: OrderHeaderInput
-  units: ValidatedUnit[]
-  adjustmentMinor: number
-  adjustmentReason?: string
-}
 
 export function OrderForm() {
   const { params } = useRoute()
@@ -204,7 +123,7 @@ export function OrderForm() {
   const retiredFields = useMemo(() => retiredFieldDocs.map((doc) => doc.toJSON()), [retiredFieldDocs])
 
   const [header, setHeader] = useState<HeaderDraft>(() => ({
-    ...BLANK_HEADER,
+    ...blankHeader(),
     // /orders/new?client=<id> from a client's page, so taking an order for
     // someone you are already looking at does not mean finding them again.
     client_id: new URLSearchParams(location.query as Record<string, string>).get('client') ?? '',
@@ -263,43 +182,9 @@ export function OrderForm() {
 
   useEffect(() => {
     if (!isEdit || loaded || !orderDoc || existingUnits.length === 0) return
-    const order = orderDoc.toJSON()
-    setHeader({
-      client_id: order.client_id,
-      order_type: order.order_type,
-      pickup_due_date: order.pickup_due_date,
-      return_due_date: order.return_due_date ?? '',
-      notes: order.notes ?? '',
-      adjustment_type:
-        order.price_adjustment_minor === 0 ? 'none' : order.price_adjustment_minor < 0 ? 'discount' : 'charge',
-      adjustment_amount:
-        order.price_adjustment_minor === 0
-          ? ''
-          : String(fromMinorUnits(Math.abs(order.price_adjustment_minor), order.currency)),
-      adjustment_reason: order.adjustment_reason ?? '',
-      customer_type: order.customer_type ?? 'individual',
-      organisation_name: order.organisation_name ?? '',
-      purchase_order_reference: order.purchase_order_reference ?? '',
-      contact_person: order.contact_person ?? '',
-      expected_fulfilment_date: order.expected_fulfilment_date ?? '',
-      deposit_amount:
-        order.rental_deposit_minor > 0
-          ? String(fromMinorUnits(order.rental_deposit_minor, order.currency))
-          : '',
-    })
-    setUnits(
-      existingUnits.map((unit) => ({
-        key: unit.id,
-        id: unit.id,
-        wearer_name: unit.wearer_name ?? '',
-        item_description: unit.item_description,
-        price: String(fromMinorUnits(unit.price_minor, order.currency)),
-        fabric_source: unit.fabric_source,
-        measurements: Object.fromEntries(
-          Object.entries(unit.measurements).map(([key, value]) => [key, String(value)]),
-        ),
-      })),
-    )
+    const draft = draftFromOrder(orderDoc.toJSON(), existingUnits)
+    setHeader(draft.header)
+    setUnits(draft.units)
     setLoaded(true)
   }, [isEdit, loaded, orderDoc, existingUnits])
 
@@ -378,117 +263,11 @@ export function OrderForm() {
     }
   }
 
-  function validate(): ValidatedForm | Invalid {
-    if (!header.client_id) {
-      return { scope: 'header', field: 'client_id', message: 'Choose which client this order is for.' }
-    }
-    if (!header.pickup_due_date) {
-      return { scope: 'header', field: 'pickup_due_date', message: 'A pickup date is needed.' }
-    }
-    if (header.return_due_date && header.return_due_date < header.pickup_due_date) {
-      return {
-        scope: 'header',
-        field: 'return_due_date',
-        message: 'The return date cannot be before the pickup date.',
-      }
-    }
-    if (header.customer_type === 'corporate' && !header.organisation_name.trim()) {
-      return {
-        scope: 'header',
-        field: 'organisation_name',
-        message: 'Name the company this order is for.',
-      }
-    }
-
-    let depositMinor = 0
-    if (header.order_type === 'rental' && header.deposit_amount.trim()) {
-      const parsed = parseToMinor(header.deposit_amount, currency)
-      if (parsed === null || parsed < 0) {
-        return {
-          scope: 'header',
-          field: 'deposit_amount',
-          message: 'Enter the deposit as a number.',
-        }
-      }
-      depositMinor = parsed
-    }
-
-    let adjustmentMinor = 0
-    if (header.adjustment_type !== 'none') {
-      const magnitude = parseToMinor(header.adjustment_amount, currency)
-      if (magnitude === null || magnitude === 0) {
-        return {
-          scope: 'header',
-          field: 'adjustment_amount',
-          message: 'Enter the adjustment as a number greater than zero.',
-        }
-      }
-      adjustmentMinor = header.adjustment_type === 'discount' ? -magnitude : magnitude
-    }
-
-    const validatedUnits: ValidatedUnit[] = []
-    for (const unit of units) {
-      if (!unit.item_description.trim()) {
-        return { scope: 'unit', key: unit.key, field: 'item_description', message: 'Describe this item.' }
-      }
-      const price = parseToMinor(unit.price, currency)
-      if (price === null) {
-        return { scope: 'unit', key: unit.key, field: 'price', message: 'Enter the price as a number.' }
-      }
-      validatedUnits.push({
-        key: unit.key,
-        id: unit.id,
-        item_description: unit.item_description,
-        price_minor: price,
-        fabric_source: unit.fabric_source,
-        measurements: unit.measurements,
-        ...(unit.wearer_name.trim() ? { wearer_name: unit.wearer_name } : {}),
-      })
-    }
-
-    // Mirrors setOrderAdjustment's own check one level up, so a discount larger
-    // than the subtotal never leaves an order half-written.
-    const subtotal = validatedUnits.reduce((sum, unit) => sum + unit.price_minor, 0)
-    if (subtotal + adjustmentMinor < 0) {
-      return {
-        scope: 'header',
-        field: 'adjustment_amount',
-        message: 'That discount is larger than the order total.',
-      }
-    }
-
-    return {
-      header: {
-        client_id: header.client_id,
-        order_type: header.order_type,
-        pickup_due_date: header.pickup_due_date,
-        ...(header.return_due_date ? { return_due_date: header.return_due_date } : {}),
-        ...(header.notes.trim() ? { notes: header.notes } : {}),
-        customer_type: header.customer_type,
-        ...(header.customer_type === 'corporate'
-          ? {
-              organisation_name: header.organisation_name,
-              ...(header.purchase_order_reference.trim()
-                ? { purchase_order_reference: header.purchase_order_reference }
-                : {}),
-              ...(header.contact_person.trim() ? { contact_person: header.contact_person } : {}),
-            }
-          : {}),
-        ...(header.order_type === 'pre_order' && header.expected_fulfilment_date
-          ? { expected_fulfilment_date: header.expected_fulfilment_date }
-          : {}),
-        ...(header.order_type === 'rental' ? { deposit_minor: depositMinor } : {}),
-      },
-      units: validatedUnits,
-      adjustmentMinor,
-      adjustmentReason: header.adjustment_reason.trim() || undefined,
-    }
-  }
 
   async function submit(event: Event) {
     event.preventDefault()
-    const result = validate()
-    if ('scope' in result) {
+    const result = validateOrderForm({ header, units, currency })
+    if (isInvalid(result)) {
       setInvalid(result)
       return
     }
@@ -500,26 +279,21 @@ export function OrderForm() {
       if (orderId) {
         await updateOrderHeader(db, orderId, result.header)
 
-        // Add first, remove last: removeOrderUnit refuses to leave zero units,
-        // so the persisted count must not dip below the draft's final length.
-        for (const unit of result.units) {
-          if (unit.id) continue
+        const plan = planUnitWrites(
+          result.units,
+          existingUnits.map((unit) => unit.id),
+        )
+        for (const unit of plan.toAdd) {
           const added = await addOrderUnit(db, orderId, unit)
-          // Recorded into the draft immediately: if a later step throws, a retry
-          // must route this unit through updateOrderUnit, not add it twice.
           setUnits((current) =>
             current.map((draft) => (draft.key === unit.key ? { ...draft, id: added.id } : draft)),
           )
         }
-        for (const unit of result.units) {
-          if (!unit.id) continue
-          await updateOrderUnit(db, unit.id, unit)
+        for (const unit of plan.toUpdate) {
+          await updateOrderUnit(db, unit.id!, unit)
         }
-        const keptIds = new Set(
-          result.units.map((unit) => unit.id).filter((id): id is string => Boolean(id)),
-        )
-        for (const original of existingUnits) {
-          if (!keptIds.has(original.id)) await removeOrderUnit(db, original.id)
+        for (const id of plan.toRemoveIds) {
+          await removeOrderUnit(db, id)
         }
 
         await setOrderAdjustment(db, orderId, result.adjustmentMinor, result.adjustmentReason)
@@ -562,11 +336,7 @@ export function OrderForm() {
 
   const isCorporate = header.customer_type === 'corporate'
 
-  // Shown while you type, because it is the figure the client asks for.
-  const unitsTotalMinor = units.reduce(
-    (sum, unit) => sum + (parseToMinor(unit.price, currency) ?? 0),
-    0,
-  )
+  const unitsTotalMinor = unitsSubtotalMinor(units, currency)
   const adjustmentMinor =
     header.adjustment_type === 'none'
       ? 0

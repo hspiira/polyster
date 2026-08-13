@@ -40,7 +40,6 @@ import {
 } from '../db/writes'
 import {
   PAYMENT_METHODS,
-  type MessageTemplate,
   type OrderDoc,
   type PaymentDoc,
   type PaymentMethod,
@@ -48,7 +47,16 @@ import {
 } from '../db/schema'
 import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
 import { outstandingMinor, paymentDateError, paymentError } from '../lib/payments'
-import { dueBucket, formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
+import { formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
+import {
+  balanceView,
+  canSendBalanceReminder,
+  depositView,
+  isOverdue,
+  isSettled,
+  lastMessage,
+  moneyLines,
+} from './orderDetailModel'
 import { balanceReminder, suggestedMessage, waLink } from '../lib/whatsapp'
 import {
   CUSTOMER_TYPE_LABELS,
@@ -109,8 +117,7 @@ export function OrderDetail() {
 
   const flow = stagesFor(order.order_type)
   const upcoming = nextStage(order.order_type, order.stage)
-  const stillDue = order.stage !== 'picked_up' && order.stage !== 'returned'
-  const overdue = stillDue && dueBucket(order.pickup_due_date) === 'overdue'
+  const overdue = isOverdue(order)
 
   async function advance(): Promise<void> {
     if (!upcoming) return
@@ -283,37 +290,32 @@ function BalanceCard({
 }) {
   if (!balance) return <Card><div class="h-20" /></Card>
 
-  const owing = balance.balance_minor > 0
-  const overpaid = balance.balance_minor < 0
-  const paidFraction = Math.min(
-    1,
-    Math.max(0, balance.amount_paid_minor / (balance.price_total_minor || 1)),
-  )
+  const view = balanceView(balance)
+  const owing = view.state === 'owing'
 
   return (
     <Card>
       {/* Uppercase and small, then the figure very large: the label is read
           once and the number is read across a counter. */}
       <p class="text-[11px] font-semibold uppercase tracking-[0.05em] text-content-subtle">
-        {owing ? 'Balance due' : overpaid ? 'Overpaid' : 'Fully paid'}
+        {view.label}
       </p>
       <p
         class={`mt-1 text-[34px] font-semibold leading-none tracking-tight tabular-nums ${
           owing ? 'text-money' : 'text-content'
         }`}
       >
-        {formatMinor(Math.abs(balance.balance_minor), currency)}
+        {formatMinor(view.amountMinor, currency)}
       </p>
       <p class="mt-1.5 text-[13px] text-content-muted">
-        {formatMinor(balance.amount_paid_minor, currency)} paid of{' '}
-        {formatMinor(balance.price_total_minor, currency)}
+        {formatMinor(view.paidMinor, currency)} paid of {formatMinor(view.totalMinor, currency)}
       </p>
       <div class="mt-3 h-1 overflow-hidden rounded-full bg-surface-sunken">
         <div
           class={`h-full rounded-full transition-[width] duration-500 ${
             owing ? 'bg-money' : 'bg-success'
           }`}
-          style={{ width: `${paidFraction * 100}%` }}
+          style={{ width: `${view.paidFraction * 100}%` }}
         />
       </div>
     </Card>
@@ -339,8 +341,8 @@ function MoneyBlock({
 
   if (!balance) return null
 
-  const subtotal = order.price_total_minor - order.price_adjustment_minor
-  const adjustment = order.price_adjustment_minor
+  const lines = moneyLines(order, balance)
+  const deposit = depositView(order)
 
   async function refund() {
     setRefunding(true)
@@ -359,26 +361,22 @@ function MoneyBlock({
       <SectionTitle>Money</SectionTitle>
       <Card>
         <dl>
-          <DataRow label="Subtotal">{formatMinor(subtotal, currency)}</DataRow>
-          {adjustment !== 0 && (
-            <DataRow label={order.adjustment_reason ?? (adjustment < 0 ? 'Discount' : 'Extra charge')}>
-              {adjustment < 0 ? '-' : '+'}
-              {formatMinor(Math.abs(adjustment), currency)}
+          {lines.map((line) => (
+            <DataRow key={line.label} label={line.label}>
+              {line.signed && (line.amountMinor < 0 ? '-' : '+')}
+              {formatMinor(Math.abs(line.amountMinor), currency)}
             </DataRow>
-          )}
-          <DataRow label="Total">{formatMinor(order.price_total_minor, currency)}</DataRow>
-          <DataRow label="Paid">{formatMinor(balance.amount_paid_minor, currency)}</DataRow>
-          <DataRow label="Balance">{formatMinor(balance.balance_minor, currency)}</DataRow>
+          ))}
         </dl>
-        {order.rental_deposit_minor > 0 && (
+        {deposit && (
           <div class="mt-3 border-t border-line pt-3">
             <p class="text-sm text-content-muted">
-              Deposit held: <span class="font-medium">{formatMinor(order.rental_deposit_minor, currency)}</span>
-              {order.deposit_refunded_at
-                ? ` -- refunded ${formatDateTime(order.deposit_refunded_at)}`
+              Deposit held: <span class="font-medium">{formatMinor(deposit.heldMinor, currency)}</span>
+              {deposit.refundedAt
+                ? ` -- refunded ${formatDateTime(deposit.refundedAt)}`
                 : ' -- held, not part of the balance above'}
             </p>
-            {!order.deposit_refunded_at && canRefund && (
+            {deposit.refundable && canRefund && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -549,7 +547,7 @@ function PaymentsSection({
   const outstanding = balance
     ? outstandingMinor(balance.price_total_minor, balance.amount_paid_minor)
     : 0
-  const settled = balance !== null && outstanding <= 0
+  const settled = isSettled(balance)
 
   // Checked as you type, so an over-payment is caught before the tap, not after.
   const parsed = parseToMinor(amount, currency)
@@ -766,7 +764,7 @@ function WhatsAppSection({
   const context = { shopName, clientName, order, balance }
   const statusLink = waLink(phone, suggestedMessage(context))
   const reminderLink = waLink(phone, balanceReminder(context))
-  const showReminder = overdue && balance.balance_minor > 0 && reminderLink
+  const showReminder = canSendBalanceReminder({ overdue, balance, hasLink: Boolean(reminderLink) })
 
   // Logged on click, not on render: this is the moment the shop commits to
   // sending, not merely that a link exists for them to tap.
@@ -813,7 +811,7 @@ function WhatsAppSection({
           <Button linkTo={statusLink} target="_blank" rel="noreferrer" block onClick={logStatusUpdate}>
             <IconWhatsApp size={18} /> Send {STAGE_LABELS[order.stage].toLowerCase()} update
           </Button>
-          {showReminder && (
+          {showReminder && reminderLink && (
             <Button
               linkTo={reminderLink}
               target="_blank"
@@ -832,16 +830,6 @@ function WhatsAppSection({
   )
 }
 
-/* Only 'balance_reminder' is a reminder. Labelling a stage update as one would
-   tell staff a client had been chased about money when they had not. */
-const MESSAGE_SENT_LABEL: Record<MessageTemplate, string> = {
-  balance_reminder: 'Reminder sent',
-  stage_update: 'Update sent',
-  custom: 'Message sent',
-}
-
-/* When a message was last sent, and by whom. Never "notified": a wa.me link
-   records that WhatsApp was opened, not that anything was delivered. */
 function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc[] }) {
   const { db } = useCurrentShop()
   const logDocs = useRxQuery(
@@ -849,15 +837,16 @@ function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc
     [db, orderId],
     [],
   )
-  const latest = logDocs[0]?.toJSON()
+  const latest = lastMessage(
+    logDocs.map((doc) => doc.toJSON()),
+    staff,
+  )
   if (!latest) return null
-
-  const sender = latest.sent_by ? staff.find((member) => member.id === latest.sent_by)?.name : undefined
 
   return (
     <p class="mt-3 text-xs text-content-muted">
-      {MESSAGE_SENT_LABEL[latest.template]} {formatDateTime(latest.sent_at)}
-      {sender ? ` by ${sender}` : ''}
+      {latest.label} {formatDateTime(latest.sentAt)}
+      {latest.senderName ? ` by ${latest.senderName}` : ''}
     </p>
   )
 }
