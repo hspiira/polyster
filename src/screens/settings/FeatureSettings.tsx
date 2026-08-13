@@ -1,4 +1,36 @@
-import { Card, RowList, Screen, Segmented } from '../../ui'
+/**
+ * Which modules exist for this shop.
+ *
+ * Seventeen switches in one flat card is a list nobody reads to the end, so
+ * they are grouped by the part of the business they belong to. `OTHER` is the
+ * safety net: a key added to FEATURE_KEYS without being placed in a group still
+ * appears, rather than silently vanishing from the only screen that controls it.
+ */
+import {
+  Card,
+  InfoNote,
+  RowList,
+  Screen,
+  SectionTitle,
+  SettingRow,
+  Switch,
+} from '../../ui'
+import {
+  IconBox,
+  IconFactory,
+  IconFingerprint,
+  IconLayers,
+  IconMoney,
+  IconOrders,
+  IconReceipt,
+  IconRepeat,
+  IconRuler,
+  IconScissors,
+  IconSpool,
+  IconTag,
+  IconTruck,
+  IconUsers,
+} from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
 import { useFeatureFlags } from '../../hooks/useFeatureFlags'
 import { setFeatureEnabled } from '../../db/writes'
@@ -25,10 +57,39 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   garment_passport: 'Garment passport',
 }
 
-const TOGGLE_OPTIONS = [
-  { value: 'on', label: 'On' },
-  { value: 'off', label: 'Off' },
-] as const
+const FEATURE_ICONS: Record<FeatureKey, (props: { size?: number }) => preact.JSX.Element> = {
+  customers: IconUsers,
+  measurements: IconRuler,
+  orders: IconOrders,
+  payments: IconMoney,
+  expenses: IconReceipt,
+  sales: IconMoney,
+  rentals: IconRepeat,
+  catalogue: IconTag,
+  inventory: IconBox,
+  suppliers: IconTruck,
+  production: IconFactory,
+  pre_orders: IconOrders,
+  corporate_orders: IconOrders,
+  collections: IconLayers,
+  repairs: IconScissors,
+  garment_identity: IconFingerprint,
+  garment_passport: IconSpool,
+}
+
+const GROUPS: readonly { title: string; keys: readonly FeatureKey[] }[] = [
+  { title: 'The basics', keys: ['customers', 'measurements', 'orders', 'payments'] },
+  { title: 'Money', keys: ['sales', 'expenses'] },
+  {
+    title: 'Selling',
+    keys: ['catalogue', 'collections', 'rentals', 'pre_orders', 'corporate_orders'],
+  },
+  { title: 'Making and stock', keys: ['production', 'inventory', 'suppliers', 'repairs'] },
+  { title: 'Garments', keys: ['garment_identity', 'garment_passport'] },
+]
+
+const GROUPED = new Set(GROUPS.flatMap((group) => group.keys))
+const UNGROUPED = FEATURE_KEYS.filter((key) => !GROUPED.has(key))
 
 export function FeatureSettings() {
   const back = useBack()
@@ -47,23 +108,48 @@ export function FeatureSettings() {
     )
   }
 
+  const shopId = shop.id
+  const groups = UNGROUPED.length > 0 ? [...GROUPS, { title: 'Other', keys: UNGROUPED }] : GROUPS
+
   return (
-    <Screen title="Modules" subtitle="What shows up in navigation" back={back}>
-      <Card padded={false}>
-        <RowList>
-          {FEATURE_KEYS.map((key) => (
-            <li key={key} class="flex items-center gap-3 px-3 py-2.5">
-              <span class="min-w-0 flex-1 font-medium">{FEATURE_LABELS[key]}</span>
-              <Segmented
-                value={flags[key] ? 'on' : 'off'}
-                options={TOGGLE_OPTIONS}
-                onChange={(value) => void setFeatureEnabled(db, shop.id, key, value === 'on')}
-                label={FEATURE_LABELS[key]}
-              />
-            </li>
-          ))}
-        </RowList>
-      </Card>
+    <Screen title="Modules" subtitle="What shows up in navigation" back={back} width="wide">
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(19rem,1fr))] items-start gap-section">
+        {groups.map((group) => (
+          <section key={group.title}>
+            <SectionTitle>{group.title}</SectionTitle>
+            <Card padded={false}>
+              <RowList>
+                {group.keys.map((key) => {
+                  const Icon = FEATURE_ICONS[key]
+                  return (
+                    <li key={key}>
+                      <SettingRow
+                        icon={<Icon size={18} />}
+                        label={FEATURE_LABELS[key]}
+                        tone={flags[key] ? 'accent' : 'neutral'}
+                        trailing={
+                          <Switch
+                            checked={flags[key]}
+                            label={FEATURE_LABELS[key]}
+                            onChange={(next) => void setFeatureEnabled(db, shopId, key, next)}
+                          />
+                        }
+                      />
+                    </li>
+                  )
+                })}
+              </RowList>
+            </Card>
+          </section>
+        ))}
+      </div>
+
+      <div class="mt-section">
+        <InfoNote>
+          Turning a module off hides it from navigation. Nothing already recorded through it is
+          deleted, and turning it back on brings the data back into view.
+        </InfoNote>
+      </div>
     </Screen>
   )
 }

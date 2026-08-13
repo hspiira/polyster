@@ -24,6 +24,7 @@ import {
   Screen,
   Segmented,
   Sheet,
+  Switch,
 } from '../../ui'
 import { PinPad } from '../../components/PinPad'
 import { IconPlus } from '../../components/icons'
@@ -388,11 +389,6 @@ function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose:
   )
 }
 
-const TOGGLE_OPTIONS = [
-  { value: 'on', label: 'On' },
-  { value: 'off', label: 'Off' },
-] as const
-
 /**
  * Role plus per-person exceptions, in one place -- changing role changes
  * what every toggle below defaults to, so seeing both together is what
@@ -464,21 +460,26 @@ function PermissionsSheet({ member, onClose }: { member: StaffDoc | null; onClos
             />
           </Field>
 
-          <div class="space-y-3">
-            {PERMISSION_KEYS.map((key) => (
-              <div key={key} class="flex items-center justify-between gap-3">
-                <span class="min-w-0 flex-1 text-sm text-content">
-                  {PERMISSION_LABELS[key]}
-                </span>
-                <Segmented
-                  value={effective(key) ? 'on' : 'off'}
-                  options={TOGGLE_OPTIONS}
-                  onChange={(value) => toggle(key, value === 'on')}
-                  label={PERMISSION_LABELS[key]}
-                />
-              </div>
-            ))}
-          </div>
+          <ul class="-mx-1">
+            {PERMISSION_KEYS.map((key) => {
+              const overridden = overrides[key] !== undefined
+              return (
+                <li key={key} class="flex min-h-tap items-center justify-between gap-3 px-1 py-1.5">
+                  <span class="min-w-0 flex-1 text-sm">
+                    {PERMISSION_LABELS[key]}
+                    {overridden && (
+                      <span class="ml-1.5 text-xs text-content-muted">· set for this person</span>
+                    )}
+                  </span>
+                  <Switch
+                    checked={effective(key)}
+                    label={PERMISSION_LABELS[key]}
+                    onChange={(next) => toggle(key, next)}
+                  />
+                </li>
+              )
+            })}
+          </ul>
 
           {error && <ErrorNote>{error}</ErrorNote>}
 

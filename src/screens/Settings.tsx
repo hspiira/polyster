@@ -10,10 +10,10 @@
 import {
   Button,
   Card,
-  ListRow,
   RowList,
   Screen,
   SectionTitle,
+  SettingRow,
   InfoNote,
 } from '../ui'
 import {
@@ -45,18 +45,13 @@ interface Entry {
   Icon: (props: { size?: number }) => preact.JSX.Element
 }
 
+/** Shop identity and the people in it. */
 const SHOP_ENTRIES: readonly Entry[] = [
   {
     href: '/settings/shop',
     label: 'Shop details',
-    hint: 'Name and WhatsApp number',
+    hint: 'Name, currency, WhatsApp number',
     Icon: IconSettings,
-  },
-  {
-    href: '/settings/measurements',
-    label: 'Measurement fields',
-    hint: 'What you record for each client',
-    Icon: IconRuler,
   },
   {
     href: '/settings/staff',
@@ -65,11 +60,26 @@ const SHOP_ENTRIES: readonly Entry[] = [
     Icon: IconUsers,
   },
   {
-    href: '/catalogue',
-    label: 'Catalogue',
-    hint: 'Products, categories and variants',
-    Icon: IconTag,
+    href: '/settings/measurements',
+    label: 'Measurement fields',
+    hint: 'What you record for each client',
+    Icon: IconRuler,
   },
+  {
+    href: '/settings/features',
+    label: 'Modules',
+    hint: 'What shows up in navigation',
+    Icon: IconToggle,
+  },
+]
+
+/**
+ * The optional modules' own screens. Separated from SHOP_ENTRIES because these
+ * come and go with the feature flags -- a shop with everything off sees an
+ * empty group here and the section disappears rather than leaving a stub.
+ */
+const MODULE_ENTRIES: readonly Entry[] = [
+  { href: '/catalogue', label: 'Catalogue', hint: 'Products, categories and variants', Icon: IconTag },
   {
     href: '/collections',
     label: 'Collections',
@@ -88,12 +98,7 @@ const SHOP_ENTRIES: readonly Entry[] = [
     hint: 'Fabric, thread, buttons and what is on hand',
     Icon: IconSpool,
   },
-  {
-    href: '/inventory',
-    label: 'Inventory',
-    hint: 'Stock levels and movement history',
-    Icon: IconBox,
-  },
+  { href: '/inventory', label: 'Inventory', hint: 'Stock levels and movement history', Icon: IconBox },
   {
     href: '/production',
     label: 'Production',
@@ -105,12 +110,6 @@ const SHOP_ENTRIES: readonly Entry[] = [
     label: 'Garment identity',
     hint: 'Individual garments, their serial numbers and status',
     Icon: IconFingerprint,
-  },
-  {
-    href: '/settings/features',
-    label: 'Modules',
-    hint: 'What shows up in navigation',
-    Icon: IconToggle,
   },
 ]
 
@@ -135,8 +134,11 @@ export function Settings() {
   const { controller } = useAuth()
   const flags = useFeatureFlags(db, shop?.id ?? '__none__')
 
-  const shopEntries = SHOP_ENTRIES.filter((entry) => {
-    if (entry.href === '/settings/measurements') return flags.measurements
+  const shopEntries = SHOP_ENTRIES.filter((entry) =>
+    entry.href === '/settings/measurements' ? flags.measurements : true,
+  )
+
+  const moduleEntries = MODULE_ENTRIES.filter((entry) => {
     if (entry.href === '/catalogue') return flags.catalogue
     if (entry.href === '/collections') return flags.collections
     if (entry.href === '/suppliers' || entry.href === '/materials') return flags.suppliers
@@ -147,11 +149,25 @@ export function Settings() {
   })
 
   return (
-    <Screen title="Settings" subtitle={shop?.name} back={back} width="wide">
+    <Screen title="Settings" back={back} width="wide">
       <div class="lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
-        <Group title="Your shop" entries={shopEntries} />
+        <div class="space-y-section">
+          {shop && (
+            <Card padded={false}>
+              <SettingRow
+                icon={<IconSettings size={18} />}
+                label={shop.name}
+                hint={activeStaff ? `Signed in as ${activeStaff.name}` : 'Shop details'}
+                href="/settings/shop"
+              />
+            </Card>
+          )}
 
-        <div class="mt-6 space-y-6 lg:mt-0">
+          <Group title="Your shop" entries={shopEntries} />
+          {moduleEntries.length > 0 && <Group title="Modules" entries={moduleEntries} />}
+        </div>
+
+        <div class="mt-section space-y-section lg:mt-0">
           <Group title="This device" entries={DEVICE_ENTRIES} />
 
           <section>
@@ -207,17 +223,7 @@ function Group({ title, entries }: { title: string; entries: readonly Entry[] })
         <RowList>
           {entries.map(({ href, label, hint, Icon }) => (
             <li key={href}>
-              <ListRow
-                href={href}
-                leading={
-                  <span class="flex size-9 items-center justify-center rounded-[0.65rem] bg-surface-sunken text-content-muted">
-                    <Icon size={18} />
-                  </span>
-                }
-              >
-                <span class="block font-medium">{label}</span>
-                <span class="block truncate text-sm text-content-muted">{hint}</span>
-              </ListRow>
+              <SettingRow icon={<Icon size={18} />} label={label} hint={hint} href={href} />
             </li>
           ))}
         </RowList>

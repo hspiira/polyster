@@ -1,7 +1,8 @@
 # Design system
 
-**Status:** In migration. `src/screens/Orders.tsx` is converted; the rest still
-import the shim at `src/components/ui.tsx`.
+**Status:** In migration. Orders, Clients, ClientDetail, Settings and every
+screen under `src/screens/settings/` are converted; 21 screens still import the
+shim at `src/components/ui.tsx`.
 
 ## The two rules
 
@@ -48,6 +49,20 @@ Adapt to available space, not window size:
   view.
 - **`lg:` is legitimate for navigation only** — floating tab bar below, side rail
   above. That genuinely is a viewport question.
+
+## Rows pad by a fixed inset, not `--gutter`
+
+`--gutter` is the *page* gutter and grows to 2rem on a desktop. A row inside a
+`Card` is already inside it, so `px-gutter` on the row indents it twice — 4rem
+before the first glyph. Rows use `ROW_INSET` (`src/ui/Row.tsx`). The exception
+is a flush card, which cancels the page gutter with `-mx-gutter` and so does
+want `--gutter` back — that is why `.data-row` still uses it.
+
+## A setting that is on or off gets a `Switch`
+
+Not a `Segmented` with On and Off in it. Two segments read as two choices to
+compare rather than one thing that is either on or not, and cost two tap targets
+and a row of chrome each. `Segmented` is for picking among three or more.
 
 ## Never render a record twice
 
