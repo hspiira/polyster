@@ -1,13 +1,7 @@
-/**
- * The period row: plain words, the active one on a pill.
- *
- * Not `Segmented` -- that draws a filled track and reads as a filter control
- * competing with the screen title. A period is closer to a heading than to a
- * form field, so only the active word carries a surface.
- */
+/** The period row. See `TabRow` -- this is that, fixed to `PeriodKey`. */
 import { PERIOD_OPTIONS, type PeriodKey, type PeriodRange } from '../lib/period'
 import { Input } from './Field'
-import { cn } from '../lib/cn'
+import { TabRow } from './TabRow'
 
 export function PeriodBar({
   value,
@@ -16,30 +10,51 @@ export function PeriodBar({
   value: PeriodKey
   onChange: (next: PeriodKey) => void
 }) {
+  return <TabRow value={value} options={PERIOD_OPTIONS} onChange={onChange} label="Period" />
+}
+
+/**
+ * Which currency the figures are in, at the right of the filters row.
+ *
+ * A filter, not a converter: it narrows the report to rows recorded in that
+ * currency. Converting would need an exchange rate this app has no offline
+ * source for, and a made-up rate is a made-up figure.
+ *
+ * With one currency in the books there is nothing to choose, so it reads as a
+ * label -- the screen still needs to say what unit the amounts are in, since
+ * they no longer carry a symbol each.
+ */
+export function CurrencySwitch({
+  value,
+  options,
+  onChange,
+}: {
+  value: string
+  options: readonly string[]
+  onChange: (next: string) => void
+}) {
+  if (options.length < 2) {
+    return (
+      <span class="shrink-0 px-1 text-sm font-medium text-content-muted tabular-nums">{value}</span>
+    )
+  }
+
   return (
-    <div role="tablist" aria-label="Period" class="-mx-1 flex items-center gap-1 overflow-x-auto">
-      {PERIOD_OPTIONS.map((option) => {
-        const active = option.value === value
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(option.value)}
-            class={cn(
-              'min-h-9 shrink-0 rounded-control px-3 text-[15px] whitespace-nowrap',
-              'transition-colors',
-              active
-                ? 'bg-surface-sunken font-semibold text-content'
-                : 'font-medium text-content-subtle hover:text-content',
-            )}
-          >
-            {option.label}
-          </button>
-        )
-      })}
-    </div>
+    <label class="shrink-0">
+      <span class="sr-only">Currency</span>
+      <select
+        value={value}
+        onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
+        class="min-h-9 rounded-control border-0 bg-surface-sunken px-2 text-sm font-medium
+               text-content outline-none"
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 

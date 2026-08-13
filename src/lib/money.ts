@@ -46,6 +46,19 @@ export function formatMinor(minor: number, currency: string): string {
   }).format(fromMinorUnits(minor, currency))
 }
 
+/**
+ * The number without its currency, for a screen that states the currency once.
+ *
+ * Still currency-aware: the decimal places come from the same ICU lookup, so a
+ * cent currency keeps its two places and UGX keeps none.
+ */
+export function formatAmount(minor: number, currency: string): string {
+  return new Intl.NumberFormat(LOCALE, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: currencyExponent(currency),
+  }).format(fromMinorUnits(minor, currency))
+}
+
 export function parseToMinor(input: string, currency: string): number | null {
   const cleaned = input.replace(/[\s,]/g, '')
   if (cleaned === '') return null

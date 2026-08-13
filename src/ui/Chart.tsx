@@ -14,9 +14,7 @@
  * is `role="img"` with a spoken summary and the same numbers in text beside it,
  * so colour is never the only channel.
  */
-import type { ComponentChildren } from 'preact'
 import { useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { cn } from '../lib/cn'
 
 const MAX_BAR = 24
 const MIN_BAR = 8
@@ -64,38 +62,81 @@ function useWidth(): [{ current: HTMLDivElement | null }, number] {
   return [ref, width]
 }
 
-/** A bar in a row: the shape used for shares, stages and rankings. */
-export function MeterRow({
-  label,
-  value,
-  /** 0..1. Width of the fill. */
-  share,
-  tone = 'bg-accent',
-  trailing,
+export interface Share {
+  key: string
+  label: string
+  value: number
+  formatted: string
+  /** A muted aside on the legend row: "8 sold". */
+  hint?: string
+}
+
+/**
+ * Steps of one hue rather than six colours.
+ *
+ * Six categorical hues do not exist in this theme, and inventing them is what
+ * makes a chart unreadable for a colourblind reader. Segments are sorted
+ * largest first, so the ramp runs dark to light in the same order as the
+ * legend under it -- position and order carry identity, opacity only reinforces
+ * it.
+ */
+// The floor is 0.35, not near-zero: on the dark surface the last steps of a
+// longer ramp stop being visible at all, and a segment nobody can see is a lie
+// about the total.
+const STEPS = [1, 0.82, 0.68, 0.56, 0.45, 0.35]
+
+/** Part-to-whole in one strip, with the segments named underneath. */
+export function ShareBar({
+  shares,
+  total,
+  summary,
 }: {
-  label: ComponentChildren
-  value: ComponentChildren
-  share: number
-  tone?: string
-  trailing?: ComponentChildren
+  shares: readonly Share[]
+  total: number
+  summary: string
 }) {
+  if (total <= 0 || shares.length === 0) return null
+
+  const percent = (value: number) => (value / total) * 100
+  const step = (index: number) => STEPS[Math.min(index, STEPS.length - 1)] ?? 0.2
+
   return (
-    <div class="py-1.5">
-      <div class="flex items-baseline justify-between gap-3">
-        <span class="min-w-0 flex-1 truncate text-[15px] font-medium">{label}</span>
-        <span class="shrink-0 text-sm font-semibold tabular-nums">{value}</span>
-      </div>
-      <div class="mt-1 flex items-center gap-2">
-        <span class="h-1.5 flex-1 overflow-hidden rounded-pill bg-surface-sunken">
+    <div>
+      {/* gap-0.5 is the 2px of surface that separates touching segments; a
+          border round each one would add ink that is not data. */}
+      <div class="flex h-4 gap-0.5 overflow-hidden rounded-pill" role="img" aria-label={summary}>
+        {shares.map((share, index) => (
           <span
-            class={cn('block h-full rounded-pill transition-[width]', tone)}
-            style={{ width: `${Math.max(0, Math.min(1, share)) * 100}%` }}
+            key={share.key}
+            class="block h-full first:rounded-l-pill last:rounded-r-pill"
+            style={{
+              width: `${percent(share.value)}%`,
+              backgroundColor: 'var(--accent)',
+              opacity: step(index),
+            }}
           />
-        </span>
-        {trailing && (
-          <span class="shrink-0 text-xs tabular-nums text-content-muted">{trailing}</span>
-        )}
+        ))}
       </div>
+
+      <ul class="mt-3 space-y-1.5">
+        {shares.map((share, index) => (
+          <li key={share.key} class="flex items-baseline gap-2">
+            <span
+              class="mt-1 size-2.5 shrink-0 rounded-[3px]"
+              style={{ backgroundColor: 'var(--accent)', opacity: step(index) }}
+              aria-hidden="true"
+            />
+            <span class="min-w-0 flex-1 truncate text-sm">
+              {share.label}
+              {share.hint && <span class="text-content-muted"> · {share.hint}</span>}
+            </span>
+            <span class="shrink-0 text-sm font-semibold tabular-nums">{share.formatted}</span>
+            <span class="w-9 shrink-0 text-right text-xs tabular-nums text-content-muted">
+              {Math.round(percent(share.value))}%
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -130,9 +171,9 @@ function bar(x: number, width: number, baseline: number, height: number, up: boo
 /**
  * Money in above a baseline, money out below it.
  *
- * The two series are told apart by which side of the line they sit on before
- * colour does any work: red/green separation collapses for a deuteranope, side
- * of the axis does not.
+ * Out is red and carries a minus sign; in is green and does not. Which side of
+ * the baseline a column sits on is the primary channel, because red/green
+ * separation collapses for a deuteranope and position does not.
  */
 export function FlowColumns({
   bars,
@@ -193,7 +234,7 @@ export function FlowColumns({
                 />
                 <path
                   d={bar(centre - barWidth / 2, barWidth, mid, scale(entry.down), false)}
-                  fill="var(--content-subtle)"
+                  fill="var(--danger)"
                   opacity={dim ? 0.4 : 1}
                 />
                 {index % labelStep === 0 && (

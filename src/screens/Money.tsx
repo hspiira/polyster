@@ -4,6 +4,7 @@ import {
   AccentRow,
   Button,
   Card,
+  CurrencySwitch,
   EmptyState,
   FLUSH_SURFACE,
   InfoNote,
@@ -27,9 +28,10 @@ import { useRxQuery, useRxQueryStatus } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { usePermission } from '../hooks/usePermission'
 import { usePeriod } from '../hooks/usePeriod'
+import { useReportCurrency } from '../hooks/useReportCurrency'
 import { observeShopBalances } from '../db/balances'
 import { profitAndLoss } from '../db/profit'
-import { formatMinor } from '../lib/money'
+import { formatAmount } from '../lib/money'
 import { formatPastDay, today } from '../lib/dates'
 import { AddExpenseSheet } from './ExpenseSheet'
 import { useMoneySections } from './moneySections'
@@ -86,13 +88,36 @@ export function Money() {
     [orders, clientNames],
   )
 
-  // A payment carries no shop_id, so it has to be scoped through its order.
-  const payments = useMemo(
-    () => paymentDocs.map((doc) => doc.toJSON()).filter((p) => orderIndex.has(p.order_id)),
-    [paymentDocs, orderIndex],
+  const allSales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
+  const allExpenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
+
+  const { currency, options: currencies, setCurrency } = useReportCurrency(shop.currency, [
+    ...allSales.map((sale) => sale.currency),
+    ...allExpenses.map((expense) => expense.currency),
+    ...orders.map((order) => order.currency),
+  ])
+
+  // One currency per report: minor units of two currencies cannot be added.
+  const sales = useMemo(
+    () => allSales.filter((sale) => sale.currency === currency),
+    [allSales, currency],
   )
-  const sales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
-  const expenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
+  const expenses = useMemo(
+    () => allExpenses.filter((expense) => expense.currency === currency),
+    [allExpenses, currency],
+  )
+
+  /**
+   * A payment carries no shop_id -- it hangs off an order -- so it is scoped
+   * through one, which also settles which currency it was taken in.
+   */
+  const payments = useMemo(
+    () =>
+      paymentDocs
+        .map((doc) => doc.toJSON())
+        .filter((payment) => orderIndex.get(payment.order_id)?.currency === currency),
+    [paymentDocs, orderIndex, currency],
+  )
 
   const pnl = useMemo(
     () => profitAndLoss({ sales, payments, expenses, from: period.from, to: period.to }),
@@ -106,11 +131,11 @@ export function Money() {
         payments,
         expenses,
         orders: orderIndex,
-        fallbackCurrency: shop.currency,
+        fallbackCurrency: currency,
         from: period.from,
         to: period.to,
       }),
-    [sales, payments, expenses, orderIndex, shop.currency, period.from, period.to],
+    [sales, payments, expenses, orderIndex, currency, period.from, period.to],
   )
 
   const outstanding = useMemo(() => {
@@ -121,11 +146,12 @@ export function Money() {
     let count = 0
     for (const [orderId, balance] of balances) {
       if (balance.balance_minor <= 0 || cancelled.has(orderId)) continue
+      if (orderIndex.get(orderId)?.currency !== currency) continue
       total += balance.balance_minor
       count += 1
     }
     return { total, count }
-  }, [balances, orders])
+  }, [balances, orders, orderIndex, currency])
 
   const canRecordSale = flags.sales
   const canRecordExpense = flags.expenses && canAddExpense
@@ -179,7 +205,10 @@ export function Money() {
     <Screen label="Money" sections={sections}>
       <Sections>
         <div>
-          <PeriodBar value={period.key} onChange={period.setKey} />
+          <div class="flex items-center justify-between gap-3">
+            <PeriodBar value={period.key} onChange={period.setKey} />
+            <CurrencySwitch value={currency} options={currencies} onChange={setCurrency} />
+          </div>
           {period.key === 'custom' && (
             <PeriodRangeFields
               range={{ from: period.from, to: period.to }}
@@ -194,7 +223,7 @@ export function Money() {
           </p>
           <div class="mt-1">
             <StatValue
-              value={formatMinor(pnl.profitMinor, shop.currency)}
+              value={formatAmount(pnl.profitMinor, currency)}
               tone={gross === 0 ? 'neutral' : inProfit ? 'success' : 'danger'}
             />
           </div>
@@ -205,12 +234,13 @@ export function Money() {
             <FlowLeg
               label="Money in"
               dot="bg-success"
-              value={formatMinor(pnl.incomeMinor, shop.currency)}
+              value={formatAmount(pnl.incomeMinor, currency)}
             />
             <FlowLeg
               label="Money out"
-              dot="bg-content-subtle"
-              value={formatMinor(pnl.expensesMinor, shop.currency)}
+              dot="bg-danger"
+              value={`-${formatAmount(pnl.expensesMinor, currency)}`}
+              tone="text-danger"
             />
           </dl>
 
@@ -236,7 +266,7 @@ export function Money() {
               <span class="flex items-baseline justify-between gap-3">
                 <span class="text-[15px] font-medium">Owed to you</span>
                 <span class="text-heading font-semibold tabular-nums text-money">
-                  {formatMinor(outstanding.total, shop.currency)}
+                  {formatAmount(outstanding.total, currency)}
                 </span>
               </span>
               <span class="mt-0.5 block text-xs text-content-muted">
@@ -289,19 +319,29 @@ function FlowBar({ inMinor, outMinor }: { inMinor: number; outMinor: number }) {
       aria-hidden="true"
     >
       <div class="bg-success" style={{ width: `${(inMinor / gross) * 100}%` }} />
-      <div class="flex-1 bg-content-subtle" />
+      <div class="flex-1 bg-danger" />
     </div>
   )
 }
 
-function FlowLeg({ label, value, dot }: { label: string; value: string; dot: string }) {
+function FlowLeg({
+  label,
+  value,
+  dot,
+  tone,
+}: {
+  label: string
+  value: string
+  dot: string
+  tone?: string
+}) {
   return (
     <div>
       <dt class="flex items-center gap-1.5 text-xs font-medium text-content-muted">
         <span class={cn('size-1.5 shrink-0 rounded-full', dot)} aria-hidden="true" />
         {label}
       </dt>
-      <dd class="mt-0.5 text-[15px] font-semibold tabular-nums">{value}</dd>
+      <dd class={cn('mt-0.5 text-[15px] font-semibold tabular-nums', tone)}>{value}</dd>
     </div>
   )
 }
@@ -330,7 +370,7 @@ function FeedRow({ entry, now }: { entry: MoneyEntry; now: string }) {
             class={cn('shrink-0 text-sm font-semibold tabular-nums', incoming && 'text-success')}
           >
             {incoming ? '+' : '−'}
-            {formatMinor(entry.amountMinor, entry.currency)}
+            {formatAmount(entry.amountMinor, entry.currency)}
           </span>
         </span>
         <span class="mt-0.5 block truncate text-xs text-content-muted">

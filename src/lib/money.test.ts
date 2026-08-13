@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  currencyExponent,
-  toMinorUnits,
-  fromMinorUnits,
-  formatMinor,
-  parseToMinor,
-} from './money'
+import { currencyExponent, formatAmount, formatMinor, fromMinorUnits, parseToMinor, toMinorUnits } from './money'
 
 describe('minor units', () => {
   // If this fails, ICU on this platform disagrees with ISO 4217 for UGX and
@@ -38,5 +32,21 @@ describe('minor units', () => {
 
   it('formats from minor units', () => {
     expect(formatMinor(45000, 'UGX')).toContain('45,000')
+  })
+})
+
+describe('formatAmount', () => {
+  it('drops the currency but keeps its decimal places', () => {
+    expect(formatAmount(1_234_567, 'UGX')).toBe('1,234,567')
+    expect(formatAmount(123_456, 'USD')).toBe('1,234.56')
+  })
+
+  it('never shows a symbol or code, so a screen can state it once', () => {
+    expect(formatAmount(5000, 'UGX')).not.toMatch(/[A-Za-z$]/)
+  })
+
+  it('agrees with formatMinor on the number itself', () => {
+    const minor = 987_654
+    expect(formatMinor(minor, 'UGX')).toContain(formatAmount(minor, 'UGX'))
   })
 })

@@ -10,25 +10,29 @@
  */
 import { useMemo, useState } from 'preact/hooks'
 import {
-  Button,
+  Avatar,
   Card,
+  CurrencySwitch,
+  DataRow,
   FlowColumns,
   FLUSH_SURFACE,
   InfoNote,
-  MeterRow,
   PeriodBar,
   PeriodRangeFields,
   Screen,
   Sections,
+  ShareBar,
   Sparkline,
   StatStrip,
   StatTile,
   StatValue,
 } from '../ui'
+import { IconChevronRight } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { usePeriod } from '../hooks/usePeriod'
+import { useReportCurrency } from '../hooks/useReportCurrency'
 import { observeShopBalances } from '../db/balances'
 import { profitAndLoss } from '../db/profit'
 import { customerLifetimeValues } from '../db/customerValue'
@@ -36,12 +40,14 @@ import { repairMetrics } from '../db/repairMetrics'
 import { cashFlow, cumulativeNet } from './reportsModel'
 import { useMoneySections } from './moneySections'
 import { EXPENSE_CATEGORY_LABELS } from './expenseCategories'
-import { formatMinor } from '../lib/money'
+import { formatAmount } from '../lib/money'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
-import { normalizeTone, TONE_SOLID } from '../ui/tones'
-import { ORDER_STAGES } from '../db/schema'
+import { ORDER_STAGES, type OrderStage } from '../db/schema'
 
 const TOP_CUSTOMERS = 5
+
+/** Off the bench: no longer work, so they are reported as a footnote. */
+const FINISHED_STAGES: readonly OrderStage[] = ['picked_up', 'returned', 'cancelled']
 
 export function Reports() {
   const { db, shop } = useCurrentShop()
@@ -74,8 +80,28 @@ export function Reports() {
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
-  const sales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
-  const expenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
+  const allSales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
+  const allExpenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
+
+  const { currency, options: currencies, setCurrency } = useReportCurrency(shop.currency, [
+    ...allSales.map((sale) => sale.currency),
+    ...allExpenses.map((expense) => expense.currency),
+    ...orders.map((order) => order.currency),
+  ])
+
+  // Minor units of two currencies cannot be added, so the report holds one.
+  const sales = useMemo(
+    () => allSales.filter((sale) => sale.currency === currency),
+    [allSales, currency],
+  )
+  const expenses = useMemo(
+    () => allExpenses.filter((expense) => expense.currency === currency),
+    [allExpenses, currency],
+  )
+  const orderCurrencies = useMemo(
+    () => new Map(orders.map((order) => [order.id, order.currency])),
+    [orders],
+  )
 
   /**
    * A payment carries no shop_id -- it hangs off an order -- so it has to be
@@ -83,10 +109,12 @@ export function Reports() {
    * until it is wiped, and unscoped this would count their income against this
    * shop's expenses.
    */
-  const orderIds = useMemo(() => new Set(orders.map((order) => order.id)), [orders])
   const payments = useMemo(
-    () => paymentDocs.map((doc) => doc.toJSON()).filter((p) => orderIds.has(p.order_id)),
-    [paymentDocs, orderIds],
+    () =>
+      paymentDocs
+        .map((doc) => doc.toJSON())
+        .filter((payment) => orderCurrencies.get(payment.order_id) === currency),
+    [paymentDocs, orderCurrencies, currency],
   )
 
   const pnl = useMemo(
@@ -109,18 +137,37 @@ export function Reports() {
     let count = 0
     for (const [orderId, balance] of balances) {
       if (balance.balance_minor <= 0 || cancelled.has(orderId)) continue
+      if (orderCurrencies.get(orderId) !== currency) continue
       total += balance.balance_minor
       count += 1
     }
     return { total, count }
-  }, [balances, orders])
+  }, [balances, orders, orderCurrencies, currency])
 
-  const stageCounts = useMemo(() => {
+  /**
+   * Counts, not bars.
+   *
+   * A bar has to be a share of something, and a stage count is a share of
+   * nothing the reader can see -- scaled to the largest stage it implied a
+   * denominator that was never on screen. The numbers are the chart; the one
+   * total worth stating is stated in words above them.
+   *
+   * Workflow order, and empty stages dropped: a shop with no repairs should not
+   * read three zeroes.
+   */
+  const stages = useMemo(() => {
     const counts = new Map(ORDER_STAGES.map((stage) => [stage, 0]))
     for (const order of orders) counts.set(order.stage, (counts.get(order.stage) ?? 0) + 1)
-    return counts
+
+    const rows = [...counts].filter(([, count]) => count > 0)
+    return {
+      work: rows.filter(([stage]) => !FINISHED_STAGES.includes(stage)),
+      finished: rows.filter(([stage]) => FINISHED_STAGES.includes(stage)),
+      workCount: rows
+        .filter(([stage]) => !FINISHED_STAGES.includes(stage))
+        .reduce((sum, [, count]) => sum + count, 0),
+    }
   }, [orders])
-  const maxStage = Math.max(1, ...stageCounts.values())
 
   const topCustomers = useMemo(
     () =>
@@ -132,13 +179,38 @@ export function Reports() {
       ).slice(0, TOP_CUSTOMERS),
     [clientDocs, orders, payments, sales],
   )
-  const topCustomerPeak = Math.max(1, ...topCustomers.map((c) => c.paidMinor))
+  /**
+   * All customers, not the five shown: a bar measured against the top spender
+   * says "biggest of the five", which is what the order already says. Measured
+   * against everything received it says something the list does not.
+   */
+  const receivedMinor = useMemo(
+    () =>
+      customerLifetimeValues(
+        clientDocs.map((doc) => doc.toJSON()),
+        orders,
+        payments,
+        sales,
+      ).reduce((sum, customer) => sum + customer.paidMinor, 0),
+    [clientDocs, orders, payments, sales],
+  )
 
   const repairs = useMemo(() => repairMetrics(orders, payments), [orders, payments])
 
+  const expenseShares = useMemo(
+    () =>
+      pnl.byCategory.map((row) => ({
+        key: row.category,
+        label: EXPENSE_CATEGORY_LABELS[row.category],
+        value: row.amountMinor,
+        formatted: formatAmount(row.amountMinor, currency),
+      })),
+    [pnl.byCategory, currency],
+  )
+
   const inProfit = pnl.profitMinor >= 0
   const gross = pnl.incomeMinor + pnl.expensesMinor
-  const money = (minor: number) => formatMinor(minor, shop.currency)
+  const money = (minor: number) => formatAmount(minor, currency)
   const shown = picked === null ? null : buckets[picked]
 
   const busiest = buckets.reduce(
@@ -150,7 +222,10 @@ export function Reports() {
     <Screen label="Money" sections={sections}>
       <Sections>
         <div>
-          <PeriodBar value={period.key} onChange={period.setKey} />
+          <div class="flex items-center justify-between gap-3">
+            <PeriodBar value={period.key} onChange={period.setKey} />
+            <CurrencySwitch value={currency} options={currencies} onChange={setCurrency} />
+          </div>
           {period.key === 'custom' && (
             <PeriodRangeFields
               range={{ from: period.from, to: period.to }}
@@ -195,9 +270,10 @@ export function Reports() {
               tone="text-success"
             />
             <ChartKey
-              swatch="bg-content-subtle"
+              swatch="bg-danger"
               label="Money out"
-              value={money(shown ? shown.outMinor : pnl.expensesMinor)}
+              value={`-${money(shown ? shown.outMinor : pnl.expensesMinor)}`}
+              tone="text-danger"
             />
           </dl>
 
@@ -206,13 +282,28 @@ export function Reports() {
           )}
         </Card>
 
-        <StatStrip>
-          <StatTile label="Counter sales">{money(pnl.salesIncomeMinor)}</StatTile>
-          <StatTile label="Paid on orders">{money(pnl.orderIncomeMinor)}</StatTile>
-          <StatTile label="Owed to you" tone="money">
-            {money(outstanding.total)}
-          </StatTile>
-        </StatStrip>
+        {flags.catalogue && (
+          <div class="flex justify-end">
+            <a
+              href="/reports/advanced"
+              class="flex min-h-9 items-center gap-1 rounded-control px-1 text-sm font-semibold
+                     text-accent transition-colors active:bg-pressed"
+            >
+              Advanced reports
+              <IconChevronRight size={16} />
+            </a>
+          </div>
+        )}
+
+        <Card flush>
+          <dl>
+            <DataRow label="Counter sales">{money(pnl.salesIncomeMinor)}</DataRow>
+            <DataRow label="Paid on orders">{money(pnl.orderIncomeMinor)}</DataRow>
+            <DataRow label="Owed to you">
+              <span class="text-money">{money(outstanding.total)}</span>
+            </DataRow>
+          </dl>
+        </Card>
 
         {running.length > 1 && (
           <Card flush>
@@ -251,60 +342,102 @@ export function Reports() {
         )}
 
         {pnl.byCategory.length > 0 && (
-          <section class={FLUSH_SURFACE}>
-            <h2 class="px-gutter pt-3 pb-1 text-heading font-semibold">Where money went</h2>
-            <div class="px-gutter pt-1 pb-3">
-              {pnl.byCategory.map((row) => (
-                <MeterRow
-                  key={row.category}
-                  label={EXPENSE_CATEGORY_LABELS[row.category]}
-                  value={money(row.amountMinor)}
-                  share={pnl.expensesMinor === 0 ? 0 : row.amountMinor / pnl.expensesMinor}
-                  trailing={
-                    pnl.expensesMinor === 0
-                      ? '0%'
-                      : `${Math.round((row.amountMinor / pnl.expensesMinor) * 100)}%`
-                  }
-                />
-              ))}
-            </div>
-          </section>
+          <Card flush>
+            <h2 class="text-heading font-semibold">Where money went</h2>
+            <p class="mt-0.5 mb-3 text-xs text-content-muted">
+              {money(pnl.expensesMinor)} out, {period.label}
+            </p>
+            <ShareBar
+              shares={expenseShares}
+              total={pnl.expensesMinor}
+              summary={`Spending split across ${expenseShares.length} categories. Largest: ${expenseShares[0]?.label ?? 'none'}, ${expenseShares[0]?.formatted ?? ''}.`}
+            />
+          </Card>
         )}
 
-        <section class={FLUSH_SURFACE}>
-          <h2 class="flex items-baseline gap-1.5 px-gutter pt-3 pb-1 text-heading font-semibold">
-            Orders by stage
-            <span class="text-xs font-normal text-content-muted">{orders.length}</span>
-          </h2>
-          <div class="px-gutter pt-1 pb-3">
-            {[...stageCounts].map(([stage, count]) => (
-              <MeterRow
-                key={stage}
-                label={STAGE_LABELS[stage]}
-                value={count}
-                share={count / maxStage}
-                tone={TONE_SOLID[normalizeTone(STAGE_TONES[stage])]}
-              />
-            ))}
+        <Card flush>
+          <h2 class="text-heading font-semibold">Where the work is</h2>
+          <p class="mt-0.5 text-xs text-content-muted">
+            {stages.workCount} still to finish of {orders.length}{' '}
+            {orders.length === 1 ? 'order' : 'orders'}
+          </p>
+
+          {stages.work.length > 0 ? (
+            <div class="mt-3">
+              <StatStrip>
+                {stages.work.map(([stage, count]) => (
+                  <StatTile key={stage} label={STAGE_LABELS[stage]} tone={STAGE_TONES[stage]}>
+                    {count}
+                  </StatTile>
+                ))}
+              </StatStrip>
+            </div>
+          ) : (
+            <p class="mt-3 text-sm text-content-muted">Nothing open. Every order is finished.</p>
+          )}
+
+          {stages.finished.length > 0 && (
+            <p class="mt-3 text-xs text-content-muted">
+              {stages.finished
+                .map(([stage, count]) => `${count} ${STAGE_LABELS[stage].toLowerCase()}`)
+                .join(' · ')}
+            </p>
+          )}
+
+          <div class="mt-3">
+            <a
+              href="/orders?filter=open"
+              class="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-accent"
+            >
+              See open orders
+              <IconChevronRight size={16} />
+            </a>
           </div>
-        </section>
+        </Card>
 
         {topCustomers.length > 0 && (
           <section class={FLUSH_SURFACE}>
             <h2 class="px-gutter pt-3 pb-1 text-heading font-semibold">Top customers</h2>
-            <div class="px-gutter pt-1 pb-3">
+            <ul class="pt-1 pb-1">
               {topCustomers.map((customer) => (
-                <MeterRow
-                  key={customer.clientId}
-                  label={customer.name}
-                  value={money(customer.paidMinor)}
-                  share={customer.paidMinor / topCustomerPeak}
-                />
+                <li key={customer.clientId}>
+                  {/* A ranking you can act on: the row is the way to the client. */}
+                  <a
+                    href={`/clients/${customer.clientId}`}
+                    class="flex min-h-tap items-center gap-3 px-gutter py-2 transition-colors
+                           hover:bg-hover active:bg-pressed"
+                  >
+                    <Avatar name={customer.name} size="sm" />
+                    <span class="min-w-0 flex-1">
+                      <span class="flex items-baseline gap-2">
+                        <span class="min-w-0 flex-1 truncate text-[15px] font-medium">
+                          {customer.name}
+                        </span>
+                        <span class="shrink-0 text-sm font-semibold tabular-nums">
+                          {money(customer.paidMinor)}
+                        </span>
+                        <span class="w-9 shrink-0 text-right text-xs tabular-nums text-content-muted">
+                          {receivedMinor === 0
+                            ? '0%'
+                            : `${Math.round((customer.paidMinor / receivedMinor) * 100)}%`}
+                        </span>
+                      </span>
+                      <span class="mt-1 block h-1.5 overflow-hidden rounded-pill bg-surface-sunken">
+                        <span
+                          class="block h-full rounded-pill bg-accent"
+                          style={{
+                            width: `${receivedMinor === 0 ? 0 : (customer.paidMinor / receivedMinor) * 100}%`,
+                          }}
+                        />
+                      </span>
+                    </span>
+                  </a>
+                </li>
               ))}
-            </div>
+            </ul>
             <p class="px-gutter pb-3 text-xs text-content-muted">
-              Money actually received -- payments and counter sales, all time -- never an order's
-              face value.
+              Share of {money(receivedMinor)} received all time -- payments and counter sales,
+              never an order's face value.
             </p>
           </section>
         )}
@@ -324,12 +457,6 @@ export function Reports() {
               )}
             </dl>
           </Card>
-        )}
-
-        {flags.catalogue && (
-          <Button variant="secondary" class="w-full" linkTo="/reports/advanced">
-            Advanced reports
-          </Button>
         )}
 
         <InfoNote>

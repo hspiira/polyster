@@ -153,14 +153,14 @@ export function Screen({
               {sections.map((section) => {
                 const current = section.href === path
                 return current ? (
-                  <h1 key={section.href} class="text-[19px] font-semibold tracking-tight">
+                  <h1 key={section.href} class="text-[17px] font-semibold tracking-tight">
                     {section.label}
                   </h1>
                 ) : (
                   <a
                     key={section.href}
                     href={section.href}
-                    class="text-[19px] font-medium tracking-tight text-content-subtle
+                    class="text-[17px] font-medium tracking-tight text-content-subtle
                            transition-colors hover:text-content"
                   >
                     {section.label}

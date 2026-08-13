@@ -7,8 +7,10 @@ import {
   FLUSH_SURFACE,
   PeriodBar,
   PeriodRangeFields,
+  CurrencySwitch,
   Screen,
   Sections,
+  ShareBar,
   Skeleton,
   StatValue,
 } from '../ui'
@@ -17,7 +19,8 @@ import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQueryStatus } from '../hooks/useRxQuery'
 import { usePermission } from '../hooks/usePermission'
 import { usePeriod } from '../hooks/usePeriod'
-import { formatMinor } from '../lib/money'
+import { useReportCurrency } from '../hooks/useReportCurrency'
+import { formatAmount } from '../lib/money'
 import { formatPastDay } from '../lib/dates'
 import { AddExpenseSheet, ExpenseDetailSheet } from './ExpenseSheet'
 import { useMoneySections } from './moneySections'
@@ -37,7 +40,16 @@ export function Expenses() {
     [db, shop.id],
     [],
   )
-  const expenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
+  const allExpenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
+
+  const { currency, options: currencies, setCurrency } = useReportCurrency(
+    shop.currency,
+    allExpenses.map((expense) => expense.currency),
+  )
+  const expenses = useMemo(
+    () => allExpenses.filter((expense) => expense.currency === currency),
+    [allExpenses, currency],
+  )
 
   const inRange = useMemo(
     () =>
@@ -51,15 +63,20 @@ export function Expenses() {
     [inRange],
   )
 
-  const byCategory = useMemo(() => {
+  const shares = useMemo(() => {
     const totals = new Map<ExpenseCategory, number>()
     for (const expense of inRange) {
       totals.set(expense.category, (totals.get(expense.category) ?? 0) + expense.amount_minor)
     }
     return [...totals]
-      .map(([category, amountMinor]) => ({ category, amountMinor }))
-      .sort((a, b) => b.amountMinor - a.amountMinor)
-  }, [inRange])
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, amountMinor]) => ({
+        key: category,
+        label: EXPENSE_CATEGORY_LABELS[category],
+        value: amountMinor,
+        formatted: formatAmount(amountMinor, currency),
+      }))
+  }, [inRange, currency])
 
   if (!loaded) {
     return (
@@ -97,7 +114,10 @@ export function Expenses() {
     <Screen label="Money" sections={sections}>
       <Sections>
         <div>
-          <PeriodBar value={period.key} onChange={period.setKey} />
+          <div class="flex items-center justify-between gap-3">
+            <PeriodBar value={period.key} onChange={period.setKey} />
+            <CurrencySwitch value={currency} options={currencies} onChange={setCurrency} />
+          </div>
           {period.key === 'custom' && (
             <PeriodRangeFields
               range={{ from: period.from, to: period.to }}
@@ -109,7 +129,7 @@ export function Expenses() {
         <Card flush>
           <p class="text-sm text-content-muted">Spent, {period.label}</p>
           <div class="mt-1">
-            <StatValue value={formatMinor(totalMinor, shop.currency)} />
+            <StatValue value={formatAmount(totalMinor, currency)} />
           </div>
           <p class="mt-1 text-sm text-content-muted">
             {inRange.length} {inRange.length === 1 ? 'entry' : 'entries'}
@@ -122,39 +142,18 @@ export function Expenses() {
           </Button>
         )}
 
-        {byCategory.length > 1 && (
-          <section class={FLUSH_SURFACE}>
-            <h2 class="px-gutter pt-3 pb-1 text-heading font-semibold">Where it went</h2>
-            <ul class="px-gutter pt-1 pb-3">
-              {byCategory.map((row) => (
-                <li key={row.category} class="py-1.5">
-                  <div class="flex items-baseline justify-between gap-3">
-                    <span class="min-w-0 flex-1 truncate text-[15px] font-medium">
-                      {EXPENSE_CATEGORY_LABELS[row.category]}
-                    </span>
-                    <span class="shrink-0 text-sm font-semibold tabular-nums">
-                      {formatMinor(row.amountMinor, shop.currency)}
-                    </span>
-                  </div>
-                  <div class="mt-1 flex items-center gap-2">
-                    <span class="h-1.5 flex-1 overflow-hidden rounded-pill bg-surface-sunken">
-                      <span
-                        class="block h-full rounded-pill bg-accent"
-                        style={{
-                          width: `${totalMinor === 0 ? 0 : (row.amountMinor / totalMinor) * 100}%`,
-                        }}
-                      />
-                    </span>
-                    <span class="shrink-0 text-xs tabular-nums text-content-muted">
-                      {totalMinor === 0
-                        ? '0%'
-                        : `${Math.round((row.amountMinor / totalMinor) * 100)}%`}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+        {shares.length > 1 && (
+          <Card flush>
+            <h2 class="text-heading font-semibold">Where it went</h2>
+            <p class="mt-0.5 mb-3 text-xs text-content-muted">
+              {shares.length} {shares.length === 1 ? 'category' : 'categories'}
+            </p>
+            <ShareBar
+              shares={shares}
+              total={totalMinor}
+              summary={`Spending split across ${shares.length} categories. Largest: ${shares[0]?.label ?? 'none'}, ${shares[0]?.formatted ?? ''}.`}
+            />
+          </Card>
         )}
 
         {inRange.length === 0 ? (
@@ -186,7 +185,7 @@ export function Expenses() {
                           {expense.description}
                         </span>
                         <span class="shrink-0 text-sm font-semibold tabular-nums">
-                          {formatMinor(expense.amount_minor, expense.currency)}
+                          {formatAmount(expense.amount_minor, currency)}
                         </span>
                       </span>
                       <span class="mt-0.5 block truncate text-xs text-content-muted">

@@ -12,7 +12,9 @@ import {
   PeriodBar,
   PeriodRangeFields,
   Screen,
+  CurrencySwitch,
   Sections,
+  ShareBar,
   Sheet,
   Skeleton,
   StatValue,
@@ -21,9 +23,10 @@ import { IconMoney, IconPlus, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQueryStatus, useRxQuery } from '../hooks/useRxQuery'
 import { usePeriod } from '../hooks/usePeriod'
+import { useReportCurrency } from '../hooks/useReportCurrency'
 import { itemsSold, saleTotalMinor } from '../db/profit'
 import { voidSale } from '../db/writes'
-import { formatMinor } from '../lib/money'
+import { formatAmount, formatMinor } from '../lib/money'
 import { formatPastDay, formatTime } from '../lib/dates'
 import { useMoneySections } from './moneySections'
 import { PAYMENT_METHOD_LABELS } from './orderStage'
@@ -52,7 +55,16 @@ export function Sales() {
     () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
     [clientDocs],
   )
-  const sales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
+  const allSales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
+
+  const { currency, options: currencies, setCurrency } = useReportCurrency(
+    shop.currency,
+    allSales.map((sale) => sale.currency),
+  )
+  const sales = useMemo(
+    () => allSales.filter((sale) => sale.currency === currency),
+    [allSales, currency],
+  )
 
   const inRange = useMemo(
     () =>
@@ -66,10 +78,36 @@ export function Sales() {
     () => inRange.reduce((sum, sale) => sum + saleTotalMinor(sale), 0),
     [inRange],
   )
-  const top = useMemo(
-    () => itemsSold(inRange, period.from, period.to).slice(0, TOP_ITEMS),
-    [inRange, period.from, period.to],
-  )
+  /**
+   * The top items plus everything else, so the strip is the whole period's
+   * takings rather than a selection that happens not to add up.
+   */
+  const shares = useMemo(() => {
+    const sold = itemsSold(inRange, period.from, period.to)
+    const top = sold.slice(0, TOP_ITEMS)
+    const rest = sold.slice(TOP_ITEMS)
+    const shares = top.map((row) => ({
+      key: row.item,
+      label: row.item,
+      value: row.revenueMinor,
+      formatted: formatAmount(row.revenueMinor, currency),
+      hint: `${row.quantity} sold`,
+    }))
+
+    if (rest.length > 0) {
+      const restMinor = rest.reduce((sum, row) => sum + row.revenueMinor, 0)
+      const restCount = rest.reduce((sum, row) => sum + row.quantity, 0)
+      shares.push({
+        key: 'other',
+        label: rest.length === 1 ? rest[0]!.item : `${rest.length} other items`,
+        value: restMinor,
+        formatted: formatAmount(restMinor, currency),
+        hint: `${restCount} sold`,
+      })
+    }
+
+    return shares
+  }, [inRange, period.from, period.to, currency])
 
   if (!loaded) {
     return (
@@ -104,7 +142,10 @@ export function Sales() {
     <Screen label="Money" sections={sections}>
       <Sections>
         <div>
-          <PeriodBar value={period.key} onChange={period.setKey} />
+          <div class="flex items-center justify-between gap-3">
+            <PeriodBar value={period.key} onChange={period.setKey} />
+            <CurrencySwitch value={currency} options={currencies} onChange={setCurrency} />
+          </div>
           {period.key === 'custom' && (
             <PeriodRangeFields
               range={{ from: period.from, to: period.to }}
@@ -116,12 +157,12 @@ export function Sales() {
         <Card flush>
           <p class="text-sm text-content-muted">Taken over the counter, {period.label}</p>
           <div class="mt-1">
-            <StatValue value={formatMinor(totalMinor, shop.currency)} />
+            <StatValue value={formatAmount(totalMinor, currency)} />
           </div>
           <p class="mt-1 text-sm text-content-muted">
             {inRange.length} {inRange.length === 1 ? 'sale' : 'sales'}
             {inRange.length > 0 &&
-              ` · ${formatMinor(Math.round(totalMinor / inRange.length), shop.currency)} on average`}
+              ` · ${formatAmount(Math.round(totalMinor / inRange.length), currency)} on average`}
           </p>
         </Card>
 
@@ -129,36 +170,18 @@ export function Sales() {
           <IconPlus size={18} /> Record a sale
         </Button>
 
-        {top.length > 0 && (
-          <section class={FLUSH_SURFACE}>
-            <h2 class="px-gutter pt-3 pb-1 text-heading font-semibold">What sold</h2>
-            <ul class="px-gutter pt-1 pb-3">
-              {top.map((row) => (
-                <li key={row.item} class="py-1.5">
-                  <div class="flex items-baseline justify-between gap-3">
-                    <span class="min-w-0 flex-1 truncate text-[15px] font-medium">{row.item}</span>
-                    <span class="shrink-0 text-sm font-semibold tabular-nums">
-                      {formatMinor(row.revenueMinor, shop.currency)}
-                    </span>
-                  </div>
-                  {/* Share of the period's takings. A bar, not a chart, for five numbers. */}
-                  <div class="mt-1 flex items-center gap-2">
-                    <span class="h-1.5 flex-1 overflow-hidden rounded-pill bg-surface-sunken">
-                      <span
-                        class="block h-full rounded-pill bg-accent"
-                        style={{
-                          width: `${totalMinor === 0 ? 0 : (row.revenueMinor / totalMinor) * 100}%`,
-                        }}
-                      />
-                    </span>
-                    <span class="shrink-0 text-xs tabular-nums text-content-muted">
-                      {row.quantity} sold
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+        {shares.length > 0 && (
+          <Card flush>
+            <h2 class="text-heading font-semibold">What sold</h2>
+            <p class="mt-0.5 mb-3 text-xs text-content-muted">
+              Share of {formatAmount(totalMinor, currency)} taken
+            </p>
+            <ShareBar
+              shares={shares}
+              total={totalMinor}
+              summary={`Takings split across ${shares.length} lines. Best seller: ${shares[0]?.label ?? 'none'}, ${shares[0]?.formatted ?? ''}.`}
+            />
+          </Card>
         )}
 
         {inRange.length === 0 ? (
@@ -180,7 +203,7 @@ export function Sales() {
                 <li key={sale.id}>
                   <SaleRow
                     sale={sale}
-                    currency={shop.currency}
+                    currency={currency}
                     clientName={sale.client_id ? clientNames.get(sale.client_id) : undefined}
                     onOpen={() => setOpen(sale)}
                   />
@@ -227,7 +250,7 @@ function SaleRow({
             {sale.item_description}
           </span>
           <span class="shrink-0 text-sm font-semibold tabular-nums">
-            {formatMinor(saleTotalMinor(sale), currency)}
+            {formatAmount(saleTotalMinor(sale), currency)}
           </span>
         </span>
         <span class="mt-0.5 block truncate text-xs text-content-muted">
