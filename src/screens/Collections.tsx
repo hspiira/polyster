@@ -230,10 +230,10 @@ function CollectionSheet({
     <Sheet open={open} title={collection ? 'Edit collection' : 'New collection'} onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} autofocus onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          <Input value={name} autofocus onValue={setName} />
         </Field>
         <Field label="Code" hint='Optional, e.g. "FOUND002".'>
-          <Input value={code} onInput={(e) => setCode((e.target as HTMLInputElement).value)} />
+          <Input value={code} onValue={setCode} />
         </Field>
         <Field label="Status">
           <Select value={status} onChange={(e) => setStatus((e.target as HTMLSelectElement).value as CollectionStatus)}>
@@ -245,16 +245,16 @@ function CollectionSheet({
           </Select>
         </Field>
         <Field label="Release date" hint="Optional.">
-          <Input type="date" value={releaseDate} onInput={(e) => setReleaseDate((e.target as HTMLInputElement).value)} />
+          <Input type="date" value={releaseDate} onValue={setReleaseDate} />
         </Field>
         <Field label="Tagline" hint='Optional, e.g. "KEEP GOING."'>
-          <Input value={tagline} onInput={(e) => setTagline((e.target as HTMLInputElement).value)} />
+          <Input value={tagline} onValue={setTagline} />
         </Field>
         <Field label="Description" hint="Optional.">
-          <Textarea value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={description} onValue={setDescription} />
         </Field>
         <Field label="Story" hint="Optional.">
-          <Textarea value={story} onInput={(e) => setStory((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={story} onValue={setStory} />
         </Field>
 
         <ImageUploadField
@@ -268,17 +268,17 @@ function CollectionSheet({
         <div class="space-y-4 rounded-control bg-surface-sunken p-3">
           <p class="text-xs font-medium text-content-muted">Coordinates and limit (optional)</p>
           <Field label="Coordinate label" hint='e.g. "08.13° N 32.58° E".'>
-            <Input value={coordinateLabel} onInput={(e) => setCoordinateLabel((e.target as HTMLInputElement).value)} />
+            <Input value={coordinateLabel} onValue={setCoordinateLabel} />
           </Field>
           <div class="flex gap-3">
             <div class="flex-1">
               <Field label="Latitude">
-                <Input type="number" inputmode="decimal" value={latitude} onInput={(e) => setLatitude((e.target as HTMLInputElement).value)} />
+                <Input type="number" inputmode="decimal" value={latitude} onValue={setLatitude} />
               </Field>
             </div>
             <div class="flex-1">
               <Field label="Longitude">
-                <Input type="number" inputmode="decimal" value={longitude} onInput={(e) => setLongitude((e.target as HTMLInputElement).value)} />
+                <Input type="number" inputmode="decimal" value={longitude} onValue={setLongitude} />
               </Field>
             </div>
           </div>
@@ -287,7 +287,7 @@ function CollectionSheet({
               type="number"
               inputmode="numeric"
               value={productionLimit}
-              onInput={(e) => setProductionLimit((e.target as HTMLInputElement).value)}
+              onValue={setProductionLimit}
             />
           </Field>
         </div>

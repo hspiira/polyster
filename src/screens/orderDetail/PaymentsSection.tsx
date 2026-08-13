@@ -172,8 +172,8 @@ export function PaymentsSection({
               autofocus
               value={amount}
               aria-invalid={liveError ? true : undefined}
-              onInput={(e) => {
-                setAmount((e.target as HTMLInputElement).value)
+              onValue={(value) => {
+                setAmount(value)
                 setFormError(null)
               }}
             />
@@ -188,8 +188,8 @@ export function PaymentsSection({
               type="date"
               max={today()}
               value={paidOn}
-              onInput={(e) => {
-                setPaidOn((e.target as HTMLInputElement).value)
+              onValue={(value) => {
+                setPaidOn(value)
                 setFormError(null)
               }}
             />
@@ -208,7 +208,7 @@ export function PaymentsSection({
           </Field>
 
           <Field label="Notes">
-            <Input value={notes} onInput={(e) => setNotes((e.target as HTMLInputElement).value)} />
+            <Input value={notes} onValue={setNotes} />
           </Field>
 
           {formError && !liveError && <ErrorNote>{formError}</ErrorNote>}

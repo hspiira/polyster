@@ -86,7 +86,7 @@ export function EditProductSheet({
     <Sheet open={open} title="Edit product" onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          <Input value={name} onValue={setName} />
         </Field>
         <Field label="Type">
           <Select
@@ -101,7 +101,7 @@ export function EditProductSheet({
           </Select>
         </Field>
         <Field label="Category" hint="Optional.">
-          <Select value={categoryId} onChange={(e) => setCategoryId((e.target as HTMLSelectElement).value)}>
+          <Select value={categoryId} onValue={setCategoryId}>
             <option value="">No category</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -111,7 +111,7 @@ export function EditProductSheet({
           </Select>
         </Field>
         <Field label="Collection" hint="Optional.">
-          <Select value={collectionId} onChange={(e) => setCollectionId((e.target as HTMLSelectElement).value)}>
+          <Select value={collectionId} onValue={setCollectionId}>
             <option value="">No collection</option>
             {collections.map((collection) => (
               <option key={collection.id} value={collection.id}>
@@ -121,10 +121,10 @@ export function EditProductSheet({
           </Select>
         </Field>
         <Field label="Brand" hint="Optional.">
-          <Input value={brand} onInput={(e) => setBrand((e.target as HTMLInputElement).value)} />
+          <Input value={brand} onValue={setBrand} />
         </Field>
         <Field label="Description" hint="Optional.">
-          <Textarea value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={description} onValue={setDescription} />
         </Field>
         <ProductImageField shopId={shop.id} imageUrl={imageUrl} onChange={setImageUrl} />
 

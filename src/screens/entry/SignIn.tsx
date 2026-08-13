@@ -121,8 +121,8 @@ function ForgotPassword({ onBack }: { onBack: () => void }) {
           spellcheck={false}
           placeholder="you@example.com"
           value={email}
-          onInput={(e) => {
-            setEmail((e.target as HTMLInputElement).value)
+          onValue={(value) => {
+            setEmail(value)
             if (error) setError(null)
           }}
         />

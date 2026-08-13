@@ -143,8 +143,8 @@ export function CredentialStep({
           spellcheck={false}
           placeholder="you@example.com"
           value={email}
-          onInput={(e) => {
-            setEmail((e.target as HTMLInputElement).value)
+          onValue={(value) => {
+            setEmail(value)
             if (invalid === 'email') setInvalid(null)
           }}
         />
@@ -164,8 +164,8 @@ export function CredentialStep({
           type={shown ? 'text' : 'password'}
           autocomplete={mode === 'create' ? 'new-password' : 'current-password'}
           value={password}
-          onInput={(e) => {
-            setPassword((e.target as HTMLInputElement).value)
+          onValue={(value) => {
+            setPassword(value)
             if (invalid === 'password') setInvalid(null)
           }}
           trailing={<EntryReveal shown={shown} onToggle={() => setShown(!shown)} />}

@@ -136,7 +136,7 @@ export function Clients() {
             <SearchInput
               placeholder="Search by name or phone"
               value={search}
-              onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+              onValue={setSearch}
             />
           )}
 

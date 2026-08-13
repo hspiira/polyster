@@ -273,7 +273,7 @@ function TrackItemSheet({
 
         {itemType === 'product_variant' ? (
           <Field label="Variant">
-            <Select value={refId} onChange={(e) => setRefId((e.target as HTMLSelectElement).value)}>
+            <Select value={refId} onValue={setRefId}>
               <option value="">Choose a variant</option>
               {availableVariants.map((variant) => (
                 <option key={variant.id} value={variant.id}>
@@ -284,7 +284,7 @@ function TrackItemSheet({
           </Field>
         ) : (
           <Field label="Material">
-            <Select value={refId} onChange={(e) => setRefId((e.target as HTMLSelectElement).value)}>
+            <Select value={refId} onValue={setRefId}>
               <option value="">Choose a material</option>
               {availableMaterials.map((material) => (
                 <option key={material.id} value={material.id}>
@@ -300,7 +300,7 @@ function TrackItemSheet({
             type="number"
             inputmode="numeric"
             value={startingQuantity}
-            onInput={(e) => setStartingQuantity((e.target as HTMLInputElement).value)}
+            onValue={setStartingQuantity}
           />
         </Field>
 

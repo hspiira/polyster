@@ -200,7 +200,7 @@ function AddBatchSheet({
     <Sheet open={open} title="New batch" onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Product">
-          <Select value={productId} onChange={(e) => setProductId((e.target as HTMLSelectElement).value)}>
+          <Select value={productId} onValue={setProductId}>
             <option value="">Choose a product</option>
             {products.map((product) => (
               <option key={product.id} value={product.id}>
@@ -210,18 +210,18 @@ function AddBatchSheet({
           </Select>
         </Field>
         <Field label="Batch number" hint='e.g. "F002-B01".'>
-          <Input value={batchNumber} onInput={(e) => setBatchNumber((e.target as HTMLInputElement).value)} />
+          <Input value={batchNumber} onValue={setBatchNumber} />
         </Field>
         <Field label="Planned quantity">
           <Input
             type="number"
             inputmode="numeric"
             value={plannedQuantity}
-            onInput={(e) => setPlannedQuantity((e.target as HTMLInputElement).value)}
+            onValue={setPlannedQuantity}
           />
         </Field>
         <Field label="Notes" hint="Optional.">
-          <Textarea value={notes} onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={notes} onValue={setNotes} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}

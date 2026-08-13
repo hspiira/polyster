@@ -97,7 +97,7 @@ export function SaleForm() {
                 autofocus
                 value={item}
                 placeholder="Kitenge shirt"
-                onInput={(e) => setItem((e.target as HTMLInputElement).value)}
+                onValue={setItem}
               />
             </Field>
 
@@ -119,7 +119,7 @@ export function SaleForm() {
                     inputmode="decimal"
                     value={price}
                     placeholder="0"
-                    onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
+                    onValue={setPrice}
                   />
                 </Field>
               </div>
@@ -156,7 +156,7 @@ export function SaleForm() {
             >
               <Select
                 value={clientId}
-                onChange={(e) => setClientId((e.target as HTMLSelectElement).value)}
+                onValue={setClientId}
               >
                 <option value="">No client — walk-in</option>
                 {clients.map((client) => (
@@ -170,7 +170,7 @@ export function SaleForm() {
             <Field label="Notes (optional)">
               <Textarea
                 value={notes}
-                onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)}
+                onValue={setNotes}
               />
             </Field>
           </div>

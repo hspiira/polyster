@@ -82,8 +82,8 @@ export function Register({ onDone }: { onDone: () => void }) {
             autofocus
             autocomplete="organization"
             value={name}
-            onInput={(e) => {
-              setName((e.target as HTMLInputElement).value)
+            onValue={(value) => {
+              setName(value)
               if (invalid === 'shop') setInvalid(null)
             }}
           />
@@ -98,8 +98,8 @@ export function Register({ onDone }: { onDone: () => void }) {
             inputRef={youRef}
             autocomplete="name"
             value={yourName}
-            onInput={(e) => {
-              setYourName((e.target as HTMLInputElement).value)
+            onValue={(value) => {
+              setYourName(value)
               if (invalid === 'you') setInvalid(null)
             }}
           />

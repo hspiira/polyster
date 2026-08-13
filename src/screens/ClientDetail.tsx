@@ -421,9 +421,9 @@ function Measurements({ clientId }: { clientId: string }) {
                   inputmode="decimal"
                   placeholder="—"
                   value={draft[field.id] ?? ''}
-                  onInput={(e) => {
+                  onValue={(value) => {
                     setDirty(true)
-                    setDraft({ ...draft, [field.id]: (e.target as HTMLInputElement).value })
+                    setDraft({ ...draft, [field.id]: value })
                   }}
                 />
               </Field>

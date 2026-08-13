@@ -142,7 +142,7 @@ export function ClientsPage() {
               type="search"
               value={search}
               placeholder="Search by name or phone"
-              onInput={(event) => setSearch((event.target as HTMLInputElement).value)}
+              onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
               class={cn(
                 'h-full w-[18rem] border border-line-strong bg-surface pl-7 pr-2.5 text-content',
                 'outline-none placeholder:text-content-subtle focus:border-accent',

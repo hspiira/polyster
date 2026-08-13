@@ -145,7 +145,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           value={query}
           placeholder="Search orders, clients, sales"
           aria-label="Search orders, clients and sales"
-          onInput={(event) => setQuery((event.target as HTMLInputElement).value)}
+          onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
               onClose()

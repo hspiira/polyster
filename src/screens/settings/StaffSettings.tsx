@@ -250,7 +250,7 @@ function AddStaffSheet({
             <Input
               autofocus
               value={name}
-              onInput={(e) => setName((e.target as HTMLInputElement).value)}
+              onValue={setName}
             />
           </Field>
 

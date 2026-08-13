@@ -250,7 +250,7 @@ export function MeasurementFieldSettings() {
                   value={label}
                   autofocus
                   placeholder="Chest"
-                  onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
+                  onValue={setLabel}
                 />
               </Field>
             </div>
@@ -259,7 +259,7 @@ export function MeasurementFieldSettings() {
                 <Input
                   value={unit}
                   placeholder="in"
-                  onInput={(e) => setUnit((e.target as HTMLInputElement).value)}
+                  onValue={setUnit}
                 />
               </Field>
             </div>
@@ -281,7 +281,7 @@ export function MeasurementFieldSettings() {
             <Input
               value={group}
               placeholder="Optional"
-              onInput={(e) => setGroup((e.target as HTMLInputElement).value)}
+              onValue={setGroup}
             />
           </Field>
 

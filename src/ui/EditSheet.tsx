@@ -121,7 +121,7 @@ export function TextFieldSheet({
             inputmode={type === 'tel' ? 'tel' : undefined}
             value={draft}
             placeholder={placeholder}
-            onInput={(e) => setDraft((e.target as HTMLInputElement).value)}
+            onValue={setDraft}
           />
         </Field>
 

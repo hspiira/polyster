@@ -108,7 +108,7 @@ export function ClientPicker({
             type="search"
             placeholder="Search by name or phone"
             value={query}
-            onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+            onValue={setQuery}
           />
 
           {matches.length > 0 && (
@@ -149,7 +149,7 @@ export function ClientPicker({
                 type="tel"
                 placeholder="Phone number (optional)"
                 value={phone}
-                onInput={(e) => setPhone((e.target as HTMLInputElement).value)}
+                onValue={setPhone}
               />
               <Button block type="button" disabled={creating} onClick={() => void create()}>
                 <IconPlus size={16} /> {creating ? 'Adding...' : `Add "${typed}"`}

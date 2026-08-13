@@ -306,7 +306,7 @@ function SaleSheet({
               autofocus
               value={reason}
               placeholder="Returned"
-              onInput={(e) => setReason((e.target as HTMLInputElement).value)}
+              onValue={setReason}
             />
           </Field>
 

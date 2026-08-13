@@ -276,16 +276,16 @@ function RecordMovementSheet({
             type="number"
             inputmode="numeric"
             value={quantity}
-            onInput={(e) => setQuantity((e.target as HTMLInputElement).value)}
+            onValue={setQuantity}
           />
         </Field>
 
         <Field label="Reason" hint={movementType === 'adjustment' ? 'Required for an adjustment.' : 'Optional.'}>
-          <Input value={reason} onInput={(e) => setReason((e.target as HTMLInputElement).value)} />
+          <Input value={reason} onValue={setReason} />
         </Field>
 
         <Field label="Notes" hint="Optional.">
-          <Textarea value={notes} onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={notes} onValue={setNotes} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}

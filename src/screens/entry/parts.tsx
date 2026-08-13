@@ -113,11 +113,20 @@ export function EntryInput({
   class: className,
   inputRef,
   trailing,
+  onValue,
+  onInput,
   ...props
 }: JSX.IntrinsicElements['input'] & {
   inputRef?: RefObject<HTMLInputElement>
   trailing?: ComponentChildren
+  onValue?: (value: string) => void
 }) {
+  const handleInput = onValue
+    ? (event: JSX.TargetedInputEvent<HTMLInputElement>) => {
+        onValue((event.target as HTMLInputElement).value)
+        onInput?.(event)
+      }
+    : onInput
   return (
     <span
       class={cn(
@@ -129,6 +138,7 @@ export function EntryInput({
     >
       <input
         {...props}
+        onInput={handleInput}
         ref={inputRef}
         class={cn(
           'relative z-10 min-h-13 w-full bg-transparent pl-5 text-base text-content',

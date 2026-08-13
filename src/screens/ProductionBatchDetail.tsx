@@ -316,7 +316,7 @@ function ProgressSheet({
         </Field>
 
         <Field label="Produced">
-          <Input type="number" inputmode="numeric" value={produced} onInput={(e) => setProduced((e.target as HTMLInputElement).value)} />
+          <Input type="number" inputmode="numeric" value={produced} onValue={setProduced} />
         </Field>
 
         <div class="flex gap-3">
@@ -326,7 +326,7 @@ function ProgressSheet({
                 type="number"
                 inputmode="numeric"
                 value={accepted}
-                onInput={(e) => setAccepted((e.target as HTMLInputElement).value)}
+                onValue={setAccepted}
               />
             </Field>
           </div>
@@ -336,18 +336,18 @@ function ProgressSheet({
                 type="number"
                 inputmode="numeric"
                 value={rejected}
-                onInput={(e) => setRejected((e.target as HTMLInputElement).value)}
+                onValue={setRejected}
               />
             </Field>
           </div>
         </div>
 
         <Field label="Rejection reason" hint={Number(rejected) > 0 ? 'Required when anything is rejected.' : 'Optional.'}>
-          <Input value={rejectedReason} onInput={(e) => setRejectedReason((e.target as HTMLInputElement).value)} />
+          <Input value={rejectedReason} onValue={setRejectedReason} />
         </Field>
 
         <Field label="Notes" hint="Optional.">
-          <Textarea value={notes} onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={notes} onValue={setNotes} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}
@@ -418,10 +418,10 @@ function AddCostSheet({
           </Select>
         </Field>
         <Field label="Description" hint="Optional.">
-          <Input value={description} onInput={(e) => setDescription((e.target as HTMLInputElement).value)} />
+          <Input value={description} onValue={setDescription} />
         </Field>
         <Field label="Amount (minor units)">
-          <Input type="number" inputmode="numeric" value={amount} onInput={(e) => setAmount((e.target as HTMLInputElement).value)} />
+          <Input type="number" inputmode="numeric" value={amount} onValue={setAmount} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}

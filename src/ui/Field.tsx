@@ -9,25 +9,84 @@ const CONTROL = cn(
   'outline-none transition-colors placeholder:text-content-subtle',
 )
 
-export function Input({ class: className, ...props }: JSX.IntrinsicElements['input']) {
-  return <input {...props} class={cn('min-h-tap', CONTROL, className)} />
+/* `onValue` exists so screens stop writing (e.target as HTMLInputElement).value
+   at every field. `onInput` still works where the event itself is wanted. */
+type ValueProps = { onValue?: (value: string) => void }
+
+function valueHandler<E extends { target: EventTarget | null }>(
+  onValue: ((value: string) => void) | undefined,
+  onInput: ((event: E) => void) | undefined,
+) {
+  if (!onValue) return onInput
+  return (event: E) => {
+    onValue((event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value)
+    onInput?.(event)
+  }
 }
 
-export function Textarea({ class: className, ...props }: JSX.IntrinsicElements['textarea']) {
-  return <textarea {...props} rows={3} class={cn(CONTROL, 'py-2.5', className)} />
+export function Input({
+  class: className,
+  onValue,
+  onInput,
+  ...props
+}: JSX.IntrinsicElements['input'] & ValueProps) {
+  return (
+    <input
+      {...props}
+      onInput={valueHandler(onValue, onInput)}
+      class={cn('min-h-tap', CONTROL, className)}
+    />
+  )
 }
 
-export function Select({ class: className, ...props }: JSX.IntrinsicElements['select']) {
-  return <select {...props} class={cn('min-h-tap', CONTROL, 'pr-8', className)} />
+export function Textarea({
+  class: className,
+  onValue,
+  onInput,
+  ...props
+}: JSX.IntrinsicElements['textarea'] & ValueProps) {
+  return (
+    <textarea
+      {...props}
+      onInput={valueHandler(onValue, onInput)}
+      rows={3}
+      class={cn(CONTROL, 'py-2.5', className)}
+    />
+  )
 }
 
-export function SearchInput({ class: className, ...props }: JSX.IntrinsicElements['input']) {
+export function Select({
+  class: className,
+  onValue,
+  onChange,
+  ...props
+}: JSX.IntrinsicElements['select'] & ValueProps) {
+  return (
+    <select
+      {...props}
+      onChange={valueHandler(onValue, onChange)}
+      class={cn('min-h-tap', CONTROL, 'pr-8', className)}
+    />
+  )
+}
+
+export function SearchInput({
+  class: className,
+  onValue,
+  onInput,
+  ...props
+}: JSX.IntrinsicElements['input'] & ValueProps) {
   return (
     <div class="relative">
       <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-content-subtle">
         <IconSearch size={18} />
       </span>
-      <input {...props} type="search" class={cn('min-h-tap', CONTROL, 'pl-10', className)} />
+      <input
+        {...props}
+        onInput={valueHandler(onValue, onInput)}
+        type="search"
+        class={cn('min-h-tap', CONTROL, 'pl-10', className)}
+      />
     </div>
   )
 }

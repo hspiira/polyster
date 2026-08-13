@@ -108,7 +108,7 @@ export function Suppliers() {
             <SearchInput
               placeholder="Search by name or phone"
               value={search}
-              onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+              onValue={setSearch}
             />
           )}
 
@@ -219,24 +219,24 @@ function SupplierSheet({
     <Sheet open={open} title={supplier ? 'Edit supplier' : 'New supplier'} onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} autofocus onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          <Input value={name} autofocus onValue={setName} />
         </Field>
         <Field label="Phone" hint="Optional.">
           <Input
             type="tel"
             inputmode="tel"
             value={phone}
-            onInput={(e) => setPhone((e.target as HTMLInputElement).value)}
+            onValue={setPhone}
           />
         </Field>
         <Field label="Email" hint="Optional.">
-          <Input type="email" value={email} onInput={(e) => setEmail((e.target as HTMLInputElement).value)} />
+          <Input type="email" value={email} onValue={setEmail} />
         </Field>
         <Field label="Address" hint="Optional.">
-          <Input value={address} onInput={(e) => setAddress((e.target as HTMLInputElement).value)} />
+          <Input value={address} onValue={setAddress} />
         </Field>
         <Field label="Notes" hint="Optional.">
-          <Textarea value={notes} onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={notes} onValue={setNotes} />
         </Field>
 
         {supplier && (
