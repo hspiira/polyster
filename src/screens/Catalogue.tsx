@@ -38,6 +38,7 @@ import {
 } from '../online/catalogue'
 import { listCollections, type Collection } from '../online/collections'
 import { useBack } from '../hooks/useBack'
+import { filterByQuery } from '../lib/search'
 
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   garment: 'Garment',
@@ -87,13 +88,9 @@ export function Catalogue() {
 
   const matches = useMemo(() => {
     if (!products) return []
-    const term = search.trim().toLowerCase()
-    if (!term) return products
-    return products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(term) ||
-        (product.brand ?? '').toLowerCase().includes(term),
-    )
+    return filterByQuery(products, search, (product) => ({
+      text: [product.name, product.brand],
+    }))
   }, [products, search])
 
   if (!online) {

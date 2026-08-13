@@ -18,6 +18,7 @@ import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
+import { filterByQuery } from '../lib/search'
 import { formatDate } from '../lib/dates'
 
 interface ClientTally {
@@ -65,14 +66,10 @@ export function Clients() {
   }, [orderDocs, balances])
 
   const matches = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    if (!term) return clients
-    const digits = term.replace(/\D/g, '')
-    return clients.filter(
-      (client) =>
-        client.name.toLowerCase().includes(term) ||
-        (digits.length > 0 && (client.phone ?? '').replace(/\D/g, '').includes(digits)),
-    )
+    return filterByQuery(clients, search, (client) => ({
+      text: [client.name],
+      phone: [client.phone],
+    }))
   }, [clients, search])
 
   // Closes over `tallies` and `shop.currency`, so it is not hoisted. See

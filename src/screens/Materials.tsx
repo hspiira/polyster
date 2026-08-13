@@ -33,6 +33,7 @@ import {
 import { listSuppliers, type Supplier } from '../online/suppliers'
 import { findInventoryItem, listInventoryItems } from '../online/inventory'
 import { useBack } from '../hooks/useBack'
+import { filterByQuery } from '../lib/search'
 
 const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
   fabric: 'Fabric',
@@ -99,9 +100,7 @@ export function Materials() {
 
   const matches = useMemo(() => {
     if (!materials) return []
-    const term = search.trim().toLowerCase()
-    if (!term) return materials
-    return materials.filter((m) => m.name.toLowerCase().includes(term))
+    return filterByQuery(materials, search, (m) => ({ text: [m.name] }))
   }, [materials, search])
 
   if (!online) {

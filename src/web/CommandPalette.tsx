@@ -8,6 +8,7 @@ import { saleTotalMinor } from '../db/profit'
 import { formatMinor } from '../lib/money'
 import { cn } from '../lib/cn'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
+import { matchesQuery } from '../lib/search'
 
 interface Hit {
   id: string
@@ -54,16 +55,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const hits = useMemo<Hit[]>(() => {
     const term = query.trim().toLowerCase()
     if (term.length < 2) return []
-    const digits = term.replace(/\D/g, '')
     const found: Hit[] = []
 
     for (const doc of clientDocs) {
       const client = doc.toJSON()
-      const phone = (client.phone ?? '').replace(/\D/g, '')
-      if (
-        client.name.toLowerCase().includes(term) ||
-        (digits.length > 1 && phone.includes(digits))
-      ) {
+      if (matchesQuery(term, { text: [client.name], phone: [client.phone] })) {
         found.push({
           id: client.id,
           kind: 'Client',
@@ -78,9 +74,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       const order = doc.toJSON()
       const client = clientNames.get(order.client_id) ?? ''
       if (
-        order.summary.toLowerCase().includes(term) ||
-        client.toLowerCase().includes(term) ||
-        (order.reference ?? '').toLowerCase().includes(term)
+        matchesQuery(term, { text: [order.summary, client, order.reference] })
       ) {
         found.push({
           id: order.id,
@@ -94,7 +88,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
     for (const doc of saleDocs) {
       const sale = doc.toJSON()
-      if (sale.item_description.toLowerCase().includes(term)) {
+      if (matchesQuery(term, { text: [sale.item_description] })) {
         found.push({
           id: sale.id,
           kind: 'Sale',

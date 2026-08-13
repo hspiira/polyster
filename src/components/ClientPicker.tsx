@@ -4,6 +4,7 @@ import { useMemo, useState } from 'preact/hooks'
 import { Avatar, Button, Field, Input, Sheet, cn } from '../ui'
 import { IconPlus, IconSearch } from './icons'
 import type { ClientDoc } from '../db/schema'
+import { filterByQuery } from '../lib/search'
 
 export function ClientPicker({
   clients,
@@ -36,14 +37,10 @@ export function ClientPicker({
   const selected = clients.find((client) => client.id === selectedId)
 
   const matches = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return clients.slice(0, 50)
-    return clients
-      .filter(
-        (client) =>
-          client.name.toLowerCase().includes(needle) || (client.phone ?? '').includes(needle),
-      )
-      .slice(0, 50)
+    return filterByQuery(clients, query, (client) => ({
+      text: [client.name],
+      phone: [client.phone],
+    })).slice(0, 50)
   }, [clients, query])
 
   const typed = query.trim()

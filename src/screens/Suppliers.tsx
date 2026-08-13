@@ -29,6 +29,7 @@ import {
   type SupplierInput,
 } from '../online/suppliers'
 import { useBack } from '../hooks/useBack'
+import { filterByQuery } from '../lib/search'
 
 const TOGGLE_OPTIONS = [
   { value: 'on', label: 'Active' },
@@ -66,11 +67,7 @@ export function Suppliers() {
 
   const matches = useMemo(() => {
     if (!suppliers) return []
-    const term = search.trim().toLowerCase()
-    if (!term) return suppliers
-    return suppliers.filter(
-      (s) => s.name.toLowerCase().includes(term) || (s.phone ?? '').includes(term),
-    )
+    return filterByQuery(suppliers, search, (s) => ({ text: [s.name], phone: [s.phone] }))
   }, [suppliers, search])
 
   if (!online) {

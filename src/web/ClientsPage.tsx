@@ -13,6 +13,7 @@ import { cn } from '../lib/cn'
 import { Page } from './Page'
 import { Table, type TableColumn } from './Table'
 import { CONTROL_SM, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
+import { filterByQuery } from '../lib/search'
 
 interface ClientRow {
   id: string
@@ -60,14 +61,7 @@ export function ClientsPage() {
   }, [clientDocs, orderDocs, balances])
 
   const matches = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    if (!term) return rows
-    const digits = term.replace(/\D/g, '')
-    return rows.filter(
-      (row) =>
-        row.name.toLowerCase().includes(term) ||
-        (digits.length > 0 && (row.phone ?? '').replace(/\D/g, '').includes(digits)),
-    )
+    return filterByQuery(rows, search, (row) => ({ text: [row.name], phone: [row.phone] }))
   }, [rows, search])
 
   const columns: TableColumn<ClientRow>[] = [
