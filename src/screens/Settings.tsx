@@ -15,7 +15,7 @@ import {
   Screen,
   SectionTitle,
   InfoNote,
-} from '../components/ui'
+} from '../ui'
 import {
   IconBox,
   IconDownload,
@@ -147,50 +147,53 @@ export function Settings() {
   })
 
   return (
-    <Screen title="Settings" subtitle={shop?.name} back={back}>
-      <div class="space-y-6">
+    <Screen title="Settings" subtitle={shop?.name} back={back} width="wide">
+      <div class="lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
         <Group title="Your shop" entries={shopEntries} />
-        <Group title="This device" entries={DEVICE_ENTRIES} />
 
-        <section>
-          <SectionTitle>Appearance</SectionTitle>
-          <ThemeChoice />
-        </section>
+        <div class="mt-6 space-y-6 lg:mt-0">
+          <Group title="This device" entries={DEVICE_ENTRIES} />
 
-        <section>
-          <SectionTitle>Install</SectionTitle>
-          <InstallCard />
-        </section>
-
-        {activeStaff && (
           <section>
-            <SectionTitle>Working as</SectionTitle>
+            <SectionTitle>Appearance</SectionTitle>
+            <ThemeChoice />
+          </section>
+
+          <section>
+            <SectionTitle>Install</SectionTitle>
+            <InstallCard />
+          </section>
+
+          {activeStaff && (
+            <section>
+              <SectionTitle>Working as</SectionTitle>
+              <Card>
+                <p class="text-sm text-content-muted">
+                  Orders you take are recorded against{' '}
+                  <span class="font-medium text-content">{activeStaff.name}</span>.
+                </p>
+                <Button variant="secondary" block class="mt-3" onClick={() => setActiveStaff(null)}>
+                  Switch staff member
+                </Button>
+              </Card>
+            </section>
+          )}
+
+          <section>
+            <SectionTitle>Shop account</SectionTitle>
             <Card>
-              <p class="text-sm text-content-muted">
-                Orders you take are recorded against{' '}
-                <span class="font-medium text-content">{activeStaff.name}</span>.
-              </p>
-              <Button variant="secondary" block class="mt-3" onClick={() => setActiveStaff(null)}>
-                Switch staff member
+              <Button variant="danger" block onClick={() => void controller.signOut()}>
+                Sign out
               </Button>
             </Card>
+            <div class="mt-2">
+              <InfoNote>
+                Signing out stops sync on this device. Anything already saved here stays until it
+                syncs, so sign out only when you mean to hand the device on.
+              </InfoNote>
+            </div>
           </section>
-        )}
-
-        <section>
-          <SectionTitle>Shop account</SectionTitle>
-          <Card>
-            <Button variant="danger" block onClick={() => void controller.signOut()}>
-              Sign out
-            </Button>
-          </Card>
-          <div class="mt-2">
-            <InfoNote>
-              Signing out stops sync on this device. Anything already saved here stays until it
-              syncs, so sign out only when you mean to hand the device on.
-            </InfoNote>
-          </div>
-        </section>
+        </div>
       </div>
     </Screen>
   )

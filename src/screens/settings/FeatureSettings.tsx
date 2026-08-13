@@ -1,4 +1,4 @@
-import { Card, RowList, Screen, Segmented } from '../../components/ui'
+import { Card, RowList, Screen, Segmented } from '../../ui'
 import { useShop } from '../../state/ShopProvider'
 import { useFeatureFlags } from '../../hooks/useFeatureFlags'
 import { setFeatureEnabled } from '../../db/writes'

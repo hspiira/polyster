@@ -24,7 +24,7 @@ import {
   Screen,
   Segmented,
   Sheet,
-} from '../../components/ui'
+} from '../../ui'
 import { PinPad } from '../../components/PinPad'
 import { IconPlus } from '../../components/icons'
 import { IllustrationBook } from '../../components/illustrations'
@@ -91,7 +91,7 @@ export function StaffSettings() {
     return (
       <Screen title="Staff" back={back}>
         <Card>
-          <p class="text-sm text-stone-600 dark:text-stone-300">
+          <p class="text-sm text-content-muted">
             The shop record has not reached this device yet. It arrives with the first sync.
           </p>
         </Card>
@@ -117,6 +117,7 @@ export function StaffSettings() {
       title="Staff"
       subtitle={`${activeCount} active`}
       back={back}
+      width="wide"
       action={
         staff.length > 0 && (
           <Button size="sm" onClick={() => setAdding(true)} disabled={!canInvite}>
@@ -144,50 +145,52 @@ export function StaffSettings() {
             action={<Button onClick={() => setAdding(true)}>Add the first person</Button>}
           />
         ) : (
-          <Card padded={false}>
-            <ul>
-              {staff.map((member) => (
-                <li key={member.id} class="px-4 py-3">
+          <ul class="grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-3">
+            {staff.map((member) => (
+              <li key={member.id}>
+                <Card class={member.active ? undefined : 'opacity-60'}>
                   <div class="flex items-center gap-3">
                     <Avatar name={member.name} />
-                    <span class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                    <span class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                       <span class="truncate font-medium">{member.name}</span>
-                      {member.role !== 'staff' && <Chip tone="info">{ROLE_LABELS[member.role]}</Chip>}
                       {member.id === activeStaff?.id && <Chip tone="good">You</Chip>}
                       {!member.active && <Chip>Inactive</Chip>}
                     </span>
                   </div>
 
-                  <div class="mt-2 flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      class="flex-1"
-                      onClick={() => setResetting(member)}
-                    >
+                  <p class="mt-2 text-xs text-content-muted">
+                    {ROLE_LABELS[member.role]}
+                    {Object.keys(member.permission_overrides ?? {}).length > 0 &&
+                      ' · customised permissions'}
+                  </p>
+
+                  {/* Natural width and wrapping, not three stretched thirds:
+                      "Deactivate" is destructive and should not read as one
+                      of three equivalent choices. */}
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => setResetting(member)}>
                       Change PIN
                     </Button>
                     <Button
                       variant="secondary"
                       size="sm"
-                      class="flex-1"
                       onClick={() => setManagingPermissions(member)}
                     >
                       Permissions
                     </Button>
                     <Button
-                      variant={member.active ? 'danger' : 'secondary'}
+                      variant={member.active ? 'ghost' : 'secondary'}
                       size="sm"
-                      class="flex-1"
+                      class={member.active ? 'text-danger' : undefined}
                       onClick={() => void toggleActive(member)}
                     >
                       {member.active ? 'Deactivate' : 'Reactivate'}
                     </Button>
                   </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
+                </Card>
+              </li>
+            ))}
+          </ul>
         )}
 
         <InfoNote>
@@ -464,7 +467,7 @@ function PermissionsSheet({ member, onClose }: { member: StaffDoc | null; onClos
           <div class="space-y-3">
             {PERMISSION_KEYS.map((key) => (
               <div key={key} class="flex items-center justify-between gap-3">
-                <span class="min-w-0 flex-1 text-sm text-stone-700 dark:text-stone-300">
+                <span class="min-w-0 flex-1 text-sm text-content">
                   {PERMISSION_LABELS[key]}
                 </span>
                 <Segmented

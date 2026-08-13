@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'preact/hooks'
-import { Button, Card, ErrorNote, Field, Input, InfoNote, Screen, Select } from '../../components/ui'
+import {
+  Button,
+  Card,
+  ErrorNote,
+  Field,
+  Input,
+  InfoNote,
+  Screen,
+  SectionTitle,
+  Select,
+} from '../../ui'
 import { useShop } from '../../state/ShopProvider'
 import { updateShop } from '../../db/writes'
 import { toWaNumber } from '../../lib/whatsapp'
@@ -68,7 +78,7 @@ export function ShopSettings() {
     return (
       <Screen title="Shop details" back={back}>
         <Card>
-          <p class="text-sm text-stone-600 dark:text-stone-300">
+          <p class="text-sm text-content-muted">
             The shop record has not reached this device yet. It arrives with the first sync.
           </p>
         </Card>
@@ -116,95 +126,138 @@ export function ShopSettings() {
   const numberLooksWrong = whatsapp.trim().length > 0 && toWaNumber(whatsapp) === null
 
   return (
-    <Screen title="Shop details" back={back}>
-      <form onSubmit={save} onInput={() => setSaved(false)} class="space-y-4">
-        <Card>
-          <div class="space-y-4">
-            <Field label="Shop name" hint="Used in the messages sent to clients.">
-              <Input value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
-            </Field>
+    <Screen title="Shop details" back={back} width="wide">
+      <form onSubmit={save} onInput={() => setSaved(false)}>
+        <div class="lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
+          <section>
+            <SectionTitle>Identity</SectionTitle>
+            <Card>
+              <div class="space-y-4">
+                <Field label="Shop name" hint="Used in the messages sent to clients.">
+                  <Input
+                    value={name}
+                    onInput={(e) => setName((e.target as HTMLInputElement).value)}
+                  />
+                </Field>
 
-            <Field
-              label="WhatsApp number"
-              hint="Your own number, for reference."
-              error={numberLooksWrong ? 'This may not be a number WhatsApp recognises.' : null}
-            >
-              <Input
-                type="tel"
-                inputmode="tel"
-                value={whatsapp}
-                onInput={(e) => setWhatsapp((e.target as HTMLInputElement).value)}
-              />
-            </Field>
+                <Field
+                  label="WhatsApp number"
+                  hint="Your own number, for reference."
+                  error={numberLooksWrong ? 'This may not be a number WhatsApp recognises.' : null}
+                >
+                  <Input
+                    type="tel"
+                    inputmode="tel"
+                    value={whatsapp}
+                    onInput={(e) => setWhatsapp((e.target as HTMLInputElement).value)}
+                  />
+                </Field>
 
-            <Field label="Currency" hint="ISO 4217 code, e.g. UGX, KES, USD. Only affects new orders.">
-              <Input
-                value={currency}
-                placeholder="UGX"
-                onInput={(e) => setCurrency((e.target as HTMLInputElement).value)}
-              />
-            </Field>
+                <Field
+                  label="Business type"
+                  hint="Affects defaults and onboarding, not what you can do."
+                >
+                  <Select
+                    value={businessType}
+                    onChange={(e) =>
+                      setBusinessType((e.target as HTMLSelectElement).value as BusinessType)
+                    }
+                  >
+                    {BUSINESS_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {BUSINESS_TYPE_LABELS[type]}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+            </Card>
+          </section>
 
-            <Field label="Lock after" hint="How long the device sits idle before it asks for a PIN again.">
-              <Select
-                value={lockAfterMinutes}
-                onChange={(e) => setLockAfterMinutes((e.target as HTMLSelectElement).value)}
-              >
-                {LOCK_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+          <div class="mt-6 space-y-6 lg:mt-0">
+            <section>
+              <SectionTitle>How it behaves</SectionTitle>
+              <Card>
+                <div class="space-y-4">
+                  <Field
+                    label="Currency"
+                    hint="ISO 4217 code, e.g. UGX, KES, USD. Only affects new orders."
+                  >
+                    <Input
+                      value={currency}
+                      placeholder="UGX"
+                      onInput={(e) => setCurrency((e.target as HTMLInputElement).value)}
+                    />
+                  </Field>
 
-            <Field label="Business type" hint="Affects defaults and onboarding, not what you can do.">
-              <Select
-                value={businessType}
-                onChange={(e) => setBusinessType((e.target as HTMLSelectElement).value as BusinessType)}
-              >
-                {BUSINESS_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {BUSINESS_TYPE_LABELS[type]}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+                  <Field
+                    label="Lock after"
+                    hint="How long the device sits idle before it asks for a PIN again."
+                  >
+                    <Select
+                      value={lockAfterMinutes}
+                      onChange={(e) => setLockAfterMinutes((e.target as HTMLSelectElement).value)}
+                    >
+                      {LOCK_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+              </Card>
+            </section>
 
-            {error && <ErrorNote>{error}</ErrorNote>}
+            <section>
+              <SectionTitle>Optional</SectionTitle>
+              <Card>
+                <div class="space-y-4">
+                  <Field label="Logo URL">
+                    <Input
+                      value={logoUrl}
+                      onInput={(e) => setLogoUrl((e.target as HTMLInputElement).value)}
+                    />
+                  </Field>
+                  <Field label="Timezone" hint="IANA name, e.g. Africa/Kampala.">
+                    <Input
+                      value={timezone}
+                      onInput={(e) => setTimezone((e.target as HTMLInputElement).value)}
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <Input
+                      type="email"
+                      value={email}
+                      onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
+                    />
+                  </Field>
+                  <Field label="Website">
+                    <Input
+                      value={website}
+                      onInput={(e) => setWebsite((e.target as HTMLInputElement).value)}
+                    />
+                  </Field>
+                </div>
+              </Card>
+            </section>
           </div>
-        </Card>
+        </div>
 
-        <Card>
-          <div class="space-y-4">
-            <Field label="Logo URL" hint="Optional.">
-              <Input value={logoUrl} onInput={(e) => setLogoUrl((e.target as HTMLInputElement).value)} />
-            </Field>
-            <Field label="Timezone" hint="IANA name, e.g. Africa/Kampala. Optional.">
-              <Input value={timezone} onInput={(e) => setTimezone((e.target as HTMLInputElement).value)} />
-            </Field>
-            <Field label="Email" hint="Optional.">
-              <Input
-                type="email"
-                value={email}
-                onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
-              />
-            </Field>
-            <Field label="Website" hint="Optional.">
-              <Input value={website} onInput={(e) => setWebsite((e.target as HTMLInputElement).value)} />
-            </Field>
-          </div>
-        </Card>
+        {/* Outside the columns: one save covers every group above. */}
+        <div class="mt-6 space-y-4">
+          {error && <ErrorNote>{error}</ErrorNote>}
 
-        <Button type="submit" block disabled={saving}>
-          {saving ? 'Saving...' : saved ? 'Saved' : 'Save'}
-        </Button>
+          <Button type="submit" block disabled={saving}>
+            {saving ? 'Saving...' : saved ? 'Saved' : 'Save'}
+          </Button>
 
-        <InfoNote>
-          Changing the shop name changes it everywhere, including on messages already drafted but
-          not yet sent. Changing the currency only affects orders created after the change --
-          existing orders keep the currency they were created with.
-        </InfoNote>
+          <InfoNote>
+            Changing the shop name changes it everywhere, including on messages already drafted but
+            not yet sent. Changing the currency only affects orders created after the change --
+            existing orders keep the currency they were created with.
+          </InfoNote>
+        </div>
       </form>
     </Screen>
   )
