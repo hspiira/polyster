@@ -1,7 +1,5 @@
-/**
- * Status chips and identity marks. Colour comes from `tones.ts`, so a chip and
- * an accent bar of the same tone match without either being told what to be.
- */
+/* Status chips and identity marks. Colour comes from tones.ts, so a chip and an
+   accent bar of the same tone match without being told. */
 import type { ComponentChildren } from 'preact'
 import { cn } from '../lib/cn'
 import { normalizeTone, TONE_SOFT, type AnyTone } from './tones'
@@ -36,10 +34,8 @@ export function getInitials(name: string): string {
     .toUpperCase()
 }
 
-/**
- * Circular initials, so a list scans by shape as well as by reading.
- * `aria-hidden` because the name it derives from is always adjacent.
- */
+/* Circular initials, so a list scans by shape. aria-hidden because the name it
+   derives from is always adjacent. */
 export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
   return (
     <span

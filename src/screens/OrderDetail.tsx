@@ -1,14 +1,5 @@
-/**
- * Order detail: the most-used screen day to day (Phase 1 steps 5 and 6).
- *
- * Ordered the way a shop needs it: where is it, what is owed, tell the client.
- * The balance is the largest thing on the screen after the item name, because
- * it is the question asked at the counter.
- *
- * The balance comes from `observeBalance()`, not the `order_balances` Postgres
- * view. RxDB replicates tables, not views, and this is exactly the screen most
- * likely to be open with no connectivity -- ARCHITECTURE.md D9.
- */
+/* Ordered the way a shop needs it: where is it, what is owed, tell the client.
+   The balance comes from observeBalance(), never the view -- D9. */
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation, useRoute } from 'preact-iso'
 import {
@@ -281,13 +272,8 @@ export function OrderDetail() {
   )
 }
 
-/**
- * The answer to the question asked at the counter, sized accordingly.
- *
- * A plain surface with one large figure, not a saturated gradient panel. The
- * amount carries the colour -- amber for outstanding, which is the one thing
- * amber is reserved for -- and the card carries none.
- */
+/* The question asked at the counter, sized accordingly. The amount carries the
+   money colour and the card carries none. */
 function BalanceCard({
   balance,
   currency,
@@ -334,11 +320,8 @@ function BalanceCard({
   )
 }
 
-/**
- * Subtotal, adjustment, total, paid and balance as separate lines (Task 10).
- * A rental deposit is held rather than earned, so it is shown apart from the
- * balance and never folded into any of the figures above it.
- */
+/* Subtotal, adjustment, total, paid and balance as separate lines. A deposit is
+   held, not earned, so it sits apart and is never folded in. */
 function MoneyBlock({
   order,
   balance,
@@ -758,13 +741,8 @@ function PaymentsSection({
   )
 }
 
-/**
- * The wa.me button (Phase 1 step 6, ARCHITECTURE.md D6).
- *
- * Opens WhatsApp with the message already written. Nothing is sent on the
- * shop's behalf, which is the whole point of choosing links over the Cloud API
- * for v1 -- so the button says so.
- */
+/* Opens WhatsApp with the message already written. Nothing is sent on the
+   shop's behalf, and the button says so. */
 function WhatsAppSection({
   shopName,
   clientName,
@@ -854,22 +832,16 @@ function WhatsAppSection({
   )
 }
 
-/**
- * Only 'balance_reminder' is a reminder -- a 'stage_update' (e.g. "ready for
- * pickup") is routine progress, not a chase, and labelling it "Reminder sent"
- * would tell staff the client had been chased about money when they had not.
- */
+/* Only 'balance_reminder' is a reminder. Labelling a stage update as one would
+   tell staff a client had been chased about money when they had not. */
 const MESSAGE_SENT_LABEL: Record<MessageTemplate, string> = {
   balance_reminder: 'Reminder sent',
   stage_update: 'Update sent',
   custom: 'Message sent',
 }
 
-/**
- * Shows when a message was last sent for this order, and by whom if
- * attributed. Never "notified" -- because a wa.me link only records that the
- * shop opened WhatsApp, not that WhatsApp delivered it.
- */
+/* When a message was last sent, and by whom. Never "notified": a wa.me link
+   records that WhatsApp was opened, not that anything was delivered. */
 function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc[] }) {
   const { db } = useCurrentShop()
   const logDocs = useRxQuery(

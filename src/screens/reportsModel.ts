@@ -1,10 +1,5 @@
-/**
- * The series the Reports charts draw.
- *
- * Every figure comes from rows on the device, bucketed here and nowhere else,
- * so a chart cannot disagree with the total printed above it. Cash accounting
- * throughout, the same as db/profit.ts: money in is money received.
- */
+/* The series the Reports charts draw, bucketed here and nowhere else so a chart
+   cannot disagree with the total above it. Cash accounting throughout. */
 import { signedAmountMinor } from '../db/balances'
 import { saleTotalMinor } from '../db/profit'
 import { addDays, daysBetween, formatDate } from '../lib/dates'

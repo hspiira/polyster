@@ -1,7 +1,5 @@
-/**
- * Settings: how the app behaves, and nothing else. Sales, expenses and reports
- * are the day's work, not configuration, and live behind the Money tab.
- */
+/* How the app behaves, and nothing else. Sales, expenses and reports are the
+   day's work, not configuration, and live behind the Money tab. */
 import { useState } from 'preact/hooks'
 import {
   Card,

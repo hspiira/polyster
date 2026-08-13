@@ -1,6 +1,4 @@
-/**
- * Production batches. Online-only (see src/online/production.ts).
- */
+/* Production batches. Online-only (see src/online/production.ts). */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,

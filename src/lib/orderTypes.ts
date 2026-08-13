@@ -1,9 +1,5 @@
-/**
- * What each order type actually needs from the form.
- *
- * Kept out of the form so the rules can be read and tested on their own, and so
- * a new order type has one obvious place to declare itself.
- */
+/* What each order type needs from the form. Kept out of the form so a new order
+   type has one obvious place to declare itself. */
 import type { OrderType } from '../db/schema'
 
 /** Something is being made or altered to fit, so the numbers matter. */
@@ -28,13 +24,8 @@ export function dueDateLabel(type: OrderType): string {
   return 'Ready on'
 }
 
-/**
- * The type this shop takes most often, for the form to open on.
- *
- * Most common wins; a tie goes to whichever appeared most recently, so a shop
- * that has just changed what it does drifts rather than flip-flopping. Pass the
- * newest orders first.
- */
+/* The type this shop takes most often, for the form to open on. A tie goes to
+   the most recent, so a shop that changes what it does drifts. Newest first. */
 export function usualOrderType(
   recentTypesNewestFirst: readonly OrderType[],
   fallback: OrderType = 'tailor_made',

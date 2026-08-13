@@ -1,16 +1,9 @@
-/**
- * What a screen shows when it has nothing, is loading, or has gone wrong.
- */
+/* What a screen shows when it has nothing, is loading, or has gone wrong. */
 import type { ComponentChildren } from 'preact'
 import { cn } from '../lib/cn'
 
-/**
- * A screen (or section) with nothing in it yet. Artwork sits directly on the
- * page -- no box, no card.
- *
- * `spacious` fills a whole empty screen. Leave it off for one empty section on
- * an otherwise busy page, where that reach would push real content out of view.
- */
+/* Nothing here yet. Artwork sits on the page, no card. `spacious` fills a whole
+   empty screen -- leave it off for one empty section on a busy page. */
 export function EmptyState({
   illustration,
   title,

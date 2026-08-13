@@ -1,15 +1,5 @@
-/**
- * A minimal inline trend line, in the spirit of the per-asset charts in
- * consumer finance apps -- but only used where there is a real daily series
- * behind it. A sparkline drawn from data that does not exist is worse than no
- * chart at all in an app whose whole premise is that figures are trustworthy;
- * see the "figures come from what is on this device" note on Reports.
- *
- * No charting library. This is nine points and a `<path>`, and the project's
- * standing rule is that bundle size is a design constraint (ARCHITECTURE.md
- * section 8) -- the same reason the icon set is hand-rolled SVG rather than a
- * package.
- */
+/* An inline trend line, used only where a real daily series exists: a sparkline
+   drawn from data that does not is worse than none. Nine points and a <path>. */
 interface SparklineProps {
   values: readonly number[]
   width?: number
@@ -24,9 +14,8 @@ export function Sparkline({ values, width = 96, height = 32, class: className, f
 
   const min = Math.min(...values)
   const max = Math.max(...values)
-  // A flat series (every day the same, including all-zero) would divide by
-  // zero and collapse to a single point -- draw it as a flat mid-line instead
-  // of hiding it, since "nothing happened" is a real and legible answer.
+  // A flat series would divide by zero and collapse to a point. Draw a flat
+  // mid-line instead: "nothing happened" is a real and legible answer.
   const span = max - min || 1
 
   const points = values.map((value, index) => {

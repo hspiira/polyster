@@ -1,63 +1,5 @@
-/**
- * Staff PIN hashing.
- *
- * ## What this is and is not protecting
- *
- * The PIN is an attribution check, not a security boundary (ARCHITECTURE.md
- * D4). Anyone holding the unlocked shop device can act as any staff member
- * whose PIN they know, and that is the accepted design.
- *
- * What the hash protects is narrower and real: `staff.pin_hash` replicates to
- * every device on the shop's account and sits in a Postgres row. Anyone who
- * reaches that row -- a stolen laptop still logged in, a mis-shared Supabase
- * password, a support session -- must not walk away with the PINs themselves,
- * because people reuse the same digits on phone locks and mobile money.
- *
- * ## Why a slow KDF for a six-digit secret
- *
- * A six-digit PIN is a million candidates. Against a plain SHA-256 that is
- * exhausted in well under a second on ordinary hardware. A deliberately slow KDF
- * does not make the keyspace bigger, but it turns an instant break into
- * something with a cost, and it costs the shop nothing: the PIN is verified
- * once when a staff member picks their name, not on every action.
- *
- * PBKDF2-HMAC-SHA256 via WebCrypto, because it is the only password KDF the
- * platform offers natively. Argon2id or scrypt would be better and both mean
- * shipping WASM to a low-bandwidth device -- not a trade worth making for a
- * secret that is explicitly not a security boundary.
- *
- * ## Iteration count
- *
- * OWASP's current guidance for PBKDF2-HMAC-SHA256 used for passwords is
- * 600,000 iterations. That figure is calibrated for server-side verification
- * on server hardware. This runs in a browser on whatever phone the shop owns,
- * and a staff picker that takes three seconds to accept a PIN will be worked
- * around rather than used.
- *
- * 210,000 is the compromise encoded below. Measured on the development
- * machine (Node 22, x64 desktop): 210,000 takes ~190ms, 600,000 takes ~490ms.
- * A low-end Android is commonly several times slower than a desktop at this,
- * which puts 210,000 somewhere around half a second to a second and a half on
- * the target hardware, and 600,000 well past the point where staff route
- * around the gate.
- *
- * **That extrapolation is not a measurement.** Time it on the lowest-end
- * Android the shop actually uses and adjust: target roughly 250ms there, and
- * raise the count if there is headroom. The count is stored inside every hash
- * string, so raising it later does not invalidate existing PINs -- `verifyPin`
- * reads the parameters from the stored hash, and `needsRehash` reports which
- * records are behind.
- *
- * I have not verified the 600,000 figure against OWASP's cheat sheet at the
- * time of writing; treat it as the number to check rather than a citation.
- *
- * ## Format
- *
- * `pbkdf2$sha256$<iterations>$<salt-b64>$<hash-b64>`
- *
- * Self-describing on purpose. Every parameter that might change is in the
- * string, so a future change is a migration of records rather than a flag day.
- */
+/* Staff PIN hashing. Attribution, not a security boundary (D4) -- the hash
+   exists so a leaked row does not leak reused digits. Rationale: ARCHITECTURE §9b. */
 
 const ALGORITHM = 'pbkdf2'
 const DIGEST = 'sha256'
@@ -67,24 +9,14 @@ const DERIVED_BITS = 256
 /** See the iteration-count discussion above. This wants measuring, not trusting. */
 export const DEFAULT_ITERATIONS = 210_000
 
-/**
- * Fixed at six digits. Not a range.
- *
- * A fixed length is worth more than the flexibility it costs. It lets the pad
- * submit itself the moment the last digit lands without the app having to
- * store how long anyone's PIN is, and it removes the weakest option: at four
- * digits the keyspace is 10,000, at six it is a hundred times that, for two
- * extra taps on a number pad.
- */
+/* Fixed at six, not a range: it lets the pad submit itself on the last digit,
+   and removes the four-digit option for the cost of two taps. */
 export const PIN_LENGTH = 6
 
 export class InvalidPinError extends Error {}
 
-/**
- * Exactly six digits. Rejecting non-digits is not arbitrary strictness:
- * the PIN entry UI is a number pad, so anything else means the value did not
- * come from where it should have.
- */
+/* Exactly six digits. The entry UI is a number pad, so anything else means the
+   value did not come from where it should have. */
 export function assertValidPin(pin: string): void {
   if (!new RegExp(`^\\d{${PIN_LENGTH}}$`).test(pin)) {
     throw new InvalidPinError(`A PIN must be exactly ${PIN_LENGTH} digits.`)
@@ -157,11 +89,8 @@ function parse(stored: string): ParsedHash | null {
   }
 }
 
-/**
- * Constant-time comparison. The timing channel here is largely theoretical --
- * the attacker would need to be running in this browser -- but the correct
- * version is three lines longer than the incorrect one.
- */
+/* Constant-time comparison. The timing channel is largely theoretical here, but
+   the correct version is three lines longer than the incorrect one. */
 function equals(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false
   let difference = 0
@@ -169,13 +98,8 @@ function equals(a: Uint8Array, b: Uint8Array): boolean {
   return difference === 0
 }
 
-/**
- * Checks a PIN against a stored hash.
- *
- * Returns false rather than throwing for a malformed or unrecognised stored
- * hash. A corrupt `pin_hash` on one staff row should lock out that one person,
- * not crash the picker for everybody on the device.
- */
+/* Returns false rather than throwing on a malformed stored hash: a corrupt
+   pin_hash should lock out one person, not crash the picker for everybody. */
 export async function verifyPin(pin: string, stored: string): Promise<boolean> {
   const parsed = parse(stored)
   if (!parsed) return false
@@ -190,11 +114,8 @@ export async function verifyPin(pin: string, stored: string): Promise<boolean> {
   return equals(candidate, parsed.hash)
 }
 
-/**
- * Whether a stored hash was made with weaker parameters than current policy.
- * Verification still succeeds; this is the signal to re-hash the PIN next time
- * the staff member enters it, which is the only moment the plaintext exists.
- */
+/* Whether a stored hash is behind current policy. The signal to re-hash next
+   time the PIN is entered, the only moment the plaintext exists. */
 export function needsRehash(stored: string, iterations: number = DEFAULT_ITERATIONS): boolean {
   const parsed = parse(stored)
   if (!parsed) return true

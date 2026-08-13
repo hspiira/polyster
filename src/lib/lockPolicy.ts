@@ -1,10 +1,5 @@
-/**
- * When the device locks, and how hard it pushes back on a wrong PIN.
- *
- * The PIN is attribution, not a security boundary (ARCHITECTURE D4), so this
- * delays rather than locks out -- a shop must never be unable to open its own
- * till.
- */
+/* When the device locks, and how hard it pushes back on a wrong PIN. The PIN is
+   attribution, not security (D4), so this delays and never locks out. */
 export const DEFAULT_LOCK_AFTER_MINUTES = 5
 
 const FREE_ATTEMPTS = 5

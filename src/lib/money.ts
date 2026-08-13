@@ -1,12 +1,5 @@
-/**
- * Money formatting, in minor units (see spec section 9).
- *
- * Every amount is stored as an integer count of a currency's smallest unit
- * (cents, or the whole unit for a zero-decimal currency like UGX) so balance
- * arithmetic never touches floating point. `formatMinor`/`parseToMinor` are
- * the only conversion boundary between that and what a shop owner reads or
- * types.
- */
+/* Money in minor units (spec §9): every amount is an integer count of the
+   currency's smallest unit, so balance arithmetic never touches floats. */
 
 const LOCALE = 'en-UG'
 
@@ -46,12 +39,8 @@ export function formatMinor(minor: number, currency: string): string {
   }).format(fromMinorUnits(minor, currency))
 }
 
-/**
- * The number without its currency, for a screen that states the currency once.
- *
- * Still currency-aware: the decimal places come from the same ICU lookup, so a
- * cent currency keeps its two places and UGX keeps none.
- */
+/* The number without its currency, for a screen that states it once. Still
+   currency-aware: decimal places come from the same ICU lookup. */
 export function formatAmount(minor: number, currency: string): string {
   return new Intl.NumberFormat(LOCALE, {
     minimumFractionDigits: 0,

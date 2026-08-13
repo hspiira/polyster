@@ -1,15 +1,5 @@
-/**
- * Date handling for due dates.
- *
- * `orders.pickup_due_date` is a Postgres `date`, not a timestamp -- a garment
- * is due on a day, not at an instant. So these are plain `YYYY-MM-DD` strings
- * throughout, compared as strings, which sorts correctly and has no timezone
- * behaviour to get wrong.
- *
- * The one place a timezone matters is deciding what "today" is, and that is
- * deliberately the device's local day. A shop in Kampala closing its books at
- * 6pm cares about the local calendar, not UTC.
- */
+/* Due dates are plain YYYY-MM-DD strings, compared as strings: a garment is due
+   on a day, not at an instant. "Today" is the device's local day, not UTC. */
 
 /** Today as YYYY-MM-DD, in the device's timezone. */
 export function today(now: Date = new Date()): string {
@@ -38,14 +28,8 @@ export function daysBetween(from: string, to: string): number {
 
 export type DueBucket = 'overdue' | 'today' | 'this_week' | 'later'
 
-/**
- * Which urgency bucket a due date falls into. Drives the dashboard sections
- * and the colour of a due-date chip.
- *
- * "This week" is the next seven days rather than the remainder of the calendar
- * week: a shop looking at a Saturday order on a Friday wants it flagged, and
- * "due in the next week" is what people mean when they ask.
- */
+/* Which urgency bucket a due date falls into. "This week" is the next seven
+   days, not the rest of the calendar week -- that is what people mean. */
 export function dueBucket(dueDate: string, from: string = today()): DueBucket {
   const days = daysBetween(from, dueDate)
   if (days < 0) return 'overdue'
@@ -67,11 +51,8 @@ export function formatDate(isoDate: string): string {
   return DISPLAY.format(new Date(year, month - 1, day))
 }
 
-/**
- * A due date in the terms a shop actually uses out loud: "today",
- * "3 days overdue", "in 5 days". Falls back to the date once it is far enough
- * away that counting days stops being useful.
- */
+/* A due date as a shop says it out loud: "today", "3 days overdue". Falls back
+   to the date once counting days stops being useful. */
 export function formatDueDate(isoDate: string, from: string = today()): string {
   const days = daysBetween(from, isoDate)
   if (days === 0) return 'today'
@@ -98,10 +79,8 @@ export function formatDateTime(iso: string): string {
   return `${DISPLAY.format(date)}, ${formatTime(iso)}`
 }
 
-/**
- * A past day the way a shop says it: "Today", "Yesterday", then the date.
- * The mirror of formatDueDate, which looks forwards.
- */
+/* A past day the way a shop says it: "Today", "Yesterday", then the date.
+   The mirror of formatDueDate, which looks forwards. */
 export function formatPastDay(isoDate: string, from: string = today()): string {
   const days = daysBetween(isoDate, from)
   if (days === 0) return 'Today'

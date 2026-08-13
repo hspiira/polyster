@@ -10,12 +10,8 @@ import {
   type ShopDoc,
 } from './_fixture_helpers'
 
-/**
- * Deliberate edge-case fixture for local/offline testing.
- *
- * The fixture focuses on states the UI should handle without relying on
- * online-only tables.
- */
+/* Edge-case fixture for local/offline testing: states the UI should handle
+   without relying on online-only tables. */
 export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
   const shop = await seedTenant(db, {
     name: 'Ssenga Bridal & Tailoring',

@@ -1,8 +1,5 @@
-/**
- * The day's work as one list: sections are labels inside one surface, not four
- * cards. Counts live in the hero sentence above, so the labels do not repeat
- * them.
- */
+/* The day's work as one list: sections are labels inside one surface, not four
+   cards. Counts live in the hero above, so labels do not repeat them. */
 import { cn } from '../../lib/cn'
 import { formatMinor } from '../../lib/money'
 import { formatDueDate } from '../../lib/dates'

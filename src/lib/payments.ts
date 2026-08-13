@@ -1,10 +1,5 @@
-/**
- * What a payment is allowed to be, given what the order already has on it.
- *
- * Pure and shared, so the write layer and both payment forms give the same
- * answer. A form that accepts an amount the write will reject is a wasted tap,
- * and a write with no check is how an order ends up paid twice over.
- */
+/* What a payment may be, given what the order already carries. Shared by the
+   write layer and both forms, so they cannot disagree and double-pay. */
 import { formatMinor } from './money'
 import { today } from './dates'
 
@@ -24,21 +19,16 @@ export function outstandingMinor(priceTotalMinor: number, amountPaidMinor: numbe
   return Math.max(0, priceTotalMinor - amountPaidMinor)
 }
 
-/**
- * Money taken yesterday and entered today is normal in a shop, so the date is
- * editable. The future is not: that is money nobody has handed over.
- */
+/* Money taken yesterday and entered today is normal, so the date is editable.
+   The future is not: that is money nobody has handed over. */
 export function paymentDateError(date: string, todayIso: string = today()): string | null {
   if (!date) return 'Choose the date this money was taken.'
   if (date > todayIso) return 'A payment cannot be dated in the future.'
   return null
 }
 
-/**
- * When to stamp `payment_date`. Today keeps the real time; a backdated entry
- * goes to noon so the date cannot slip either way across a timezone.
- * `created_at` still records when it was actually typed in.
- */
+/* Today keeps the real time; a backdated entry goes to noon so the date cannot
+   slip across a timezone. `created_at` still records when it was typed. */
 export function toPaymentTimestamp(
   date: string | undefined,
   nowIso: string,

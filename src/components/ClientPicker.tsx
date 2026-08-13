@@ -1,11 +1,5 @@
-/**
- * Choosing who an order is for.
- *
- * A native select over every client stops working somewhere around the fiftieth
- * one, and it had no way to add someone who is standing at the counter for the
- * first time -- you had to leave the form, make the client, and start again.
- * This searches, and offers to create whatever you typed.
- */
+/* Choosing who an order is for. A native select breaks down around fifty
+   clients and cannot add the person at the counter. This searches and creates. */
 import { useMemo, useState } from 'preact/hooks'
 import { Avatar, Button, Field, Input, Sheet, cn } from './ui'
 import { IconPlus, IconSearch } from './icons'

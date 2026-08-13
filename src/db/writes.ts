@@ -1,12 +1,5 @@
-/**
- * Every write the app makes, in one place, so id generation, timestamps and
- * attribution aren't repeated (or forgotten) per screen.
- *
- * RxDB has no cross-collection transaction. Where a stage change and its
- * history row both need writing, the history row goes first -- a failure
- * after that leaves a visible, correctable orphan rather than silently
- * dropping the audit record.
- */
+/* Every write in one place, so ids, timestamps and attribution are not repeated
+   per screen. No cross-collection transaction: history rows are written first. */
 import type { AppDatabase } from './database'
 import {
   DEFAULT_COUNTRY,
@@ -172,12 +165,8 @@ export async function reactivateMeasurementField(db: AppDatabase, fieldId: strin
   await doc?.patch({ active: true, updated_at: now() })
 }
 
-/**
- * Copies a client's saved profile onto one order unit's frozen snapshot.
- * Explicit and one-way: a later edit to the client's profile must never
- * reach back and rewrite this unit. A no-op with no profile yet, rather than
- * overwriting a unit's real values with an empty one.
- */
+/* Copies a client's profile onto a unit's frozen snapshot. One-way: a later
+   profile edit must never reach back. A no-op when there is no profile. */
 export async function copyMeasurementsFromClient(
   db: AppDatabase,
   unitId: string,
@@ -188,10 +177,8 @@ export async function copyMeasurementsFromClient(
   await updateOrderUnit(db, unitId, { measurements: profile.toJSON().values })
 }
 
-/**
- * Writes a unit's snapshot up to the client's profile, the reverse direction.
- * Reuses saveMeasurements so create-or-update logic lives in one place.
- */
+/* The reverse direction: a unit's snapshot up to the client's profile. Reuses
+   saveMeasurements so create-or-update lives in one place. */
 export async function saveUnitMeasurementsToClient(
   db: AppDatabase,
   unitId: string,
@@ -224,12 +211,8 @@ export interface NewOrderInput extends OrderPartyInput {
   notes?: string
   /** Rental only. Held and refundable, never part of price_total_minor -- see OrderDoc. */
   deposit_minor?: number
-  /**
-   * The rest of the first unit. Passed in rather than patched on afterwards:
-   * a create-then-patch pushes an UPDATE, and the Supabase replication plugin
-   * cannot build its conflict query for a row holding an object field
-   * (`measurements`), so every new order left a failed push behind it.
-   */
+  /* Passed in, not patched on afterwards: create-then-patch pushes an UPDATE,
+     and the plugin cannot build a conflict query for an object field. */
   wearer_name?: string
   fabric_source?: FabricSource
   measurements?: Record<string, string | number>
@@ -248,12 +231,8 @@ function partyFields(input: OrderPartyInput): Partial<OrderDoc> {
   }
 }
 
-/**
- * Every order carries at least one unit. A single-item order (the only kind
- * this form creates) gets exactly one, at position 0. `summary` and
- * `price_total_minor` are derived from that unit via recalculateOrder once it
- * exists, not set directly here -- see invariant 1.
- */
+/* Every order carries at least one unit, at position 0. summary and
+   price_total_minor are derived by recalculateOrder, not set here (invariant 1). */
 export async function createOrder(
   db: AppDatabase,
   shopId: string,
@@ -289,10 +268,8 @@ export async function createOrder(
 
   await db.orders.insert(doc)
 
-  // The opening stage is part of the trail too. Without it, an order's history
-  // starts at its first change rather than at its creation. Written before the
-  // unit, per the module header: the history row is the one write that must
-  // never be silently dropped.
+  // The opening stage is part of the trail: without it, history starts at the
+  // first change rather than at creation. Written first, per the header.
   await db.order_stage_history.insert({
     id: newId(),
     order_id: doc.id,
@@ -334,12 +311,8 @@ export interface OrderHeaderInput extends OrderPartyInput {
   deposit_minor?: number
 }
 
-/**
- * The order form's header save. Touches only client, type, dates and notes --
- * never a unit, never price_total_minor or summary -- so it works regardless
- * of how many units the order has, unlike the single-item updater this
- * replaced.
- */
+/* The header save: client, type, dates and notes only, never a unit or a
+   derived total. So it works whatever the unit count. */
 export async function updateOrderHeader(
   db: AppDatabase,
   orderId: string,
@@ -364,11 +337,8 @@ export async function updateOrderHeader(
   })
 }
 
-/**
- * Marks a rental deposit as returned to the client. Never touches
- * price_total_minor or any balance -- a deposit is held, not earned (see
- * OrderDoc's own note), so refunding it is a fact about the deposit alone.
- */
+/* Marks a rental deposit returned. Never touches a balance: a deposit is held,
+   not earned, so refunding it is a fact about the deposit alone. */
 export async function refundDeposit(db: AppDatabase, orderId: string): Promise<void> {
   const doc = await db.orders.findOne(orderId).exec()
   if (!doc) throw new Error('That order no longer exists on this device.')
@@ -384,17 +354,8 @@ const TERMINAL_STAGE_TIMESTAMP_FIELD: Partial<Record<OrderStage, keyof OrderDoc>
   cancelled: 'cancelled_at',
 }
 
-/**
- * Advances an order to a new stage and records who did it.
- *
- * History first -- see the transaction note at the top of this file. Entering
- * a terminal stage also stamps its own column, in the same patch as `stage`,
- * so the two can never disagree. `extraPatch` folds a caller's own fields
- * (e.g. cancelOrder's reason) into that same single patch, for the same
- * reason: two patches invite a crash between them leaving one written and not
- * the other. Spread before this function's own fields, so a caller can never
- * override the stage or its timestamp, by accident or otherwise.
- */
+/* Advances a stage and records who did it. History first, and everything else
+   in one patch -- `extraPatch` spreads first, so it cannot override the stage. */
 export async function changeOrderStage(
   db: AppDatabase,
   orderId: string,
@@ -429,11 +390,8 @@ export async function changeOrderStage(
   })
 }
 
-/**
- * Cancels an order: routes through changeOrderStage so the stage history stays
- * the one place that logs the transition, and the reason lands in the same
- * patch as the stage change rather than a second write that could go missing.
- */
+/* Routes through changeOrderStage, so history stays the one place logging the
+   transition and the reason lands in the same patch. */
 export async function cancelOrder(
   db: AppDatabase,
   orderId: string,
@@ -445,13 +403,8 @@ export async function cancelOrder(
   })
 }
 
-/**
- * Soft-deletes the order, then its units. Order first: an archived order left
- * with live units is orphaned but harmless, whereas a live order interrupted
- * between these two awaits with zero live units is indistinguishable from one
- * that predates order_units -- backfillOrderUnits would fabricate a unit for
- * it from stale order data on the next app start.
- */
+/* Order first, then units: a live order with zero live units looks exactly like
+   one predating order_units, and the backfill would fabricate a unit for it. */
 export async function archiveOrder(db: AppDatabase, orderId: string): Promise<void> {
   const doc = await db.orders.findOne(orderId).exec()
   await doc?.remove()
@@ -480,10 +433,8 @@ export function buildSummary(descriptions: readonly string[]): string {
   return rest.length > 0 ? `${head} +${rest.length}` : head
 }
 
-/**
- * Rebuilds the caches on an order. The only thing permitted to set
- * price_total_minor or summary -- see spec invariant 1.
- */
+/* Rebuilds an order's caches. The only thing permitted to set
+   price_total_minor or summary (invariant 1). */
 export async function recalculateOrder(db: AppDatabase, orderId: string): Promise<void> {
   const order = await db.orders.findOne(orderId).exec()
   if (!order) throw new Error('That order no longer exists on this device.')
@@ -595,12 +546,8 @@ export async function setUnitDone(db: AppDatabase, unitId: string, done: boolean
   await recalculateOrder(db, unit.order_id)
 }
 
-/**
- * Sets the order's adjustment (a discount, late fee, or damage charge).
- * Checked here, not left to recalculateOrder: patching first and letting the
- * recalculation throw would persist the adjustment while price_total_minor
- * still held the old figure, which is invariant 1 broken on disk.
- */
+/* Sets the adjustment. Checked here, not in recalculateOrder: patching first
+   and throwing after would leave invariant 1 broken on disk. */
 export async function setOrderAdjustment(
   db: AppDatabase,
   orderId: string,
@@ -621,16 +568,8 @@ export async function setOrderAdjustment(
 
 // --------------------------------------------------------------- payments
 
-/**
- * Records a payment or, with `kind: 'refund'`, a refund. A refund is always a
- * positive amount -- the schema's `exclusiveMinimum: 0` forces this for both
- * kinds -- never a negative payment row.
- *
- * The amount is checked against what the order already has on it, so instalments
- * cannot add up past the price and a settled order cannot take more money. The
- * forms check the same rule before submitting; this is the one that cannot be
- * bypassed.
- */
+/* A refund is a positive row with kind 'refund', never a negative payment. The
+   amount is capped against the order; the forms check too, this cannot be skipped. */
 export async function recordPayment(
   db: AppDatabase,
   orderId: string,
@@ -677,15 +616,8 @@ export async function recordPayment(
   return doc
 }
 
-/**
- * Voids a payment. A soft delete, which is what the `amount_minor > 0`
- * constraint in the migration forces: a mistaken entry is retracted, never
- * cancelled out with a negative row. The balance calculation already ignores
- * deleted payments, so the figure corrects itself.
- *
- * The void trail is patched before the remove -- a removed document cannot be
- * patched afterwards.
- */
+/* A soft delete, forced by the `amount_minor > 0` constraint: retracted, never
+   cancelled with a negative row. Trail patched first -- a removed doc cannot be. */
 export async function voidPayment(
   db: AppDatabase,
   paymentId: string,
@@ -707,10 +639,8 @@ export async function voidPayment(
 
 // ------------------------------------------------------------- message log
 
-/**
- * Records that a WhatsApp message was sent -- intent, not delivery. A wa.me
- * link hands off to WhatsApp and this app never learns what happened next.
- */
+/* Intent, not delivery: a wa.me link hands off to WhatsApp and this app never
+   learns what happened next. */
 export async function logMessage(
   db: AppDatabase,
   input: {
@@ -768,11 +698,8 @@ export async function clearStaffPin(db: AppDatabase, staffId: string): Promise<v
   await doc.patch({ pin_hash: undefined, pin_updated_at: now() })
 }
 
-/**
- * Deactivates rather than deletes. `orders.created_by` and
- * `payments.recorded_by` point at staff rows, and a departed employee's name
- * still needs to render on the orders they took.
- */
+/* Deactivates rather than deletes: orders point at staff rows, and a departed
+   employee's name still has to render on the orders they took. */
 export async function setStaffActive(
   db: AppDatabase,
   staffId: string,
@@ -866,13 +793,8 @@ export async function updateShop(
   await doc.patch(patch)
 }
 
-/**
- * Attaches a verified account to a shop that was set up without one.
- *
- * Refuses if the shop already belongs to a different account. Two shops on one
- * number is the unreconciled case in ARCHITECTURE D14, and quietly overwriting
- * the owner here would be how a device ends up syncing into someone else's shop.
- */
+/* Attaches a verified account to a shop set up without one. Refuses if it
+   already belongs to another: overwriting is how you sync into someone else's shop. */
 export async function claimShop(
   db: AppDatabase,
   shopId: string,

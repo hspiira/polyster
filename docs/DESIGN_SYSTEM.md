@@ -1,19 +1,34 @@
 # Design system
 
-**Status:** In migration. Orders, Clients, ClientDetail, Settings and every
-screen under `src/screens/settings/` are converted; 21 screens still import the
-shim at `src/components/ui.tsx`.
+**Status:** Colour is fully migrated — as of 2026-08-14 no file outside
+theme.css names a colour and no `dark:` utility exists, both enforced by
+`pnpm verify`. The `@custom-variant dark` scaffolding in `index.css` is deleted.
+The *import* migration is still in progress: 22 screens import the shim at
+`src/components/ui.tsx`.
 
-## The two rules
+## The three rules
+
+All three are enforced by `scripts/check-standards.mjs`, which runs in
+`pnpm verify`. Run it alone with `pnpm check:design`.
 
 **1. No file outside `src/styles/theme.css` names a colour.** Components ask for
 roles — `bg-surface`, `text-content-muted`, `text-money`, `text-danger` — and
 theme.css says what a role is worth in each theme. Re-skinning the app is
-`--hue-brand`, one number.
+`--hue-brand`, one number. This covers palette names (`stone-600`), bare
+`white`/`black` in CSS, and arbitrary values (`bg-[#0f1e52]`).
 
-**2. No `dark:` utilities.** The theme is a `data-theme` attribute on `<html>`,
-resolved by `src/lib/theme.ts` and bootstrapped inline in `index.html` so the
-first paint is correct. Each role is written twice in theme.css and never again.
+**2. No `dark:` utilities.** The theme is a `data-theme` attribute, resolved by
+`src/lib/theme.ts` and bootstrapped inline in `index.html` so the first paint is
+correct. Each role is written twice in theme.css and never again.
+
+A subtree that must be one theme regardless of preference sets `data-theme`
+itself — the entry flow does this on its shell, which is why it can ask for
+roles rather than being exempt from them.
+
+**3. No comment block longer than two lines.** A run of consecutive comment
+lines, including a `═══` section banner. Reasoning that genuinely needs more
+room goes in `docs/`, not in a header — `src/lib/pin.ts`'s hashing rationale
+lives at `ARCHITECTURE.md` §9b for exactly this reason.
 
 ## Where things live
 
@@ -29,9 +44,10 @@ first paint is correct. Each role is written twice in theme.css and never again.
 Surfaces `page` `surface` `surface-raised` `surface-sunken` `hover` `pressed`
 · Lines `line` `line-strong`
 · Text `content` `content-muted` `content-subtle` `content-inverted`
-· Status `accent` `money` `danger` `success` `neutral`, each with `-soft` and
-`-on-soft` (always take the pair — a fill without its text has no guaranteed
-contrast)
+· Status `accent` `money` `warning` `danger` `success` `neutral`, each with
+`-soft` and `-on-soft` (always take the pair — a fill without its text has no
+guaranteed contrast)
+· Glass, for the fixed-dark entry flow: `glass-edge`, `glass-rule`
 · Also `focus`, `scrim`, `shadow-raise|float|overlay`, `px-gutter`, `min-h-tap`,
 `max-w-measure`, `max-w-wide`.
 
@@ -71,11 +87,19 @@ sets of derived values, free to disagree. Describe the record once as
 `Column[]` and hand it to `DataList`; both presentations are CSS layouts of the
 same DOM.
 
+## `warning` is not `money`
+
+Amber is money and only money, so a stalled sync cannot borrow it. `warning`
+(hue 55, between danger's 27 and money's 75) is the "needs attention, nothing
+has failed" status: offline, unsynced, only-on-this-phone. If you reach for
+amber and the subject is not a balance, you want `warning`.
+
 ## Converting the remaining screens
+
+Colour is already done everywhere. What is left is the import path:
 
 1. `from '../components/ui'` → `from '../ui'`
 2. The `Card lg:hidden` + `DataTable` pair → one `DataList`
-3. Delete every `dark:` and every `stone-`/`amber-`/`red-` colour
 
-`src/components/ui.tsx` and the `@custom-variant dark` line in `index.css` are
-migration scaffolding. Both get deleted when nothing needs them.
+`src/components/ui.tsx` is the last piece of migration scaffolding, and gets
+deleted when nothing imports it. `src/screens/Orders.tsx` is the worked example.

@@ -1,20 +1,10 @@
-/**
- * The status vocabulary. A tone is a meaning, not a colour -- `money` is an
- * outstanding balance, `danger` is overdue or destructive. What each is worth
- * is decided in styles/theme.css.
- *
- * No JSX here on purpose, so logic modules can classify a record without
- * pulling a component into a node-environment test.
- */
+/* The status vocabulary. A tone is a meaning, not a colour. No JSX, so logic
+   modules can classify a record without pulling in a component. */
 
 export type Tone = 'neutral' | 'accent' | 'success' | 'money' | 'danger'
 
-/**
- * The pre-redesign names, still accepted so screens can be converted one at a
- * time rather than in a single sweep.
- *
- * @deprecated Use `Tone`. Removed once every screen is converted.
- */
+/** @deprecated Use `Tone`. The pre-redesign names, accepted so screens can be
+    converted one at a time. Removed once every screen is. */
 export type LegacyTone = 'info' | 'good' | 'warn' | 'bad' | 'alert' | 'default'
 
 export type AnyTone = Tone | LegacyTone
@@ -34,10 +24,8 @@ export function normalizeTone(tone: AnyTone): Tone {
   return tone in LEGACY ? LEGACY[tone as LegacyTone] : (tone as Tone)
 }
 
-/**
- * Soft fill paired with a foreground that is readable on it. Always take the
- * pair -- a fill picked without its text has no guaranteed contrast.
- */
+/* Soft fill paired with a readable foreground. Always take the pair: a fill
+   without its text has no guaranteed contrast. */
 export const TONE_SOFT: Record<Tone, string> = {
   neutral: 'bg-neutral-soft text-neutral-on-soft',
   accent: 'bg-accent-soft text-accent-on-soft',

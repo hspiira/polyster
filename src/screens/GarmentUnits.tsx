@@ -1,8 +1,5 @@
-/**
- * Garment identity (section 29). Online-only (see src/online/garmentUnits.ts).
- * Generic -- any tenant may track individual garments, gated behind the
- * garment_identity feature flag.
- */
+/* Garment identity (§29), online-only. Any tenant may track individual
+   garments, gated behind the garment_identity flag. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,

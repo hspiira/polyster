@@ -1,10 +1,5 @@
-/**
- * The two asks that registration no longer makes.
- *
- * Both are shown once there is real work on the device, which is the first
- * moment either of them means anything, and both can be dismissed for good.
- * Backing up comes first: losing a shop is worse than losing a home screen icon.
- */
+/* The two asks registration no longer makes, shown once there is real work to
+   lose. Backing up comes first: a lost shop beats a lost home screen icon. */
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import { useAuth } from '../hooks/useAuth'
@@ -54,11 +49,8 @@ export function ShopPrompts() {
   const unclaimed =
     auth.status !== 'local_only' && shop !== null && !shop.supabase_auth_user_id
 
-  /**
-   * A live session plus an unclaimed local shop means the back-up flow finished.
-   * Reactive rather than a ClaimShop callback because a provider redirect
-   * unmounts that screen, so there is nothing left to call back into.
-   */
+  /* A live session plus an unclaimed local shop means the back-up flow finished.
+     Reactive, because a provider redirect unmounts the screen that would call back. */
   useEffect(() => {
     if (auth.status !== 'signed_in' || !shop || shop.supabase_auth_user_id) return
     if (claimingNow.current) return

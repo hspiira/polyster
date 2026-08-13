@@ -1,7 +1,5 @@
-/**
- * Editing one value at a time, so a detail screen can stay a list of what
- * things are rather than a column of inputs asking what they should be.
- */
+/* Editing one value at a time, so a detail screen stays a list of what things
+   are rather than a column of inputs. */
 import { useEffect, useState } from 'preact/hooks'
 import { IconCheck } from '../components/icons'
 import { cn } from '../lib/cn'
@@ -57,13 +55,8 @@ export function ChoiceSheet<T extends string>({
   )
 }
 
-/**
- * One text value.
- *
- * `validate` returns a message to refuse with, or null to accept -- the
- * currency code is the case that needs it, and it belongs with the field
- * rather than in a save handler that has already closed the sheet.
- */
+/* One text value. `validate` returns a message to refuse with, or null: it
+   belongs here, not in a save handler that has already closed the sheet. */
 export function TextFieldSheet({
   open,
   title,

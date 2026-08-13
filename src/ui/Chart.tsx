@@ -1,19 +1,5 @@
-/**
- * Charts, drawn by hand.
- *
- * No chart library, for the same reason there is no icon package (ARCHITECTURE
- * section 8): these are a few hundred bytes of SVG each, against tens of
- * kilobytes for a library, on a metered connection.
- *
- * Each chart measures its own box and draws in real pixels. A fixed viewBox
- * stretched to fit is a smaller amount of code and it lies: the bars come out
- * thin, the corner radii turn oval and the strokes thicken on one axis only.
- *
- * Fixed specs, so two charts never disagree: bars fill their slot up to 24px
- * with a rounded data-end and a square baseline, lines are 2px, and every chart
- * is `role="img"` with a spoken summary and the same numbers in text beside it,
- * so colour is never the only channel.
- */
+/* Charts drawn by hand: a few hundred bytes of SVG against tens of kilobytes of
+   library (§8). Each measures its own box, so nothing is stretched to fit. */
 import { useLayoutEffect, useRef, useState } from 'preact/hooks'
 
 const MAX_BAR = 24
@@ -22,17 +8,8 @@ const MIN_BAR = 8
 const BAR_FILL = 0.66
 const RADIUS = 4
 
-/**
- * The rendered width of a block, so a chart can draw at 1:1 rather than scale.
- *
- * Measured in a layout effect, so the first paint already has the real width
- * rather than an empty box that fills in a frame later.
- *
- * Both a ResizeObserver and a window listener, because neither covers the other:
- * the observer catches the box changing while the window does not (a rail opens,
- * a container query fires), and it is delivered on the rendering lifecycle, so a
- * page that is not painting -- a background tab -- never hears from it.
- */
+/* Rendered width, measured in a layout effect so the first paint is right. Both
+   a ResizeObserver and a window listener: neither covers the other's case. */
 function useWidth(): [{ current: HTMLDivElement | null }, number] {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
@@ -51,9 +28,8 @@ function useWidth(): [{ current: HTMLDivElement | null }, number] {
     }
   }, [])
 
-  // Every render, not only on mount: if the box has changed and neither signal
-  // above arrived, the next render corrects it rather than leaving a chart drawn
-  // to a width the screen no longer has.
+  // Every render, not only on mount: if neither signal arrived, the next render
+  // corrects a chart drawn to a width the screen no longer has.
   useLayoutEffect(() => {
     const measured = ref.current?.clientWidth
     if (measured && measured !== width) setWidth(measured)
@@ -71,18 +47,8 @@ export interface Share {
   hint?: string
 }
 
-/**
- * Steps of one hue rather than six colours.
- *
- * Six categorical hues do not exist in this theme, and inventing them is what
- * makes a chart unreadable for a colourblind reader. Segments are sorted
- * largest first, so the ramp runs dark to light in the same order as the
- * legend under it -- position and order carry identity, opacity only reinforces
- * it.
- */
-// The floor is 0.35, not near-zero: on the dark surface the last steps of a
-// longer ramp stop being visible at all, and a segment nobody can see is a lie
-// about the total.
+/* Steps of one hue, not six invented colours: position and order carry identity
+   and opacity only reinforces it. The 0.35 floor keeps late steps visible. */
 const STEPS = [1, 0.82, 0.68, 0.56, 0.45, 0.35]
 
 /** Part-to-whole in one strip, with the segments named underneath. */
@@ -168,13 +134,8 @@ function bar(x: number, width: number, baseline: number, height: number, up: boo
   ].join(' ')
 }
 
-/**
- * Money in above a baseline, money out below it.
- *
- * Out is red and carries a minus sign; in is green and does not. Which side of
- * the baseline a column sits on is the primary channel, because red/green
- * separation collapses for a deuteranope and position does not.
- */
+/* Money in above the baseline, out below. Side of the baseline is the primary
+   channel: red/green collapses for a deuteranope, position does not. */
 export function FlowColumns({
   bars,
   selected,
@@ -265,11 +226,8 @@ export function FlowColumns({
   )
 }
 
-/**
- * One series over time: a 2px line on a 10% wash, last point marked.
- *
- * A single series, so no legend -- the heading above it says what is plotted.
- */
+/* One series over time: a 2px line on a 10% wash, last point marked. No legend
+   -- the heading above says what is plotted. */
 export function Sparkline({
   values,
   summary,

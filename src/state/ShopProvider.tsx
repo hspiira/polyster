@@ -1,19 +1,5 @@
-/**
- * The current shop and the staff member currently using the device.
- *
- * These are two different things and it matters. The *shop* is the tenant --
- * one row, authenticated at the Supabase level, and the thing every RLS policy
- * scopes to. The *staff member* is whoever tapped their name on the picker,
- * used only to attribute actions (ARCHITECTURE.md section 4). Losing the staff
- * selection is a minor inconvenience; losing the shop means the app has
- * nothing to show.
- *
- * The shop is read from the replicated `shops` collection rather than from the
- * auth user id. RLS guarantees the account can only ever see its own row, so
- * "the one shop in the local database" and "this account's shop" are the same
- * thing -- and reading it this way also works in local-only development, where
- * there is no Supabase session at all.
- */
+/* The shop is the tenant every RLS policy scopes to; the staff member only
+   attributes actions. Read from the replicated collection, so local-only works. */
 import { createContext } from 'preact'
 import { useCallback, useContext, useMemo, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
@@ -32,22 +18,15 @@ export interface ShopContextValue {
   /** Whoever is currently attributed for actions, or null before the gate. */
   activeStaff: StaffDoc | null
   setActiveStaff(staff: StaffDoc | null): void
-  /**
-   * Whether the shop and staff queries have emitted. Before this, `shop: null`
-   * and `staff: []` mean "not read yet", not "nothing here" -- and treating
-   * those as the same thing reopens the first-run wizard on every cold start.
-   */
+  /* Whether the queries have emitted. Before that, null means "not read yet",
+     and treating it as "nothing here" reopens the first-run wizard. */
   loaded: boolean
 }
 
 const ShopContext = createContext<ShopContextValue | null>(null)
 
-/**
- * The staff selection lives in sessionStorage, not localStorage. Closing the
- * app should hand the device back to the picker -- a PIN that outlives the
- * session would make "who marked this ready" meaningless the moment two people
- * share a phone across a shift.
- */
+/* sessionStorage, not localStorage: closing the app hands the device back to
+   the picker, or "who marked this ready" stops meaning anything across a shift. */
 function readStoredStaffId(): string | null {
   try {
     return sessionStorage.getItem(ACTIVE_STAFF_KEY)
@@ -103,11 +82,8 @@ export function useShop(): ShopContextValue {
   return value
 }
 
-/**
- * The shop, asserted non-null. For screens rendered inside the shell, which
- * only mounts once a shop row exists -- saves every one of them repeating the
- * same null check for a state they cannot be in.
- */
+/* The shop, asserted non-null. The shell only mounts once a shop row exists, so
+   screens inside it need not repeat a null check for a state they cannot be in. */
 export function useCurrentShop(): ShopContextValue & { shop: ShopDoc } {
   const value = useShop()
   if (!value.shop) throw new Error('No shop loaded -- this screen renders inside the shell')

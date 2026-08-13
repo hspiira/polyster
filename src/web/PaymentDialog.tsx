@@ -1,14 +1,5 @@
-/**
- * Taking a payment without leaving the list.
- *
- * The phone build records a payment on the order's own screen, which is right
- * there: you are already looking at one order. At a desk you are working down a
- * list, and navigating away to take each payment is the round trip the whole
- * inspector exists to remove.
- *
- * `recordPayment` is the same write the phone build calls. Nothing about a
- * payment differs by design -- only where you are standing when you take it.
- */
+/* Taking a payment without leaving the list. Calls the same `recordPayment` the
+   phone does: only where you are standing differs. */
 import { useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { recordPayment } from '../db/writes'

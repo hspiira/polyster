@@ -1,13 +1,5 @@
-/**
- * Entry point for styles. Deliberately thin.
- *
- *   styles/theme.css       every colour, radius, space and type decision
- *   styles/components.css  the few patterns that cannot be utilities
- *   this file              Tailwind, base element styling, motion
- *
- * If you are here to change how something looks, you are probably in the wrong
- * file -- see theme.css.
- */
+/* Entry point for styles: Tailwind, base elements, motion. To change how
+   something looks you almost certainly want styles/theme.css instead. */
 @import 'tailwindcss';
 @import './styles/theme.css';
 @import './styles/components.css';
@@ -27,34 +19,8 @@
     U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/**
- * Migration scaffolding. Delete with the last `dark:` utility.
- *
- * Tailwind's `dark:` follows `prefers-color-scheme`, but the redesign resolves
- * the theme to a `data-theme` attribute so a user can override their system
- * setting. Without this, a screen not yet converted would follow the system
- * while a converted one followed the user, and a manual override would show
- * half the app in each theme. Pointing the variant at the same attribute keeps
- * them in step for as long as both styles coexist.
- *
- * Nothing new should use `dark:` -- see src/styles/theme.css for why there is
- * no need for it.
- */
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
-
-/**
- * "There is room to set two things side by side" -- the condition the entry
- * flow's landing composes against.
- *
- * Not a breakpoint dressed up: it is two conditions because there are two
- * separate reasons to stop stacking. Desk width, where the bottom edge of the
- * window is a long way from what you just read and there is no thumb that needs
- * to reach it. And a short window -- a phone held in landscape -- where
- * stacking is what pushes the action below the fold.
- *
- * Width alone would answer the second case wrongly, which is why it is a named
- * condition in one place rather than a `lg:` repeated across four elements.
- */
+/* "Room to set two things side by side", for the entry landing. Two conditions,
+   because a short landscape window stops stacking for a different reason. */
 @custom-variant entry-wide {
   @media (width >= 64rem), (width >= 40rem) and (height <= 30rem) {
     @slot;
@@ -87,13 +53,8 @@
     touch-action: manipulation;
   }
 
-  /**
-   * One focus treatment for the whole app, defined once.
-   *
-   * `:focus-visible` rather than `:focus` so a mouse click does not draw a ring
-   * but a Tab key does. This is the reason no component needs to remember to
-   * style its own focus state, and the reason none of them may remove it.
-   */
+  /* One focus treatment for the whole app. :focus-visible, so a click draws no
+     ring but Tab does. No component styles its own, and none may remove it. */
   :focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;

@@ -1,14 +1,5 @@
-/**
- * The web application shell.
- *
- * Sibling to screens/Shell.tsx, not a replacement for it: the phone build keeps
- * that one (spec W3). Both mount the same routes so a link opens the right
- * thing on either device; only the frame around them differs.
- *
- * Layout is a fixed viewport with the scrolling inside it, not a scrolling
- * page. A back-office is a workspace: the sidebar and the table header stay put
- * while the rows move, which cannot be done if the document itself scrolls.
- */
+/* Sibling to screens/Shell.tsx, not a replacement (W3); both mount the same
+   routes. A fixed viewport scrolling inside, so the sidebar and header stay put. */
 import { ErrorBoundary, Route, Router, lazy, useLocation } from 'preact-iso'
 import { useCallback, useState } from 'preact/hooks'
 import { AppBar } from './AppBar'
@@ -48,14 +39,8 @@ const GarmentUnits = lazy(() => import('../screens/GarmentUnits').then((m) => m.
 const AdvancedReports = lazy(() => import('../screens/AdvancedReports').then((m) => m.AdvancedReports))
 const NotFound = lazy(() => import('../screens/NotFound').then((m) => m.NotFound))
 
-/**
- * Screens the web design has not been drawn for yet fall back to the phone
- * screen inside this frame. It is not the finished answer, and it is better
- * than a dead route: the work still gets done while the design catches up.
- *
- * Listed explicitly rather than left implicit so the remaining work is legible
- * from one place.
- */
+/* Screens the web design has not been drawn for fall back to the phone one
+   inside this frame. Listed explicitly, so the remaining work is legible. */
 const BORROWED_FROM_PHONE = [
   { path: '/orders/new', component: OrderForm },
   { path: '/orders/:id', component: OrderDetail },

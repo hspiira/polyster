@@ -1,24 +1,12 @@
-/**
- * Rows without columns: settings menus, history lists, key/value lines. Use
- * `DataList` instead when a row has facts worth aligning against other rows.
- *
- * No dividers -- padding separates. Where that is too little, the fix is a
- * leading shape (`Avatar`, `AccentRow`'s bar), not a hairline.
- */
+/* Rows without columns; use DataList when facts are worth aligning. No dividers
+   -- padding separates, and where it cannot, a leading shape does. */
 import type { ComponentChildren } from 'preact'
 import { IconChevronRight } from '../components/icons'
 import { cn } from '../lib/cn'
 import { normalizeTone, TONE_SOLID, TONE_TEXT, type AnyTone } from './tones'
 
-/**
- * A row's inset, fixed rather than `--gutter`.
- *
- * `--gutter` is the *page* gutter and grows to 2rem on a desktop. A row inside
- * a `Card` already sits inside that gutter, so reusing it here indented the row
- * twice -- 4rem before the first glyph on a wide screen. A flush card is the
- * exception: it cancels the page gutter with `-mx-gutter`, so its rows do want
- * `--gutter` back (see `.data-row` in styles/components.css).
- */
+/* Fixed, not --gutter: a row inside a Card is already inside the page gutter, so
+   reusing it indents twice. A flush card cancels it and does want --gutter. */
 const ROW_INSET = 'px-4'
 
 /** Rows inside a `Card`. Use with `padded={false}`. */
@@ -54,11 +42,8 @@ export function ListRow({
   )
 }
 
-/**
- * The settings row: bare accent icon, name, current value, chevron. Dense --
- * `min-h-tap` is the whole height, so a group of eight reads as one block
- * rather than eight cards' worth of scrolling.
- */
+/* The settings row: icon, name, value, chevron. min-h-tap is the whole height,
+   so eight of them read as one block. */
 export function SettingRow({
   icon,
   label,

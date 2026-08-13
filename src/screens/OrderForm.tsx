@@ -1,16 +1,5 @@
-/**
- * New and edit order form: a header plus a unit editor (Task 10).
- *
- * One component for both, because the fields are identical and keeping two
- * copies in step is a losing game. `/orders/new` creates, `/orders/:id/edit`
- * updates. Editing routes every unit change through the unit operations in
- * db/writes.ts rather than `updateOrder`, which refuses any order with more
- * than one item -- see the save path in `submit` below.
- *
- * The save button is pinned to the bottom rather than sitting at the end of
- * the form: on a phone with the keyboard up, a button below several fields is
- * two scrolls away from wherever you are typing.
- */
+/* New and edit in one component, because the fields are identical. The save
+   button is pinned: below the fields it is two scrolls from where you type. */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useLocation, useRoute } from 'preact-iso'
 import {
@@ -146,10 +135,8 @@ type HeaderFieldKey =
   | 'deposit_amount'
 type UnitFieldKey = 'item_description' | 'price'
 
-/**
- * A rejection carries which field it is about, so the message can be shown
- * beside that field rather than in one note at the foot of the form.
- */
+/* A rejection carries which field it is about, so the message shows beside that
+   field rather than in one note at the foot of the form. */
 type Invalid =
   | { scope: 'header'; field: HeaderFieldKey; message: string }
   | { scope: 'unit'; key: string; field: UnitFieldKey; message: string }
@@ -231,9 +218,8 @@ export function OrderForm() {
   // Once the user picks a type themselves, stop second-guessing them.
   const typeTouched = useRef(false)
 
-  // A sheet owns the screen while it is up. The pinned bar is `bottom-0` but a
-  // sheet's `inset-0` stops at the safe area, so it would otherwise show through
-  // the last few pixels -- and stay tappable behind a modal.
+  // A sheet owns the screen while it is up: the pinned bar would otherwise show
+  // through the last few pixels, and stay tappable behind a modal.
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const [sameDayMatches, setSameDayMatches] = useState<OrderDoc[]>([])
@@ -460,9 +446,8 @@ export function OrderForm() {
       })
     }
 
-    // Mirrors the check setOrderAdjustment makes before it patches, one level
-    // up: nothing is written until everything checkable has been checked, so
-    // a discount larger than the subtotal never leaves an order half-written.
+    // Mirrors setOrderAdjustment's own check one level up, so a discount larger
+    // than the subtotal never leaves an order half-written.
     const subtotal = validatedUnits.reduce((sum, unit) => sum + unit.price_minor, 0)
     if (subtotal + adjustmentMinor < 0) {
       return {
@@ -515,16 +500,13 @@ export function OrderForm() {
       if (orderId) {
         await updateOrderHeader(db, orderId, result.header)
 
-        // Add first, remove last: removeOrderUnit refuses to leave zero
-        // units, so the persisted count must never dip below the draft's
-        // final length while these writes are in flight.
+        // Add first, remove last: removeOrderUnit refuses to leave zero units,
+        // so the persisted count must not dip below the draft's final length.
         for (const unit of result.units) {
           if (unit.id) continue
           const added = await addOrderUnit(db, orderId, unit)
-          // Recorded into the draft immediately, not just used locally here:
-          // if a later step in this save throws, retrying must see this unit
-          // as already persisted and route it through updateOrderUnit, not
-          // addOrderUnit a second time.
+          // Recorded into the draft immediately: if a later step throws, a retry
+          // must route this unit through updateOrderUnit, not add it twice.
           setUnits((current) =>
             current.map((draft) => (draft.key === unit.key ? { ...draft, id: added.id } : draft)),
           )
@@ -592,9 +574,8 @@ export function OrderForm() {
         (header.adjustment_type === 'discount' ? -1 : 1)
   const totalMinor = Math.max(0, unitsTotalMinor + adjustmentMinor)
 
-  // A flag turned off after an order was created must not hide that order's
-  // own type/customer -- only new selections it, so the value the order
-  // already has always stays visible even when the module is disabled.
+  // A flag turned off after an order was created must not hide that order's own
+  // type: it gates new selections only, so the existing value stays visible.
   const visibleOrderTypes = ORDER_TYPES.filter((type) => {
     if (type === 'pre_order') return flags.pre_orders || header.order_type === 'pre_order'
     if (type === 'repair') return flags.repairs || header.order_type === 'repair'

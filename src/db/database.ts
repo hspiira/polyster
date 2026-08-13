@@ -1,9 +1,5 @@
-/**
- * RxDB database singleton. Every screen reads and writes through this, never
- * directly against Supabase. Dev-mode/ajv validation is dev-only; the smoke
- * test in database.test.ts runs this path with it on so a schema mistake
- * fails in CI rather than only in `pnpm dev`.
- */
+/* RxDB singleton. Every screen reads and writes through this, never directly
+   against Supabase. database.test.ts runs this path with devMode on. */
 import { createRxDatabase, addRxPlugin, type RxCollection, type RxDatabase } from 'rxdb'
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema'
@@ -64,14 +60,12 @@ export type AppDatabase = RxDatabase<Collections>
 
 export const DATABASE_NAME = 'tailor_tracker'
 
-// A schema version bump with no matching strategy here throws on
-// addCollections() -- on a shop's phone, that means the app can no longer
-// open its own database. Add the strategy in the same commit as the bump.
+// A version bump with no matching strategy throws on addCollections(), so the
+// app can no longer open its own database. Add the strategy in the same commit.
 addRxPlugin(RxDBMigrationSchemaPlugin)
 
-// Old document shapes, one per migrated collection, typed as a `Pick` of the
-// fields that already existed before the bump -- the new fields are exactly
-// the ones the matching strategy below has to supply.
+// Old document shapes, typed as a Pick of the fields that existed before the
+// bump. The new fields are what the matching strategy has to supply.
 type ShopDocV1 = Pick<
   ShopDoc,
   'id' | 'name' | 'whatsapp_number' | 'supabase_auth_user_id' | 'created_at'
@@ -142,8 +136,7 @@ export const ordersStrategies = {
     }
   },
   // v2 added customer_type, organisation_name, purchase_order_reference,
-  // contact_person, expected_fulfilment_date, product_variant_id,
-  // collection_id, production_batch_id -- all optional, no shape change.
+  // contact_person and four ids -- all optional, no shape change.
   2: (doc: OrderDoc) => doc,
   // v3 widened order_type/stage to include 'repair' values and added
   // garment_unit_id (optional) -- no shape change for existing documents.
@@ -156,10 +149,8 @@ export const paymentsStrategies = {
     const { amount, ...rest } = doc
     return {
       ...rest,
-      // Mirrors the `round(amount)::bigint <= 0` pre-flight in
-      // 0005_order_units_and_schema_pass.sql. The server can reject and ask
-      // the shop to retry; the client cannot -- refusing to migrate would
-      // brick the only copy of the shop's data, so it clamps instead.
+      // Mirrors the `round(amount)::bigint <= 0` pre-flight in migration 0005.
+      // Clamps rather than rejects: refusing would brick the only local copy.
       amount_minor: Math.max(1, Math.round(amount)),
       kind: 'payment',
       created_at: doc.payment_date,
@@ -167,11 +158,8 @@ export const paymentsStrategies = {
   },
 }
 
-/**
- * v0 -> v1: `unit_price` in major units became `unit_price_minor`, plus
- * `currency`. Converted rather than dropped. DEFAULT_CURRENCY is safe -- the
- * v0 shape only ever reached dev machines, which had no other currency.
- */
+/* v0 -> v1: `unit_price` in major units became `unit_price_minor`. Converted,
+   not dropped. DEFAULT_CURRENCY is safe: v0 only ever reached dev machines. */
 export const saleMigrations = {
   1: (doc: Record<string, unknown>) => {
     const { unit_price: unitPrice, ...rest } = doc as { unit_price?: number }
@@ -208,10 +196,8 @@ export const expenseMigrations = {
 
 let dbPromise: Promise<AppDatabase> | null = null
 
-/**
- * Builds the database. Exported for tests, which need a fresh instance under a
- * throwaway name; application code should use `getDatabase()`.
- */
+/* Builds the database. Exported for tests, which need a fresh instance under a
+   throwaway name; application code should use `getDatabase()`. */
 export async function createDatabase(
   options: { name?: string; devMode?: boolean } = {},
 ): Promise<AppDatabase> {
@@ -219,9 +205,8 @@ export async function createDatabase(
 
   let storage = getRxStorageDexie()
 
-  // `import.meta.env.DEV` must be the outer condition -- Rollup only
-  // tree-shakes the dynamic imports below for a statically known constant,
-  // not a runtime `devMode` param.
+  // `import.meta.env.DEV` must be the outer condition: Rollup only tree-shakes
+  // the dynamic imports for a statically known constant, not a runtime param.
   if (import.meta.env.DEV && devMode) {
     const { RxDBDevModePlugin, disableWarnings } = await import('rxdb/plugins/dev-mode')
     const { wrappedValidateAjvStorage } = await import('rxdb/plugins/validate-ajv')
@@ -233,10 +218,8 @@ export async function createDatabase(
   const db = await createRxDatabase<Collections>({
     name,
     storage,
-    // Multiple tabs are not the expected usage (one shop device, staff picker
-    // inside the app), but leaving this on costs nothing and is what lets the
-    // replication plugin elect a single leader tab if a second one is ever
-    // opened -- without it, two tabs would both push to Supabase.
+    // Multiple tabs are not expected usage, but this is what lets replication
+    // elect one leader tab. Without it, two tabs both push to Supabase.
     multiInstance: true,
     eventReduce: true,
     ignoreDuplicate: devMode,
@@ -248,9 +231,8 @@ export async function createDatabase(
       migrationStrategies: {
         // v1 just relaxed `required` (supabase_auth_user_id is now optional); no shape change.
         1: (doc) => doc,
-        // v2 added currency, country, address (optional), lock_after_minutes, updated_at.
-        // lock_after_minutes matches the server backfill (0005_order_units_and_schema_pass.sql)
-        // and DEFAULT_LOCK_AFTER_MINUTES -- 0 would mean "never lock", not "unset".
+        // v2 added currency, country, address, lock_after_minutes, updated_at.
+        // lock_after_minutes matches migration 0005 -- 0 means never, not unset.
         2: (doc: ShopDocV1): ShopDoc => ({
           ...doc,
           currency: DEFAULT_CURRENCY,
@@ -268,11 +250,8 @@ export async function createDatabase(
         // v1 added pin_length so the PIN pad could tell when a variable-length
         // PIN was complete.
         1: (doc: StaffDoc) => doc,
-        // v2 removed it again: PINs are now fixed at six digits, so the length
-        // is a constant in the app rather than data. Dropping the field here
-        // keeps stored documents matching the schema -- ajv would reject them
-        // otherwise, and only in dev, which is the asymmetry this project has
-        // already been bitten by once.
+        // v2 removed it: PINs are fixed at six digits, a constant not data.
+        // Dropping it keeps stored documents matching the schema for ajv.
         2: (doc: StaffDoc & { pin_length?: number }) => {
           const { pin_length: _removed, ...rest } = doc
           return rest
@@ -350,10 +329,8 @@ export async function createDatabase(
   return db
 }
 
-/**
- * Returns the single shared RxDB instance, creating it on first call.
- * Safe to call from multiple components -- they all get the same instance.
- */
+/* Returns the shared RxDB instance, creating it on first call. Safe from
+   multiple components -- they all get the same one. */
 export function getDatabase(): Promise<AppDatabase> {
   if (!dbPromise) {
     dbPromise = createDatabase().catch((err) => {
@@ -366,14 +343,8 @@ export function getDatabase(): Promise<AppDatabase> {
   return dbPromise
 }
 
-/**
- * Destroys every local collection.
- *
- * For handing a device on, and for the one recovery path that has nothing to
- * verify against. A shop's local copy is the only copy until it syncs, so this
- * is always presented as destructive. Callers reload afterwards -- the cached
- * promise above would otherwise hand out a removed database.
- */
+/* Destroys every local collection. Always presented as destructive: the local
+   copy is the only copy until it syncs. Callers must reload afterwards. */
 export async function wipeLocalDatabase(db: AppDatabase): Promise<void> {
   await db.remove()
   dbPromise = null

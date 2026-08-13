@@ -1,16 +1,5 @@
-/**
- * COMPATIBILITY SHIM. Do not add to this file; delete it when nothing imports it.
- *
- * The design system is `src/ui`. This re-exports it under the old path plus the
- * components it replaced, so screens convert one at a time. To convert one:
- *
- *   1. `from '../components/ui'` becomes `from '../ui'`.
- *   2. The `Card lg:hidden` + `DataTable` pair becomes one `DataList`.
- *   3. Every `dark:` and every `stone-`/`amber-`/`red-` colour goes; the
- *      replacements are roles (`bg-surface`, `text-money`, `text-danger`).
- *
- * `src/screens/Orders.tsx` is the worked example.
- */
+/* COMPATIBILITY SHIM. Do not add to this file; delete it when nothing imports
+   it. Conversion steps are in docs/DESIGN_SYSTEM.md; Orders.tsx is the example. */
 import type { ComponentChildren } from 'preact'
 import { useLocation } from 'preact-iso'
 import { cn } from '../lib/cn'

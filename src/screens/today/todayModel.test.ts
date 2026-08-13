@@ -570,9 +570,8 @@ describe('capRows', () => {
 
 import { pickupRows, rowsDueOn } from './todayModel'
 
-// These back the order list's `?due=` and stage-based scopes. They exist so the
-// list a day-strip cell opens is derived by the same rule that produced the
-// number on the cell.
+// These back the order list's `?due=` and stage scopes, so the list a day cell
+// opens is derived by the same rule that produced the number on it.
 describe('rowsDueOn', () => {
   it('returns open pickups falling on the date', () => {
     const rows = rowsDueOn(

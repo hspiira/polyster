@@ -1,16 +1,5 @@
-/**
- * Search everything, on ⌘K.
- *
- * The single most "it is a real tool" affordance a back-office has, and the one
- * the app bar has been advertising with a keyboard hint that did nothing. It
- * searches orders, clients and sales together, because a shop looking for
- * "Achen" does not know or care which table the answer is in.
- *
- * Local and synchronous: the whole shop is already in memory, so there is no
- * request to debounce and no spinner to show. Matching is substring and
- * case-insensitive on the words a person would actually type -- a name, an item,
- * a phone number, an order reference.
- */
+/* Search everything on ⌘K, across orders, clients and sales at once: a shop
+   looking for "Achen" does not care which table it is in. Local and synchronous. */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'

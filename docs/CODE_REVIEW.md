@@ -1,6 +1,28 @@
 # Code review: standards violations
 
 Date: 2026-08-13
+**Updated 2026-08-14** — item 1 of "What to do, in order" is done, and the
+comment finding under "Known debt" was overruled. See the status box below.
+Items 2–6 are untouched; every count in this document is as it stood on 08-13.
+
+> ## Status, 2026-08-14
+> | Finding | Then | Now |
+> |---|---|---|
+> | Hardcoded colours | 254 | **0**, enforced |
+> | `dark:` utilities | 93 | **0**, enforced |
+> | Comment blocks over 2 lines | 355 in 159 files | **0**, enforced |
+> | `@custom-variant dark` scaffolding | present | deleted |
+> | `ui.tsx` shim imports | 22 | 22 (unchanged) |
+>
+> `scripts/check-standards.mjs` runs in `pnpm verify`. The heavy-comment entry
+> under "Known debt" below is **no longer accepted debt** — a two-line ceiling
+> is now a rule. `src/lib/pin.ts`'s 60-line hashing rationale was moved to
+> `ARCHITECTURE.md` §9b rather than deleted.
+>
+> Two things this surfaced that the review missed: the project had **no linter
+> at all**, so "publish the rules as lint rules" meant introducing one; and
+> `components.css` was naming `white`/`black` inside `color-mix()`, a rule-1
+> breach the original count did not catch.
 Scope: the whole of `src/` (29,263 non-test lines across 13 RxDB collections and
 two shells), reviewed against SOLID, DRY, KISS, and the project's own written
 rules in `docs/DESIGN_SYSTEM.md` and `docs/ARCHITECTURE.md`.
@@ -216,8 +238,10 @@ These look like faults but are recorded decisions, and the reasoning holds:
 - **Two shells** (`src/screens` phone, `src/web` desk) are deliberate per
   `2026-08-11-web-and-phone-split-design.md`. The duplication that matters is
   *derivation* logic (section 2.1), not layout.
-- **Heavy comments.** The house style explains non-obvious decisions at length.
-  That is a choice, and a defensible one.
+- ~~**Heavy comments.** The house style explains non-obvious decisions at
+  length. That is a choice, and a defensible one.~~ **Overruled 2026-08-14.**
+  Comment blocks are now capped at two lines and the cap is enforced. Long
+  rationale goes in `docs/`, not in a header.
 - **`ui.tsx` shim existing at all** was a sound migration strategy. Only its
   stalling is the problem.
 - **Chunk size** (536 kB) is flagged by the build. Acceptable for now given the
@@ -227,9 +251,10 @@ These look like faults but are recorded decisions, and the reasoning holds:
 
 ## What to do, in order
 
-1. **Publish the design-system rules as lint rules**, or delete the rules from
-   the doc. A rule violated 347 times is not a rule. This is one ESLint config
-   and it stops the bleeding immediately.
+1. ~~**Publish the design-system rules as lint rules**, or delete the rules from
+   the doc. A rule violated 347 times is not a rule.~~ **Done 2026-08-14** —
+   `scripts/check-standards.mjs`, in `pnpm verify`. A guard script rather than
+   ESLint: the project had no linter, and the rules are lexical.
 2. **Extract `orderFormModel.ts` and `orderDetailModel.ts`.** These two files
    hold the most business logic and the least test coverage in the project.
 3. **One `observeClientTotals`**, deleting three copies of the owed rule.

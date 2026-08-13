@@ -1,10 +1,5 @@
-/**
- * Figures: the row of numbers a screen leads with.
- *
- * `StatStrip` uses `auto-fit`, not breakpoints, so it reflows on available
- * space rather than window size and stays correct inside a sidebar. Copy this
- * for any grid here -- `grid-cols-2 md:grid-cols-3` is a worse version of it.
- */
+/* The row of numbers a screen leads with. StatStrip uses auto-fit, not
+   breakpoints, so it reflows on available space and survives a sidebar. */
 import type { ComponentChildren } from 'preact'
 import { cn } from '../lib/cn'
 import { normalizeTone, TONE_TEXT, type AnyTone } from './tones'

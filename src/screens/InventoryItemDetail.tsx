@@ -1,8 +1,5 @@
-/**
- * One inventory item: its running quantity and its movement history. Every
- * quantity change happens by recording a movement here -- see
- * src/online/inventory.ts's header comment for why there is no direct edit.
- */
+/* One item: its running quantity and movement history. Every change happens by
+   recording a movement -- there is deliberately no direct edit. */
 import { useEffect, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import {

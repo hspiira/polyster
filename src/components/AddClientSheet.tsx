@@ -1,6 +1,4 @@
-/**
- * Adding a client, shared by both shells so the two never drift apart.
- */
+/* Adding a client, shared by both shells so the two never drift apart. */
 import { useState } from 'preact/hooks'
 import { Button, ErrorNote, Field, Input, Sheet, Textarea } from '../ui'
 import { useCurrentShop } from '../state/ShopProvider'

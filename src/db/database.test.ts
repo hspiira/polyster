@@ -1,17 +1,5 @@
-/**
- * The test this project most needed and did not have.
- *
- * Every collection schema is created here with `devMode: true`, which is what
- * loads RxDB's schema checker and the ajv document validator. Both are
- * dev-only in the app, so a schema mistake used to fail `pnpm dev` while
- * `vite build` passed cleanly -- the failure mode that shipped a broken
- * scaffold. Running the same path here moves that class of bug into CI.
- *
- * Concretely, this catches: underscore-prefixed fields RxDB rejects (the
- * original `_modified` bug), indexed string fields missing `maxLength`,
- * indexed fields that are not required, unknown ajv formats, and documents
- * that do not satisfy their own schema.
- */
+/* Creates every schema with devMode on, which loads RxDB's schema checker and
+   ajv. Both are dev-only in the app, so this moves that class of bug into CI. */
 import { afterEach, describe, expect, it } from 'vitest'
 import { createRxDatabase, type RxJsonSchema } from 'rxdb'
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie'
@@ -54,9 +42,8 @@ describe('database', () => {
       const declared = Object.keys(collection.schema.jsonSchema.properties).filter(
         (field) => field.startsWith('_'),
       )
-      // RxDB injects _deleted/_rev/_meta/_attachments itself; nothing the app
-      // authored should be in here. _modified in particular belongs to
-      // Postgres only -- see the header of ./schema.ts.
+      // RxDB injects _deleted/_rev/_meta/_attachments itself. _modified in
+      // particular belongs to Postgres only -- see ./schema.ts.
       expect(declared, `${name} declares its own underscore fields`).not.toContain('_modified')
     }
   })
@@ -241,15 +228,8 @@ describe('database', () => {
   })
 })
 
-/**
- * Proves the migration plumbing works before anyone needs it. Once this app is
- * on a shop's phone, that phone holds the only copy of work done offline: a
- * version bump that cannot open the existing store is a data-loss bug in
- * practice, even though the rows are technically still in IndexedDB.
- *
- * This uses a throwaway collection rather than a real one so it keeps testing
- * the mechanism after the app's own schemas move past v0.
- */
+/* Proves the migration plumbing works before anyone needs it. A throwaway
+   collection, so it keeps testing the mechanism as real schemas move on. */
 describe('schema migration', () => {
   // dev-mode is registered globally by the suite above and refuses a storage
   // without a validator, so this mirrors what createDatabase() builds.

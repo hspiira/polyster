@@ -1,6 +1,4 @@
-/**
- * One production batch: progress, quality control, and costing. Online-only.
- */
+/* One production batch: progress, quality control, costing. Online-only. */
 import { useEffect, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import {

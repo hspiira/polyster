@@ -1,13 +1,5 @@
-/**
- * RxDB collection schemas, mirroring the Postgres tables.
- *
- * Do not declare `_modified` here: RxDB's dev-mode schema check rejects
- * underscore-prefixed fields other than `_deleted`, so it breaks `pnpm dev`
- * while `vite build` stays green (see database.test.ts). `_modified` and
- * `_deleted` are Postgres/replication-only columns.
- *
- * Nullable Postgres columns are optional here, not a guaranteed type.
- */
+/* RxDB schemas mirroring the Postgres tables. Never declare `_modified` here:
+   dev-mode rejects it, so it breaks `pnpm dev` while `vite build` stays green. */
 import type { RxJsonSchema } from 'rxdb'
 
 const uuidField = { type: 'string' as const, maxLength: 36 }
@@ -196,10 +188,8 @@ export interface StaffDoc {
   /** A PIN reset otherwise leaves no trace. */
   pin_updated_at?: string
   role: StaffRole
-  /**
-   * Per-person exceptions to their role's defaults (src/lib/permissions.ts).
-   * Absent means "use the role default" -- most staff need no overrides.
-   */
+  /* Per-person exceptions to the role defaults. Absent means "use the role
+     default", which is most staff. */
   permission_overrides?: Partial<Record<PermissionKey, boolean>>
   active: boolean
   /** `active` records that someone left, never when. */
@@ -389,23 +379,13 @@ export interface OrderDoc {
   contact_person?: string
   /** Phase 7 (section 31), pre_order only. */
   expected_fulfilment_date?: string
-  /**
-   * Phase 7 (section 31) reserved links -- product_variants and collections
-   * are online-only (section 46.1), so these are plain UUID strings with no
-   * RxDB-side validation of what they point to, same as order_units'
-   * catalogue_item_id since Phase 2. Not yet written from any UI; a variant/
-   * collection picker needs an online fetch that an otherwise fully offline
-   * form cannot require (section 47), so wiring these in is left for the
-   * garment-identity work in Phase 8 rather than done half-offline here.
-   */
+  /* Reserved links (§31). Online-only targets, so plain UUIDs with no RxDB
+     validation. No picker yet: an offline form cannot require an online fetch. */
   product_variant_id?: string
   collection_id?: string
   production_batch_id?: string
-  /**
-   * Phase 9 (section 33), repair-only. Same "reserved, no picker UI yet"
-   * treatment as the Phase 7 links above -- garment_units is online-only
-   * (Phase 8), so resolving one inside this offline form is left for later.
-   */
+  /* Repair-only (§33). Reserved with no picker, like the links above:
+     garment_units is online-only. */
   garment_unit_id?: string
   created_by?: string
   created_at: string
@@ -463,9 +443,8 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
     'rental_deposit_minor',
     'pickup_due_date',
   ],
-  // The dashboard's hot queries are "this shop's orders by due date" and
-  // "this shop's orders in stage X" -- see IMPLEMENTATION_PLAN.md Phase 1
-  // step 7. Compound indexes so those don't full-scan the collection.
+  // The dashboard's hot queries are this shop's orders by due date and by
+  // stage. Compound indexes so neither full-scans the collection.
   indexes: [
     ['shop_id', 'pickup_due_date'],
     ['shop_id', 'stage'],
@@ -619,10 +598,8 @@ export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
   'custom',
 ]
 
-/**
- * Records intent to send, not delivery. A wa.me link hands off to WhatsApp and
- * the app never learns what happened next.
- */
+/* Records intent to send, not delivery: a wa.me link hands off to WhatsApp and
+   the app never learns what happened next. */
 export interface MessageLogDoc {
   id: string
   client_id: string
@@ -683,9 +660,7 @@ export interface SaleDoc {
 }
 export const saleSchema: RxJsonSchema<SaleDoc> = {
   // v1: money moved to minor units and gained `currency`, plus the void trail.
-  // A v0 with `unit_price` in major units reached dev machines before the
-  // rebase onto the minor-unit convention; see database.ts for the migration.
-  // v2: sold_at maxLength 30 -> 35.
+  // v2: sold_at maxLength 30 -> 35. Migrations in database.ts.
   version: 2,
   primaryKey: 'id',
   type: 'object',
@@ -699,10 +674,8 @@ export const saleSchema: RxJsonSchema<SaleDoc> = {
     unit_price_minor: { type: 'integer', minimum: 0 },
     method: { type: 'string', enum: [...PAYMENT_METHODS] },
     reference: { type: 'string' },
-    // 35, not 30: Postgres returns timestamptz as
-    // "2026-07-01T14:20:07.558761+00:00" -- 32 characters, microseconds plus a
-    // numeric offset. A 30 cap rejected every seeded sale on pull, which took
-    // the whole replication down. Indexed, so the cap is required.
+    // 35, not 30: timestamptz with microseconds and a numeric offset is 32
+    // characters, and a 30 cap took the whole replication down on pull.
     sold_at: { type: 'string', format: 'date-time', maxLength: 35 },
     recorded_by: uuidField,
     notes: { type: 'string' },

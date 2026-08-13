@@ -11,9 +11,8 @@ import {
 
 describe('today', () => {
   it('uses the local calendar day, not UTC', () => {
-    // 23:30 local on the 14th is still the 14th, even where that is already
-    // the 15th in UTC. A shop closing its books at night must not see
-    // tomorrow's orders as due today.
+    // 23:30 local on the 14th is still the 14th, even where UTC has rolled to
+    // the 15th. A shop closing at night must not see tomorrow's orders as due.
     expect(today(new Date(2026, 7, 14, 23, 30))).toBe('2026-08-14')
     expect(today(new Date(2026, 7, 14, 0, 5))).toBe('2026-08-14')
   })
@@ -92,10 +91,8 @@ describe('formatDueDate', () => {
   })
 
   it('falls back to a plain date once counting days stops helping', () => {
-    // Asserted loosely on purpose. ICU's month abbreviations shift between
-    // Node versions (en-GB renders September as both "Sep" and "Sept"
-    // depending on the build), and pinning the exact string tests ICU rather
-    // than this module.
+    // Loose on purpose: ICU's month abbreviations shift between Node versions,
+    // so pinning the exact string would test ICU rather than this module.
     const formatted = formatDueDate('2026-09-30', from)
     expect(formatted).toMatch(/^30 \w+ 2026$/)
     expect(formatted).not.toMatch(/days/)

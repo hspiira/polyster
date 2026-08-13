@@ -1,9 +1,5 @@
-/**
- * Record a sale: money taken over the counter, now.
- *
- * Item first, client last and optional -- a walk-in is not a client record.
- * Anything part-paid or collected later is an order, not a sale.
- */
+/* Money taken over the counter, now. Item first, client last and optional --
+   anything part-paid or collected later is an order, not a sale. */
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import {

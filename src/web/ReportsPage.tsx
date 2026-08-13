@@ -1,20 +1,5 @@
-/**
- * Reports, at a desk: the figures the phone caps at a reading measure.
- *
- * This is the screen that most wanted the width. On the phone it is a narrow
- * column with the profit figure, stage bars and category totals stacked
- * vertically; here they sit side by side, which is what a review screen is for.
- *
- * ## Payments are scoped to this shop's orders
- *
- * `profitAndLoss` filters by date and nothing else, because payments carry no
- * shop_id -- they hang off orders. RLS means the local database should only hold
- * one shop's rows, but signing out does not clear it, so a device handed to a
- * second shop holds both. Passing every local payment in would then count the
- * other shop's income while excluding their sales and expenses, which are
- * scoped: not a stale figure, an incoherent one. So the order ids are the filter
- * here, the same way the phone's `collected` block does it.
- */
+/* Reports at a desk. Payments carry no shop_id, so order ids are the filter:
+   a device handed to a second shop would otherwise mix one shop's income in. */
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'

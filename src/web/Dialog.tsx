@@ -1,15 +1,5 @@
-/**
- * A centred modal.
- *
- * The web design's equivalent of ui/Sheet, and a separate component rather than
- * a prop on it (spec W4). A sheet slides from the bottom edge because a thumb
- * is at the bottom edge; on a desk that idiom reads as a phone app, and the
- * dialog belongs where the eye already is.
- *
- * Escape closes, focus moves in on open and returns to whatever opened it, and
- * the page behind does not scroll. None of that is optional for a modal a
- * keyboard user can reach.
- */
+/* The web's ui/Sheet: a separate component, not a prop (W4). Escape closes,
+   focus moves in and returns, and the page behind does not scroll. */
 import type { ComponentChildren } from 'preact'
 import { useEffect, useRef } from 'preact/hooks'
 import { cn } from '../lib/cn'
@@ -31,18 +21,8 @@ export function Dialog({
   const panel = useRef<HTMLDivElement>(null)
   const opener = useRef<Element | null>(null)
 
-  /**
-   * The close callback behind a ref, so the effect below depends on `open`
-   * alone.
-   *
-   * Depending on `onClose` looks harmless and is not: callers write
-   * `onClose={() => setPaying(false)}`, a new function every render, so the
-   * effect tore down and re-ran on each one. Two things broke. The
-   * "previous overflow" snapshot eventually captured its own `hidden` and
-   * restored that on close, leaving the page permanently unscrollable; and
-   * `opener` was overwritten mid-open, so focus never came back. Both were
-   * caught by driving the dialog, not by reading it.
-   */
+  /* Behind a ref so the effect depends on `open` alone: an inline onClose is a
+     new function each render, which left the page unscrollable and lost focus. */
   const closeRef = useRef(onClose)
   closeRef.current = onClose
 
@@ -68,9 +48,8 @@ export function Dialog({
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = previousOverflow
-      // Only if it is still in the document: a row that re-rendered away while
-      // the dialog was open cannot take focus, and asking it to silently drops
-      // focus to <body> instead.
+      // Only if still in the document: a row that re-rendered away cannot take
+      // focus, and asking it silently drops focus to <body>.
       if (opener.current instanceof HTMLElement && opener.current.isConnected) {
         opener.current.focus()
       }

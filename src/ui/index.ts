@@ -1,11 +1,5 @@
-/**
- * The design system's public surface. Import from `../ui`, never from a file
- * inside it -- the split is free to change as long as this stays put.
- *
- * Components name colour *roles* (`bg-surface`, `text-money`); src/styles/
- * theme.css decides what a role is worth. There is no `dark:` utility in this
- * directory and there should never be one.
- */
+/* The design system's public surface. Import from `../ui`, never a file inside
+   it. Components name roles; theme.css decides what a role is worth. */
 
 export { cn } from '../lib/cn'
 

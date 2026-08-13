@@ -1,10 +1,5 @@
-/**
- * Repair metrics (Phase 11, section 82). Cash accounting for revenue, same
- * principle as profit.ts -- a quoted repair that hasn't been paid for is not
- * yet revenue. Turnaround is measured only on repairs that have actually
- * reached 'picked_up' -- an in-flight repair has no turnaround yet, not a
- * zero one.
- */
+/* Repair metrics (§82). Cash accounting like profit.ts. Turnaround counts only
+   repairs that reached 'picked_up' -- in-flight has no turnaround, not zero. */
 import { signedAmountMinor } from './balances'
 import type { OrderDoc, PaymentDoc } from './schema'
 

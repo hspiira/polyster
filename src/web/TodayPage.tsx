@@ -1,14 +1,5 @@
-/**
- * Today, at a desk.
- *
- * The phone opens on this screen because someone at a counter has one question.
- * On the web it is a destination you choose, so it answers a wider one: the
- * figures across the top, then the work itself in columns rather than stacked
- * cards, because a desk can hold three buckets side by side and a phone cannot.
- *
- * Every figure comes from todayModel, the same module the phone reads. The two
- * designs disagree about layout and about nothing else.
- */
+/* A destination here rather than the opening screen, so it answers a wider
+   question in columns. Every figure comes from todayModel, as the phone's does. */
 import { useMemo } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'

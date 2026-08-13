@@ -1,19 +1,5 @@
-/**
- * Order balances, computed locally.
- *
- * There is an `order_balances` view in Postgres (see 0001_init.sql) and the UI
- * deliberately does not read it. RxDB replicates tables, not views, so a
- * balance fetched from the view is a live network call -- on the order detail
- * screen, which is exactly the screen most likely to be open with no
- * connectivity. The view stays for server-side reporting; the app derives the
- * same figure from the already-replicated `payments` collection.
- *
- * Keeping both means keeping them in agreement. The two rules the view applies
- * are mirrored here and tested in balances.test.ts:
- *   - soft-deleted payments do not count (RxDB excludes `_deleted` documents
- *     from query results by default, so this comes for free)
- *   - an order with no payments has amount_paid 0, not null
- */
+/* Order balances, derived locally from replicated payments. The `order_balances`
+   view stays server-side only; its rules are mirrored here and tested. */
 import { combineLatest, map, type Observable } from 'rxjs'
 import type { AppDatabase } from './database'
 import type { OrderDoc, PaymentDoc } from './schema'
@@ -27,14 +13,8 @@ export interface OrderBalance {
   fully_paid: boolean
 }
 
-/**
- * A payment's contribution to money-in, signed by kind.
- *
- * Exported because "collected" is aggregated in more than one place -- the
- * order balance here and the totals on the Reports screen. Both must agree
- * with the `order_balances` view's `case when pm.kind = 'refund'` arm, and
- * the surest way to keep three copies in agreement is to have one.
- */
+/* A payment's contribution to money-in, signed by kind. Exported because
+   Reports aggregates "collected" too, and three copies would drift. */
 export function signedAmountMinor(payment: Pick<PaymentDoc, 'amount_minor' | 'kind'>): number {
   return payment.kind === 'refund' ? -payment.amount_minor : payment.amount_minor
 }
@@ -55,10 +35,8 @@ export function calculateBalance(
   }
 }
 
-/**
- * Live balance for one order. Re-emits whenever the order's price or any of
- * its payments change, locally or via replication.
- */
+/* Live balance for one order. Re-emits when the price or any payment changes,
+   locally or via replication. */
 export function observeBalance(db: AppDatabase, orderId: string): Observable<OrderBalance | null> {
   return combineLatest([
     db.orders.findOne(orderId).$,
@@ -70,11 +48,8 @@ export function observeBalance(db: AppDatabase, orderId: string): Observable<Ord
   )
 }
 
-/**
- * Live balances for every order in a shop, keyed by order id. Used by the
- * dashboard's outstanding-balance figures (IMPLEMENTATION_PLAN.md Phase 1
- * step 7).
- */
+/* Live balances for every order in a shop, keyed by order id. Drives the
+   dashboard's outstanding-balance figures. */
 export function observeShopBalances(
   db: AppDatabase,
   shopId: string,

@@ -78,10 +78,8 @@ export function Sales() {
     () => inRange.reduce((sum, sale) => sum + saleTotalMinor(sale), 0),
     [inRange],
   )
-  /**
-   * The top items plus everything else, so the strip is the whole period's
-   * takings rather than a selection that happens not to add up.
-   */
+  /* Top items plus everything else, so the strip is the whole period's takings
+     rather than a selection that does not add up. */
   const shares = useMemo(() => {
     const sold = itemsSold(inRange, period.from, period.to)
     const top = sold.slice(0, TOP_ITEMS)
@@ -263,14 +261,8 @@ function SaleRow({
   )
 }
 
-/**
- * A sale, and the one place it can be voided.
- *
- * Void used to be a ghost button on every row: a destructive write one stray
- * tap away, with no confirmation and no reason, so the day's takings could
- * change and nothing recorded why or who. It now costs a deliberate second
- * step, and asks for the reason where someone is already looking at the sale.
- */
+/* A sale, and the one place it can be voided. A deliberate second step that
+   asks for a reason, rather than a ghost button one stray tap from the takings. */
 function SaleSheet({
   sale,
   clientName,

@@ -1,22 +1,5 @@
-/**
- * Which of the two designs this device gets.
- *
- * The app is not one layout that stretches. It is a web application and a phone
- * application that share a palette, a type scale and a domain, and share nothing
- * else -- see docs/superpowers/specs/2026-08-11-web-and-phone-split-design.md.
- *
- * ## Pointer, not width, and not a setting (decision W2)
- *
- * Width is a poor proxy for what decides control size. A 900px browser window is
- * a desktop; a 1366px tablet held in two hands is not. `(pointer: fine)` asks
- * the question directly, because it reports the *primary* input: a touchscreen
- * laptop answers `fine` because its mouse is primary.
- *
- * The device answers this, not the user. A layout picker asks someone to choose
- * between two things they have not seen, and every wrong answer is a person
- * using the wrong app on their hardware. It is subscribed to, so plugging a
- * trackpad into a tablet switches designs live.
- */
+/* Which of the two designs this device gets. Pointer, not width, and not a
+   setting (W2): a 900px window is a desktop, a 1366px tablet is not. */
 
 export type Platform = 'web' | 'phone'
 

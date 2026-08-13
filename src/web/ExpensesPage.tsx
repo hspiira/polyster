@@ -1,10 +1,5 @@
-/**
- * Expenses, at a desk: money out, with the categories beside it.
- *
- * Recording one is still the phone's job -- it happens as it happens, standing
- * up, and there is nothing a desk adds to typing an amount. What a desk adds is
- * reading them back: a period, a total, and where the money went.
- */
+/* Money out, categories beside it. Recording stays the phone's job; what a desk
+   adds is reading them back -- a period, a total, and where it went. */
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'

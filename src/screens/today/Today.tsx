@@ -1,9 +1,5 @@
-/**
- * Today: what needs doing, and what is owed.
- *
- * The in-app replacement for push notifications (ARCHITECTURE.md D5), so every
- * figure is a reactive local query. All derivation lives in todayModel.ts.
- */
+/* What needs doing, and what is owed. The in-app replacement for push (D5), so
+   every figure is a reactive local query. Derivation is in todayModel.ts. */
 import { useMemo } from 'preact/hooks'
 import { Avatar, Button, EmptyState, FLUSH_SURFACE_FLAT, MoreLink, Screen, Skeleton } from '../../components/ui'
 import { IconPlus } from '../../components/icons'
@@ -101,9 +97,8 @@ export function Today({ online, auth, replication }: TodayProps) {
   }
 
   if (orders.length === 0) {
-    // An order belongs to a client, so offering to take one before any client
-    // exists sends the owner to a form that immediately turns them away. On a
-    // brand-new shop the first step is the client, and this says so.
+    // An order belongs to a client, so offering one before any client exists
+    // sends the owner to a form that turns them away.
     const needsClientFirst = clientCount === 0
 
     return (

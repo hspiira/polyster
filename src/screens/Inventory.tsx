@@ -1,7 +1,5 @@
-/**
- * Inventory: finished goods and materials, tracked as a ledger (see
- * src/online/inventory.ts). Online-only, see Catalogue.tsx for the pattern.
- */
+/* Finished goods and materials, tracked as a ledger. Online-only, see
+   Catalogue.tsx for the pattern. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,

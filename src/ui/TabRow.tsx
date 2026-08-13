@@ -1,22 +1,12 @@
-/**
- * A row of plain words, the active one on a pill.
- *
- * Not `Segmented` -- that draws a filled track and reads as a form control.
- * A filter switch sits closer to a heading than to an input, so only the
- * active word carries a surface; the rest are just text you can tap.
- */
+/* Plain words, the active one on a pill. Not Segmented: a filter switch sits
+   closer to a heading than an input, so only the active word gets a surface. */
 import { cn } from '../lib/cn'
 
 export interface TabOption<T extends string> {
   value: T
   label: string
-  /**
-   * Shown on the open tab only.
-   *
-   * Five labels each carrying a count do not fit a 320px phone, and a row that
-   * scrolls hides the tabs at its end -- which is the whole point of the row.
-   * The count that matters is the one for the list you are looking at.
-   */
+  /* Open tab only: five labels with counts do not fit 320px, and a row that
+     scrolls hides the tabs at its end. */
   count?: number
 }
 

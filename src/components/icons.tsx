@@ -1,16 +1,5 @@
-/**
- * The app's icon set: Lucide, re-exported under this app's names.
- *
- * These were hand-drawn SVG paths, for the bundle reason in ARCHITECTURE.md
- * section 8. That reasoning held for the size and not for the drawing -- the
- * hand-rolled gear read as a sun, Orders and Pre-orders were the same glyph,
- * and stroke weights drifted between icons. Lucide is per-icon tree-shaken, so
- * only the ones named below reach the bundle.
- *
- * Names stay stable so call sites do not care where a glyph comes from.
- * `WhatsApp` is the one exception and is still hand-drawn: it is a brand mark,
- * and Lucide does not ship brand logos.
- */
+/* Lucide, re-exported under this app's names and tree-shaken per icon. WhatsApp
+   stays hand-drawn: it is a brand mark, and Lucide ships no logos. */
 import type { JSX } from 'preact'
 import {
   AlertTriangle,
@@ -62,11 +51,8 @@ import {
   Wrench,
 } from 'lucide-preact'
 
-/**
- * Lucide sizes by `size` and strokes by `strokeWidth`, both of which this app
- * already passes as `size`. 1.75 matches what the hand-rolled set used, so
- * nothing changes weight.
- */
+/* Lucide sizes by `size` and strokes by `strokeWidth`. 1.75 matches what the
+   hand-rolled set used, so nothing changes weight. */
 export type IconProps = JSX.SVGAttributes<SVGSVGElement> & { size?: number }
 
 /** What every export below is. Use this to type an icon held in a variable. */

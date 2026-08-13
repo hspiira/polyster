@@ -102,11 +102,8 @@ export interface BatchProgressInput {
   notes?: string
 }
 
-/**
- * started_at is set the first time a batch leaves planned/materials_ready
- * (never overwritten after that); completed_at follows status = 'completed'
- * directly, since a batch can only complete once at a time that matters.
- */
+/* started_at is set the first time a batch leaves planned, never overwritten.
+   completed_at follows status directly. */
 export async function updateBatchProgress(
   id: string,
   input: BatchProgressInput,

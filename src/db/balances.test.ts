@@ -15,9 +15,8 @@ describe('signedAmountMinor', () => {
     expect(signedAmountMinor({ amount_minor: 5000, kind: 'refund' })).toBe(-5000)
   })
 
-  // The Reports screen aggregates "collected" separately from calculateBalance.
-  // Both go through here so they cannot drift from each other, or from the
-  // order_balances view's matching `case when pm.kind = 'refund'` arm.
+  // Reports aggregates "collected" separately, but through here, so it cannot
+  // drift from calculateBalance or the view's `case when pm.kind = 'refund'`.
   it('is what every money-in total is summed through', () => {
     const rows = [
       { amount_minor: 100000, kind: 'payment' as const },
@@ -96,11 +95,8 @@ describe('calculateBalance', () => {
   })
 
   it('ignores rental_deposit_minor even when the order object carries one', () => {
-    // The signature does not accept rental_deposit_minor at all -- Pick<> only
-    // admits 'id' and 'price_total_minor'. A type assertion smuggles a
-    // non-zero deposit past that so the deposit is present in the input and
-    // provably ignored, rather than merely absent (a fixture that never sets
-    // the field would pass just as well if this invariant were violated).
+    // Pick<> admits only id and price_total_minor, so an assertion smuggles a
+    // deposit in: present and provably ignored, rather than merely absent.
     const orderWithDeposit = {
       id: 'o1',
       price_total_minor: 100000,
@@ -118,11 +114,8 @@ describe('calculateBalance', () => {
   })
 
   it('reports a larger balance when refunds exceed everything paid', () => {
-    // Not a workflow the shop should ever reach on purpose -- a refund larger
-    // than what was collected -- but calculateBalance is a pure, unclamped
-    // sum. Same convention as the overpayment case above (report the real
-    // number, do not clamp), just the mirror direction: net money-in goes
-    // negative, so the balance owed grows past the order's own total.
+    // A refund larger than what was collected. Same convention as overpayment
+    // above -- report the real number -- so the balance grows past the total.
     const result = calculateBalance({ id: 'o1', price_total_minor: 100000 }, [
       { amount_minor: 50000, kind: 'payment' },
       { amount_minor: 80000, kind: 'refund' },

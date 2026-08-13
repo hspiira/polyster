@@ -1,11 +1,5 @@
-/**
- * Form controls.
- *
- * `text-base` (16px) is load-bearing, not taste: below it iOS zooms the
- * viewport on focus and does not zoom back out.
- *
- * Focus is drawn once in index.css. Do not restyle it here.
- */
+/* Form controls. `text-base` is load-bearing: below 16px iOS zooms on focus and
+   does not zoom back. Focus is drawn once in index.css. */
 import type { ComponentChildren, JSX } from 'preact'
 import { IconSearch } from '../components/icons'
 import { cn } from '../lib/cn'
@@ -64,17 +58,8 @@ export function Field({
   )
 }
 
-/**
- * On/off for a single setting.
- *
- * A `Segmented` with On and Off in it was doing this job, which reads as two
- * choices to compare rather than one thing that is either on or not -- and cost
- * two tap targets and a row of chrome per setting. Seventeen of them stacked is
- * what made the modules screen unreadable.
- *
- * The knob is `bg-surface` in both states so it never has to be told which
- * theme it is in; the track carries the state.
- */
+/* On/off for one setting. A Segmented reads as two choices to compare and costs
+   two tap targets. The knob is bg-surface in both states; the track carries it. */
 export function Switch({
   checked,
   onChange,
@@ -116,11 +101,8 @@ export function Switch({
   )
 }
 
-/**
- * Segmented control for a small, fixed set of filters. Use a `<select>` above
- * about five options, where the segments get too narrow to hit.
- */
-/** Wraps rather than scrolls: a hidden option is an option nobody picks. */
+/* Segmented control for a small fixed set of filters; a <select> above about
+   five. Wraps rather than scrolls -- a hidden option is one nobody picks. */
 export function Segmented<T extends string>({
   value,
   options,

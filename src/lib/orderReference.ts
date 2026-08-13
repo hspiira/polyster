@@ -1,8 +1,5 @@
-/**
- * Human-readable order reference, generated on the device so it works offline.
- * Indexed but not unique: a rejected replication push is worse than a rare
- * duplicate display code. See spec decision O8.
- */
+/* Order reference, generated on-device so it works offline. Indexed but not
+   unique -- a rejected push is worse than a rare duplicate code (O8). */
 
 /** Crockford base32, without I, L, O and U. */
 export const REFERENCE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'

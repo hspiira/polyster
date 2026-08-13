@@ -1,10 +1,5 @@
-/**
- * Which design is mounted, kept live.
- *
- * Subscribed rather than read once so attaching a trackpad to a tablet, or
- * overriding the preference, swaps the shell without a reload. The decision
- * itself is in lib/platform.ts; this hook only holds it in state.
- */
+/* Which design is mounted, kept live: attaching a trackpad to a tablet swaps
+   the shell without a reload. The decision itself is in lib/platform.ts. */
 import { useEffect, useState } from 'preact/hooks'
 import { currentPlatform, watchPlatform, type Platform } from '../lib/platform'
 

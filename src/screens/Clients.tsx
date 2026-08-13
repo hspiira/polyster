@@ -1,11 +1,5 @@
-/**
- * Client list, search, and add (Phase 1 step 4), and Book's other section.
- *
- * Search filters in memory rather than through an RxDB query. A shop has
- * hundreds of clients, not millions, and the whole list is already local -- so
- * it is instant, offline by construction, and matches on phone number as well
- * as name, which is how a shop looks someone up when the phone rings.
- */
+/* Client list, search and add. Search filters in memory: the whole list is
+   already local, and it matches on number as well as name. */
 import { useMemo, useState } from 'preact/hooks'
 import {
   Avatar,
@@ -44,9 +38,8 @@ export function Clients() {
   )
   const clients = useMemo(() => docs.map((doc) => doc.toJSON()), [docs])
 
-  // Table-form-only columns (see `wideOnly` below). A phone shows name and
-  // number; the wide form has room for the question actually worth asking of
-  // a client list -- who owes money, and when they were last in.
+  // Table-form-only columns. A phone shows name and number; the wide form has
+  // room for who owes money and when they were last in.
   const orderDocs = useRxQuery(
     () => db.orders.find({ selector: { shop_id: shop.id } }).$,
     [db, shop.id],
@@ -82,9 +75,8 @@ export function Clients() {
     )
   }, [clients, search])
 
-  // Closes over `tallies` and `shop.currency`, so it lives here rather than
-  // hoisted -- see ORDER_COLUMNS in Orders.tsx for the shape when a row
-  // already carries everything its columns need.
+  // Closes over `tallies` and `shop.currency`, so it is not hoisted. See
+  // ORDER_COLUMNS in Orders.tsx for the self-sufficient shape.
   const columns: readonly Column<(typeof clients)[number]>[] = [
     {
       id: 'name',

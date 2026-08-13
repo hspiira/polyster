@@ -139,12 +139,8 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
   )
 }
 
-/**
- * An expense, and the one place it can be removed.
- *
- * Same reasoning as the sale sheet: removing money out changes the profit
- * figure, so it takes a deliberate step and records why.
- */
+/* An expense, and the one place it can be removed. Removing money out changes
+   the profit figure, so it takes a deliberate step and records why. */
 export function ExpenseDetailSheet({
   expense,
   onClose,

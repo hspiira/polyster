@@ -1,11 +1,8 @@
 import { getSupabase, isSupabaseConfigured } from './supabaseClient'
 import { emailProblem, normaliseEmail, passwordProblem } from './credentials'
 
-/**
- * Phone OTP is withdrawn: Supabase cannot enable phone auth without a
- * third-party SMS provider, and Twilio's Uganda rate is $0.3289 per message
- * behind a ~3 week sender-ID pre-registration.
- */
+/* Phone OTP is withdrawn: Supabase needs a third-party SMS provider, and
+   Twilio's Uganda rate sits behind a ~3 week sender-ID pre-registration. */
 const REMEMBERED_USER_KEY = 'tailor_tracker.last_shop_user_id'
 
 export type AuthState =

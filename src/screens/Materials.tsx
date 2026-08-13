@@ -1,6 +1,4 @@
-/**
- * Materials. Online-only (see src/online/materials.ts).
- */
+/* Materials. Online-only (see src/online/materials.ts). */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,

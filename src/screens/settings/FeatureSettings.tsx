@@ -1,11 +1,5 @@
-/**
- * Which modules exist for this shop.
- *
- * Seventeen switches in one flat card is a list nobody reads to the end, so
- * they are grouped by the part of the business they belong to. `OTHER` is the
- * safety net: a key added to FEATURE_KEYS without being placed in a group still
- * appears, rather than silently vanishing from the only screen that controls it.
- */
+/* Which modules exist for this shop, grouped because seventeen flat switches is
+   a list nobody finishes. OTHER catches any key not placed in a group. */
 import {
   Card,
   RowList,

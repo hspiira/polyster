@@ -1,15 +1,5 @@
-/**
- * One client, at a desk.
- *
- * A full page rather than the inspector pattern Orders uses. A client record is
- * not a summary you glance at while working a list: it holds a measurement form,
- * a history of orders and free-text notes, none of which fit a 21rem pane and
- * all of which are things you sit down to do.
- *
- * Tabs rather than one long scroll, because the three things here are asked for
- * separately -- you came to take a measurement, or to see what they have
- * ordered, or to correct a phone number, and never all three at once.
- */
+/* A full page, not Orders' inspector: none of a measurement form, an order
+   history and notes fit a 21rem pane. Tabs, because you came for one of them. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
@@ -76,14 +66,8 @@ export function ClientDetailPage() {
     )
   }
 
-  /**
-   * Only offered when there is an order to talk about.
-   *
-   * `suggestedMessage` writes about a specific order and dereferences both it
-   * and its balance, so a client with no orders yet has nothing for it to say
-   * and would throw rather than degrade. The button is absent in that case,
-   * which is honest: there is no update to send.
-   */
+  /* Only when there is an order to talk about: suggestedMessage dereferences a
+     specific order and would throw rather than degrade. */
   const latest = orders[0]
   const latestBalance = latest ? balances.get(latest.id) : undefined
   const messageLink =
@@ -263,13 +247,8 @@ function Fact({
   )
 }
 
-/**
- * The measurement form, rendered from the shop's own field list.
- *
- * Wider than the phone's two columns because there is room: `auto-fit` rather
- * than a fixed count, so it is three or five across depending on the pane, and
- * correct in the middle without a breakpoint.
- */
+/* The measurement form, from the shop's own field list. auto-fit rather than a
+   fixed count, so it is correct at any pane width without a breakpoint. */
 function Measurements({ clientId }: { clientId: string }) {
   const { db, shop, activeStaff } = useCurrentShop()
 

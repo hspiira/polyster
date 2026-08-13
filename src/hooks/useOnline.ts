@@ -1,13 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 
-/**
- * Whether the browser thinks it has a network connection.
- *
- * `navigator.onLine` is a weak signal -- it reports link state, not whether
- * Supabase is actually reachable. It is good enough for showing the user a
- * connection indicator; it is not used to decide whether a write is allowed,
- * because in this app every write goes to the local database regardless.
- */
+/* Whether the browser thinks it has a connection. A weak signal -- link state,
+   not reachability -- so it indicates only, and never gates a write. */
 export function useOnline(): boolean {
   const [online, setOnline] = useState(() => navigator.onLine)
 

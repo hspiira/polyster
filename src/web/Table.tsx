@@ -1,15 +1,5 @@
-/**
- * The web design's record table.
- *
- * A grid, not a `<table>`: rows are links, and a link cannot be a table row
- * without either nesting an anchor per cell or giving up keyboard behaviour.
- * ARIA carries the semantics the element no longer does.
- *
- * Distinct from ui/DataList, which describes a record once and lets CSS choose
- * a card or a table. Nothing here folds into cards, because nothing here ever
- * has to -- that is the point of the split (spec W1). What this gains for it:
- * selection, sorting, a sticky header, and a footer that can count.
- */
+/* A grid, not a <table>: rows are links, which cannot be table rows without
+   losing keyboard behaviour. Gains selection, sorting and a sticky header. */
 import type { ComponentChildren } from 'preact'
 import { cn } from '../lib/cn'
 import { GUTTER, ROW, TEXT_XS } from './chrome'
@@ -17,14 +7,8 @@ import { GUTTER, ROW, TEXT_XS } from './chrome'
 export interface TableColumn<T> {
   id: string
   label: string
-  /**
-   * A `grid-template-columns` track.
-   *
-   * Give flexible tracks a real minimum -- `minmax(7rem, 2.4fr)`, not
-   * `minmax(0, 2.4fr)`. A zero minimum lets the column collapse to nothing
-   * while fixed neighbours keep their width, which is how the orders table once
-   * rendered rows with no order name in them at all.
-   */
+  /* Give flexible tracks a real minimum: a zero one collapses the column to
+     nothing while fixed neighbours keep their width. */
   width: string
   align?: 'end'
   sortable?: boolean

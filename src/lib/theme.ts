@@ -1,12 +1,5 @@
-/**
- * Theme selection: a `data-theme` attribute on `<html>`, which src/styles/
- * theme.css maps to every colour role. Nothing else in the app decides light
- * or dark.
- *
- * index.html carries an inline copy of `resolve()` that runs before the first
- * paint -- without it the app flashes the wrong theme on every launch. Keep the
- * two in step.
- */
+/* Theme selection: a `data-theme` attribute on <html>. index.html inlines a copy
+   of `resolve()` so the first paint is right -- keep the two in step. */
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
@@ -35,11 +28,8 @@ export function resolve(preference: ThemePreference): ResolvedTheme {
   return matchMedia(DARK_QUERY).matches ? 'dark' : 'light'
 }
 
-/**
- * Writes the resolved theme to `<html>` and syncs the status-bar colour. The
- * colour is read back out of the stylesheet, not hardcoded, so theme.css stays
- * the only file that decides.
- */
+/* Writes the resolved theme to <html> and syncs the status-bar colour, read
+   back out of the stylesheet so theme.css stays the only file that decides. */
 export function applyTheme(preference: ThemePreference): ResolvedTheme {
   const resolved = resolve(preference)
   const root = document.documentElement
@@ -64,11 +54,8 @@ export function savePreference(preference: ThemePreference): ResolvedTheme {
   return applyTheme(preference)
 }
 
-/**
- * Keeps a `system` preference live while the app is open. Re-reads the
- * preference on each change rather than closing over it, so a later
- * `savePreference('light')` correctly stops this doing anything.
- */
+/* Keeps a `system` preference live. Re-reads the preference on each change
+   rather than closing over it, so a later savePreference stops this. */
 export function watchSystemTheme(): () => void {
   const query = matchMedia(DARK_QUERY)
   const onChange = () => {

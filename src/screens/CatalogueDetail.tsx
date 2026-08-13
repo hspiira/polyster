@@ -1,6 +1,4 @@
-/**
- * One product: its details and its variants. Online-only, see Catalogue.tsx.
- */
+/* One product: its details and its variants. Online-only, see Catalogue.tsx. */
 import { useEffect, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import {

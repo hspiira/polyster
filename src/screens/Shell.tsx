@@ -1,23 +1,5 @@
-/**
- * The authenticated app shell.
- *
- * A thin status strip, a scrolling screen area, and a fixed tab bar. The tab
- * bar is `fixed` rather than `sticky` so it survives the iOS URL bar
- * collapsing on scroll, which otherwise makes a sticky bar jump.
- *
- * The strip is suppressed on `/` (spec A10): Today grows its own profile
- * header carrying the same identity and sync state (A9), and repeating both
- * inches apart would be the exact duplication A2 already complained about.
- * Every other screen keeps the strip exactly as it was.
- *
- * ## Routing
- *
- * `preact-iso` with real history URLs rather than hash routing. The usual
- * objection -- a deep link 404s on refresh -- does not apply:
- * vite-plugin-pwa's generateSW mode sets `navigateFallback: 'index.html'` by
- * default, so the service worker answers every navigation from the precached
- * shell, offline included.
- */
+/* Status strip, scrolling screens, a fixed tab bar (fixed, so the iOS URL bar
+   cannot make it jump). Real history URLs: the service worker answers refreshes. */
 import { useEffect } from 'preact/hooks'
 import { ErrorBoundary, Route, Router, lazy, useLocation } from 'preact-iso'
 import { SideRail, TabBar } from '../components/TabBar'
@@ -30,10 +12,8 @@ import type { ReplicationStatus } from '../hooks/useReplication'
 
 import { Today } from './today/Today'
 
-// Route-level code splitting. Every screen but Today is fetched when first
-// navigated to, so the entry chunk carries the shell and the first screen
-// rather than all 29. Today stays eager -- it is what the unlock reveals, and
-// a lazy boundary there would flash on every cold start.
+// Route-level code splitting, so the entry chunk carries the shell and one
+// screen, not all 29. Today stays eager -- a lazy boundary there would flash.
 const Clients = lazy(() => import('./Clients').then((m) => m.Clients))
 const ClientDetail = lazy(() => import('./ClientDetail').then((m) => m.ClientDetail))
 const Orders = lazy(() => import('./Orders').then((m) => m.Orders))

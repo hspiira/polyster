@@ -1,12 +1,5 @@
-/**
- * Inventory ledger. Online-only, see catalogue.ts's header comment for why.
- *
- * inventory_items.quantity is never written directly from here -- the
- * database enforces that (see migration 0012_inventory.sql: no UPDATE policy
- * on the table at all). The only way to change it is recordMovement(),
- * which inserts an inventory_movements row and lets the database trigger
- * apply it.
- */
+/* Inventory ledger, online-only. quantity is never written directly -- there is
+   no UPDATE policy; recordMovement() inserts and a trigger applies it. */
 import { getSupabase } from '../lib/supabaseClient'
 import { friendlyError } from './friendlyError'
 

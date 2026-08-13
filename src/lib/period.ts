@@ -1,9 +1,5 @@
-/**
- * The window every money screen reports on.
- *
- * One definition so Sales, Money and Reports cannot disagree about what "30D"
- * means -- a shop comparing two of them would find the discrepancy first.
- */
+/* The window every money screen reports on. One definition, so Sales, Money and
+   Reports cannot disagree about what "30D" means. */
 import { addDays, daysBetween, formatDate, today } from './dates'
 
 export type PeriodKey = '7' | '30' | '90' | 'custom'

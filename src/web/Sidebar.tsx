@@ -1,15 +1,5 @@
-/**
- * The sidebar: grouped destinations, live counts, and the primary action.
- *
- * The create action lives in the nav rather than floating over the content,
- * which is the web convention and the reason the web design needs no floating
- * button at all. Counts are real reactive queries -- a nav that lies about how
- * much work there is would be worse than one that says nothing.
- *
- * Groups rather than a flat list: nine destinations unlabelled is a wall.
- * "Work" is what the shop does today, "Money" is what it made, "Shop" is
- * configuration you touch monthly.
- */
+/* Grouped destinations, live counts, and the create action in the nav rather
+   than floating. Counts are real queries: a nav that lies is worse than silent. */
 import { useMemo } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'

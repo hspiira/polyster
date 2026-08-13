@@ -1,6 +1,4 @@
-/**
- * Suppliers. Online-only (see src/online/suppliers.ts).
- */
+/* Suppliers. Online-only (see src/online/suppliers.ts). */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,

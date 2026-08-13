@@ -1,16 +1,5 @@
-/**
- * Clients, at a desk: a table with the two things you actually want when the
- * phone rings, which the phone's own list does not have room for.
- *
- * A client row on the phone shows a name and a number. Here it also shows what
- * they owe and how many orders are open, because that is what the person
- * answering has to know before they finish saying hello. Both come from
- * balances the app already computes -- nothing new is derived.
- *
- * Search filters in memory. A shop has hundreds of clients, not millions, the
- * whole list is already local, and matching on the number as well as the name
- * is how someone is looked up when the phone rings.
- */
+/* Adds what they owe and how many orders are open -- what the person answering
+   the phone needs before they finish saying hello. Search filters in memory. */
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'

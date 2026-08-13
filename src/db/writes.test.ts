@@ -182,9 +182,8 @@ describe('createOrder', () => {
 })
 
 describe('updateOrderHeader', () => {
-  // updateOrder used to refuse this outright (the guard this replaces);
-  // updateOrderHeader's whole point is that a multi-unit order's header is
-  // still editable, precisely because it never goes near a unit.
+  // updateOrder refused this outright. updateOrderHeader's whole point is that
+  // a multi-unit order's header stays editable, because it never touches a unit.
   it('patches header fields on a multi-unit order without touching its units, price or summary', async () => {
     const { db, orderId, unitIds } = await orderWithUnits([45000])
     const secondUnit = await addOrderUnit(db, orderId, {
@@ -437,9 +436,8 @@ describe('measurement fields', () => {
 
     await retireMeasurementField(db, field.id)
 
-    // The bug this replaces: doc.remove() soft-deletes, RxDB excludes
-    // soft-deleted docs from queries, and every recorded chest measurement
-    // becomes unlabellable.
+    // doc.remove() soft-deletes and RxDB hides those from queries, so every
+    // recorded chest measurement became unlabellable.
     const found = await db.measurement_fields.findOne(field.id).exec()
     expect(found).not.toBeNull()
     expect(found?.active).toBe(false)

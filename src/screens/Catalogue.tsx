@@ -1,8 +1,5 @@
-/**
- * Catalogue: products, search, add. Online-only (see src/online/catalogue.ts)
- * -- there is no local cache, so this screen needs a connection to load or
- * change anything.
- */
+/* Products, search, add. Online-only: no local cache, so this screen needs a
+   connection to load or change anything. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,

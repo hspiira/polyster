@@ -1,23 +1,11 @@
-/**
- * A list of records, described once as columns, laid out as either stacked
- * cards or an aligned table depending on the room it has.
- *
- * Both presentations are CSS layouts of the same DOM (styles/components.css) --
- * never render a record twice. Declare columns in the order the table should
- * read; `role` places them in the card form.
- *
- * The switch is a container query, not a breakpoint, so the component stays
- * correct in a split view or a dashboard column without being told where it is.
- */
+/* Records described once as columns, laid out as cards or a table by container
+   query. Both are CSS over the same DOM -- never render a record twice. */
 import type { ComponentChildren } from 'preact'
 import { cn } from '../lib/cn'
 import { FLUSH_SURFACE_FLAT } from './Surface'
 
-/**
- * Where a column lands in the card form. `primary` is the line you read first
- * (one per list); `meta` joins into one line beneath it; `status` is a chip top
- * right; `figure` is a number bottom right.
- */
+/* Where a column lands in the card form: primary reads first, meta joins the
+   line beneath, status is a chip top right, figure a number bottom right. */
 export type CellRole = 'primary' | 'meta' | 'status' | 'figure'
 
 export interface Column<T> {
@@ -28,11 +16,8 @@ export interface Column<T> {
   render: (item: T) => ComponentChildren
   /** Defaults to `meta`. */
   role?: CellRole
-  /**
-   * Announced before the value, for screen readers. The header row is
-   * decorative, so a value that means nothing alone must say what it is --
-   * "42,000" needs this, a client's name does not.
-   */
+  /* Announced before the value. The header row is decorative, so "42,000"
+     needs this and a client's name does not. */
   srLabel?: string
   /** Grid track in table form. Defaults by role. */
   width?: string
@@ -68,11 +53,8 @@ function roleOf<T>(column: Column<T>): CellRole {
   return column.role ?? 'meta'
 }
 
-/**
- * Groups columns and builds the track list. Source order must be primary,
- * metas, status, figure -- grid places by source order and that is what
- * `--data-cols` describes -- so this sorts rather than trusting the caller.
- */
+/* Groups columns and builds the track list. Grid places by source order, so
+   this sorts rather than trusting the caller to. */
 interface Layout<T> {
   primary: Column<T>[]
   metas: Column<T>[]

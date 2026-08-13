@@ -1,10 +1,5 @@
-/**
- * Set, change or remove the PIN that locks this device.
- *
- * Registration does not ask for one, so most shops arrive here with none set.
- * Removing it is allowed: a lock nobody wants gets shared or written on the
- * counter, which is worse than no lock at all.
- */
+/* Set, change or remove the device PIN. Removing is allowed: a lock nobody
+   wants gets written on the counter, which is worse than no lock. */
 import { useState } from 'preact/hooks'
 import { Button, Card, cn, ErrorNote, InfoNote, Screen, SectionTitle } from '../../ui'
 import { IconAlert, IconLock } from '../../components/icons'

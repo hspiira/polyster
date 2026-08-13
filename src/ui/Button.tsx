@@ -1,9 +1,5 @@
-/**
- * Buttons, and the header action that behaves like one.
- *
- * Focus is not styled here -- index.css draws one `:focus-visible` ring for the
- * whole app. Do not add a per-variant focus style.
- */
+/* Buttons, and the header action that behaves like one. Focus is drawn once in
+   index.css -- do not add a per-variant focus style. */
 import type { ComponentChildren, JSX } from 'preact'
 import { cn } from '../lib/cn'
 
@@ -32,14 +28,8 @@ type ButtonBase = {
 
 type ButtonProps = ButtonBase & JSX.IntrinsicElements['button'] & { linkTo?: never }
 
-/**
- * `linkTo` renders an anchor that looks like a button.
- *
- * It exists so navigation actions stop being written as `<a><Button/></a>`.
- * Interactive content cannot descend from an anchor: the nesting is invalid
- * HTML, and it costs a keyboard user two tab stops and a screen-reader user a
- * control announced inside a link.
- */
+/* `linkTo` renders an anchor that looks like a button, so navigation actions
+   stop being `<a><Button/></a>` -- invalid, and two tab stops for a keyboard. */
 type ButtonLinkProps = ButtonBase &
   Omit<JSX.IntrinsicElements['a'], 'href'> & { linkTo: string }
 
@@ -67,10 +57,8 @@ export function Button(props: ButtonProps | ButtonLinkProps) {
   return <button {...rest} class={classes} />
 }
 
-/**
- * A screen header's action. Text where it fits, so a create action does not
- * need a floating button competing with the tab bar's centre action.
- */
+/* A screen header's action. Text where it fits, so a create action needs no
+   floating button competing with the tab bar. */
 export function HeaderAction({
   href,
   onClick,

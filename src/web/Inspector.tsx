@@ -1,15 +1,5 @@
-/**
- * The record, beside the list rather than instead of it.
- *
- * This pane is the reason the web design exists as its own design. On a phone,
- * opening an order is a navigation: you leave the list, look, and come back. At
- * a desk, checking six orders against a list should not cost six round trips,
- * so the record is a pane and the list keeps its scroll position and selection.
- *
- * It reads its own balance rather than taking the list row's figure, because a
- * row carries what is outstanding and this shows what was paid of what -- and
- * two derivations of the same money is how they drift.
- */
+/* The record beside the list, not instead of it: checking six orders should not
+   cost six round trips. Reads its own balance rather than the row's figure. */
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
@@ -46,11 +36,8 @@ export function Inspector({
   onClose,
 }: {
   row: DueRow | null
-  /**
-   * Whether a row was actually picked, as opposed to this falling back to the
-   * first one. Only matters where the pane overlays the list: there, showing a
-   * record nobody asked for would cover the table on arrival.
-   */
+  /* Whether a row was actually picked, rather than falling back to the first.
+     Where the pane overlays, an unasked-for record would cover the table. */
   chosen?: boolean
   onClose?: () => void
 }) {

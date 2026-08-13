@@ -1,8 +1,5 @@
-/**
- * Collections. Online-only (see src/online/collections.ts). Generic --
- * the optional story/coordinate fields are for any tenant, not just
- * NORTH//FOUND (docs/POLYSTER.md section 21).
- */
+/* Collections, online-only. Generic: the optional story fields are for any
+   tenant (§21). */
 import { useEffect, useState } from 'preact/hooks'
 import {
   Button,
