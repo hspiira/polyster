@@ -1,8 +1,9 @@
 # Code review: standards violations
 
 Date: 2026-08-13
-**Updated 2026-08-14** — items 1, 2, 5 and 6 of "What to do, in order" are done,
-and the comment finding under "Known debt" was overruled. See the status box
+**Updated 2026-08-14** — items 1 to 6 of "What to do, in order" are done except
+5 (the `ui.tsx` migration), and the comment finding under "Known debt" was
+overruled. See the status box
 below. Every count not marked "Now" is as it stood on 08-13.
 
 > ## Status, 2026-08-14
@@ -18,6 +19,8 @@ below. Every count not marked "Now" is as it stood on 08-13.
 > | `CatalogueDetail.tsx` | 633 | **218**, 33 → 8 `useState` |
 > | `writes.ts` / `schema.ts` | 1,031 / 798 | split per aggregate |
 > | Copies of the PIN choose-confirm dance | 4 | **1 shared, 1 left** |
+> | Copies of the "what a client owes" rule | 3 | **1**, tested |
+> | `backup.ts` tests | 0 | **17** |
 >
 > `scripts/check-standards.mjs` runs in `pnpm verify`. The heavy-comment entry
 > under "Known debt" below is **no longer accepted debt** — a two-line ceiling
@@ -50,7 +53,7 @@ rather than counted against the code.
 | Interface segregation | **Good** | Props are narrow; `Pick<>` used where it matters |
 | Dependency inversion | **Good** | `AuthDeps` injection, pure `lib/` modules, `db/` never imports screens |
 | Own design-system rules | **Violated wholesale** | 93 `dark:` and 254 hardcoded colours against a stated rule of zero |
-| Test coverage of logic | **Good where pure** | 40 test files; 5 modules untested, all at the edges |
+| Test coverage of logic | **Good where pure** | 43 test files; `backup.ts` now covered, `replication.ts` still not |
 
 The headline: the **pure core is well built and well tested**. The damage is
 concentrated in the screen layer, which has been allowed to grow without any
@@ -121,8 +124,11 @@ land and two of them will be missed.
 
 This is the same shape as the payment-cap bug: a rule with no single home.
 
-**Fix.** `observeClientTotals(db, shopId)` beside `observeShopBalances` in
-`src/db/balances.ts`, which both shells already import.
+**Done.** `clientTotals` and `clientTotalsById` in `src/db/balances.ts`, with
+tests for the three cases each copy had to get right: a cancelled order that
+still carries a balance, an overpaid order not cancelling out what another
+owes, and an order with no balance row. `OPEN_STAGES` moved to
+`db/schema/orders.ts`, since `db/` must not import from `screens/`.
 
 ### 2.2 The choose-then-confirm PIN dance, written four times
 
@@ -231,13 +237,13 @@ Five source modules have no test file:
 
 | Module | Risk |
 |---|---|
-| `src/lib/backup.ts` | **High.** It is the only path off the device for an unclaimed shop |
+| ~~`src/lib/backup.ts`~~ | **Done.** 17 tests, mutation-checked |
 | `src/db/replication.ts` | **High.** Sync correctness |
 | `src/lib/theme.ts` | Low |
 | `src/lib/supabaseClient.ts` | Low, thin wrapper |
 | `src/db/schema.ts` | Covered indirectly by `database.test.ts` |
 
-`backup.ts` being untested is the one that should worry you. Registration no
+`replication.ts` is now the one left. `backup.ts` was the other, and registration no
 longer requires a phone number, so a new shop's only copy of its data is local
 until it is claimed, and `backup.ts` is the escape hatch.
 
@@ -272,10 +278,10 @@ These look like faults but are recorded decisions, and the reasoning holds:
    the doc. A rule violated 347 times is not a rule.~~ **Done 2026-08-14** —
    `scripts/check-standards.mjs`, in `pnpm verify`. A guard script rather than
    ESLint: the project had no linter, and the rules are lexical.
-2. **Extract `orderFormModel.ts` and `orderDetailModel.ts`.** These two files
-   hold the most business logic and the least test coverage in the project.
-3. **One `observeClientTotals`**, deleting three copies of the owed rule.
-4. **Test `backup.ts`.** It is the only route off a lost phone.
+2. ~~**Extract `orderFormModel.ts` and `orderDetailModel.ts`.**~~ Done, and both
+   order screens were then split into their sections.
+3. ~~**One `observeClientTotals`**, deleting three copies of the owed rule.~~ Done.
+4. ~~**Test `backup.ts`.**~~ Done.
 5. **Finish or abandon the `ui.tsx` migration.** Twenty-two files, mechanical.
    Half-done is the worst of the three states.
-6. Split `writes.ts` and `schema.ts` per aggregate.
+6. ~~Split `writes.ts` and `schema.ts` per aggregate.~~ Done.
