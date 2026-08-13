@@ -20,6 +20,10 @@ below. Every count not marked "Now" is as it stood on 08-13.
 > | Copies of the PIN choose-confirm dance | 4 | **1 shared, 1 left** |
 > | Copies of the "what a client owes" rule | 3 | **1**, tested |
 > | `backup.ts` tests | 0 | **17** |
+> | `replication.ts` tests | 0 | **13** |
+> | `theme.ts` tests | 0 | **16** |
+> | Copies of the search rule | 7 | **1**, tested |
+> | `(e.target as HTML...)` casts | 137 | **48**, all on raw DOM |
 >
 > `scripts/check-standards.mjs` runs in `pnpm verify`. The heavy-comment entry
 > under "Known debt" below is **no longer accepted debt** — a two-line ceiling
@@ -46,18 +50,20 @@ rather than counted against the code.
 | Area | State | Worst evidence |
 |---|---|---|
 | Single responsibility | **Closed** | was `OrderForm.tsx` 1,138 lines, 11 methods, 8 queries, 9 state hooks |
-| Don't repeat yourself | **Poor** | The "what a client owes" rule written three times |
+| Don't repeat yourself | **Closed** | was: the "what a client owes" rule written three times |
 | Keep it simple | **Closed** | shim deleted, state explosion closed |
 | Open/closed | **Mixed** | Order-type branching in 5 files, but `lib/orderTypes.ts` now exists |
 | Interface segregation | **Good** | Props are narrow; `Pick<>` used where it matters |
 | Dependency inversion | **Good** | `AuthDeps` injection, pure `lib/` modules, `db/` never imports screens |
-| Own design-system rules | **Violated wholesale** | 93 `dark:` and 254 hardcoded colours against a stated rule of zero |
-| Test coverage of logic | **Good where pure** | 43 test files; `backup.ts` now covered, `replication.ts` still not |
+| Own design-system rules | **Closed** | was 93 `dark:` and 254 hardcoded colours; both now 0, enforced |
+| Test coverage of logic | **Good** | 46 test files; only `supabaseClient.ts` untested, a thin wrapper |
 
-The headline: the **pure core is well built and well tested**. The damage is
-concentrated in the screen layer, which has been allowed to grow without any
-extraction discipline, and in a design-system migration that stalled halfway and
-is now going backwards.
+The headline as first written: the **pure core is well built and well tested**;
+the damage was in the screen layer, grown without extraction discipline, and in
+a design-system migration stalled halfway.
+
+As of 2026-08-14 every row above is closed except open/closed, which was already
+"mixed" and improving. What remains is listed at the foot of this document.
 
 ---
 
@@ -146,8 +152,8 @@ different primitives and its heading is driven by a wider four-stage wizard.
 `src/db/writes.ts` contains **31** `findOne(...).exec()` calls and **15**
 copies of the string `'... no longer exists on this device.'`.
 
-**Fix.** One `loadOrThrow(collection, id, label)` helper. Fifteen call sites
-collapse to one, and the message becomes editable in one place.
+**Done.** `loadOrThrow(db, collection, id, label)` in `db/writes/shared.ts`.
+One copy of the sentence, used by every write that loads before it patches.
 
 ### 2.4 Search filtering re-implemented per screen
 
@@ -157,13 +163,22 @@ In-memory name/phone filtering appears separately in `Clients.tsx`,
 digits before matching; several do not, so the same query behaves differently
 depending on which screen you type it into.
 
-**Fix.** `matchesQuery(item, query, fields)` in `lib/`.
+**Done, and it was a real bug, not only duplication.** `ClientPicker` and
+`Suppliers` compared the raw query against the raw phone, so "0700 000" found a
+client on the Clients screen and nothing in the order form's picker.
+`matchesQuery`/`filterByQuery` in `lib/search.ts` now hold the rule: phone
+fields match on digits only, both sides stripped, and the trunk zero is tried
+both ways so a number typed `0700...` finds one stored `+256700...`.
 
 ### 2.5 Event-target casting
 
-**137** occurrences of `(e.target as HTMLInputElement).value`. This is noise
-that the `Field`/`Input` primitives should have absorbed by exposing
-`onValue: (value: string) => void`.
+**137** occurrences of `(e.target as HTMLInputElement).value`.
+
+**Done.** `Input`, `Textarea`, `Select`, `SearchInput` and `EntryInput` take
+`onValue`; `onInput` still works where the event itself is wanted. 137 down to
+48, and the remainder are on raw DOM elements that cannot take a component
+prop: PinPad's hidden autofill field, the web build's own inputs, and two
+search boxes.
 
 ---
 
@@ -239,6 +254,8 @@ Five source modules have no test file:
 | Module | Risk |
 |---|---|
 | ~~`src/lib/backup.ts`~~ | **Done.** 17 tests, mutation-checked |
+| ~~`src/db/replication.ts`~~ | **Done.** 13 tests, mutation-checked |
+| ~~`src/lib/theme.ts`~~ | **Done.** 16 tests |
 | `src/db/replication.ts` | **High.** Sync correctness |
 | `src/lib/theme.ts` | Low |
 | `src/lib/supabaseClient.ts` | Low, thin wrapper |
@@ -287,3 +304,30 @@ These look like faults but are recorded decisions, and the reasoning holds:
    abandoned: six of its seven extra exports already had no consumers, and
    `CONTAINER` was an alias for `MEASURE`.
 6. ~~Split `writes.ts` and `schema.ts` per aggregate.~~ Done.
+
+---
+
+## What is left, 2026-08-14
+
+Everything in "What to do, in order" is closed, along with every DRY finding
+and every high-risk untested module. Three things this review raised are
+genuinely still open, and one was never in it.
+
+**Open/closed (section 4).** Order type is still branched on in five files and
+stage in eight. `lib/orderTypes.ts` and `screens/orderStage.ts` are where those
+branches belong; the remaining ones should move behind them rather than new
+ones being added. Nothing here is broken, so this is a rule for new code more
+than a repair.
+
+**Accessibility outside the entry flow (section 5.1).** The entry flow and the
+payment forms were fixed and checked. The rest of the app, which is most of it,
+has never been audited: form errors tied to their field, status changes
+announced, focus moved on navigation. This wants its own pass, not a line item.
+
+**`supabaseClient.ts` untested.** A thin wrapper, and the only module left with
+no test. Low value on its own; worth covering when something in it grows.
+
+**`PinRecovery` keeps its own PIN choose-and-confirm.** The other three call
+sites share `ChoosePinPad`. This one sits in the dark entry world with different
+primitives, inside a four-stage wizard that drives its own heading, so folding
+it in means reworking the wizard rather than swapping a component.
