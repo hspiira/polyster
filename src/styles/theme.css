@@ -334,9 +334,11 @@
   --text-display: clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem);
   --text-display--line-height: 1.1;
   --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 200;
   --text-title: clamp(1.375rem, 1.2rem + 0.7vw, 1.75rem);
   --text-title--line-height: 1.2;
   --text-title--letter-spacing: -0.015em;
+  --text-title--font-weight: 200;
   --text-heading: 1.0625rem;
   --text-heading--line-height: 1.35;
   --text-heading--letter-spacing: -0.01em;
@@ -348,8 +350,17 @@
 
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
 
-  /* No web font: instant, and free on the metered connection this app assumes. */
+  /* @font-face is in index.css. The stack behind Inter is what renders while
+     it loads, and if it never arrives. */
   --font-sans:
-    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+    'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Remapped into 200-300 rather than rewriting every call site. Weight no
+     longer separates emphasis from body text; size and colour do. */
+  --font-weight-light: 200;
+  --font-weight-normal: 300;
+  --font-weight-medium: 300;
+  --font-weight-semibold: 300;
+  --font-weight-bold: 300;
 }
