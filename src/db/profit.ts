@@ -34,7 +34,7 @@ export interface PeriodInput {
 
 // Compared as YYYY-MM-DD strings, which orders identically to dates with no
 // timezone reinterpretation -- same reasoning as lib/dates.ts.
-function withinWindow(iso: string, from: string, to: string): boolean {
+export function withinWindow(iso: string, from: string, to: string): boolean {
   const day = iso.slice(0, 10)
   return day >= from && day <= to
 }

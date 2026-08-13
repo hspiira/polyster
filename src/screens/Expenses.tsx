@@ -4,286 +4,205 @@ import {
   Button,
   Card,
   EmptyState,
-  ErrorNote,
-  Field,
-  Input,
+  FLUSH_SURFACE,
+  PeriodBar,
+  PeriodRangeFields,
+  CurrencySwitch,
   Screen,
-  SectionCard,
-  Segmented,
-  Select,
-  Sheet,
+  Sections,
+  ShareBar,
   Skeleton,
-  Textarea,
-} from '../components/ui'
-import { IconMoney, IconPlus } from '../components/icons'
+  StatValue,
+} from '../ui'
+import { IconPlus, IconReceipt } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQueryStatus } from '../hooks/useRxQuery'
 import { usePermission } from '../hooks/usePermission'
-import { recordExpense, voidExpense } from '../db/writes'
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../db/schema'
-import { formatMinor, parseToMinor } from '../lib/money'
-import { addDays, formatDate, today } from '../lib/dates'
+import { usePeriod } from '../hooks/usePeriod'
+import { useReportCurrency } from '../hooks/useReportCurrency'
+import { formatAmount } from '../lib/money'
+import { formatPastDay } from '../lib/dates'
+import { AddExpenseSheet, ExpenseDetailSheet } from './ExpenseSheet'
+import { useMoneySections } from './moneySections'
 import { EXPENSE_CATEGORY_LABELS } from './expenseCategories'
-
-type Range = '7' | '30' | 'all'
-
-const RANGES: readonly { value: Range; label: string }[] = [
-  { value: '7', label: '7 days' },
-  { value: '30', label: '30 days' },
-  { value: 'all', label: 'All' },
-]
+import type { ExpenseCategory, ExpenseDoc } from '../db/schema'
 
 export function Expenses() {
-  const { db, shop, activeStaff } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const canCreate = usePermission('expenses.create')
-  const [range, setRange] = useState<Range>('30')
+  const sections = useMoneySections()
+  const period = usePeriod('30')
   const [adding, setAdding] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const now = today()
+  const [open, setOpen] = useState<ExpenseDoc | null>(null)
 
   const { value: expenseDocs, loaded } = useRxQueryStatus(
     () => db.expenses.find({ selector: { shop_id: shop.id }, sort: [{ spent_on: 'desc' }] }).$,
     [db, shop.id],
     [],
   )
-  const expenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
+  const allExpenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
 
-  const from = range === 'all' ? '1970-01-01' : addDays(now, -(Number(range) - 1))
+  const { currency, options: currencies, setCurrency } = useReportCurrency(
+    shop.currency,
+    allExpenses.map((expense) => expense.currency),
+  )
+  const expenses = useMemo(
+    () => allExpenses.filter((expense) => expense.currency === currency),
+    [allExpenses, currency],
+  )
+
   const inRange = useMemo(
-    () => expenses.filter((expense) => expense.spent_on >= from),
-    [expenses, from],
+    () =>
+      expenses.filter(
+        (expense) => expense.spent_on >= period.from && expense.spent_on <= period.to,
+      ),
+    [expenses, period.from, period.to],
   )
   const totalMinor = useMemo(
     () => inRange.reduce((sum, expense) => sum + expense.amount_minor, 0),
     [inRange],
   )
 
+  const shares = useMemo(() => {
+    const totals = new Map<ExpenseCategory, number>()
+    for (const expense of inRange) {
+      totals.set(expense.category, (totals.get(expense.category) ?? 0) + expense.amount_minor)
+    }
+    return [...totals]
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, amountMinor]) => ({
+        key: category,
+        label: EXPENSE_CATEGORY_LABELS[category],
+        value: amountMinor,
+        formatted: formatAmount(amountMinor, currency),
+      }))
+  }, [inRange, currency])
+
   if (!loaded) {
     return (
-      <Screen title="Expenses">
+      <Screen label="Money" sections={sections}>
         <div class="space-y-4">
-          <Skeleton class="h-20 w-full" />
+          <Skeleton class="h-24 w-full" />
           <Skeleton class="h-40 w-full" />
         </div>
       </Screen>
     )
   }
 
+  if (expenses.length === 0) {
+    return (
+      <Screen label="Money" sections={sections}>
+        <EmptyState
+          spacious
+          illustration={<IconReceipt size={56} />}
+          title="No expenses recorded"
+          description="Fabric, rent, transport, wages. Without these the app can only show what came in, never what you actually made."
+          action={
+            canCreate ? (
+              <Button onClick={() => setAdding(true)}>
+                <IconPlus size={18} /> Record an expense
+              </Button>
+            ) : undefined
+          }
+        />
+        <AddExpenseSheet open={adding} onClose={() => setAdding(false)} />
+      </Screen>
+    )
+  }
+
   return (
-    <Screen
-      title="Expenses"
-      back="/settings"
-      action={
-        expenses.length > 0 && canCreate && (
-          <Button size="sm" onClick={() => setAdding(true)}>
-            <IconPlus size={16} /> Expense
+    <Screen label="Money" sections={sections}>
+      <Sections>
+        <div>
+          <div class="flex items-center justify-between gap-3">
+            <PeriodBar value={period.key} onChange={period.setKey} />
+            <CurrencySwitch value={currency} options={currencies} onChange={setCurrency} />
+          </div>
+          {period.key === 'custom' && (
+            <PeriodRangeFields
+              range={{ from: period.from, to: period.to }}
+              onChange={period.setRange}
+            />
+          )}
+        </div>
+
+        <Card flush>
+          <p class="text-sm text-content-muted">Spent, {period.label}</p>
+          <div class="mt-1">
+            <StatValue value={formatAmount(totalMinor, currency)} />
+          </div>
+          <p class="mt-1 text-sm text-content-muted">
+            {inRange.length} {inRange.length === 1 ? 'entry' : 'entries'}
+          </p>
+        </Card>
+
+        {canCreate && (
+          <Button class="w-full" onClick={() => setAdding(true)}>
+            <IconPlus size={18} /> Record an expense
           </Button>
-        )
-      }
-    >
-      <div class="space-y-5">
-        {expenses.length === 0 ? (
-          <Card padded={false}>
+        )}
+
+        {shares.length > 1 && (
+          <Card flush>
+            <h2 class="text-heading font-semibold">Where it went</h2>
+            <p class="mt-0.5 mb-3 text-xs text-content-muted">
+              {shares.length} {shares.length === 1 ? 'category' : 'categories'}
+            </p>
+            <ShareBar
+              shares={shares}
+              total={totalMinor}
+              summary={`Spending split across ${shares.length} categories. Largest: ${shares[0]?.label ?? 'none'}, ${shares[0]?.formatted ?? ''}.`}
+            />
+          </Card>
+        )}
+
+        {inRange.length === 0 ? (
+          <Card flush>
             <EmptyState
-              illustration={<IconMoney size={40} />}
-              title="No expenses recorded"
-              description="Fabric, rent, transport, wages. Without these the app can only show what came in, never what you actually made."
-              action={
-                canCreate ? <Button onClick={() => setAdding(true)}>Record an expense</Button> : undefined
-              }
+              illustration={<IconReceipt size={40} />}
+              title="Nothing spent in this period"
+              description="Change the period above, or record what the shop paid out."
             />
           </Card>
         ) : (
-          <>
-            <Segmented value={range} options={RANGES} onChange={setRange} label="Period" />
-
-            <Card>
-              <p class="text-xs font-medium text-stone-500 dark:text-stone-400">Spent</p>
-              <p class="mt-1.5 text-3xl font-semibold tabular-nums tracking-tight">
-                {formatMinor(totalMinor, shop.currency)}
-              </p>
-              <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">
-                {inRange.length} {inRange.length === 1 ? 'entry' : 'entries'}
-              </p>
-            </Card>
-
-            {error && <ErrorNote>{error}</ErrorNote>}
-
-            <SectionCard title="Recent" count={inRange.length}>
-              <ul>
-                {inRange.map((expense) => (
-                  <li
-                    key={expense.id}
-                    class="flex items-center justify-between gap-3 px-4 py-3.5"
+          <section class={FLUSH_SURFACE}>
+            <h2 class="flex items-baseline gap-1.5 px-gutter pt-3 pb-1 text-heading font-semibold">
+              Recent
+              <span class="text-xs font-normal text-content-muted">{inRange.length}</span>
+            </h2>
+            <ul class="pb-1">
+              {inRange.map((expense) => (
+                <li key={expense.id}>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(expense)}
+                    class="flex min-h-tap w-full items-center gap-3 px-gutter py-2.5 text-left
+                           transition-colors hover:bg-hover active:bg-pressed"
                   >
-                    <span class="min-w-0">
-                      <span class="block truncate font-medium">{expense.description}</span>
-                      <span class="block truncate text-xs text-stone-500 dark:text-stone-400">
-                        {EXPENSE_CATEGORY_LABELS[expense.category]} ·{' '}
-                        {formatDate(expense.spent_on)}
+                    <span class="min-w-0 flex-1">
+                      <span class="flex items-baseline gap-2">
+                        <span class="min-w-0 flex-1 truncate text-[15px] font-medium">
+                          {expense.description}
+                        </span>
+                        <span class="shrink-0 text-sm font-semibold tabular-nums">
+                          {formatAmount(expense.amount_minor, currency)}
+                        </span>
+                      </span>
+                      <span class="mt-0.5 block truncate text-xs text-content-muted">
+                        {formatPastDay(expense.spent_on)} ·{' '}
+                        {EXPENSE_CATEGORY_LABELS[expense.category]}
                       </span>
                     </span>
-                    <span class="flex shrink-0 items-center gap-2">
-                      <span class="text-sm font-semibold tabular-nums">
-                        {formatMinor(expense.amount_minor, shop.currency)}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setError(null)
-                          void voidExpense(db, expense.id, undefined, activeStaff?.id).catch(
-                            (err: unknown) =>
-                              setError(
-                                err instanceof Error
-                                  ? err.message
-                                  : 'Could not remove that expense.',
-                              ),
-                          )
-                        }}
-                      >
-                        Void
-                      </Button>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-          </>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-      </div>
+      </Sections>
 
       <AddExpenseSheet open={adding} onClose={() => setAdding(false)} />
+      {open && <ExpenseDetailSheet expense={open} onClose={() => setOpen(null)} />}
     </Screen>
-  )
-}
-
-function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { db, shop, activeStaff } = useCurrentShop()
-  const [category, setCategory] = useState<ExpenseCategory>('materials')
-  const [description, setDescription] = useState('')
-  const [amount, setAmount] = useState('')
-  const [spentOn, setSpentOn] = useState(today())
-  const [notes, setNotes] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  function close() {
-    setDescription('')
-    setAmount('')
-    setNotes('')
-    setSpentOn(today())
-    setError(null)
-    onClose()
-  }
-
-  async function submit(event: Event) {
-    event.preventDefault()
-
-    if (!description.trim()) {
-      setError('Say what the money went on, or the report cannot tell you anything.')
-      return
-    }
-    const amountMinor = parseToMinor(amount, shop.currency)
-    if (amountMinor === null || amountMinor <= 0) {
-      setError('Enter an amount greater than zero.')
-      return
-    }
-    if (!spentOn) {
-      setError('A date is needed, so it lands in the right period.')
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-    try {
-      await recordExpense(
-        db,
-        shop,
-        {
-          category,
-          description,
-          amount_minor: amountMinor,
-          spent_on: spentOn,
-          ...(notes.trim() ? { notes } : {}),
-        },
-        activeStaff?.id,
-      )
-      close()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not record this expense.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Sheet open={open} title="Record an expense" onClose={close}>
-      <form onSubmit={submit} class="space-y-4">
-        <Field label="Category">
-          <Select
-            value={category}
-            onChange={(e) =>
-              setCategory((e.target as HTMLSelectElement).value as ExpenseCategory)
-            }
-          >
-            {EXPENSE_CATEGORIES.map((value) => (
-              <option key={value} value={value}>
-                {EXPENSE_CATEGORY_LABELS[value]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label="What for">
-          <Input
-            autofocus
-            value={description}
-            placeholder="Fabric from Kikuubo"
-            onInput={(e) => setDescription((e.target as HTMLInputElement).value)}
-          />
-        </Field>
-
-        <div class="flex gap-3">
-          <div class="flex-1">
-            <Field label="Amount" hint={`In ${shop.currency}.`}>
-              <Input
-                inputmode="decimal"
-                value={amount}
-                placeholder="0"
-                onInput={(e) => setAmount((e.target as HTMLInputElement).value)}
-              />
-            </Field>
-          </div>
-          <div class="flex-1">
-            <Field label="Date">
-              <Input
-                type="date"
-                value={spentOn}
-                onInput={(e) => setSpentOn((e.target as HTMLInputElement).value)}
-              />
-            </Field>
-          </div>
-        </div>
-
-        <Field label="Notes (optional)">
-          <Textarea
-            value={notes}
-            onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)}
-          />
-        </Field>
-
-        {error && <ErrorNote>{error}</ErrorNote>}
-
-        <div class="flex gap-2 pt-1">
-          <Button variant="secondary" class="flex-1" type="button" onClick={close}>
-            Cancel
-          </Button>
-          <Button class="flex-1" type="submit" disabled={saving}>
-            {saving ? 'Saving...' : 'Record'}
-          </Button>
-        </div>
-      </form>
-    </Sheet>
   )
 }

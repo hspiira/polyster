@@ -34,6 +34,7 @@ import {
 } from '../online/materials'
 import { listSuppliers, type Supplier } from '../online/suppliers'
 import { findInventoryItem, listInventoryItems } from '../online/inventory'
+import { useBack } from '../hooks/useBack'
 
 const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
   fabric: 'Fabric',
@@ -51,6 +52,7 @@ const TOGGLE_OPTIONS = [
 ] as const
 
 export function Materials() {
+  const back = useBack()
   const { shop } = useCurrentShop()
   const online = useOnlineFeature()
   const [materials, setMaterials] = useState<Material[] | null>(null)
@@ -106,7 +108,7 @@ export function Materials() {
 
   if (!online) {
     return (
-      <Screen title="Materials" back="/settings">
+      <Screen title="Materials" back={back}>
         <EmptyState
           spacious
           illustration={<IconTag size={48} />}
@@ -121,7 +123,7 @@ export function Materials() {
     <>
       <Screen
         title="Materials"
-        back="/settings"
+        back={back}
         action={
           materials && materials.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />

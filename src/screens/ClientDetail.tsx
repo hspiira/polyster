@@ -35,8 +35,10 @@ import { saveMeasurements, updateClient } from '../db/writes'
 import { formatMinor } from '../lib/money'
 import { formatDueDate } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
+import { useBack } from '../hooks/useBack'
 
 export function ClientDetail() {
+  const back = useBack()
   const { params } = useRoute()
   const clientId = params.id ?? ''
   const { db, shop } = useCurrentShop()
@@ -59,7 +61,7 @@ export function ClientDetail() {
 
   if (!client) {
     return (
-      <Screen title="Client" back="/clients">
+      <Screen title="Client" back={back}>
         <EmptyState
           spacious
           illustration={<IllustrationSearch size={112} />}
@@ -78,7 +80,7 @@ export function ClientDetail() {
   return (
     <Screen
       title={client.name}
-      back="/clients"
+      back={back}
       action={
         <Button variant="ghost" size="sm" aria-label="Edit client" onClick={() => setEditing(true)}>
           <IconEdit size={20} />

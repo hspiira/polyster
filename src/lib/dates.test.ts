@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, daysBetween, dueBucket, formatDueDate, today } from './dates'
+import {
+  addDays,
+  daysBetween,
+  dueBucket,
+  formatDueDate,
+  formatPastDay,
+  formatTime,
+  today,
+} from './dates'
 
 describe('today', () => {
   it('uses the local calendar day, not UTC', () => {
@@ -91,5 +99,24 @@ describe('formatDueDate', () => {
     const formatted = formatDueDate('2026-09-30', from)
     expect(formatted).toMatch(/^30 \w+ 2026$/)
     expect(formatted).not.toMatch(/days/)
+  })
+})
+
+describe('formatPastDay', () => {
+  it('says what a shop would say about a recent day', () => {
+    expect(formatPastDay('2026-08-13', '2026-08-13')).toBe('Today')
+    expect(formatPastDay('2026-08-12', '2026-08-13')).toBe('Yesterday')
+    expect(formatPastDay('2026-08-01', '2026-08-13')).toBe('1 Aug 2026')
+  })
+})
+
+describe('formatTime', () => {
+  it('pads to a 24-hour clock', () => {
+    expect(formatTime('2026-08-13T09:05:00')).toBe('09:05')
+    expect(formatTime('2026-08-13T14:30:00')).toBe('14:30')
+  })
+
+  it('returns nothing for an unparseable timestamp', () => {
+    expect(formatTime('not a date')).toBe('')
   })
 })

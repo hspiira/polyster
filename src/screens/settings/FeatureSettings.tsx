@@ -3,6 +3,7 @@ import { useShop } from '../../state/ShopProvider'
 import { useFeatureFlags } from '../../hooks/useFeatureFlags'
 import { setFeatureEnabled } from '../../db/writes'
 import { FEATURE_KEYS, type FeatureKey } from '../../db/schema'
+import { useBack } from '../../hooks/useBack'
 
 const FEATURE_LABELS: Record<FeatureKey, string> = {
   customers: 'Customers',
@@ -30,12 +31,13 @@ const TOGGLE_OPTIONS = [
 ] as const
 
 export function FeatureSettings() {
+  const back = useBack()
   const { db, shop } = useShop()
   const flags = useFeatureFlags(db, shop?.id ?? '__none__')
 
   if (!shop) {
     return (
-      <Screen title="Modules" back="/settings">
+      <Screen title="Modules" back={back}>
         <Card>
           <p class="text-sm text-content-muted">
             The shop record has not reached this device yet. It arrives with the first sync.
@@ -46,7 +48,7 @@ export function FeatureSettings() {
   }
 
   return (
-    <Screen title="Modules" subtitle="What shows up in navigation" back="/settings">
+    <Screen title="Modules" subtitle="What shows up in navigation" back={back}>
       <Card padded={false}>
         <RowList>
           {FEATURE_KEYS.map((key) => (

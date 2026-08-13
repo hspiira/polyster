@@ -19,13 +19,23 @@ export {
   type Tone,
 } from './tones'
 
-export { MEASURE, MEASURE_WIDE, Screen, Sections, type ScreenWidth } from './Screen'
-export { Card, FLUSH_SURFACE, SectionCard, SectionTitle, Sheet } from './Surface'
+export {
+  MEASURE,
+  MEASURE_WIDE,
+  Screen,
+  Sections,
+  type ScreenSection,
+  type ScreenWidth,
+} from './Screen'
+export { Card, FLUSH_SURFACE, FLUSH_SURFACE_FLAT, SectionCard, SectionTitle, Sheet } from './Surface'
 export { Disclosure } from './Disclosure'
 export { Button, HeaderAction } from './Button'
 export { Field, Input, SearchInput, Segmented, Select, Textarea } from './Field'
+export { CurrencySwitch, PeriodBar, PeriodRangeFields } from './Period'
+export { TabRow, type TabOption } from './TabRow'
 export { DataList, type CellRole, type Column } from './DataList'
 export { AccentRow, DataRow, ListRow, MoreLink, RowList } from './Row'
 export { Avatar, Chip, getInitials } from './Chip'
 export { StatStrip, StatTile, StatValue } from './Stat'
+export { FlowColumns, ShareBar, Sparkline, type FlowBar, type Share } from './Chart'
 export { EmptyState, ErrorNote, InfoNote, Skeleton } from './Feedback'

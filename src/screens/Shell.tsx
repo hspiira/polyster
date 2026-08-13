@@ -18,12 +18,14 @@
  * default, so the service worker answers every navigation from the precached
  * shell, offline included.
  */
+import { useEffect } from 'preact/hooks'
 import { ErrorBoundary, Route, Router, lazy, useLocation } from 'preact-iso'
 import { SideRail, TabBar } from '../components/TabBar'
 import { SyncBadge } from '../components/SyncBadge'
 import { Avatar, CONTAINER, cn } from '../components/ui'
 import { IconSettings } from '../components/icons'
 import { useShop } from '../state/ShopProvider'
+import { recordVisit } from '../lib/navigation'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
 
@@ -72,6 +74,12 @@ interface ShellProps {
 export function Shell({ online, auth, replication }: ShellProps) {
   const { activeStaff } = useShop()
   const { path } = useLocation()
+
+  // Feeds useBackTo: a screen with two parents points back at the one you
+  // actually came from.
+  useEffect(() => {
+    recordVisit(path)
+  }, [path])
 
   return (
     <div class="min-h-svh bg-stone-100 lg:pl-60 dark:bg-stone-950">

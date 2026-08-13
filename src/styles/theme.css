@@ -114,6 +114,12 @@
   --hover: var(--ink-100);
   --pressed: var(--ink-200);
 
+  /* A step above the page rather than a full surface -- for a screen that is
+     mostly rows (Today, Orders), where the full jump to --surface reads as a
+     stack of cut-out cards rather than one page of content. Still a fill, per
+     the rule above, just a smaller one. */
+  --surface-flat: var(--ink-50);
+
   /* For tabular alignment and for dividing a rail from a page. Never for
      drawing a card. */
   --line: var(--ink-200);
@@ -174,6 +180,8 @@
 
   --page: var(--ink-1000);
   --surface: var(--ink-975);
+  /* Already close to --page at this end of the ramp -- nothing to flatten. */
+  --surface-flat: var(--surface);
   --surface-raised: var(--ink-950);
   --surface-sunken: var(--ink-900);
   --hover: var(--ink-900);
@@ -252,6 +260,7 @@
 @theme inline {
   --color-page: var(--page);
   --color-surface: var(--surface);
+  --color-surface-flat: var(--surface-flat);
   --color-surface-raised: var(--surface-raised);
   --color-surface-sunken: var(--surface-sunken);
   --color-hover: var(--hover);

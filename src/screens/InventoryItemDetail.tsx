@@ -35,6 +35,7 @@ import {
 } from '../online/inventory'
 import { listAllProductVariants, listProducts, type Product, type ProductVariant } from '../online/catalogue'
 import { listMaterials, type Material } from '../online/materials'
+import { useBack } from '../hooks/useBack'
 
 const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   purchase: 'Purchase',
@@ -51,6 +52,7 @@ const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
 }
 
 export function InventoryItemDetail() {
+  const back = useBack()
   const { params } = useRoute()
   const itemId = params.id ?? ''
   const { shop } = useCurrentShop()
@@ -92,28 +94,28 @@ export function InventoryItemDetail() {
 
   if (!online) {
     return (
-      <Screen title="Inventory item" back="/inventory">
+      <Screen title="Inventory item" back={back}>
         <EmptyState spacious title="No connection" description="This needs a connection to load." />
       </Screen>
     )
   }
   if (loadError) {
     return (
-      <Screen title="Inventory item" back="/inventory">
+      <Screen title="Inventory item" back={back}>
         <ErrorNote>{loadError}</ErrorNote>
       </Screen>
     )
   }
   if (item === undefined) {
     return (
-      <Screen title="Inventory item" back="/inventory">
+      <Screen title="Inventory item" back={back}>
         <Skeleton class="h-32" />
       </Screen>
     )
   }
   if (item === null) {
     return (
-      <Screen title="Inventory item" back="/inventory">
+      <Screen title="Inventory item" back={back}>
         <EmptyState
           spacious
           title="Not found"
@@ -130,7 +132,7 @@ export function InventoryItemDetail() {
 
   return (
     <>
-      <Screen title={label} back="/inventory">
+      <Screen title={label} back={back}>
         <div class="space-y-5">
           <Card>
             <p class="text-sm text-content-muted">On hand</p>

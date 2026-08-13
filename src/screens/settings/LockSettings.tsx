@@ -11,10 +11,12 @@ import { PinPad } from '../../components/PinPad'
 import { useShop } from '../../state/ShopProvider'
 import { clearStaffPin, setStaffPin } from '../../db/writes'
 import { PIN_LENGTH } from '../../lib/pin'
+import { useBack } from '../../hooks/useBack'
 
 type Phase = 'idle' | 'choose' | 'confirm'
 
 export function LockSettings() {
+  const back = useBack()
   const { db, staff, activeStaff } = useShop()
   const person = activeStaff ?? staff[0]
 
@@ -88,7 +90,7 @@ export function LockSettings() {
   }
 
   return (
-    <Screen title="Lock this phone" back="/settings">
+    <Screen title="Lock this phone" back={back}>
       <div class="space-y-5">
         <SectionTitle>{hasPin ? 'A PIN is set' : 'No PIN set'}</SectionTitle>
         <Card>

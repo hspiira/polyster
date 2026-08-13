@@ -40,6 +40,7 @@ import {
   type ProductType,
 } from '../online/catalogue'
 import { listCollections, type Collection } from '../online/collections'
+import { useBack } from '../hooks/useBack'
 
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   garment: 'Garment',
@@ -50,6 +51,7 @@ const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
 }
 
 export function Catalogue() {
+  const back = useBack()
   const { shop } = useCurrentShop()
   const online = useOnlineFeature()
   const [products, setProducts] = useState<Product[] | null>(null)
@@ -99,7 +101,7 @@ export function Catalogue() {
 
   if (!online) {
     return (
-      <Screen title="Catalogue" back="/settings">
+      <Screen title="Catalogue" back={back}>
         <EmptyState
           spacious
           illustration={<IconTag size={48} />}
@@ -114,7 +116,7 @@ export function Catalogue() {
     <>
       <Screen
         title="Catalogue"
-        back="/settings"
+        back={back}
         action={
           products && products.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />

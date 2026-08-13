@@ -24,8 +24,10 @@ import { recordSale } from '../db/writes'
 import { PAYMENT_METHODS, type PaymentMethod } from '../db/schema'
 import { PAYMENT_METHOD_LABELS } from './orderStage'
 import { formatMinor, parseToMinor } from '../lib/money'
+import { useBack } from '../hooks/useBack'
 
 export function SaleForm() {
+  const back = useBack()
   const location = useLocation()
   const { db, shop, activeStaff } = useCurrentShop()
 
@@ -90,7 +92,7 @@ export function SaleForm() {
   }
 
   return (
-    <Screen title="Record a sale" back="/sales">
+    <Screen title="Record a sale" back={back}>
       <form onSubmit={submit} class="space-y-4">
         <Card>
           <div class="space-y-4">
@@ -186,7 +188,7 @@ export function SaleForm() {
         </InfoNote>
 
         <div class="flex gap-2">
-          <Button variant="secondary" class="flex-1" type="button" onClick={() => location.route('/sales')}>
+          <Button variant="secondary" class="flex-1" type="button" onClick={() => location.route(back)}>
             Cancel
           </Button>
           <Button class="flex-2" type="submit" disabled={saving}>

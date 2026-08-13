@@ -6,6 +6,7 @@
  * screen (floating tab bar vs. side rail) genuinely is a viewport question.
  */
 import type { ComponentChildren } from 'preact'
+import { useLocation } from 'preact-iso'
 import { IconChevronLeft } from '../components/icons'
 import { useSwipeBack } from '../hooks/useSwipeBack'
 import { cn } from '../lib/cn'
@@ -53,17 +54,36 @@ type Heading =
       subtitle?: never
     }
 
+/**
+ * The sibling screens of an area, rendered as the heading itself: the open one
+ * is the `h1`, the rest are links beside it.
+ *
+ * Not a title plus a row of pills under it -- that is two rows of chrome saying
+ * the same thing twice. Not a dropdown on the title either: a menu hides three
+ * destinations behind a tap each, when all four fit on one line.
+ */
+export interface ScreenSection {
+  href: string
+  label: string
+}
+
 export function Screen({
   title,
   label,
   subtitle,
   back,
   action,
+  sections,
   subheader,
   width = 'prose',
   wide,
   children,
 }: Heading & {
+  /**
+   * Renders the area's screens as the heading. Pass `label` as the area's name
+   * for the nav region; the open section supplies the visible `h1`.
+   */
+  sections?: readonly ScreenSection[]
   /**
    * Href for the back chevron and the edge-swipe gesture. Omit on tab roots.
    *
@@ -89,12 +109,13 @@ export function Screen({
   const swipeRef = useSwipeBack(back)
   const measure = WIDTHS[wide ? 'wide' : width]
   const heading = title ?? label
+  const { path } = useLocation()
 
   // A label-only tab root with no back chevron and no action renders nothing
   // visible in this row (the h1 is sr-only) -- collapse its padding instead of
   // reserving sticky space for nothing. A subheader still counts as something
   // to show, so the row keeps its top clearance for it.
-  const rowHasContent = Boolean(back || title || action)
+  const rowHasContent = Boolean(back || title || action || sections)
 
   return (
     <div ref={swipeRef}>
@@ -121,12 +142,40 @@ export function Screen({
               <IconChevronLeft size={22} />
             </a>
           )}
-          <div class="min-w-0 flex-1">
-            <h1 class={cn('truncate text-title font-semibold', !title && 'sr-only')}>
-              {heading}
-            </h1>
-            {subtitle && <p class="mt-0.5 truncate text-xs text-content-muted">{subtitle}</p>}
-          </div>
+          {/* The strip spreads across the row rather than packing against the
+              left: the sections are this screen's chrome, not a control sitting
+              in the corner of it. */}
+          {sections ? (
+            <nav
+              aria-label={label}
+              class="flex min-w-0 flex-1 items-baseline justify-between gap-2"
+            >
+              {sections.map((section) => {
+                const current = section.href === path
+                return current ? (
+                  <h1 key={section.href} class="text-[17px] font-semibold tracking-tight">
+                    {section.label}
+                  </h1>
+                ) : (
+                  <a
+                    key={section.href}
+                    href={section.href}
+                    class="text-[17px] font-medium tracking-tight text-content-subtle
+                           transition-colors hover:text-content"
+                  >
+                    {section.label}
+                  </a>
+                )
+              })}
+            </nav>
+          ) : (
+            <div class="min-w-0 flex-1">
+              <h1 class={cn('truncate text-title font-semibold', !title && 'sr-only')}>
+                {heading}
+              </h1>
+              {subtitle && <p class="mt-0.5 truncate text-xs text-content-muted">{subtitle}</p>}
+            </div>
+          )}
           {action}
         </div>
         {subheader && <div class={cn(measure, 'px-gutter pb-3')}>{subheader}</div>}

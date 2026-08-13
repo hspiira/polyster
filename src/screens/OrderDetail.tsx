@@ -67,8 +67,10 @@ import {
   nextStage,
   stagesFor,
 } from './orderStage'
+import { useBack } from '../hooks/useBack'
 
 export function OrderDetail() {
+  const back = useBack()
   const { params } = useRoute()
   const location = useLocation()
   const orderId = params.id ?? ''
@@ -98,7 +100,7 @@ export function OrderDetail() {
 
   if (!order) {
     return (
-      <Screen title="Order" back="/orders">
+      <Screen title="Order" back={back}>
         <EmptyState
           spacious
           illustration={<IllustrationSearch size={112} />}
@@ -133,7 +135,7 @@ export function OrderDetail() {
     <Screen
       title={order.summary}
       subtitle={client?.name}
-      back="/orders"
+      back={back}
       wide
       action={
         canEdit ? (

@@ -40,6 +40,7 @@ import {
   type ProductVariant,
 } from '../online/catalogue'
 import { listCollections, type Collection } from '../online/collections'
+import { useBack } from '../hooks/useBack'
 
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   garment: 'Garment',
@@ -55,6 +56,7 @@ const TOGGLE_OPTIONS = [
 ] as const
 
 export function CatalogueDetail() {
+  const back = useBack()
   const { params } = useRoute()
   const productId = params.id ?? ''
   const { shop } = useCurrentShop()
@@ -97,7 +99,7 @@ export function CatalogueDetail() {
 
   if (!online) {
     return (
-      <Screen title="Product" back="/catalogue">
+      <Screen title="Product" back={back}>
         <EmptyState
           spacious
           title="No connection"
@@ -109,7 +111,7 @@ export function CatalogueDetail() {
 
   if (loadError) {
     return (
-      <Screen title="Product" back="/catalogue">
+      <Screen title="Product" back={back}>
         <ErrorNote>{loadError}</ErrorNote>
       </Screen>
     )
@@ -117,7 +119,7 @@ export function CatalogueDetail() {
 
   if (product === undefined) {
     return (
-      <Screen title="Product" back="/catalogue">
+      <Screen title="Product" back={back}>
         <Skeleton class="h-32" />
       </Screen>
     )
@@ -125,7 +127,7 @@ export function CatalogueDetail() {
 
   if (product === null) {
     return (
-      <Screen title="Product" back="/catalogue">
+      <Screen title="Product" back={back}>
         <EmptyState
           spacious
           title="Product not found"
@@ -147,7 +149,7 @@ export function CatalogueDetail() {
     <>
       <Screen
         title={product.name}
-        back="/catalogue"
+        back={back}
         action={
           <Button variant="ghost" size="sm" aria-label="Edit product" onClick={() => setEditing(true)}>
             <IconEdit size={20} />

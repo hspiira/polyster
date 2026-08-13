@@ -6,7 +6,7 @@
 import { cn } from '../../lib/cn'
 import { formatMinor } from '../../lib/money'
 import { formatDueDate } from '../../lib/dates'
-import { FLUSH_SURFACE, MoreLink } from '../../components/ui'
+import { FLUSH_SURFACE_FLAT, MoreLink } from '../../components/ui'
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from '../orderStage'
 import { normalizeTone, TONE_SOFT, TONE_SOLID } from '../../ui/tones'
 import { capRows } from './todayModel'
@@ -29,7 +29,7 @@ export function DueList({ sections }: { sections: readonly DueSection[] }) {
   if (visible.length === 0) return null
 
   return (
-    <section class={FLUSH_SURFACE}>
+    <section class={FLUSH_SURFACE_FLAT}>
       {visible.map((section) => (
         <Section key={section.title} section={section} />
       ))}

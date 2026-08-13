@@ -29,7 +29,7 @@ import {
   DataList,
   EmptyState,
   Screen,
-  Segmented,
+  TabRow,
   type Column,
 } from '../ui'
 import { IllustrationOrders } from '../components/illustrations'
@@ -49,13 +49,13 @@ import {
   type DueRow,
 } from './today/todayModel'
 
-/** Scopes the segmented control offers. */
+/** Scopes the tab row offers. */
 type Segment = 'open' | 'overdue' | 'ready' | 'owing' | 'all'
 
 /**
  * Scopes only reachable by link, from Today. They are not segments: eight
- * segments would be unreadable at 390px, and `Segmented` documents five as its
- * ceiling. They render as a context bar with a way back to the segments.
+ * tabs, each carrying a count, would not fit a phone width. They render as a
+ * context bar with a way back to the segments instead.
  */
 type LinkedScope = 'today' | 'week' | 'out'
 
@@ -210,20 +210,25 @@ export function Orders() {
     [clientDocs],
   )
 
+  // Shared by the list and the tab counts, computed once: two derivations of
+  // "overdue" would drift, and the first symptom would be a tab saying 6
+  // opening a list of 5.
+  const all = useMemo(() => pickupRows(orders, clientNames, balances), [orders, clientNames, balances])
+  const buckets = useMemo(
+    () => buildBuckets(orders, clientNames, balances, now),
+    [orders, clientNames, balances, now],
+  )
+
   const rows = useMemo(() => {
     if (typeof scope === 'object') {
       return rowsDueOn(orders, clientNames, balances, scope.due)
     }
 
-    if (scope === 'overdue' || scope === 'today' || scope === 'week' || scope === 'out') {
-      const buckets = buildBuckets(orders, clientNames, balances, now)
-      if (scope === 'overdue') return buckets.overdue
-      if (scope === 'today') return buckets.dueToday
-      if (scope === 'week') return buckets.dueThisWeek
-      return buckets.outOnRental
-    }
+    if (scope === 'overdue') return buckets.overdue
+    if (scope === 'today') return buckets.dueToday
+    if (scope === 'week') return buckets.dueThisWeek
+    if (scope === 'out') return buckets.outOnRental
 
-    const all = pickupRows(orders, clientNames, balances)
     switch (scope) {
       case 'open':
         return all.filter((row) => OPEN_STAGES.includes(row.order.stage))
@@ -236,7 +241,18 @@ export function Orders() {
         // not creation order.
         return [...all].reverse()
     }
-  }, [orders, clientNames, balances, scope, now])
+  }, [orders, clientNames, balances, scope, now, all, buckets])
+
+  const segmentCounts: Record<Segment, number> = useMemo(
+    () => ({
+      open: all.filter((row) => OPEN_STAGES.includes(row.order.stage)).length,
+      overdue: buckets.overdue.length,
+      ready: all.filter((row) => row.order.stage === 'ready').length,
+      owing: all.filter((row) => row.outstanding_minor > 0).length,
+      all: all.length,
+    }),
+    [all, buckets],
+  )
 
   return (
     <Screen
@@ -244,9 +260,12 @@ export function Orders() {
       width="wide"
       subheader={
         isSegment(scope) ? (
-          <Segmented
+          <TabRow
             value={scope}
-            options={SEGMENTS}
+            options={SEGMENTS.map((segment) => ({
+              ...segment,
+              count: segmentCounts[segment.value],
+            }))}
             onChange={(value) => location.route(`/orders?filter=${value}`)}
             label="Filter orders"
           />

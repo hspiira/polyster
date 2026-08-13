@@ -33,6 +33,7 @@ import {
   reorderMeasurementFields,
 } from '../../db/writes'
 import { MEASUREMENT_FIELD_TYPES, type MeasurementFieldType } from '../../db/schema'
+import { useBack } from '../../hooks/useBack'
 
 const FIELD_TYPE_LABELS: Record<MeasurementFieldType, string> = {
   number: 'Number',
@@ -54,6 +55,7 @@ const SUGGESTIONS = [
 ] as const
 
 export function MeasurementFieldSettings() {
+  const back = useBack()
   const { db, shop } = useShop()
   const [label, setLabel] = useState('')
   const [unit, setUnit] = useState('in')
@@ -79,7 +81,7 @@ export function MeasurementFieldSettings() {
 
   if (!shop) {
     return (
-      <Screen title="Measurement fields" back="/settings">
+      <Screen title="Measurement fields" back={back}>
         <Card>
           <p class="text-sm text-stone-600 dark:text-stone-300">
             The shop record has not reached this device yet. It arrives with the first sync.
@@ -127,7 +129,7 @@ export function MeasurementFieldSettings() {
     <Screen
       title="Measurements"
       subtitle={fields.length > 0 ? `${fields.length} fields` : undefined}
-      back="/settings"
+      back={back}
       action={
         fields.length > 0 && (
           <Button size="sm" onClick={() => setAdding(true)}>

@@ -32,9 +32,11 @@ import {
   IconUsers,
 } from '../components/icons'
 import { ThemeChoice } from '../components/ThemeChoice'
+import { InstallCard } from '../components/InstallCard'
 import { useShop } from '../state/ShopProvider'
 import { useAuth } from '../hooks/useAuth'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
+import { useBack } from '../hooks/useBack'
 
 interface Entry {
   href: string
@@ -128,6 +130,7 @@ const DEVICE_ENTRIES: readonly Entry[] = [
 ]
 
 export function Settings() {
+  const back = useBack()
   const { db, shop, activeStaff, setActiveStaff } = useShop()
   const { controller } = useAuth()
   const flags = useFeatureFlags(db, shop?.id ?? '__none__')
@@ -144,7 +147,7 @@ export function Settings() {
   })
 
   return (
-    <Screen title="Settings" subtitle={shop?.name} back="/">
+    <Screen title="Settings" subtitle={shop?.name} back={back}>
       <div class="space-y-6">
         <Group title="Your shop" entries={shopEntries} />
         <Group title="This device" entries={DEVICE_ENTRIES} />
@@ -152,6 +155,11 @@ export function Settings() {
         <section>
           <SectionTitle>Appearance</SectionTitle>
           <ThemeChoice />
+        </section>
+
+        <section>
+          <SectionTitle>Install</SectionTitle>
+          <InstallCard />
         </section>
 
         {activeStaff && (

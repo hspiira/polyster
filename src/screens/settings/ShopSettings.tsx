@@ -4,6 +4,7 @@ import { useShop } from '../../state/ShopProvider'
 import { updateShop } from '../../db/writes'
 import { toWaNumber } from '../../lib/whatsapp'
 import { BUSINESS_TYPES, type BusinessType } from '../../db/schema'
+import { useBack } from '../../hooks/useBack'
 
 const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   tailor: 'Tailor',
@@ -35,6 +36,7 @@ function isValidCurrencyCode(code: string): boolean {
 }
 
 export function ShopSettings() {
+  const back = useBack()
   const { db, shop } = useShop()
   const [name, setName] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
@@ -64,7 +66,7 @@ export function ShopSettings() {
 
   if (!shop) {
     return (
-      <Screen title="Shop details" back="/settings">
+      <Screen title="Shop details" back={back}>
         <Card>
           <p class="text-sm text-stone-600 dark:text-stone-300">
             The shop record has not reached this device yet. It arrives with the first sync.
@@ -114,7 +116,7 @@ export function ShopSettings() {
   const numberLooksWrong = whatsapp.trim().length > 0 && toWaNumber(whatsapp) === null
 
   return (
-    <Screen title="Shop details" back="/settings">
+    <Screen title="Shop details" back={back}>
       <form onSubmit={save} onInput={() => setSaved(false)} class="space-y-4">
         <Card>
           <div class="space-y-4">

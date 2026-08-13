@@ -13,22 +13,38 @@ import { cn } from '../lib/cn'
 export const FLUSH_SURFACE =
   '-mx-gutter overflow-hidden bg-surface sm:mx-0 sm:rounded-card sm:shadow-raise'
 
+/**
+ * Same shape, on `--surface-flat` instead of `--surface`: a step above the
+ * page rather than the full jump. For a screen that is mostly rows -- Today,
+ * Orders -- where every row sitting on a full-contrast card reads as a stack
+ * of cut-out tiles instead of one page of content.
+ */
+export const FLUSH_SURFACE_FLAT =
+  '-mx-gutter overflow-hidden bg-surface-flat sm:mx-0 sm:rounded-card sm:shadow-raise'
+
 export function Card({
   children,
   class: className,
   padded = true,
   flush = false,
+  flat = false,
 }: {
   children: ComponentChildren
   class?: string
   padded?: boolean
   /** Edge to edge on a phone. See FLUSH_SURFACE. */
   flush?: boolean
+  /** See FLUSH_SURFACE_FLAT. */
+  flat?: boolean
 }) {
   return (
     <div
       class={cn(
-        flush ? FLUSH_SURFACE : 'rounded-card bg-surface shadow-raise',
+        flush
+          ? flat
+            ? FLUSH_SURFACE_FLAT
+            : FLUSH_SURFACE
+          : cn('rounded-card shadow-raise', flat ? 'bg-surface-flat' : 'bg-surface'),
         padded && 'p-gutter',
         className,
       )}
