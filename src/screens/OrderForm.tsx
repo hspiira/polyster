@@ -651,9 +651,9 @@ export function OrderForm() {
             <h2 class="px-1 text-[13px] font-semibold">Items</h2>
 
             {activeFields.length === 0 && (
-              <p class="px-1 text-xs text-stone-500 dark:text-stone-400">
+              <p class="px-1 text-xs text-content-muted">
                 No measurement fields set up yet.{' '}
-                <a href="/settings/measurements" class="font-medium text-brand-700 dark:text-brand-400">
+                <a href="/settings/measurements" class="font-medium text-accent">
                   Set them up
                 </a>
                 .
@@ -882,7 +882,7 @@ export function OrderForm() {
         title="Same-day order already open"
         onClose={() => setSameDayMatches([])}
       >
-        <p class="text-sm text-stone-600 dark:text-stone-300">
+        <p class="text-sm text-content-muted">
           {clientName} already has{' '}
           {sameDayMatches.length === 1 ? 'an open order' : `${sameDayMatches.length} open orders`} due{' '}
           {formatDate(header.pickup_due_date)}. Add this item to one of them, or keep this as a separate
@@ -955,13 +955,13 @@ function UnitCard({
   return (
     <Card flush>
       <div class="mb-3 flex items-center justify-between gap-2">
-        <p class="text-sm font-semibold text-stone-500 dark:text-stone-400">Item {index + 1}</p>
+        <p class="text-sm font-semibold text-content-muted">Item {index + 1}</p>
         {canRemove && (
           <Button
             variant="ghost"
             size="sm"
             type="button"
-            class="text-red-600 dark:text-red-400"
+            class="text-danger"
             aria-label={`Remove ${unit.item_description || `item ${index + 1}`}`}
             onClick={onRemove}
           >
@@ -1065,16 +1065,16 @@ function MeasurementsBlock({
   }, [fields])
 
   return (
-    <div class="space-y-3 border-t border-stone-100 pt-4 dark:border-stone-800">
+    <div class="space-y-3 border-t border-line pt-4">
       <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <p class="text-sm font-medium text-stone-700 dark:text-stone-300">Measurements</p>
+        <p class="text-sm font-medium text-content">Measurements</p>
         {clientId && (
           <div class="flex flex-wrap gap-x-3 gap-y-1">
             {hasClientProfile && (
               <button
                 type="button"
                 onClick={onCopyFromClient}
-                class="text-xs font-semibold text-brand-700 dark:text-brand-400"
+                class="text-xs font-semibold text-accent"
               >
                 Copy from {clientName}'s measurements
               </button>
@@ -1082,7 +1082,7 @@ function MeasurementsBlock({
             <button
               type="button"
               onClick={onSaveToClient}
-              class="text-xs font-semibold text-brand-700 dark:text-brand-400"
+              class="text-xs font-semibold text-accent"
             >
               Save to {clientName}'s measurements
             </button>
@@ -1094,7 +1094,7 @@ function MeasurementsBlock({
           the button must not imply otherwise, so it is hidden rather than
           shown disabled. */}
       {clientId && !hasClientProfile && (
-        <p class="text-xs text-stone-500 dark:text-stone-400">
+        <p class="text-xs text-content-muted">
           {clientName} has no saved measurements yet -- nothing to copy in.
         </p>
       )}
@@ -1102,7 +1102,7 @@ function MeasurementsBlock({
       {groups.map(([group, groupFields]) => (
         <div key={group || '_ungrouped'} class="space-y-3">
           {group && (
-            <p class="text-xs font-semibold tracking-wide text-stone-400 uppercase dark:text-stone-500">
+            <p class="text-xs font-semibold tracking-wide text-content-subtle uppercase">
               {group}
             </p>
           )}

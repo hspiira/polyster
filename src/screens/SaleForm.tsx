@@ -130,7 +130,7 @@ export function SaleForm() {
             </div>
 
             {totalMinor !== null && count > 1 && (
-              <p class="text-sm text-stone-600 dark:text-stone-300">
+              <p class="text-sm text-content-muted">
                 Total{' '}
                 <span class="font-semibold tabular-nums">
                   {formatMinor(totalMinor, shop.currency)}

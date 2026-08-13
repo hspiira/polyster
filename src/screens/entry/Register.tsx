@@ -1,12 +1,5 @@
-/**
- * The whole of registration: a shop name, your name, and you are in.
- *
- * Everything the old five-step wizard asked for up front is now asked at the
- * moment it becomes true -- the number when there is work worth backing up, the
- * PIN when there is something to lock, measurements when a client is first
- * measured. This screen only asks for the two things that have no sensible
- * default.
- */
+/* All of registration: a shop name, your name, in. Everything else is asked at
+   the moment it becomes true, not up front. */
 import { useRef, useState } from 'preact/hooks'
 import { useAuth } from '../../hooks/useAuth'
 import { useShop } from '../../state/ShopProvider'
@@ -113,7 +106,7 @@ export function Register({ onDone }: { onDone: () => void }) {
         </EntryField>
 
         {error && invalid === null && (
-          <p role="alert" class="mt-1 text-sm leading-relaxed text-red-400">
+          <p role="alert" class="mt-1 text-sm leading-relaxed text-danger">
             {error}
           </p>
         )}

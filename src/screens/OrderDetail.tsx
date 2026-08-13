@@ -186,7 +186,7 @@ export function OrderDetail() {
                 <IconCheck size={18} /> Mark {STAGE_LABELS[upcoming].toLowerCase()}
               </Button>
             ) : (
-              <p class="mt-4 flex items-center justify-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
+              <p class="mt-4 flex items-center justify-center gap-2 text-sm text-success">
                 <IconCheck size={16} /> This order is finished
               </p>
             )}
@@ -203,18 +203,18 @@ export function OrderDetail() {
             <dl>
               <DataRow label="Client">
                 {client ? (
-                  <a href={`/clients/${client.id}`} class="text-brand-700 dark:text-brand-400">
+                  <a href={`/clients/${client.id}`} class="text-accent">
                     {client.name}
                   </a>
                 ) : (
-                  <span class="text-stone-400">Unknown</span>
+                  <span class="text-content-subtle">Unknown</span>
                 )}
               </DataRow>
               <DataRow label="Type">{ORDER_TYPE_LABELS[order.order_type]}</DataRow>
               <DataRow label={order.order_type === 'rental' ? 'Collection' : 'Pickup'}>
-                <span class={overdue ? 'text-red-600 dark:text-red-400' : ''}>
+                <span class={overdue ? 'text-danger' : ''}>
                   {formatDate(order.pickup_due_date)}
-                  <span class="ml-1 font-normal text-stone-500 dark:text-stone-400">
+                  <span class="ml-1 font-normal text-content-muted">
                     ({formatDueDate(order.pickup_due_date)})
                   </span>
                 </span>
@@ -239,7 +239,7 @@ export function OrderDetail() {
               )}
             </dl>
             {order.notes && (
-              <p class="mt-4 whitespace-pre-wrap text-sm text-stone-600 dark:text-stone-300">
+              <p class="mt-4 whitespace-pre-wrap text-sm text-content-muted">
                 {order.notes}
               </p>
             )}
@@ -322,10 +322,10 @@ function BalanceCard({
         {formatMinor(balance.amount_paid_minor, currency)} paid of{' '}
         {formatMinor(balance.price_total_minor, currency)}
       </p>
-      <div class="mt-3 h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
+      <div class="mt-3 h-1 overflow-hidden rounded-full bg-surface-sunken">
         <div
           class={`h-full rounded-full transition-[width] duration-500 ${
-            owing ? 'bg-amber-500' : 'bg-emerald-500'
+            owing ? 'bg-money' : 'bg-success'
           }`}
           style={{ width: `${paidFraction * 100}%` }}
         />
@@ -388,8 +388,8 @@ function MoneyBlock({
           <DataRow label="Balance">{formatMinor(balance.balance_minor, currency)}</DataRow>
         </dl>
         {order.rental_deposit_minor > 0 && (
-          <div class="mt-3 border-t border-stone-100 pt-3 dark:border-stone-800">
-            <p class="text-sm text-stone-600 dark:text-stone-300">
+          <div class="mt-3 border-t border-line pt-3">
+            <p class="text-sm text-content-muted">
               Deposit held: <span class="font-medium">{formatMinor(order.rental_deposit_minor, currency)}</span>
               {order.deposit_refunded_at
                 ? ` -- refunded ${formatDateTime(order.deposit_refunded_at)}`
@@ -457,8 +457,8 @@ function ItemsSection({
                 class={cn(
                   'flex size-7 shrink-0 items-center justify-center rounded-full transition-colors',
                   unit.done
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-stone-200 text-transparent dark:bg-stone-700',
+                    ? 'bg-accent text-accent-content'
+                    : 'bg-neutral-soft text-transparent',
                 )}
               >
                 <IconCheck size={14} />
@@ -466,7 +466,7 @@ function ItemsSection({
               <span class="min-w-0 flex-1">
                 <span class="block truncate font-medium">{unit.item_description}</span>
                 {unit.wearer_name && (
-                  <span class="block text-xs text-stone-500 dark:text-stone-400">
+                  <span class="block text-xs text-content-muted">
                     For {unit.wearer_name}
                   </span>
                 )}
@@ -502,32 +502,32 @@ function StageTrack({
             <div class="flex w-full items-center">
               <span
                 class={`h-0.5 flex-1 ${index === 0 ? 'opacity-0' : ''} ${
-                  index <= currentIndex ? 'bg-brand-600' : 'bg-stone-200 dark:bg-stone-700'
+                  index <= currentIndex ? 'bg-accent' : 'bg-neutral-soft'
                 }`}
               />
               <span
                 class={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs
                         font-semibold transition-colors ${
                           done
-                            ? 'bg-brand-600 text-white'
+                            ? 'bg-accent text-accent-content'
                             : active
-                              ? 'bg-brand-700 text-white ring-4 ring-brand-600/20'
-                              : 'bg-stone-200 text-stone-500 dark:bg-stone-700 dark:text-stone-400'
+                              ? 'bg-accent-hover text-accent-content ring-4 ring-accent/20'
+                              : 'bg-neutral-soft text-neutral-on-soft'
                         }`}
               >
                 {done ? <IconCheck size={14} /> : index + 1}
               </span>
               <span
                 class={`h-0.5 flex-1 ${index === flow.length - 1 ? 'opacity-0' : ''} ${
-                  index < currentIndex ? 'bg-brand-600' : 'bg-stone-200 dark:bg-stone-700'
+                  index < currentIndex ? 'bg-accent' : 'bg-neutral-soft'
                 }`}
               />
             </div>
             <span
               class={`mt-1.5 px-0.5 text-center text-[11px] leading-tight ${
                 active
-                  ? 'font-semibold text-stone-900 dark:text-stone-100'
-                  : 'text-stone-500 dark:text-stone-400'
+                  ? 'font-semibold text-content'
+                  : 'text-content-muted'
               }`}
             >
               {STAGE_LABELS[stage]}
@@ -617,12 +617,12 @@ function PaymentsSection({
           settled ? (
             // Nothing is owed, so there is nothing to add. Say so rather than
             // offering a form that can only refuse.
-            <span class="text-xs font-medium text-stone-500 dark:text-stone-400">Paid in full</span>
+            <span class="text-xs font-medium text-content-muted">Paid in full</span>
           ) : canCreatePayment ? (
             <button
               type="button"
               onClick={() => setAdding(true)}
-              class="flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400"
+              class="flex items-center gap-1 text-xs font-semibold text-accent"
             >
               <IconPlus size={14} /> Add
             </button>
@@ -634,7 +634,7 @@ function PaymentsSection({
 
       <Card padded={payments.length === 0}>
         {payments.length === 0 ? (
-          <p class="text-center text-sm text-stone-500 dark:text-stone-400">
+          <p class="text-center text-sm text-content-muted">
             No payments recorded yet.
           </p>
         ) : (
@@ -643,11 +643,11 @@ function PaymentsSection({
               <li key={payment.id} class="flex items-center justify-between gap-3 px-4 py-3.5">
                 <span class="min-w-0">
                   <span class="block font-medium">{formatMinor(payment.amount_minor, currency)}</span>
-                  <span class="block truncate text-xs text-stone-500 dark:text-stone-400">
+                  <span class="block truncate text-xs text-content-muted">
                     {PAYMENT_METHOD_LABELS[payment.method]} · {formatDateTime(payment.payment_date)}
                   </span>
                   {payment.notes && (
-                    <span class="block truncate text-xs text-stone-500 dark:text-stone-400">
+                    <span class="block truncate text-xs text-content-muted">
                       {payment.notes}
                     </span>
                   )}
@@ -678,9 +678,8 @@ function PaymentsSection({
             <button
               type="button"
               onClick={() => setAmount(String(fromMinorUnits(outstanding, currency)))}
-              class="min-h-11 w-full rounded-control bg-brand-100 px-3 text-sm
-                     font-medium text-brand-800 active:bg-brand-200
-                     dark:bg-brand-950 dark:text-brand-300"
+              class="min-h-11 w-full rounded-control bg-accent-soft px-3 text-sm
+                     font-medium text-accent-on-soft active:bg-accent-soft/70"
             >
               Pay the full balance, {formatMinor(outstanding, currency)}
             </button>
@@ -814,8 +813,8 @@ function WhatsAppSection({
       <section>
         <SectionTitle>Message client</SectionTitle>
         <Card>
-          <p class="flex gap-2 text-sm text-stone-600 dark:text-stone-300">
-            <IconAlert size={18} class="mt-0.5 shrink-0 text-stone-400" />
+          <p class="flex gap-2 text-sm text-content-muted">
+            <IconAlert size={18} class="mt-0.5 shrink-0 text-content-subtle" />
             {phone
               ? `"${phone}" is not a number WhatsApp will accept. Add the country code, or start it with 0.`
               : 'No phone number saved for this client.'}
@@ -829,7 +828,7 @@ function WhatsAppSection({
     <section>
       <SectionTitle>Message client</SectionTitle>
       <Card>
-        <p class="mb-3 text-sm text-stone-500 dark:text-stone-400">
+        <p class="mb-3 text-sm text-content-muted">
           Opens WhatsApp with the message ready. Nothing is sent until you tap send.
         </p>
         <div class="space-y-2">
@@ -884,7 +883,7 @@ function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc
   const sender = latest.sent_by ? staff.find((member) => member.id === latest.sent_by)?.name : undefined
 
   return (
-    <p class="mt-3 text-xs text-stone-500 dark:text-stone-400">
+    <p class="mt-3 text-xs text-content-muted">
       {MESSAGE_SENT_LABEL[latest.template]} {formatDateTime(latest.sent_at)}
       {sender ? ` by ${sender}` : ''}
     </p>
@@ -916,18 +915,18 @@ function StageHistory({ orderId }: { orderId: string }) {
         <ol class="space-y-3">
           {history.map((entry) => (
             <li key={entry.id} class="flex gap-3">
-              <span class="mt-1.5 size-2 shrink-0 rounded-full bg-stone-300 dark:bg-stone-600" />
+              <span class="mt-1.5 size-2 shrink-0 rounded-full bg-line-strong" />
               <span class="min-w-0 text-sm">
                 <span class="block">
                   {STAGE_LABELS[entry.to_stage]}
                   {entry.changed_by && names.has(entry.changed_by) && (
-                    <span class="text-stone-500 dark:text-stone-400">
+                    <span class="text-content-muted">
                       {' '}
                       by {names.get(entry.changed_by)}
                     </span>
                   )}
                 </span>
-                <span class="block text-xs text-stone-500 dark:text-stone-400">
+                <span class="block text-xs text-content-muted">
                   {formatDateTime(entry.changed_at)}
                 </span>
               </span>

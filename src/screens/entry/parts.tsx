@@ -1,25 +1,19 @@
-/**
- * Dark-only building blocks for the entry flow.
- *
- * Always dark, whatever the system theme (spec E6), so the first run does not
- * flash between light and dark. Two layouts only: forms, and centred pads.
- */
+/* Building blocks for the entry flow. Always dark, whatever the system theme
+   (spec E6), so the first run does not flash between light and dark. */
 import { cloneElement } from 'preact'
 import { useId } from 'preact/hooks'
 import type { ComponentChildren, JSX, RefObject, VNode } from 'preact'
 import { cn } from '../../lib/cn'
 import { GlowBackdrop } from '../../components/GlowBackdrop'
 
-/**
- * Full-screen dark shell with the drifting glow.
- *
- * Nested on purpose: `safe-top` and `safe-bottom` set their own padding, so a
- * `pt-*` on the same element is silently overridden. Outer holds the safe area,
- * inner holds the spacing.
- */
+/* `data-theme` pins the subtree dark, which is what lets everything inside ask
+   for a role instead of naming a colour. Nesting is for the safe-area padding. */
 export function EntryScreen({ children }: { children: ComponentChildren }) {
   return (
-    <main class="relative flex min-h-svh flex-col overflow-hidden bg-stone-950 px-6 text-stone-100">
+    <main
+      data-theme="dark"
+      class="relative flex min-h-svh flex-col overflow-hidden bg-page px-6 text-content"
+    >
       <GlowBackdrop />
       <div class="safe-top safe-bottom relative z-10 flex flex-1 flex-col">
         <div class="mx-auto flex w-full max-w-sm flex-1 flex-col pb-10 pt-10">{children}</div>
@@ -28,13 +22,8 @@ export function EntryScreen({ children }: { children: ComponentChildren }) {
   )
 }
 
-/**
- * Heading, fields, then the action right beneath them.
- *
- * The action is not on the bottom edge: on a short form that leaves a big gap
- * between what you typed and the button, which reads as a bug. Secondary things
- * go in `footer`, which is pinned.
- */
+/* The action sits under the fields, not on the bottom edge -- on a short form
+   that gap between what you typed and the button reads as a bug. */
 export function EntryForm({
   onSubmit,
   children,
@@ -73,8 +62,8 @@ export function EntryHeading({
 }) {
   return (
     <header class={cn('mb-7', centred && 'text-center')}>
-      <h1 class="text-[26px] font-semibold leading-tight tracking-tight text-white">{title}</h1>
-      {body && <p class="mt-2 text-sm leading-relaxed text-stone-400">{body}</p>}
+      <h1 class="text-[26px] font-semibold leading-tight tracking-tight text-content">{title}</h1>
+      {body && <p class="mt-2 text-sm leading-relaxed text-content-muted">{body}</p>}
     </header>
   )
 }
@@ -98,18 +87,19 @@ export function EntryField({
 
   return (
     <label class="mb-4 block">
-      <span class="mb-2 block pl-4 text-sm font-medium text-stone-300">{label}</span>
+      <span class="mb-2 block pl-4 text-sm font-medium text-content-muted">{label}</span>
       {cloneElement(children, {
         'aria-invalid': error ? true : undefined,
         'aria-describedby': describedBy || undefined,
       })}
       {error ? (
-        <span id={errorId} role="alert" class="mt-2 block pl-4 text-sm leading-relaxed text-red-400">
+        <span id={errorId} role="alert" class="mt-2 block pl-4 text-sm leading-relaxed text-danger">
           {error}
         </span>
       ) : (
         hint && (
-          <span id={hintId} class="mt-2 block pl-4 text-sm leading-relaxed text-stone-400">
+          <span id={hintId} class="mt-2 block pl-4 text-sm leading-relaxed text-content-muted">
+
             {hint}
           </span>
         )
@@ -132,8 +122,8 @@ export function EntryInput({
     <span
       class={cn(
         'glass-inset glass-sheen block overflow-hidden rounded-control',
-        'transition-colors focus-within:border-white/32',
-        props['aria-invalid'] && 'border-red-500/60',
+        'transition-colors focus-within:border-glass-edge',
+        props['aria-invalid'] && 'border-danger/60',
         className,
       )}
     >
@@ -141,8 +131,8 @@ export function EntryInput({
         {...props}
         ref={inputRef}
         class={cn(
-          'relative z-10 min-h-13 w-full bg-transparent pl-5 text-base text-white',
-          'outline-none placeholder:text-stone-400',
+          'relative z-10 min-h-13 w-full bg-transparent pl-5 text-base text-content',
+          'outline-none placeholder:text-content-muted',
           trailing ? 'pr-13' : 'pr-5',
         )}
       />
@@ -160,7 +150,7 @@ export function EntryReveal({ shown, onToggle }: { shown: boolean; onToggle: () 
       onClick={onToggle}
       aria-label={shown ? 'Hide password' : 'Show password'}
       class="flex min-h-11 items-center rounded-control px-3 text-xs font-semibold
-             text-stone-400 active:text-white"
+             text-content-muted active:text-content"
     >
       {shown ? 'Hide' : 'Show'}
     </button>
@@ -170,9 +160,9 @@ export function EntryReveal({ shown, onToggle }: { shown: boolean; onToggle: () 
 export function EntryDivider({ children }: { children: ComponentChildren }) {
   return (
     <div class="my-6 flex items-center gap-3" role="separator">
-      <span class="h-px flex-1 bg-white/12" />
-      <span class="text-xs font-medium text-stone-500">{children}</span>
-      <span class="h-px flex-1 bg-white/12" />
+      <span class="h-px flex-1 bg-glass-rule" />
+      <span class="text-xs font-medium text-content-subtle">{children}</span>
+      <span class="h-px flex-1 bg-glass-rule" />
     </div>
   )
 }
@@ -184,7 +174,7 @@ export function EntryButton({ class: className, ...props }: JSX.IntrinsicElement
       {...props}
       class={cn(
         'glass glass-sheen min-h-13 w-full overflow-hidden rounded-control px-4',
-        'text-[15px] font-semibold text-white transition-transform active:scale-[0.98]',
+        'text-[15px] font-semibold text-content transition-transform active:scale-[0.98]',
         'disabled:pointer-events-none disabled:opacity-40',
         className,
       )}
@@ -198,8 +188,8 @@ export function EntryDangerButton({ class: className, ...props }: JSX.IntrinsicE
     <button
       {...props}
       class={cn(
-        'min-h-13 w-full rounded-control border border-red-500/40 bg-red-500/12 px-4',
-        'text-[15px] font-semibold text-red-300 backdrop-blur-xl transition-transform',
+        'min-h-13 w-full rounded-control border border-danger/40 bg-danger/12 px-4',
+        'text-[15px] font-semibold text-danger-on-soft backdrop-blur-xl transition-transform',
         'active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40',
         className,
       )}
@@ -212,8 +202,8 @@ export function EntryQuietButton({ class: className, ...props }: JSX.IntrinsicEl
     <button
       {...props}
       class={cn(
-        'min-h-11 w-full text-sm font-medium text-stone-400 active:text-stone-200',
-        'disabled:pointer-events-none disabled:text-stone-500',
+        'min-h-11 w-full text-sm font-medium text-content-muted active:text-content',
+        'disabled:pointer-events-none disabled:text-content-subtle',
         className,
       )}
     />
@@ -223,7 +213,7 @@ export function EntryQuietButton({ class: className, ...props }: JSX.IntrinsicEl
 /** Just words. A boxed alert on a dark screen shouts louder than the problem is. */
 export function EntryError({ children }: { children: ComponentChildren }) {
   return (
-    <p role="alert" class="mb-5 text-sm leading-relaxed text-red-400">
+    <p role="alert" class="mb-5 text-sm leading-relaxed text-danger">
       {children}
     </p>
   )
@@ -232,6 +222,8 @@ export function EntryError({ children }: { children: ComponentChildren }) {
 /** rounded-xl, not rounded-card: --radius-card is near-square for the shell. */
 export function EntryNote({ children }: { children: ComponentChildren }) {
   return (
-    <p class="glass rounded-xl px-4 py-3.5 text-sm leading-relaxed text-stone-300">{children}</p>
+    <p class="glass rounded-xl px-4 py-3.5 text-sm leading-relaxed text-content-muted">
+      {children}
+    </p>
   )
 }

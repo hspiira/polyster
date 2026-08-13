@@ -1,12 +1,5 @@
-/**
- * Application root.
- *
- * The order is the point: open the database, mount ShopProvider so local data
- * is known, then decide the screen. Deciding from `auth.status` alone is what
- * made `local_only` and `offline_stale` skip the landing entirely, and reading
- * an unresolved shop query as "no shop" is what reopened the first-run wizard
- * on every cold start. See lib/entryState.ts.
- */
+/* Application root. The order is the point: open the database, mount
+   ShopProvider, then decide the screen. See lib/entryState.ts. */
 import type { VNode } from 'preact'
 import { LocationProvider } from 'preact-iso'
 import { useCallback, useEffect, useState } from 'preact/hooks'
@@ -87,27 +80,16 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
   return <AppShell online={online} auth={auth} replication={replication} />
 }
 
-/**
- * Picks one of the two designs (spec W1, W2).
- *
- * The entry flow above is deliberately outside this: setup, sign-in and the
- * lock screen are a fixed dark world already, they are short, and drawing them
- * twice would double the surface for no gain.
- *
- * Both shells surface sync state, so both take it -- the phone in its status
- * strip, the web at the foot of its sidebar. Shared props, separate designs.
- */
+/* Picks one of the two designs (spec W1, W2). Both surface sync state, so both
+   take it: the phone in its status strip, the web at its sidebar foot. */
 type ShellProps = {
   online: boolean
   auth: AuthState
   replication: ReturnType<typeof useReplication>
 }
 
-/**
- * Only the shell for this device is fetched. Imported statically, both shells
- * and every screen they reach land in the entry chunk, which silently undoes
- * the lazy() boundaries inside each of them.
- */
+/* Only this device's shell is fetched. Imported statically, both shells and
+   every screen they reach land in the entry chunk. */
 const SHELLS: Record<'web' | 'phone', () => Promise<(props: ShellProps) => VNode>> = {
   web: () => import('./web/WebShell').then((m) => m.WebShell),
   phone: () => import('./screens/Shell').then((m) => m.Shell),
@@ -132,13 +114,8 @@ function AppShell(props: ShellProps) {
   return <Shell {...props} />
 }
 
-/**
- * The signed-out half: landing, then either registration or sign-in.
- *
- * Local state rather than routes -- the router lives inside the authenticated
- * shell, and standing one up out here to toggle between two screens would be
- * more machinery than the job needs.
- */
+/* The signed-out half. Local state rather than routes: the router lives inside
+   the authenticated shell. */
 function SignedOut({ onStartRegister }: { onStartRegister: () => void }) {
   const [view, setView] = useState<'landing' | 'signIn'>('landing')
 
@@ -156,7 +133,7 @@ function SignedOut({ onStartRegister }: { onStartRegister: () => void }) {
 
 function Splash() {
   return (
-    <main class="flex min-h-svh items-center justify-center bg-[#0f1e52]">
+    <main data-theme="dark" class="flex min-h-svh items-center justify-center bg-brand-950">
       <Logomark size={44} class="animate-pulse text-brand-300" />
     </main>
   )
@@ -164,14 +141,14 @@ function Splash() {
 
 function FatalError({ error }: { error: Error }) {
   return (
-    <main class="flex min-h-svh items-center justify-center bg-stone-950 px-6 text-stone-100">
+    <main class="flex min-h-svh items-center justify-center bg-page px-6 text-content">
       <div class="max-w-md space-y-3 text-center">
         <h1 class="text-xl font-semibold">The local database did not open</h1>
-        <p class="text-sm text-stone-400">
+        <p class="text-sm text-content-muted">
           Nothing has been lost, but this device cannot record work until it does. Reloading the
           app is worth trying first.
         </p>
-        <pre class="overflow-x-auto rounded-control bg-black p-3 text-left text-xs text-stone-100">
+        <pre class="overflow-x-auto rounded-control bg-surface-sunken p-3 text-left text-xs text-content">
           {error.message}
         </pre>
       </div>

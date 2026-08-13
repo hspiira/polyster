@@ -1,11 +1,5 @@
-/**
- * The lock screen.
- *
- * One person, one pad. No list of names: showing them invites signing in as
- * someone else, and they are exactly the people attribution protects (spec E4).
- *
- * No back affordance -- there is nothing behind this screen.
- */
+/* One person, one pad. No list of names: showing them invites signing in as
+   someone else, which is what attribution protects against (spec E4). */
 import { useRef, useState } from 'preact/hooks'
 import { PinPad } from '../../components/PinPad'
 import { getInitials } from '../../components/ui'
@@ -42,8 +36,8 @@ export function LockScreen({ authStatus }: { authStatus: AuthState['status'] }) 
           >
             {getInitials(person.name)}
           </span>
-          <h1 class="mt-3 text-xl font-semibold tracking-tight text-white">{person.name}</h1>
-          {shop?.name && <p class="mt-0.5 text-sm text-stone-400">{shop.name}</p>}
+          <h1 class="mt-3 text-xl font-semibold tracking-tight text-content">{person.name}</h1>
+          {shop?.name && <p class="mt-0.5 text-sm text-content-muted">{shop.name}</p>}
         </div>
 
         <div class="mt-7">
@@ -68,7 +62,7 @@ export function LockScreen({ authStatus }: { authStatus: AuthState['status'] }) 
         </div>
 
         {authStatus === 'offline_stale' && (
-          <p class="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/12 px-4 py-3 text-xs leading-relaxed text-amber-300">
+          <p class="mt-6 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-xs leading-relaxed text-warning-on-soft">
             Working offline -- sync is paused. Everything you record is saved here and sends when
             you are back on.
           </p>

@@ -1,10 +1,5 @@
-/**
- * A forgotten PIN. Two paths, decided by lib/recovery.ts.
- *
- * Signing in proves you own that account, not that the account owns this shop,
- * so the id it returns is checked against the shop's own before the PIN can be
- * changed.
- */
+/* A forgotten PIN, two paths, decided by lib/recovery.ts. Signing in proves you
+   own the account, not that it owns this shop -- so the ids are compared. */
 import { useState } from 'preact/hooks'
 import { PinPad } from '../../components/PinPad'
 import { useAuth } from '../../hooks/useAuth'

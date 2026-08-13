@@ -1,27 +1,11 @@
-/**
- * Empty-state illustrations.
- *
- * Hand-rolled for the same reason as `icons.tsx` (ARCHITECTURE.md section 8):
- * this app runs on cheap phones over metered data, so bundle size is a design
- * constraint, not an afterthought. A stock illustration set would cost tens to
- * hundreds of kilobytes for artwork used on maybe a dozen screens; these are a
- * few hundred bytes each because they share one viewBox, one stroke, and one
- * accent colour with everything else in the app.
- *
- * Same stroke language as `icons.tsx` -- `currentColor`, rounded caps and
- * joins, no fills except one brand accent per piece -- just drawn at a larger
- * viewBox so the linework reads as artwork rather than a blown-up glyph. Only
- * four subjects exist because most empty states are the same kind of "nothing
- * here yet" -- reuse costs nothing and a fifth drawing would only earn its
- * bytes if it said something the other four don't.
- */
+/* Empty-state illustrations, hand-rolled for the same reason as icons.tsx: a few
+   hundred bytes each, sharing one viewBox and stroke (ARCHITECTURE.md §8). */
 import type { JSX } from 'preact'
 
 type IllustrationProps = JSX.SVGAttributes<SVGSVGElement> & { size?: number }
 
-/** The one filled shape each illustration is allowed -- everything else is a
- *  stroke in `currentColor`, so no illustration needs a dark-mode palette. */
-const ACCENT = 'fill-brand-600 dark:fill-brand-400'
+/* The one filled shape each illustration gets. Everything else is currentColor. */
+const ACCENT = 'fill-accent'
 
 function Illustration({ size = 96, children, ...props }: IllustrationProps) {
   return (

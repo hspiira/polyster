@@ -1,15 +1,5 @@
-/**
- * The first screen on a device with nothing set up. Always dark.
- *
- * Two doors, weighted. Setting up a shop needs no number and no signal, so it
- * leads. Signing in needs both, and only returning owners want it.
- *
- * The hero scales like a poster: `clamp()` sizes with measures in `em`, so the
- * lines wrap at the same words at every screen size. The clamps track `vmin`,
- * not `vw`, so a short landscape window does not overflow. Side by side
- * (`entry-wide` in index.css) the button moves beside the statement instead of
- * sitting on the bottom edge, which is far from what you just read on a desk.
- */
+/* First screen on a device with nothing set up. The hero scales like a poster:
+   clamps measured in `em` and tracking `vmin`, so the lines always wrap alike. */
 import { GlowBackdrop } from '../../components/GlowBackdrop'
 import { Logomark } from '../../components/Logomark'
 import { IconArrowUpRight } from '../../components/icons'
@@ -27,8 +17,9 @@ export function Landing({
 
   return (
     <main
-      class="relative flex min-h-svh flex-col overflow-hidden bg-stone-950
-             px-[clamp(1.5rem,1.1rem+1.6vw,3rem)] text-stone-100"
+      data-theme="dark"
+      class="relative flex min-h-svh flex-col overflow-hidden bg-page
+             px-[clamp(1.5rem,1.1rem+1.6vw,3rem)] text-content"
     >
       <GlowBackdrop />
 
@@ -58,14 +49,14 @@ export function Landing({
                   not the display size these lines are set in. */}
               <span
                 class="block max-w-[9.1em] text-[clamp(1.875rem,1.1625rem+3.05vmin,3.25rem)]
-                       font-normal leading-[1.14] text-stone-400"
+                       font-normal leading-[1.14] text-content-muted"
               >
                 Take orders and payments
               </span>
               <span
                 class="mt-[0.22em] block max-w-[6.2em]
                        text-[clamp(2.75rem,1.5rem+5.33vmin,5rem)] font-bold leading-[1.06]
-                       text-white"
+                       text-content"
               >
                 even with no signal.
               </span>
@@ -73,7 +64,7 @@ export function Landing({
             <p
               class="mt-[clamp(1.75rem,1.215rem+2.286vmin,2.5rem)] max-w-[18.7em]
                      text-[clamp(0.9375rem,0.848rem+0.381vmin,1.0625rem)] leading-relaxed
-                     text-stone-400"
+                     text-content-muted"
             >
               Set up in one screen. No account, no code, nothing to remember.
             </p>
@@ -86,14 +77,14 @@ export function Landing({
               type="button"
               onClick={onStart}
               class="glass glass-sheen group flex w-full items-center justify-between gap-3
-                     overflow-hidden rounded-pill py-1.5 pl-5 pr-1.5 text-white
-                     transition-[transform,border-color] hover:border-white/24
+                     overflow-hidden rounded-pill py-1.5 pl-5 pr-1.5 text-content
+                     transition-[transform,border-color] hover:border-glass-edge
                      active:scale-[0.98] entry-wide:w-auto entry-wide:min-w-76"
             >
               <span class="relative z-10 text-base font-medium">Set up my shop</span>
               <span
                 class="relative z-10 flex size-11 shrink-0 items-center justify-center rounded-full
-                       bg-brand-500 text-white transition-colors group-hover:bg-brand-400"
+                       bg-brand-500 text-content transition-colors group-hover:bg-brand-400"
               >
                 <IconArrowUpRight size={18} />
               </span>
@@ -104,8 +95,8 @@ export function Landing({
               <button
                 type="button"
                 onClick={onSignIn}
-                class="mt-3 min-h-11 w-full text-center text-sm text-stone-400
-                       hover:text-stone-200 active:text-stone-200"
+                class="mt-3 min-h-11 w-full text-center text-sm text-content-muted
+                       hover:text-content active:text-content"
               >
                 I already have a shop
               </button>
@@ -115,8 +106,8 @@ export function Landing({
               <button
                 type="button"
                 onClick={() => void install.prompt()}
-                class="mt-1 min-h-11 w-full text-center text-xs text-stone-500
-                       hover:text-stone-300 active:text-stone-300"
+                class="mt-1 min-h-11 w-full text-center text-xs text-content-subtle
+                       hover:text-content-muted active:text-content-muted"
               >
                 Add to home screen
               </button>

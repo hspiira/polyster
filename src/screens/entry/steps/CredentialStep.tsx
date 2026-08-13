@@ -173,7 +173,7 @@ export function CredentialStep({
       </EntryField>
 
       {error && invalid === null && (
-        <p role="alert" class="mt-1 text-sm leading-relaxed text-red-400">
+        <p role="alert" class="mt-1 text-sm leading-relaxed text-danger">
           {error}
         </p>
       )}

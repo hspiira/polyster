@@ -1,35 +1,21 @@
-/**
- * The six-digit pad, used everywhere a PIN or a one-time code is typed.
- *
- * It submits itself on the sixth digit, since PINs are a fixed length. Delete
- * only appears once there is something to delete. A wrong entry shakes the dots
- * and clears them, which is quicker to read than an error you must dismiss.
- *
- * Three ways in, all writing to the same value: the on-screen keys, a physical
- * keyboard, and a hidden input that carries `autocomplete` so the phone can fill
- * an SMS code and so the code can be pasted.
- */
+/* The six-digit pad. Submits itself on the sixth digit; a wrong entry shakes and
+   clears. Three ways in -- keys, keyboard, and a hidden autofillable input. */
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { cn } from '../lib/cn'
 import { PIN_LENGTH } from '../lib/pin'
 
 export interface PinPadProps {
-  /**
-   * Called with the completed PIN. Resolve false to reject it -- the pad
-   * shakes, clears, and stays put.
-   */
+  /** Resolve false to reject the PIN -- the pad shakes, clears, and stays put. */
   onComplete(pin: string): Promise<boolean> | boolean
   /** Shown under the title in the resting state. */
   hint?: string
   /** Shown in place of the hint after `onComplete` rejects. */
   errorHint?: string
   busyHint?: string
-  /** @default "light" */
+  /* Which surface the pad sits on. Colours come from roles either way; this only
+     picks the key material, since glass needs something dark behind it. */
   tone?: 'light' | 'dark'
-  /**
-   * Turns the hidden field into a one-time-code field, so a phone can offer the
-   * SMS code it just received. Leave off for PINs, which no autofill knows.
-   */
+  /** One-time-code field, so a phone can offer the SMS code it just received. */
   oneTimeCode?: boolean
   /** Names the hidden field for screen readers and password managers. */
   label?: string
@@ -122,20 +108,10 @@ export function PinPad({
     return () => window.removeEventListener('keydown', onKeyDown)
   })
 
-  const dark = tone === 'dark'
-
   return (
     <div class="relative space-y-7">
       <p
-        class={`text-center text-sm ${
-          failed
-            ? dark
-              ? 'text-red-400'
-              : 'text-red-600 dark:text-red-400'
-            : dark
-              ? 'text-stone-300'
-              : 'text-stone-500 dark:text-stone-400'
-        }`}
+        class={cn('text-center text-sm', failed ? 'text-danger' : 'text-content-muted')}
         role={failed ? 'alert' : undefined}
       >
         {failed ? errorHint : busy ? busyHint : hint}
@@ -167,24 +143,21 @@ export function PinPad({
       >
         {Array.from({ length: PIN_LENGTH }, (_, index) => {
           const filled = index < pin.length
-          const glow = dark && filled && !failed
+          const glow = tone === 'dark' && filled && !failed
           return (
             <span
               key={index}
-              class={`size-3.5 rounded-full transition-[transform,background-color] duration-150 ${
+              class={cn(
+                'size-3.5 rounded-full transition-[transform,background-color] duration-150',
                 failed
-                  ? 'bg-red-500'
+                  ? 'bg-danger'
                   : filled
-                    ? dark
-                      ? 'scale-110 bg-brand-400'
-                      : 'scale-110 bg-brand-700 dark:bg-brand-400'
-                    : dark
-                      ? 'bg-white/20'
-                      : 'bg-stone-300 dark:bg-stone-700'
-              }`}
+                    ? 'scale-110 bg-accent'
+                    : 'bg-line-strong',
+              )}
               style={
                 glow
-                  ? { boxShadow: '0 0 8px color-mix(in oklch, var(--color-brand-400) 70%, transparent)' }
+                  ? { boxShadow: '0 0 8px color-mix(in oklch, var(--accent) 70%, transparent)' }
                   : undefined
               }
             />
@@ -223,8 +196,6 @@ function PadKey({
   disabled?: boolean
   onPress: () => void
 }) {
-  const dark = tone === 'dark'
-
   return (
     <button
       type="button"
@@ -244,14 +215,11 @@ function PadKey({
         // "Delete" is a word, so it cannot carry the digits' type size.
         ghost ? 'text-sm font-medium' : 'text-2xl font-normal',
         ghost
-          ? dark
-            ? 'text-stone-300 active:bg-white/10'
-            : 'text-stone-500 active:bg-stone-200 dark:text-stone-400 dark:active:bg-stone-800'
-          : dark
-            ? // No sheen: eighteen keys each catching a highlight reads as noise, not material.
-              'glass-flat text-stone-100'
-            : `bg-stone-200 active:bg-stone-300
-               dark:bg-stone-800 dark:active:bg-stone-700`,
+          ? 'text-content-muted active:bg-hover'
+          : // No sheen: eighteen keys each catching a highlight reads as noise.
+            tone === 'dark'
+            ? 'glass-flat text-content'
+            : 'bg-surface-sunken text-content active:bg-pressed',
       )}
     >
       {label}
