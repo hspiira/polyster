@@ -95,19 +95,24 @@ export function Switch({
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      class={cn(
-        'relative inline-flex h-7 w-[3.25rem] shrink-0 items-center rounded-pill p-1',
-        'transition-colors disabled:pointer-events-none disabled:opacity-40',
-        checked ? 'bg-accent' : 'bg-line-strong',
-      )}
+      class="flex min-h-tap shrink-0 items-center disabled:pointer-events-none disabled:opacity-40"
     >
+      {/* The track is 44x24 -- proportionate to a 15px label. The 44px tap
+          floor is met by the button around it, not by the drawing. */}
       <span
         class={cn(
-          'block size-5 rounded-full bg-surface shadow-raise',
-          'transition-transform duration-100',
-          checked ? 'translate-x-[1.5rem]' : 'translate-x-0',
+          'flex h-6 w-11 items-center rounded-pill p-0.5 transition-colors',
+          checked ? 'bg-accent' : 'bg-line-strong',
         )}
-      />
+      >
+        <span
+          class={cn(
+            'block size-5 rounded-full bg-surface shadow-raise',
+            'transition-transform duration-100',
+            checked ? 'translate-x-5' : 'translate-x-0',
+          )}
+        />
+      </span>
     </button>
   )
 }
