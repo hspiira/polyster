@@ -27,7 +27,7 @@ export {
   type ScreenSection,
   type ScreenWidth,
 } from './Screen'
-export { Card, FLUSH_SURFACE, SectionCard, SectionTitle, Sheet } from './Surface'
+export { Card, FLUSH_SURFACE, FLUSH_SURFACE_FLAT, SectionCard, SectionTitle, Sheet } from './Surface'
 export { Disclosure } from './Disclosure'
 export { Button, HeaderAction } from './Button'
 export { Field, Input, SearchInput, Segmented, Select, Textarea } from './Field'

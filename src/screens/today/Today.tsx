@@ -5,7 +5,7 @@
  * figure is a reactive local query. All derivation lives in todayModel.ts.
  */
 import { useMemo } from 'preact/hooks'
-import { Avatar, Button, EmptyState, FLUSH_SURFACE, MoreLink, Screen, Skeleton } from '../../components/ui'
+import { Avatar, Button, EmptyState, FLUSH_SURFACE_FLAT, MoreLink, Screen, Skeleton } from '../../components/ui'
 import { IconPlus } from '../../components/icons'
 import { IllustrationOrders } from '../../components/illustrations'
 import { ShopPrompts } from '../../components/ShopPrompts'
@@ -166,7 +166,7 @@ export function Today({ online, auth, replication }: TodayProps) {
 
         {money.outstanding_minor > 0 && (
           /* No headline figure: the hero sentence already gives the total. */
-          <section class={FLUSH_SURFACE}>
+          <section class={FLUSH_SURFACE_FLAT}>
             <h2 class="flex items-center gap-2 px-gutter pt-3 pb-1.5">
               <span class="size-1.5 shrink-0 rounded-full bg-money" aria-hidden="true" />
               <span class="text-[13px] font-semibold">Owed to you</span>

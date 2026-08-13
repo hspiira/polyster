@@ -10,7 +10,13 @@ import { cn } from '../lib/cn'
 export interface TabOption<T extends string> {
   value: T
   label: string
-  /** A muted count beside the label: "Open · 12". */
+  /**
+   * Shown on the open tab only.
+   *
+   * Five labels each carrying a count do not fit a 320px phone, and a row that
+   * scrolls hides the tabs at its end -- which is the whole point of the row.
+   * The count that matters is the one for the list you are looking at.
+   */
   count?: number
 }
 
@@ -26,7 +32,11 @@ export function TabRow<T extends string>({
   label: string
 }) {
   return (
-    <div role="tablist" aria-label={label} class="-mx-1 flex items-center gap-1 overflow-x-auto">
+    <div
+      role="tablist"
+      aria-label={label}
+      class="-mx-1 flex items-center gap-0.5 overflow-x-auto"
+    >
       {options.map((option) => {
         const active = option.value === value
         return (
@@ -37,7 +47,7 @@ export function TabRow<T extends string>({
             aria-selected={active}
             onClick={() => onChange(option.value)}
             class={cn(
-              'min-h-9 shrink-0 rounded-control px-2.5 text-sm whitespace-nowrap',
+              'min-h-9 shrink-0 rounded-control px-2 text-sm whitespace-nowrap',
               'transition-colors',
               active
                 ? 'bg-surface-sunken font-semibold text-content'
@@ -45,10 +55,8 @@ export function TabRow<T extends string>({
             )}
           >
             {option.label}
-            {option.count !== undefined && (
-              <span class={cn('ml-1 tabular-nums', active ? 'text-content-muted' : 'text-content-subtle')}>
-                {option.count}
-              </span>
+            {active && option.count !== undefined && (
+              <span class="ml-1 text-xs tabular-nums text-content-muted">{option.count}</span>
             )}
           </button>
         )

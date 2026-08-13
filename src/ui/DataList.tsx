@@ -11,7 +11,7 @@
  */
 import type { ComponentChildren } from 'preact'
 import { cn } from '../lib/cn'
-import { FLUSH_SURFACE } from './Surface'
+import { FLUSH_SURFACE_FLAT } from './Surface'
 
 /**
  * Where a column lands in the card form. `primary` is the line you read first
@@ -173,7 +173,7 @@ export function DataList<T>({
 
   return (
     <div
-      class={cn('data-list', FLUSH_SURFACE, className)}
+      class={cn('data-list', FLUSH_SURFACE_FLAT, className)}
       style={`--data-cols: ${layout.template}`}
     >
       {/* Decorative: these are list items, not table cells, so the header
