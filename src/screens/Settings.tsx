@@ -96,7 +96,7 @@ export function Settings() {
   })
 
   return (
-    <Screen title="Settings" subtitle={shop?.name} back={back} width="wide">
+    <Screen title="Settings" back={back} width="wide">
       <div class="lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
         <div class="space-y-section">
           <Group title="Your shop" entries={shopEntries} />

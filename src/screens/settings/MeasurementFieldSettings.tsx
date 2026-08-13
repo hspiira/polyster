@@ -128,7 +128,6 @@ export function MeasurementFieldSettings() {
   return (
     <Screen
       title="Measurements"
-      subtitle={fields.length > 0 ? `${fields.length} fields` : undefined}
       back={back}
       action={
         fields.length > 0 && (

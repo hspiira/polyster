@@ -116,7 +116,6 @@ export function StaffSettings() {
   return (
     <Screen
       title="Staff"
-      subtitle={`${activeCount} active`}
       back={back}
       width="wide"
       action={

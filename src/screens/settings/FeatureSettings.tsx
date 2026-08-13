@@ -112,7 +112,7 @@ export function FeatureSettings() {
   const groups = UNGROUPED.length > 0 ? [...GROUPS, { title: 'Other', keys: UNGROUPED }] : GROUPS
 
   return (
-    <Screen title="Modules" subtitle="What shows up in navigation" back={back} width="wide">
+    <Screen title="Modules" back={back} width="wide">
       <div class="grid grid-cols-[repeat(auto-fit,minmax(19rem,1fr))] items-start gap-section">
         {groups.map((group) => (
           <section key={group.title}>
