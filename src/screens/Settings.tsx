@@ -1,28 +1,26 @@
 /**
- * Settings: how the app behaves, and nothing else.
- *
- * Sales, expenses and reports used to sit in this list. They are the day's work,
- * not configuration, and they now live behind the Money tab.
- *
- * Grouped rather than one long list. On a phone a flat card of seven rows is a
- * wall you have to read end to end; a labelled group is something you can skip.
+ * Settings: how the app behaves, and nothing else. Sales, expenses and reports
+ * are the day's work, not configuration, and live behind the Money tab.
  */
+import { useState } from 'preact/hooks'
 import {
-  Button,
   Card,
+  ChoiceSheet,
   RowList,
   Screen,
   SectionTitle,
   SettingRow,
-  InfoNote,
 } from '../ui'
 import {
   IconBox,
+  IconCheck,
+  IconContrast,
   IconDownload,
   IconFactory,
   IconFingerprint,
   IconLayers,
   IconLock,
+  IconSignOut,
   IconRuler,
   IconSettings,
   IconSpool,
@@ -31,108 +29,57 @@ import {
   IconTruck,
   IconUsers,
 } from '../components/icons'
-import { ThemeChoice } from '../components/ThemeChoice'
-import { InstallCard } from '../components/InstallCard'
 import { useShop } from '../state/ShopProvider'
 import { useAuth } from '../hooks/useAuth'
+import { useTheme } from '../hooks/useTheme'
+import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { useBack } from '../hooks/useBack'
+import type { ThemePreference } from '../lib/theme'
 
 interface Entry {
   href: string
   label: string
-  hint: string
   Icon: (props: { size?: number }) => preact.JSX.Element
 }
 
-/** Shop identity and the people in it. */
 const SHOP_ENTRIES: readonly Entry[] = [
-  {
-    href: '/settings/shop',
-    label: 'Shop details',
-    hint: 'Name, currency, WhatsApp number',
-    Icon: IconSettings,
-  },
-  {
-    href: '/settings/staff',
-    label: 'Staff',
-    hint: 'Who can use this app',
-    Icon: IconUsers,
-  },
-  {
-    href: '/settings/measurements',
-    label: 'Measurement fields',
-    hint: 'What you record for each client',
-    Icon: IconRuler,
-  },
-  {
-    href: '/settings/features',
-    label: 'Modules',
-    hint: 'What shows up in navigation',
-    Icon: IconToggle,
-  },
+  { href: '/settings/shop', label: 'Shop details', Icon: IconSettings },
+  { href: '/settings/staff', label: 'Staff', Icon: IconUsers },
+  { href: '/settings/measurements', label: 'Measurement fields', Icon: IconRuler },
+  { href: '/settings/features', label: 'Modules', Icon: IconToggle },
 ]
 
-/**
- * The optional modules' own screens. Separated from SHOP_ENTRIES because these
- * come and go with the feature flags -- a shop with everything off sees an
- * empty group here and the section disappears rather than leaving a stub.
- */
 const MODULE_ENTRIES: readonly Entry[] = [
-  { href: '/catalogue', label: 'Catalogue', hint: 'Products, categories and variants', Icon: IconTag },
-  {
-    href: '/collections',
-    label: 'Collections',
-    hint: 'Releases, with their own story and cover image',
-    Icon: IconLayers,
-  },
-  {
-    href: '/suppliers',
-    label: 'Suppliers',
-    hint: 'Who supplies fabric, trims and outsourced work',
-    Icon: IconTruck,
-  },
-  {
-    href: '/materials',
-    label: 'Materials',
-    hint: 'Fabric, thread, buttons and what is on hand',
-    Icon: IconSpool,
-  },
-  { href: '/inventory', label: 'Inventory', hint: 'Stock levels and movement history', Icon: IconBox },
-  {
-    href: '/production',
-    label: 'Production',
-    hint: 'Batches, quality control and costing',
-    Icon: IconFactory,
-  },
-  {
-    href: '/garment-units',
-    label: 'Garment identity',
-    hint: 'Individual garments, their serial numbers and status',
-    Icon: IconFingerprint,
-  },
+  { href: '/catalogue', label: 'Catalogue', Icon: IconTag },
+  { href: '/collections', label: 'Collections', Icon: IconLayers },
+  { href: '/suppliers', label: 'Suppliers', Icon: IconTruck },
+  { href: '/materials', label: 'Materials', Icon: IconSpool },
+  { href: '/inventory', label: 'Inventory', Icon: IconBox },
+  { href: '/production', label: 'Production', Icon: IconFactory },
+  { href: '/garment-units', label: 'Garment identity', Icon: IconFingerprint },
 ]
 
-const DEVICE_ENTRIES: readonly Entry[] = [
-  {
-    href: '/settings/lock',
-    label: 'Lock this phone',
-    hint: 'Ask for a PIN before opening the shop',
-    Icon: IconLock,
-  },
-  {
-    href: '/settings/backup',
-    label: 'Backup',
-    hint: 'Download a copy of everything',
-    Icon: IconDownload,
-  },
+const THEME_OPTIONS: readonly { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
 ]
+
+const THEME_LABELS: Record<ThemePreference, string> = {
+  system: 'System',
+  light: 'Light',
+  dark: 'Dark',
+}
 
 export function Settings() {
   const back = useBack()
   const { db, shop, activeStaff, setActiveStaff } = useShop()
   const { controller } = useAuth()
   const flags = useFeatureFlags(db, shop?.id ?? '__none__')
+  const [theme, chooseTheme] = useTheme()
+  const install = useInstallPrompt()
+  const [choosingTheme, setChoosingTheme] = useState(false)
 
   const shopEntries = SHOP_ENTRIES.filter((entry) =>
     entry.href === '/settings/measurements' ? flags.measurements : true,
@@ -149,68 +96,96 @@ export function Settings() {
   })
 
   return (
-    <Screen title="Settings" back={back} width="wide">
-      <div class="lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
+    <Screen title="Settings" subtitle={shop?.name} back={back} width="wide">
+      <div class="lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
         <div class="space-y-section">
-          {shop && (
-            <Card padded={false}>
-              <SettingRow
-                icon={<IconSettings size={18} />}
-                label={shop.name}
-                hint={activeStaff ? `Signed in as ${activeStaff.name}` : 'Shop details'}
-                href="/settings/shop"
-              />
-            </Card>
-          )}
-
           <Group title="Your shop" entries={shopEntries} />
           {moduleEntries.length > 0 && <Group title="Modules" entries={moduleEntries} />}
         </div>
 
         <div class="mt-section space-y-section lg:mt-0">
-          <Group title="This device" entries={DEVICE_ENTRIES} />
-
           <section>
-            <SectionTitle>Appearance</SectionTitle>
-            <ThemeChoice />
-          </section>
-
-          <section>
-            <SectionTitle>Install</SectionTitle>
-            <InstallCard />
-          </section>
-
-          {activeStaff && (
-            <section>
-              <SectionTitle>Working as</SectionTitle>
-              <Card>
-                <p class="text-sm text-content-muted">
-                  Orders you take are recorded against{' '}
-                  <span class="font-medium text-content">{activeStaff.name}</span>.
-                </p>
-                <Button variant="secondary" block class="mt-3" onClick={() => setActiveStaff(null)}>
-                  Switch staff member
-                </Button>
-              </Card>
-            </section>
-          )}
-
-          <section>
-            <SectionTitle>Shop account</SectionTitle>
-            <Card>
-              <Button variant="danger" block onClick={() => void controller.signOut()}>
-                Sign out
-              </Button>
+            <SectionTitle>This device</SectionTitle>
+            <Card padded={false}>
+              <RowList>
+                <li>
+                  <SettingRow
+                    icon={<IconContrast size={20} />}
+                    label="Theme"
+                    value={THEME_LABELS[theme]}
+                    onClick={() => setChoosingTheme(true)}
+                  />
+                </li>
+                <li>
+                  <SettingRow icon={<IconLock size={20} />} label="Lock" href="/settings/lock" />
+                </li>
+                <li>
+                  <SettingRow
+                    icon={<IconDownload size={20} />}
+                    label="Backup"
+                    href="/settings/backup"
+                  />
+                </li>
+                {install.isStandalone ? (
+                  <li>
+                    <SettingRow
+                      icon={<IconCheck size={20} />}
+                      label="Installed"
+                      tone="success"
+                      value="On this device"
+                    />
+                  </li>
+                ) : (
+                  install.canPrompt && (
+                    <li>
+                      <SettingRow
+                        icon={<IconDownload size={20} />}
+                        label="Add to home screen"
+                        onClick={() => void install.prompt()}
+                      />
+                    </li>
+                  )
+                )}
+              </RowList>
             </Card>
-            <div class="mt-2">
-              <InfoNote>
-                Signing out stops sync on this device. Anything already saved here stays until it
-                syncs, so sign out only when you mean to hand the device on.
-              </InfoNote>
-            </div>
+          </section>
+
+          <section>
+            <SectionTitle>Account</SectionTitle>
+            <Card padded={false}>
+              <RowList>
+                {activeStaff && (
+                  <li>
+                    <SettingRow
+                      icon={<IconUsers size={20} />}
+                      label="Working as"
+                      value={activeStaff.name}
+                      onClick={() => setActiveStaff(null)}
+                    />
+                  </li>
+                )}
+                <li>
+                  <SettingRow
+                    icon={<IconSignOut size={20} />}
+                    label="Sign out"
+                    tone="danger"
+                    onClick={() => void controller.signOut()}
+                  />
+                </li>
+              </RowList>
+            </Card>
           </section>
         </div>
       </div>
+
+      <ChoiceSheet
+        open={choosingTheme}
+        title="Theme"
+        value={theme}
+        options={THEME_OPTIONS}
+        onChoose={chooseTheme}
+        onClose={() => setChoosingTheme(false)}
+      />
     </Screen>
   )
 }
@@ -221,9 +196,9 @@ function Group({ title, entries }: { title: string; entries: readonly Entry[] })
       <SectionTitle>{title}</SectionTitle>
       <Card padded={false}>
         <RowList>
-          {entries.map(({ href, label, hint, Icon }) => (
+          {entries.map(({ href, label, Icon }) => (
             <li key={href}>
-              <SettingRow icon={<Icon size={18} />} label={label} hint={hint} href={href} />
+              <SettingRow icon={<Icon size={20} />} label={label} href={href} />
             </li>
           ))}
         </RowList>

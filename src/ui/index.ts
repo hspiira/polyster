@@ -28,6 +28,7 @@ export {
   type ScreenWidth,
 } from './Screen'
 export { Card, FLUSH_SURFACE, FLUSH_SURFACE_FLAT, SectionCard, SectionTitle, Sheet } from './Surface'
+export { ChoiceSheet, TextFieldSheet } from './EditSheet'
 export { Disclosure } from './Disclosure'
 export { Button, HeaderAction } from './Button'
 export { Field, Input, SearchInput, Segmented, Select, Switch, Textarea } from './Field'

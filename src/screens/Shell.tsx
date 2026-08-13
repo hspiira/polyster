@@ -22,9 +22,8 @@ import { useEffect } from 'preact/hooks'
 import { ErrorBoundary, Route, Router, lazy, useLocation } from 'preact-iso'
 import { SideRail, TabBar } from '../components/TabBar'
 import { SyncBadge } from '../components/SyncBadge'
-import { Avatar, CONTAINER, cn } from '../components/ui'
+import { CONTAINER, cn } from '../components/ui'
 import { IconSettings } from '../components/icons'
-import { useShop } from '../state/ShopProvider'
 import { recordVisit } from '../lib/navigation'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
@@ -72,7 +71,6 @@ interface ShellProps {
 }
 
 export function Shell({ online, auth, replication }: ShellProps) {
-  const { activeStaff } = useShop()
   const { path } = useLocation()
 
   // Feeds useBackTo: a screen with two parents points back at the one you
@@ -82,7 +80,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
   }, [path])
 
   return (
-    <div class="min-h-svh bg-stone-100 lg:pl-60 dark:bg-stone-950">
+    <div class="min-h-svh bg-page lg:pl-60">
       <SideRail online={online} auth={auth} replication={replication} />
       {/*
         Page-coloured and unbordered, so this and the Screen header below it read
@@ -99,17 +97,16 @@ export function Shell({ online, auth, replication }: ShellProps) {
           // permanently and on every screen including Today.
           <div class={cn(CONTAINER, 'flex items-center justify-between gap-3 px-4 pt-2.5 pb-1 lg:hidden')}>
             <SyncBadge online={online} auth={auth} replication={replication} />
-            {/* One control, not two: the avatar says who is working, the gear says
-                what tapping does, and both go to the same place. */}
+            {/* A gear beside an avatar read as two controls -- a theme toggle
+                that did nothing, and a profile that opened Settings. One
+                button, and it looks like what it opens. */}
             <a
               href="/settings"
               aria-label="Settings"
-              class="-mr-2 flex min-h-9 items-center gap-2 rounded-control px-2
-                     text-stone-500 transition-colors active:bg-stone-200
-                     dark:text-stone-400 dark:active:bg-stone-800"
+              class="-mr-2 flex min-h-9 items-center rounded-control px-2
+                     text-content-muted transition-colors active:bg-pressed"
             >
-              <IconSettings size={17} />
-              {activeStaff && <Avatar name={activeStaff.name} size="sm" />}
+              <IconSettings size={20} />
             </a>
           </div>
         )}

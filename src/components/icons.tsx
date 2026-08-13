@@ -204,6 +204,21 @@ export const IconLock = (p: IconProps) => (
   </Icon>
 )
 
+/** Half-filled disc: theme. */
+export const IconContrast = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 3.5a8.5 8.5 0 0 0 0 17Z" fill="currentColor" stroke="none" />
+  </Icon>
+)
+
+export const IconSignOut = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M14.5 4.5H18a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-3.5" />
+    <path d="M10 8.5 6 12l4 3.5M6 12h8.5" />
+  </Icon>
+)
+
 export const IconReceipt = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5 3.5h14v17l-2.3-1.6-2.4 1.6-2.3-1.6-2.4 1.6L7.3 19 5 20.5Z" />
