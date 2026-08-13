@@ -82,12 +82,29 @@ export function formatDueDate(isoDate: string, from: string = today()): string {
   return formatDate(isoDate)
 }
 
+/** The clock part of a timestamp, as "09:15". */
+export function formatTime(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
 /** A timestamp as "14 Aug 2026, 09:15". Used for payments and audit rows. */
 export function formatDateTime(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return `${DISPLAY.format(date)}, ${date.getHours().toString().padStart(2, '0')}:${date
-    .getMinutes()
-    .toString()
-    .padStart(2, '0')}`
+  return `${DISPLAY.format(date)}, ${formatTime(iso)}`
+}
+
+/**
+ * A past day the way a shop says it: "Today", "Yesterday", then the date.
+ * The mirror of formatDueDate, which looks forwards.
+ */
+export function formatPastDay(isoDate: string, from: string = today()): string {
+  const days = daysBetween(isoDate, from)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  return formatDate(isoDate)
 }

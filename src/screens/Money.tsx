@@ -7,11 +7,10 @@ import {
   EmptyState,
   FLUSH_SURFACE,
   InfoNote,
-  ListRow,
-  RowList,
+  PeriodBar,
+  PeriodRangeFields,
   Screen,
   Sections,
-  Segmented,
   Skeleton,
   StatValue,
   cn,
@@ -19,75 +18,34 @@ import {
 import {
   IconArrowDown,
   IconArrowUp,
-  IconChart,
   IconChevronRight,
   IconMoney,
   IconPlus,
-  IconReceipt,
-  IconTag,
 } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery, useRxQueryStatus } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { usePermission } from '../hooks/usePermission'
+import { usePeriod } from '../hooks/usePeriod'
 import { observeShopBalances } from '../db/balances'
 import { profitAndLoss } from '../db/profit'
 import { formatMinor } from '../lib/money'
-import { addDays, daysBetween, formatDate, today } from '../lib/dates'
+import { formatPastDay, today } from '../lib/dates'
 import { AddExpenseSheet } from './ExpenseSheet'
+import { useMoneySections } from './moneySections'
 import { buildMoneyFeed, type MoneyEntry } from './moneyFeed'
-import type { FeatureKey } from '../db/schema'
-
-type Period = 'today' | '7' | '30'
-
-const PERIODS: readonly { value: Period; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: '7', label: '7 days' },
-  { value: '30', label: '30 days' },
-]
-
-const PERIOD_LABELS: Record<Period, string> = {
-  today: 'today',
-  '7': 'last 7 days',
-  '30': 'last 30 days',
-}
-
-const SECTIONS = [
-  {
-    href: '/sales',
-    label: 'Sales',
-    hint: 'Counter sales, and what sells most',
-    Icon: IconTag,
-    feature: 'sales' as FeatureKey,
-  },
-  {
-    href: '/expenses',
-    label: 'Expenses',
-    hint: 'Money out, so profit means something',
-    Icon: IconReceipt,
-    feature: 'expenses' as FeatureKey,
-  },
-  {
-    href: '/reports',
-    label: 'Reports',
-    hint: 'Profit, collected, outstanding, stages',
-    Icon: IconChart,
-    feature: null,
-  },
-] as const
 
 const FEED_LIMIT = 8
 
 export function Money() {
   const { db, shop } = useCurrentShop()
   const flags = useFeatureFlags(db, shop.id)
-  const canViewReports = usePermission('reports.view')
   const canAddExpense = usePermission('expenses.create')
-  const [period, setPeriod] = useState<Period>('7')
+  const sections = useMoneySections()
+  const period = usePeriod('7')
   const [adding, setAdding] = useState(false)
 
   const now = today()
-  const from = period === 'today' ? now : addDays(now, -(Number(period) - 1))
 
   const { value: orderDocs, loaded } = useRxQueryStatus(
     () => db.orders.find({ selector: { shop_id: shop.id } }).$,
@@ -137,8 +95,8 @@ export function Money() {
   const expenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
 
   const pnl = useMemo(
-    () => profitAndLoss({ sales, payments, expenses, from, to: now }),
-    [sales, payments, expenses, from, now],
+    () => profitAndLoss({ sales, payments, expenses, from: period.from, to: period.to }),
+    [sales, payments, expenses, period.from, period.to],
   )
 
   const feed = useMemo(
@@ -149,10 +107,10 @@ export function Money() {
         expenses,
         orders: orderIndex,
         fallbackCurrency: shop.currency,
-        from,
-        to: now,
+        from: period.from,
+        to: period.to,
       }),
-    [sales, payments, expenses, orderIndex, shop.currency, from, now],
+    [sales, payments, expenses, orderIndex, shop.currency, period.from, period.to],
   )
 
   const outstanding = useMemo(() => {
@@ -168,17 +126,6 @@ export function Money() {
     }
     return { total, count }
   }, [balances, orders])
-
-  const sections = SECTIONS.filter((section) => {
-    if (section.feature && !flags[section.feature]) return false
-    if (section.href === '/reports' && !canViewReports) return false
-    return true
-  })
-
-  const periodFigures: Record<string, number> = {
-    '/sales': pnl.salesIncomeMinor,
-    '/expenses': pnl.expensesMinor,
-  }
 
   const canRecordSale = flags.sales
   const canRecordExpense = flags.expenses && canAddExpense
@@ -200,7 +147,7 @@ export function Money() {
 
   if (!loaded) {
     return (
-      <Screen label="Money">
+      <Screen label="Money" sections={sections}>
         <div class="space-y-4">
           <Skeleton class="h-9 w-full" />
           <Skeleton class="h-40 w-full" />
@@ -212,7 +159,7 @@ export function Money() {
 
   if (sales.length === 0 && expenses.length === 0 && payments.length === 0) {
     return (
-      <Screen label="Money">
+      <Screen label="Money" sections={sections}>
         <EmptyState
           spacious
           illustration={<IconMoney size={56} />}
@@ -229,16 +176,21 @@ export function Money() {
   const gross = pnl.incomeMinor + pnl.expensesMinor
 
   return (
-    <Screen
-      label="Money"
-      subheader={
-        <Segmented value={period} options={PERIODS} onChange={setPeriod} label="Period" />
-      }
-    >
+    <Screen label="Money" sections={sections}>
       <Sections>
+        <div>
+          <PeriodBar value={period.key} onChange={period.setKey} />
+          {period.key === 'custom' && (
+            <PeriodRangeFields
+              range={{ from: period.from, to: period.to }}
+              onChange={period.setRange}
+            />
+          )}
+        </div>
+
         <Card flush>
           <p class="text-sm text-content-muted">
-            {inProfit ? 'Profit' : 'Loss'}, {PERIOD_LABELS[period]}
+            {inProfit ? 'Profit' : 'Loss'}, {period.label}
           </p>
           <div class="mt-1">
             <StatValue
@@ -316,42 +268,6 @@ export function Money() {
           </section>
         )}
 
-        {sections.length > 0 && (
-          <section class={FLUSH_SURFACE}>
-            <h2 class="px-gutter pt-3 pb-1 text-heading font-semibold">More</h2>
-            <RowList>
-              {sections.map(({ href, label, hint, Icon }) => {
-                const figure = periodFigures[href]
-                return (
-                  <li key={href}>
-                    <ListRow
-                      href={href}
-                      leading={
-                        <span class="flex size-9 items-center justify-center rounded-[0.65rem] bg-surface-sunken text-content-muted">
-                          <Icon size={18} />
-                        </span>
-                      }
-                      trailing={
-                        <span class="flex shrink-0 items-center gap-2">
-                          {figure !== undefined && (
-                            <span class="text-sm font-semibold tabular-nums">
-                              {formatMinor(figure, shop.currency)}
-                            </span>
-                          )}
-                          <IconChevronRight size={18} class="text-content-subtle" />
-                        </span>
-                      }
-                    >
-                      <span class="block font-medium">{label}</span>
-                      <span class="block truncate text-sm text-content-muted">{hint}</span>
-                    </ListRow>
-                  </li>
-                )
-              })}
-            </RowList>
-          </section>
-        )}
-
         <InfoNote>
           Figures come from what is on this device, and count money that actually moved. If it has
           not synced recently, another device's latest payments may not be counted yet.
@@ -418,16 +334,9 @@ function FeedRow({ entry, now }: { entry: MoneyEntry; now: string }) {
           </span>
         </span>
         <span class="mt-0.5 block truncate text-xs text-content-muted">
-          {dayLabel(entry.day, now)} · {entry.meta}
+          {formatPastDay(entry.day, now)} · {entry.meta}
         </span>
       </span>
     </a>
   )
-}
-
-function dayLabel(day: string, now: string): string {
-  const ago = daysBetween(day, now)
-  if (ago === 0) return 'Today'
-  if (ago === 1) return 'Yesterday'
-  return formatDate(day)
 }
