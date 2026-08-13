@@ -1,9 +1,8 @@
 # Code review: standards violations
 
 Date: 2026-08-13
-**Updated 2026-08-14** — items 1 to 6 of "What to do, in order" are done except
-5 (the `ui.tsx` migration), and the comment finding under "Known debt" was
-overruled. See the status box
+**Updated 2026-08-14** — all six items of "What to do, in order" are done, and
+the comment finding under "Known debt" was overruled. See the status box
 below. Every count not marked "Now" is as it stood on 08-13.
 
 > ## Status, 2026-08-14
@@ -13,7 +12,7 @@ below. Every count not marked "Now" is as it stood on 08-13.
 > | `dark:` utilities | 93 | **0**, enforced |
 > | Comment blocks over 2 lines | 355 in 159 files | **0**, enforced |
 > | `@custom-variant dark` scaffolding | present | deleted |
-> | `ui.tsx` shim imports | 22 | 22 (unchanged) |
+> | `ui.tsx` shim imports | 22 | **0**, shim deleted |
 > | `OrderDetail.tsx` | 900 | **246** |
 > | `OrderForm.tsx` | 1,138 | **655** |
 > | `CatalogueDetail.tsx` | 633 | **218**, 33 → 8 `useState` |
@@ -48,7 +47,7 @@ rather than counted against the code.
 |---|---|---|
 | Single responsibility | **Closed** | was `OrderForm.tsx` 1,138 lines, 11 methods, 8 queries, 9 state hooks |
 | Don't repeat yourself | **Poor** | The "what a client owes" rule written three times |
-| Keep it simple | **Mixed** | `ui.tsx` shim still half-migrated; state explosion closed |
+| Keep it simple | **Closed** | shim deleted, state explosion closed |
 | Open/closed | **Mixed** | Order-type branching in 5 files, but `lib/orderTypes.ts` now exists |
 | Interface segregation | **Good** | Props are narrow; `Pick<>` used where it matters |
 | Dependency inversion | **Good** | `AuthDeps` injection, pure `lib/` modules, `db/` never imports screens |
@@ -172,14 +171,16 @@ that the `Field`/`Input` primitives should have absorbed by exposing
 
 ### 3.1 Two parallel UI systems, indefinitely
 
-`src/components/ui.tsx` is a 121-line shim whose own header says *"COMPATIBILITY
-SHIM. Do not add to this file; delete it when nothing imports it."*
+**Closed 2026-08-14.** The shim's own header said *"delete it when nothing
+imports it"*; nothing does, and it is gone.
 
-Current state: **22 files import the shim, 26 import `src/ui` directly.** The
-migration is stalled at roughly halfway with no completion pressure, so every
-new screen has to know which of two import paths to use and which of two styling
-conventions applies. New files have been added on **both** sides since the shim
-was written.
+It was worse before it was better: the count rose from 22 to 32 as new files
+were added on the shim side, which is exactly the cost of leaving a migration
+half-done. The finish turned out to be small. Of the seven exports the shim
+added on top of `src/ui`, six had **no consumers at all** (`DataTable`,
+`DataRowLink`, `Td`, `ACCENT_TONES`, `ChipTone`, `CONTAINER_WIDE`) and the
+seventh, `CONTAINER`, was an alias for `MEASURE` used in two files. The rest
+was an import path.
 
 ### 3.2 The design system's two rules are broken at scale
 
@@ -282,6 +283,7 @@ These look like faults but are recorded decisions, and the reasoning holds:
    order screens were then split into their sections.
 3. ~~**One `observeClientTotals`**, deleting three copies of the owed rule.~~ Done.
 4. ~~**Test `backup.ts`.**~~ Done.
-5. **Finish or abandon the `ui.tsx` migration.** Twenty-two files, mechanical.
-   Half-done is the worst of the three states.
+5. ~~**Finish or abandon the `ui.tsx` migration.**~~ Done. Finished, not
+   abandoned: six of its seven extra exports already had no consumers, and
+   `CONTAINER` was an alias for `MEASURE`.
 6. ~~Split `writes.ts` and `schema.ts` per aggregate.~~ Done.

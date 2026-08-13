@@ -4,7 +4,7 @@ import { useEffect } from 'preact/hooks'
 import { ErrorBoundary, Route, Router, lazy, useLocation } from 'preact-iso'
 import { SideRail, TabBar } from '../components/TabBar'
 import { SyncBadge } from '../components/SyncBadge'
-import { CONTAINER, cn } from '../components/ui'
+import { MEASURE, cn } from '../ui'
 import { IconSettings } from '../components/icons'
 import { recordVisit } from '../lib/navigation'
 import type { AuthState } from '../lib/auth'
@@ -75,7 +75,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
         {path !== '/' && (
           // Hidden at lg: the rail carries the same identity and sync state,
           // permanently and on every screen including Today.
-          <div class={cn(CONTAINER, 'flex items-center justify-between gap-3 px-4 pt-2.5 pb-1 lg:hidden')}>
+          <div class={cn(MEASURE, 'flex items-center justify-between gap-3 px-4 pt-2.5 pb-1 lg:hidden')}>
             <SyncBadge online={online} auth={auth} replication={replication} />
             {/* A gear beside an avatar read as two controls -- a theme toggle
                 that did nothing, and a profile that opened Settings. One

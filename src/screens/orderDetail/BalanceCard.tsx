@@ -1,4 +1,4 @@
-import { Card } from '../../components/ui'
+import { Card } from '../../ui'
 import { formatMinor } from '../../lib/money'
 import { balanceView } from '../orderDetailModel'
 import type { OrderBalance } from '../../db/balances'

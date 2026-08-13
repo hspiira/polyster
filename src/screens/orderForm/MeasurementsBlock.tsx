@@ -1,5 +1,5 @@
 import { useMemo } from 'preact/hooks'
-import { Field, Input } from '../../components/ui'
+import { Field, Input } from '../../ui'
 import type { MeasurementFieldDoc } from '../../db/schema'
 
 export function MeasurementsBlock({

@@ -10,7 +10,7 @@ import {
   Screen,
   SectionTitle,
   Skeleton,
-} from '../components/ui'
+} from '../ui'
 import { IconEdit, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'

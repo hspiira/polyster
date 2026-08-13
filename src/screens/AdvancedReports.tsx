@@ -1,7 +1,7 @@
 /* Profitability and inventory valuation (Phase 11, §82), online-only. Revenue is
    counted at each sold unit's list price, not a reconciled transaction amount. */
 import { useEffect, useState } from 'preact/hooks'
-import { Card, EmptyState, ErrorNote, RowList, Screen, SectionTitle, Skeleton } from '../components/ui'
+import { Card, EmptyState, ErrorNote, RowList, Screen, SectionTitle, Skeleton } from '../ui'
 import { IconChart } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'

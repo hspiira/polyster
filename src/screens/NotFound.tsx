@@ -1,4 +1,4 @@
-import { Button, EmptyState, Screen } from '../components/ui'
+import { Button, EmptyState, Screen } from '../ui'
 import { IllustrationSearch } from '../components/illustrations'
 
 export function NotFound() {

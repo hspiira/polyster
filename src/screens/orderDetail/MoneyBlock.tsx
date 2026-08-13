@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { Button, Card, DataRow, SectionTitle } from '../../components/ui'
+import { Button, Card, DataRow, SectionTitle } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { usePermission } from '../../hooks/usePermission'
 import { refundDeposit } from '../../db/writes'

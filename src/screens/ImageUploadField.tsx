@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { Field, ErrorNote } from '../components/ui'
+import { Field, ErrorNote } from '../ui'
 
 export function ImageUploadField({
   imageUrl,

@@ -13,7 +13,7 @@ import {
   Segmented,
   Select,
   Textarea,
-} from '../components/ui'
+} from '../ui'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { recordSale } from '../db/writes'

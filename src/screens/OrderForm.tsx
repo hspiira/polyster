@@ -5,7 +5,7 @@ import { useLocation, useRoute } from 'preact-iso'
 import {
   Button,
   Card,
-  CONTAINER,
+  MEASURE,
   Disclosure,
   cn,
   ErrorNote,
@@ -15,7 +15,7 @@ import {
   Segmented,
   Sheet,
   Textarea,
-} from '../components/ui'
+} from '../ui'
 import { IconPlus } from '../components/icons'
 import { ClientPicker } from '../components/ClientPicker'
 import { OrderTypePicker } from '../components/OrderTypePicker'
@@ -595,7 +595,7 @@ export function OrderForm() {
             sheetOpen && 'hidden',
           )}
         >
-          <div class={cn(CONTAINER, 'space-y-2')}>
+          <div class={cn(MEASURE, 'space-y-2')}>
             {/* The one figure you are asked for out loud, kept in view while you type. */}
             <div class="flex items-baseline justify-between px-0.5">
               <span class="text-[13px] text-content-muted">

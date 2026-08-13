@@ -12,7 +12,7 @@ import {
   SectionTitle,
   StatStrip,
   StatTile,
-} from '../components/ui'
+} from '../ui'
 import { IconCheck, IconEdit } from '../components/icons'
 import { IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'

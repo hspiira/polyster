@@ -1,6 +1,6 @@
 import { useMemo } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
-import { Avatar } from './ui'
+import { Avatar } from '../ui'
 import { SyncBadge } from './SyncBadge'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'

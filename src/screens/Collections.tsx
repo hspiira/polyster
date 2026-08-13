@@ -15,7 +15,7 @@ import {
   Sheet,
   Skeleton,
   Textarea,
-} from '../components/ui'
+} from '../ui'
 import { IconChevronRight, IconPlus, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'

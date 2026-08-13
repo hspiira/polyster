@@ -14,7 +14,7 @@ import {
   Select,
   Sheet,
   Skeleton,
-} from '../components/ui'
+} from '../ui'
 import { IconChevronRight, IconFingerprint, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'

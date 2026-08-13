@@ -1,4 +1,4 @@
-import { Button, Card, SectionTitle } from '../../components/ui'
+import { Button, Card, SectionTitle } from '../../ui'
 import { IconAlert, IconWhatsApp } from '../../components/icons'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'

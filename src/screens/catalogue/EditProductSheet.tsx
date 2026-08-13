@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { Button, ErrorNote, Field, Input, Select, Sheet, Textarea } from '../../components/ui'
+import { Button, ErrorNote, Field, Input, Select, Sheet, Textarea } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { ProductImageField } from '../ProductImageField'
 import {

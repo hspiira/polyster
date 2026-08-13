@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { Segmented } from '../../components/ui'
+import { Segmented } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { formatMinor } from '../../lib/money'
 import { setProductVariantActive, type ProductVariant } from '../../online/catalogue'

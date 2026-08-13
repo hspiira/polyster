@@ -1,7 +1,7 @@
 /* One sheet for both adding and editing a variant. They were two components
    with the same seven fields, the same validation and the same buttons. */
 import { useEffect, useState } from 'preact/hooks'
-import { Button, ErrorNote, Field, Input, Sheet } from '../../components/ui'
+import { Button, ErrorNote, Field, Input, Sheet } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
 import {
   createProductVariant,

@@ -1,10 +1,9 @@
 # Design system
 
-**Status:** Colour is fully migrated — as of 2026-08-14 no file outside
-theme.css names a colour and no `dark:` utility exists, both enforced by
-`pnpm verify`. The `@custom-variant dark` scaffolding in `index.css` is deleted.
-The *import* migration is still in progress: 22 screens import the shim at
-`src/components/ui.tsx`.
+**Status:** Migrated, as of 2026-08-14. No file outside theme.css names a
+colour, no `dark:` utility exists, and every screen imports `src/ui` directly.
+The `@custom-variant dark` scaffolding and the `src/components/ui.tsx` shim are
+both deleted. The colour rules are enforced by `pnpm verify`.
 
 ## The three rules
 
@@ -82,8 +81,8 @@ and a row of chrome each. `Segmented` is for picking among three or more.
 
 ## Never render a record twice
 
-A `<Card lg:hidden>` beside a `<DataTable>` means two sets of markup and two
-sets of derived values, free to disagree. Describe the record once as
+Two sets of markup for one record, a card for narrow and a table for wide, means
+two sets of derived values free to disagree. Describe the record once as
 `Column[]` and hand it to `DataList`; both presentations are CSS layouts of the
 same DOM.
 
@@ -94,12 +93,8 @@ Amber is money and only money, so a stalled sync cannot borrow it. `warning`
 has failed" status: offline, unsynced, only-on-this-phone. If you reach for
 amber and the subject is not a balance, you want `warning`.
 
-## Converting the remaining screens
+## Adding a screen
 
-Colour is already done everywhere. What is left is the import path:
-
-1. `from '../components/ui'` → `from '../ui'`
-2. The `Card lg:hidden` + `DataTable` pair → one `DataList`
-
-`src/components/ui.tsx` is the last piece of migration scaffolding, and gets
-deleted when nothing imports it. `src/screens/Orders.tsx` is the worked example.
+Import from `../ui` and nothing else; there is no second path any more. Name
+roles, never colours. Describe a record once as `Column[]` for `DataList` rather
+than writing a card and a table. `src/screens/Orders.tsx` is the worked example.

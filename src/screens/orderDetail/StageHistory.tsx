@@ -1,5 +1,5 @@
 import { useMemo } from 'preact/hooks'
-import { Card, SectionTitle } from '../../components/ui'
+import { Card, SectionTitle } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'
 import { formatDateTime } from '../../lib/dates'

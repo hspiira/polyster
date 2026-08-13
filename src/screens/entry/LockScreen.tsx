@@ -2,7 +2,7 @@
    someone else, which is what attribution protects against (spec E4). */
 import { useRef, useState } from 'preact/hooks'
 import { PinPad } from '../../components/PinPad'
-import { getInitials } from '../../components/ui'
+import { getInitials } from '../../ui'
 import { useShop } from '../../state/ShopProvider'
 import { verifyPin } from '../../lib/pin'
 import { backoffMs } from '../../lib/lockPolicy'

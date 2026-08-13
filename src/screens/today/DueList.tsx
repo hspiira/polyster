@@ -3,7 +3,7 @@
 import { cn } from '../../lib/cn'
 import { formatMinor } from '../../lib/money'
 import { formatDueDate } from '../../lib/dates'
-import { FLUSH_SURFACE_FLAT, MoreLink } from '../../components/ui'
+import { FLUSH_SURFACE_FLAT, MoreLink } from '../../ui'
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from '../orderStage'
 import { normalizeTone, TONE_SOFT, TONE_SOLID } from '../../ui/tones'
 import { capRows } from './todayModel'

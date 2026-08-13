@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { Button, Card, ErrorNote, Field, Input, SectionTitle, Segmented, Sheet } from '../../components/ui'
+import { Button, Card, ErrorNote, Field, Input, SectionTitle, Segmented, Sheet } from '../../ui'
 import { IconPlus } from '../../components/icons'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { usePermission } from '../../hooks/usePermission'

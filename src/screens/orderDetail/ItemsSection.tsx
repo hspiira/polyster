@@ -1,5 +1,5 @@
 import { useMemo } from 'preact/hooks'
-import { Card, SectionTitle, cn } from '../../components/ui'
+import { Card, SectionTitle, cn } from '../../ui'
 import { IconCheck } from '../../components/icons'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { useRxQuery } from '../../hooks/useRxQuery'

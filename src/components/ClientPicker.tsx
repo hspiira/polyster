@@ -1,7 +1,7 @@
 /* Choosing who an order is for. A native select breaks down around fifty
    clients and cannot add the person at the counter. This searches and creates. */
 import { useMemo, useState } from 'preact/hooks'
-import { Avatar, Button, Field, Input, Sheet, cn } from './ui'
+import { Avatar, Button, Field, Input, Sheet, cn } from '../ui'
 import { IconPlus, IconSearch } from './icons'
 import type { ClientDoc } from '../db/schema'
 

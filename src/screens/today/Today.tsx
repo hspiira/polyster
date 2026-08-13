@@ -1,7 +1,7 @@
 /* What needs doing, and what is owed. The in-app replacement for push (D5), so
    every figure is a reactive local query. Derivation is in todayModel.ts. */
 import { useMemo } from 'preact/hooks'
-import { Avatar, Button, EmptyState, FLUSH_SURFACE_FLAT, MoreLink, Screen, Skeleton } from '../../components/ui'
+import { Avatar, Button, EmptyState, FLUSH_SURFACE_FLAT, MoreLink, Screen, Skeleton } from '../../ui'
 import { IconPlus } from '../../components/icons'
 import { IllustrationOrders } from '../../components/illustrations'
 import { ShopPrompts } from '../../components/ShopPrompts'

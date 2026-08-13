@@ -1,4 +1,4 @@
-import { Button, Card, Disclosure, Field, Input, Segmented } from '../../components/ui'
+import { Button, Card, Disclosure, Field, Input, Segmented } from '../../ui'
 import { IconTrash } from '../../components/icons'
 import { FABRIC_SOURCES, type MeasurementFieldDoc } from '../../db/schema'
 import { FABRIC_SOURCE_LABELS } from '../orderStage'
