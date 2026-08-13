@@ -26,7 +26,7 @@ export const REPLICATED_TABLES = [
 
 /* RxDB types optional columns without `null`, so a fetched row with an unset
    optional column needs its nulls stripped before RxDB accepts it. */
-function dropNullFields<T extends object>(row: T): T {
+export function dropNullFields<T extends object>(row: T): T {
   const clean = { ...row } as Record<string, unknown>
   for (const key of Object.keys(clean)) {
     if (clean[key] === null) delete clean[key]
@@ -36,7 +36,7 @@ function dropNullFields<T extends object>(row: T): T {
 
 /* `pull.modifier` cannot cover the plugin's internal `fetchById`, so the strip
    happens on every row it reads. Replication-only: src/online/* wants nulls. */
-function withNullStrippedRows<T extends PromiseLike<{ data: unknown; error: unknown }>>(builder: T): T {
+export function withNullStrippedRows<T extends PromiseLike<{ data: unknown; error: unknown }>>(builder: T): T {
   // Patching a third-party builder's `.then` at runtime has no structurally
   // sound generic type -- see the block comment above for what this does and why.
   const mutable = builder as any
@@ -53,7 +53,7 @@ function withNullStrippedRows<T extends PromiseLike<{ data: unknown; error: unkn
   return builder
 }
 
-function replicationClient(client: SupabaseClient): SupabaseClient {
+export function replicationClient(client: SupabaseClient): SupabaseClient {
   return {
     channel: client.channel.bind(client),
     removeChannel: client.removeChannel.bind(client),
