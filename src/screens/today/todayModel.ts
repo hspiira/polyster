@@ -3,10 +3,7 @@
 import { addDays, dueBucket } from '../../lib/dates'
 import { formatMinor } from '../../lib/money'
 import type { OrderBalance } from '../../db/balances'
-import type { OrderStage, OrderDoc } from '../../db/schema'
-
-/** Stages that still need something doing. Finished work is not "due". */
-export const OPEN_STAGES: readonly OrderStage[] = ['measured', 'in_progress', 'ready']
+import { OPEN_STAGES, type OrderDoc } from '../../db/schema'
 
 export type HeroTone = 'muted' | 'strong' | 'alert' | 'money'
 

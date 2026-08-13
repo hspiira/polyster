@@ -8,8 +8,8 @@ import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDueDate, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from '../screens/orderStage'
+import { OPEN_STAGES } from '../db/schema'
 import {
-  OPEN_STAGES,
   buildBuckets,
   pickupRows,
   type DueRow,

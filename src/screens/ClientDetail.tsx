@@ -27,7 +27,7 @@ import {
 } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { clientTotals, observeShopBalances } from '../db/balances'
 import { saveMeasurements, updateClient } from '../db/writes'
 import { formatMinor } from '../lib/money'
 import { formatDueDate } from '../lib/dates'
@@ -59,12 +59,7 @@ export function ClientDetail() {
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const outstandingMinor = useMemo(
-    () =>
-      orders.reduce((sum, order) => {
-        if (order.stage === 'cancelled') return sum
-        const balance = balances.get(order.id)
-        return balance && balance.balance_minor > 0 ? sum + balance.balance_minor : sum
-      }, 0),
+    () => clientTotals(orders, balances).owedMinor,
     [orders, balances],
   )
 

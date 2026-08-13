@@ -33,6 +33,8 @@ export const ORDER_STAGES: readonly OrderStage[] = [
   'repairing',
 ]
 
+export const OPEN_STAGES: readonly OrderStage[] = ['measured', 'in_progress', 'ready']
+
 /** Phase 7 (section 32): who the order is for, orthogonal to order_type. */
 export type CustomerType = 'individual' | 'corporate'
 export const CUSTOMER_TYPES: readonly CustomerType[] = ['individual', 'corporate']
@@ -42,21 +44,15 @@ export interface OrderDoc {
   shop_id: string
   client_id: string
   order_type: OrderType
-  /** DDMM-XXXXX, generated on the device. Indexed, deliberately not unique. */
   reference: string
-  /** ISO 4217, snapshotted from the shop at creation. */
   currency: string
-  /** Derived from the order's units -- see the model doc's invariant 3. */
   summary: string
   stage: OrderStage
   price_total_minor: number
-  /** May be negative: a discount, a late fee, damage. */
   price_adjustment_minor: number
   adjustment_reason?: string
-  /** Held and refundable. Never part of price_total_minor or any balance. */
   rental_deposit_minor: number
   deposit_refunded_at?: string
-  /** ISO date (YYYY-MM-DD), not a timestamp -- matches the Postgres `date` column. */
   pickup_due_date: string
   return_due_date?: string
   picked_up_at?: string
@@ -64,20 +60,14 @@ export interface OrderDoc {
   cancelled_at?: string
   cancellation_reason?: string
   notes?: string
-  /** Phase 7 (section 32). Absent means individual -- the common case. */
   customer_type?: CustomerType
   organisation_name?: string
   purchase_order_reference?: string
   contact_person?: string
-  /** Phase 7 (section 31), pre_order only. */
   expected_fulfilment_date?: string
-  /* Reserved links (§31). Online-only targets, so plain UUIDs with no RxDB
-     validation. No picker yet: an offline form cannot require an online fetch. */
   product_variant_id?: string
   collection_id?: string
   production_batch_id?: string
-  /* Repair-only (§33). Reserved with no picker, like the links above:
-     garment_units is online-only. */
   garment_unit_id?: string
   created_by?: string
   created_at: string
@@ -135,8 +125,6 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
     'rental_deposit_minor',
     'pickup_due_date',
   ],
-  // The dashboard's hot queries are this shop's orders by due date and by
-  // stage. Compound indexes so neither full-scans the collection.
   indexes: [
     ['shop_id', 'pickup_due_date'],
     ['shop_id', 'stage'],

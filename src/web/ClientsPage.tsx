@@ -5,9 +5,8 @@ import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
 import { AddClientSheet } from '../components/AddClientSheet'
 import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { clientTotalsById, noClientTotals, observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
-import { OPEN_STAGES } from '../screens/today/todayModel'
 import { EmptyState, getInitials } from '../ui'
 import { IconPlus, IconSearch, IconUsers } from '../components/icons'
 import { cn } from '../lib/cn'
@@ -42,29 +41,20 @@ export function ClientsPage() {
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const rows = useMemo<ClientRow[]>(() => {
-    const open = new Map<string, number>()
-    const owed = new Map<string, number>()
-
-    for (const doc of orderDocs) {
-      const order = doc.toJSON()
-      if (OPEN_STAGES.includes(order.stage)) {
-        open.set(order.client_id, (open.get(order.client_id) ?? 0) + 1)
-      }
-      // Cancelled orders still carry a balance and are not chased, so they are
-      // excluded here the way Reports excludes them from its aggregate.
-      if (order.stage === 'cancelled') continue
-      const balance = balances.get(order.id)?.balance_minor ?? 0
-      if (balance > 0) owed.set(order.client_id, (owed.get(order.client_id) ?? 0) + balance)
-    }
+    const totals = clientTotalsById(
+      orderDocs.map((doc) => doc.toJSON()),
+      balances,
+    )
 
     return clientDocs.map((doc) => {
       const client = doc.toJSON()
+      const theirs = totals.get(client.id) ?? noClientTotals()
       return {
         id: client.id,
         name: client.name,
         phone: client.phone,
-        openOrders: open.get(client.id) ?? 0,
-        owed_minor: owed.get(client.id) ?? 0,
+        openOrders: theirs.openOrders,
+        owed_minor: theirs.owedMinor,
       }
     })
   }, [clientDocs, orderDocs, balances])

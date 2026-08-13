@@ -2,13 +2,12 @@
    view stays server-side only; its rules are mirrored here and tested. */
 import { combineLatest, map, type Observable } from 'rxjs'
 import type { AppDatabase } from './database'
-import type { OrderDoc, PaymentDoc } from './schema'
+import { OPEN_STAGES, type OrderDoc, type PaymentDoc } from './schema'
 
 export interface OrderBalance {
   order_id: string
   price_total_minor: number
   amount_paid_minor: number
-  /** price_total_minor - amount_paid_minor. Negative means the client overpaid. */
   balance_minor: number
   fully_paid: boolean
 }
@@ -33,6 +32,54 @@ export function calculateBalance(
     balance_minor: order.price_total_minor - paidMinor,
     fully_paid: paidMinor >= order.price_total_minor,
   }
+}
+
+export interface ClientTotals {
+  openOrders: number
+  owedMinor: number
+  totalOrders: number
+}
+
+const NO_TOTALS: ClientTotals = { openOrders: 0, owedMinor: 0, totalOrders: 0 }
+
+type CountableOrder = Pick<OrderDoc, 'id' | 'stage'>
+
+/* Cancelled orders keep a balance in the data but are never chased. */
+export function clientTotals(
+  orders: readonly CountableOrder[],
+  balances: ReadonlyMap<string, OrderBalance>,
+): ClientTotals {
+  let openOrders = 0
+  let owedMinor = 0
+
+  for (const order of orders) {
+    if (OPEN_STAGES.includes(order.stage)) openOrders += 1
+    if (order.stage === 'cancelled') continue
+    const balance = balances.get(order.id)?.balance_minor ?? 0
+    if (balance > 0) owedMinor += balance
+  }
+
+  return { openOrders, owedMinor, totalOrders: orders.length }
+}
+
+export function clientTotalsById(
+  orders: readonly (CountableOrder & Pick<OrderDoc, 'client_id'>)[],
+  balances: ReadonlyMap<string, OrderBalance>,
+): Map<string, ClientTotals> {
+  const byClient = new Map<string, CountableOrder[]>()
+  for (const order of orders) {
+    const bucket = byClient.get(order.client_id)
+    if (bucket) bucket.push(order)
+    else byClient.set(order.client_id, [order])
+  }
+
+  const totals = new Map<string, ClientTotals>()
+  for (const [clientId, theirs] of byClient) totals.set(clientId, clientTotals(theirs, balances))
+  return totals
+}
+
+export function noClientTotals(): ClientTotals {
+  return NO_TOTALS
 }
 
 /* Live balance for one order. Re-emits when the price or any payment changes,

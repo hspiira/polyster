@@ -19,8 +19,8 @@ import { dueBucket, formatDate, formatDueDate, today } from '../lib/dates'
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from './orderStage'
 import { cn } from '../lib/cn'
 import { normalizeTone, TONE_SOFT } from '../ui/tones'
+import { OPEN_STAGES } from '../db/schema'
 import {
-  OPEN_STAGES,
   buildBuckets,
   pickupRows,
   rowsDueOn,

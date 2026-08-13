@@ -6,7 +6,7 @@ import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { usePermission } from '../hooks/usePermission'
-import { OPEN_STAGES } from '../screens/today/todayModel'
+import { OPEN_STAGES } from '../db/schema'
 import { SyncBadge } from '../components/SyncBadge'
 import {
   IconBox,

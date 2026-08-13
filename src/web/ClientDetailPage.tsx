@@ -4,13 +4,12 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { clientTotals, observeShopBalances } from '../db/balances'
 import { saveMeasurements, updateClient } from '../db/writes'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
 import { waLink, suggestedMessage } from '../lib/whatsapp'
 import { STAGE_LABELS, STAGE_TONES } from '../screens/orderStage'
-import { OPEN_STAGES } from '../screens/today/todayModel'
 import type { OrderDoc } from '../db/schema'
 import { Chip, EmptyState, getInitials } from '../ui'
 import { IconOrders, IconWhatsApp } from '../components/icons'
@@ -43,17 +42,7 @@ export function ClientDetailPage() {
 
   const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
 
-  const summary = useMemo(() => {
-    let open = 0
-    let owed = 0
-    for (const order of orders) {
-      if (OPEN_STAGES.includes(order.stage)) open += 1
-      if (order.stage === 'cancelled') continue
-      const balance = balances.get(order.id)?.balance_minor ?? 0
-      if (balance > 0) owed += balance
-    }
-    return { open, owed, total: orders.length }
-  }, [orders, balances])
+  const summary = useMemo(() => clientTotals(orders, balances), [orders, balances])
 
   if (!client) {
     return (
@@ -188,12 +177,12 @@ export function ClientDetailPage() {
             {getInitials(client.name)}
           </span>
           <Fact label="Phone" value={client.phone ?? 'None'} />
-          <Fact label="Open orders" value={String(summary.open)} />
-          <Fact label="All orders" value={String(summary.total)} />
+          <Fact label="Open orders" value={String(summary.openOrders)} />
+          <Fact label="All orders" value={String(summary.totalOrders)} />
           <Fact
             label="Owed"
-            value={formatMinor(summary.owed, shop.currency)}
-            tone={summary.owed > 0 ? 'money' : undefined}
+            value={formatMinor(summary.owedMinor, shop.currency)}
+            tone={summary.owedMinor > 0 ? 'money' : undefined}
           />
         </div>
 
