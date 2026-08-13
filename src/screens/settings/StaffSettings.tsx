@@ -16,7 +16,7 @@ import {
   Sheet,
   Switch,
 } from '../../ui'
-import { PinPad } from '../../components/PinPad'
+import { ChoosePinPad } from '../../components/ChoosePinPad'
 import { IconPlus } from '../../components/icons'
 import { IllustrationBook } from '../../components/illustrations'
 import { useShop } from '../../state/ShopProvider'
@@ -213,14 +213,12 @@ function AddStaffSheet({
   const [name, setName] = useState('')
   // The first person added to a shop is almost always the owner.
   const [role, setRole] = useState<StaffRole>(staff.length === 0 ? 'owner' : 'staff')
-  const [phase, setPhase] = useState<'details' | 'pin' | 'confirm'>('details')
-  const [firstPin, setFirstPin] = useState('')
+  const [phase, setPhase] = useState<'details' | 'pin'>('details')
   const [error, setError] = useState<string | null>(null)
 
   function reset() {
     setName('')
     setPhase('details')
-    setFirstPin('')
     setError(null)
   }
 
@@ -279,36 +277,16 @@ function AddStaffSheet({
       ) : (
         <div class="space-y-4 pb-2">
           {error && <ErrorNote>{error}</ErrorNote>}
-          <PinPad
-            key={phase}
-            tone="light"
-            hint={
-              phase === 'confirm'
-                ? 'Type it again to confirm'
-                : `Choose ${PIN_LENGTH} digits for ${name}`
-            }
-            errorHint="Those did not match. Start again."
-            busyHint="Saving..."
-            onComplete={async (pin) => {
-              if (phase === 'pin') {
-                setFirstPin(pin)
-                setPhase('confirm')
-                return true
-              }
-              if (pin !== firstPin) {
-                setFirstPin('')
-                setPhase('pin')
-                setError('Those two PINs did not match. Choose one again.')
-                return false
-              }
+          <ChoosePinPad
+            chooseHint={`Choose ${PIN_LENGTH} digits for ${name}`}
+            onError={setError}
+            onChosen={async (pin) => {
               try {
                 await createStaff(db, shopId, { name, pin, role })
                 close()
-                return true
+                return null
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Could not add this person.')
-                setPhase('pin')
-                return false
+                return err instanceof Error ? err.message : 'Could not add this person.'
               }
             }}
           />
@@ -320,13 +298,9 @@ function AddStaffSheet({
 
 function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose: () => void }) {
   const { db } = useShop()
-  const [phase, setPhase] = useState<'pin' | 'confirm'>('pin')
-  const [firstPin, setFirstPin] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   function close() {
-    setPhase('pin')
-    setFirstPin('')
     setError(null)
     onClose()
   }
@@ -339,33 +313,16 @@ function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose:
     >
       <div class="space-y-4 pb-2">
         {error && <ErrorNote>{error}</ErrorNote>}
-        <PinPad
-          key={phase}
-          tone="light"
-          hint={phase === 'confirm' ? 'Type it again to confirm' : `Choose ${PIN_LENGTH} digits`}
-          errorHint="Those did not match. Start again."
-          busyHint="Saving..."
-          onComplete={async (pin) => {
-            if (!member) return false
-            if (phase === 'pin') {
-              setFirstPin(pin)
-              setPhase('confirm')
-              return true
-            }
-            if (pin !== firstPin) {
-              setFirstPin('')
-              setPhase('pin')
-              setError('Those two PINs did not match. Choose one again.')
-              return false
-            }
+        <ChoosePinPad
+          onError={setError}
+          onChosen={async (pin) => {
+            if (!member) return 'That person is no longer on this device.'
             try {
               await setStaffPin(db, member.id, pin)
               close()
-              return true
+              return null
             } catch (err) {
-              setError(err instanceof Error ? err.message : 'Could not change the PIN.')
-              setPhase('pin')
-              return false
+              return err instanceof Error ? err.message : 'Could not change the PIN.'
             }
           }}
         />

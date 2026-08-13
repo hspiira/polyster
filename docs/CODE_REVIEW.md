@@ -1,9 +1,9 @@
 # Code review: standards violations
 
 Date: 2026-08-13
-**Updated 2026-08-14** — item 1 of "What to do, in order" is done, and the
-comment finding under "Known debt" was overruled. See the status box below.
-Items 2–6 are untouched; every count in this document is as it stood on 08-13.
+**Updated 2026-08-14** — items 1, 2, 5 and 6 of "What to do, in order" are done,
+and the comment finding under "Known debt" was overruled. See the status box
+below. Every count not marked "Now" is as it stood on 08-13.
 
 > ## Status, 2026-08-14
 > | Finding | Then | Now |
@@ -13,6 +13,11 @@ Items 2–6 are untouched; every count in this document is as it stood on 08-13.
 > | Comment blocks over 2 lines | 355 in 159 files | **0**, enforced |
 > | `@custom-variant dark` scaffolding | present | deleted |
 > | `ui.tsx` shim imports | 22 | 22 (unchanged) |
+> | `OrderDetail.tsx` | 900 | **246** |
+> | `OrderForm.tsx` | 1,138 | **655** |
+> | `CatalogueDetail.tsx` | 633 | **218**, 33 → 8 `useState` |
+> | `writes.ts` / `schema.ts` | 1,031 / 798 | split per aggregate |
+> | Copies of the PIN choose-confirm dance | 4 | **1 shared, 1 left** |
 >
 > `scripts/check-standards.mjs` runs in `pnpm verify`. The heavy-comment entry
 > under "Known debt" below is **no longer accepted debt** — a two-line ceiling
@@ -38,9 +43,9 @@ rather than counted against the code.
 
 | Area | State | Worst evidence |
 |---|---|---|
-| Single responsibility | **Poor** | `OrderForm.tsx` 1,138 lines, 11 methods, 8 queries, 9 state hooks |
+| Single responsibility | **Closed** | was `OrderForm.tsx` 1,138 lines, 11 methods, 8 queries, 9 state hooks |
 | Don't repeat yourself | **Poor** | The "what a client owes" rule written three times |
-| Keep it simple | **Poor** | `CatalogueDetail.tsx`: 33 `useState` in one component |
+| Keep it simple | **Mixed** | `ui.tsx` shim still half-migrated; state explosion closed |
 | Open/closed | **Mixed** | Order-type branching in 5 files, but `lib/orderTypes.ts` now exists |
 | Interface segregation | **Good** | Props are narrow; `Pick<>` used where it matters |
 | Dependency inversion | **Good** | `AuthDeps` injection, pure `lib/` modules, `db/` never imports screens |
@@ -56,46 +61,46 @@ is now going backwards.
 
 ## 1. Single responsibility
 
+**Status: closed.** Recorded here as the before-and-after, since the numbers are
+the point.
+
 ### 1.1 God components
 
-Four files carry far more than one reason to change.
-
-| File | Lines | What it does |
+| File | Was | Now |
 |---|---|---|
-| `src/screens/OrderForm.tsx` | 1,138 | Draft state, validation, same-day duplicate detection, measurement copy in and out, unit add/remove/reorder, create path, edit path, and all rendering |
-| `src/screens/OrderDetail.tsx` | 940 | Stage machine, payments, refunds, deposits, WhatsApp composition, items, details, and rendering |
-| `src/db/writes.ts` | 1,031 | 47 exported writes across every collection in the app |
-| `src/db/schema.ts` | 798 | All 13 collection schemas, all enums, all doc types |
+| `src/screens/OrderForm.tsx` | 1,138 | 655, over `screens/orderForm/` + `orderFormModel.ts` |
+| `src/screens/OrderDetail.tsx` | 940 | 246, over `screens/orderDetail/` (7 sections) + `orderDetailModel.ts` |
+| `src/db/writes.ts` | 1,031 | split per aggregate under `db/writes/`, barrel only |
+| `src/db/schema.ts` | 798 | split per aggregate under `db/schema/`, barrel only |
+| `src/screens/CatalogueDetail.tsx` | 633 | 218, over `screens/catalogue/` |
 
-`OrderForm.tsx` alone holds 11 named functions and a `submit()` of 98 lines. Its
-`validate()` returns either a validated form or a typed rejection, which is a
-good pattern, buried inside a component that cannot be tested without a DOM.
+The logic that mattered now lives in tested pure modules, which is what the
+original finding was actually about: none of it was reachable by a unit test,
+and the payment-cap bug existed precisely because a rule lived in two screens
+where no test could see it.
 
-**Why it matters.** None of this logic is reachable by a unit test. The project
-has 40 test files and near-total coverage of `lib/`, and effectively zero
-coverage of the rules living inside these four files. The payment-cap bug fixed
-earlier this week existed precisely because the rule lived in two screens and no
-test could see it.
-
-**Fix.** The pattern already exists in this codebase and works: `todayModel.ts`,
-`reportsModel.ts`, `moneyFeed.ts`, `entryState.ts`, `lockPolicy.ts`,
-`orderTypes.ts`, `payments.ts` are pure, tested, and imported by both shells.
-Extract `orderFormModel.ts` (draft shape, validation, the same-day rule) and
-`orderDetailModel.ts` the same way. Split `writes.ts` per aggregate
-(`writes/orders.ts`, `writes/payments.ts`, `writes/clients.ts`) and
-`schema.ts` to match.
+`OrderForm.tsx` at 655 is still the largest screen. What remains is one long
+render; its state and rules are in `orderFormModel.ts`.
 
 ### 1.2 State explosion
 
-`src/screens/CatalogueDetail.tsx`: **33 `useState` calls in 635 lines**, no
-queries, no extracted reducer. `src/screens/settings/StaffSettings.tsx`: 17.
+**Correction to the original finding.** This was recorded as "33 `useState`
+calls in one component". That was wrong: it was 33 across *six* components in
+one file. The count was right, the diagnosis was not, and the real fault was
+different and worse.
 
-Thirty-three independent booleans and strings in one component is not a
-component, it is a form engine with no schema. Each one is a possible
-inconsistent combination and none of them are checked anywhere.
+`AddVariantSheet` and `EditVariantSheet` were near-identical: the same five
+fields, the same seven state hooks each, the same validation and buttons,
+differing only in which write they called. `VariantFields` took ten props, five
+value/setter pairs, to serve both.
 
-**Fix.** One `useReducer` over a declared draft type, or the `EditSheet`
-primitive that `src/ui/EditSheet.tsx` already provides and this screen ignores.
+They are now one `VariantSheet` that creates when given no variant and edits
+when given one, holding a draft object and three hooks. CatalogueDetail is
+633 → 218 lines and 33 → 8 `useState`.
+
+`StaffSettings.tsx` (17) and `ProductionBatchDetail.tsx` (20) have the same
+shape, several sheets in one file, but no duplicated pair. Their state counts
+are per-component and reasonable; only the file sizes are large.
 
 ---
 
@@ -119,7 +124,19 @@ This is the same shape as the payment-cap bug: a rule with no single home.
 **Fix.** `observeClientTotals(db, shopId)` beside `observeShopBalances` in
 `src/db/balances.ts`, which both shells already import.
 
-### 2.2 Repeated guard clauses in the write layer
+### 2.2 The choose-then-confirm PIN dance, written four times
+
+Setting a PIN means typing it, typing it again, and starting over on a
+mismatch. That two-phase flow, its `firstPin` holding state and its reset, was
+written out at every place a PIN is set: `AddStaffSheet`, `ChangePinSheet`,
+`LockSettings`, and `PinRecovery`.
+
+Three of the four now use one `ChoosePinPad`, which owns the phases and the
+mismatch reset and reports failures back to whatever styling the caller uses.
+`PinRecovery` still has its own copy: it lives in the dark entry world with
+different primitives and its heading is driven by a wider four-stage wizard.
+
+### 2.3 Repeated guard clauses in the write layer
 
 `src/db/writes.ts` contains **31** `findOne(...).exec()` calls and **15**
 copies of the string `'... no longer exists on this device.'`.
@@ -127,7 +144,7 @@ copies of the string `'... no longer exists on this device.'`.
 **Fix.** One `loadOrThrow(collection, id, label)` helper. Fifteen call sites
 collapse to one, and the message becomes editable in one place.
 
-### 2.3 Search filtering re-implemented per screen
+### 2.4 Search filtering re-implemented per screen
 
 In-memory name/phone filtering appears separately in `Clients.tsx`,
 `ClientsPage.tsx`, `ClientPicker.tsx`, `Catalogue.tsx`, `Materials.tsx`,
@@ -137,7 +154,7 @@ depending on which screen you type it into.
 
 **Fix.** `matchesQuery(item, query, fields)` in `lib/`.
 
-### 2.4 Event-target casting
+### 2.5 Event-target casting
 
 **137** occurrences of `(e.target as HTMLInputElement).value`. This is noise
 that the `Field`/`Input` primitives should have absorbed by exposing

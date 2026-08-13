@@ -3,7 +3,7 @@
 import { useState } from 'preact/hooks'
 import { Button, Card, cn, ErrorNote, InfoNote, Screen, SectionTitle } from '../../ui'
 import { IconAlert, IconLock } from '../../components/icons'
-import { PinPad } from '../../components/PinPad'
+import { ChoosePinPad } from '../../components/ChoosePinPad'
 import { useShop } from '../../state/ShopProvider'
 import { clearStaffPin, setStaffPin } from '../../db/writes'
 import { PIN_LENGTH } from '../../lib/pin'
@@ -17,7 +17,6 @@ export function LockSettings() {
   const person = activeStaff ?? staff[0]
 
   const [phase, setPhase] = useState<Phase>('idle')
-  const [first, setFirst] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -48,35 +47,19 @@ export function LockSettings() {
 
           {error && <ErrorNote>{error}</ErrorNote>}
 
-          <PinPad
-            key={phase}
-            tone="light"
-            label="PIN"
-            hint={confirming ? 'Confirm your PIN' : 'Choose your PIN'}
-            errorHint="Those did not match. Start again."
-            busyHint="Saving..."
-            onComplete={async (pin) => {
-              if (!confirming) {
-                setFirst(pin)
-                setError(null)
-                setPhase('confirm')
-                return true
-              }
-              if (pin !== first) {
-                setFirst('')
-                setError('Those two PINs did not match. Choose one again.')
-                setPhase('choose')
-                return false
-              }
+          <ChoosePinPad
+            chooseHint="Choose your PIN"
+            confirmHint="Confirm your PIN"
+            onError={setError}
+            onPhase={(isConfirming) => setPhase(isConfirming ? 'confirm' : 'choose')}
+            onChosen={async (pin) => {
               try {
-                await setStaffPin(db, person.id, pin)
+                await setStaffPin(db, staffId, pin)
                 setPhase('idle')
                 setSaved(true)
-                return true
+                return null
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Could not save.')
-                setPhase('choose')
-                return false
+                return err instanceof Error ? err.message : 'Could not save.'
               }
             }}
           />
