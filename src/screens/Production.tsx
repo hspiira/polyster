@@ -28,6 +28,7 @@ import {
   type ProductionBatch,
 } from '../online/production'
 import { listProducts, type Product } from '../online/catalogue'
+import { useBack } from '../hooks/useBack'
 
 const STATUS_LABELS: Record<BatchStatus, string> = {
   planned: 'Planned',
@@ -39,6 +40,7 @@ const STATUS_LABELS: Record<BatchStatus, string> = {
 }
 
 export function Production() {
+  const back = useBack()
   const { shop } = useCurrentShop()
   const online = useOnlineFeature()
   const [batches, setBatches] = useState<ProductionBatch[] | null>(null)
@@ -73,7 +75,7 @@ export function Production() {
 
   if (!online) {
     return (
-      <Screen title="Production" back="/settings">
+      <Screen title="Production" back={back}>
         <EmptyState spacious illustration={<IconBox size={48} />} title="No connection" description="Production lives on the server, so this needs a connection to load." />
       </Screen>
     )
@@ -83,7 +85,7 @@ export function Production() {
     <>
       <Screen
         title="Production"
-        back="/settings"
+        back={back}
         action={
           batches && batches.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />

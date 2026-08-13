@@ -23,8 +23,10 @@ import {
   type CollectionPerformanceRow,
   type InventoryValuation,
 } from '../online/analytics'
+import { useBack } from '../hooks/useBack'
 
 export function AdvancedReports() {
+  const back = useBack()
   const { shop } = useCurrentShop()
   const online = useOnlineFeature()
   const [batches, setBatches] = useState<ProfitabilityRow[] | null>(null)
@@ -62,7 +64,7 @@ export function AdvancedReports() {
 
   if (!online) {
     return (
-      <Screen title="Advanced reports" back="/reports">
+      <Screen title="Advanced reports" back={back}>
         <EmptyState
           spacious
           illustration={<IconChart size={48} />}
@@ -76,7 +78,7 @@ export function AdvancedReports() {
   const loaded = batches && products && collections && inventory
 
   return (
-    <Screen title="Advanced reports" back="/reports">
+    <Screen title="Advanced reports" back={back}>
       <div class="space-y-5">
         {loadError && <ErrorNote>{loadError}</ErrorNote>}
 

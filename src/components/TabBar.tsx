@@ -6,6 +6,7 @@ import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { today } from '../lib/dates'
+import { isFullScreenTask } from '../lib/navigation'
 import { OPEN_STAGES } from '../screens/today/todayModel'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
@@ -103,18 +104,6 @@ function isActive(currentPath: string, prefix: string): boolean {
     return MONEY_PATHS.some((path) => currentPath === path || currentPath.startsWith(`${path}/`))
   }
   return currentPath === prefix || currentPath.startsWith(`${prefix}/`)
-}
-
-/**
- * The order form is a task, not a destination: it has its own Cancel and Save
- * pinned to the bottom edge, and tab-switching mid-draft silently discards it.
- */
-function isFullScreenTask(path: string): boolean {
-  return (
-    path === '/orders/new' ||
-    path === '/sales/new' ||
-    /^\/orders\/[^/]+\/edit$/.test(path)
-  )
 }
 
 export function TabBar() {

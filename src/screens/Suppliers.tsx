@@ -30,6 +30,7 @@ import {
   type Supplier,
   type SupplierInput,
 } from '../online/suppliers'
+import { useBack } from '../hooks/useBack'
 
 const TOGGLE_OPTIONS = [
   { value: 'on', label: 'Active' },
@@ -37,6 +38,7 @@ const TOGGLE_OPTIONS = [
 ] as const
 
 export function Suppliers() {
+  const back = useBack()
   const { shop } = useCurrentShop()
   const online = useOnlineFeature()
   const [suppliers, setSuppliers] = useState<Supplier[] | null>(null)
@@ -75,7 +77,7 @@ export function Suppliers() {
 
   if (!online) {
     return (
-      <Screen title="Suppliers" back="/settings">
+      <Screen title="Suppliers" back={back}>
         <EmptyState
           spacious
           illustration={<IconUsers size={48} />}
@@ -90,7 +92,7 @@ export function Suppliers() {
     <>
       <Screen
         title="Suppliers"
-        back="/settings"
+        back={back}
         action={
           suppliers && suppliers.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />

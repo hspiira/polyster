@@ -36,6 +36,7 @@ import {
   type GarmentUnitInput,
   type GarmentUnitStatus,
 } from '../online/garmentUnits'
+import { useBack } from '../hooks/useBack'
 
 const STATUS_LABELS: Record<GarmentUnitStatus, string> = {
   produced: 'Produced',
@@ -50,6 +51,7 @@ const STATUS_LABELS: Record<GarmentUnitStatus, string> = {
 }
 
 export function GarmentUnits() {
+  const back = useBack()
   const { db, shop } = useCurrentShop()
   const online = useOnlineFeature()
   const flags = useFeatureFlags(db, shop.id)
@@ -114,7 +116,7 @@ export function GarmentUnits() {
 
   if (!online) {
     return (
-      <Screen title="Garment identity" back="/settings">
+      <Screen title="Garment identity" back={back}>
         <EmptyState
           spacious
           illustration={<IconFingerprint size={48} />}
@@ -129,7 +131,7 @@ export function GarmentUnits() {
     <>
       <Screen
         title="Garment identity"
-        back="/settings"
+        back={back}
         action={
           units && units.length > 0 && variants.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />

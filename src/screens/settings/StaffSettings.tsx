@@ -42,6 +42,7 @@ import {
 import { PIN_LENGTH } from '../../lib/pin'
 import { ROLE_DEFAULT_PERMISSIONS } from '../../lib/permissions'
 import { PERMISSION_KEYS, STAFF_ROLES, type PermissionKey, type StaffDoc, type StaffRole } from '../../db/schema'
+import { useBack } from '../../hooks/useBack'
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   owner: 'Owner',
@@ -63,6 +64,7 @@ const PERMISSION_LABELS: Record<PermissionKey, string> = {
 }
 
 export function StaffSettings() {
+  const back = useBack()
   const { db, shop, activeStaff } = useShop()
   const { state: auth } = useAuth()
   const online = useOnline()
@@ -87,7 +89,7 @@ export function StaffSettings() {
 
   if (!shop) {
     return (
-      <Screen title="Staff" back="/settings">
+      <Screen title="Staff" back={back}>
         <Card>
           <p class="text-sm text-stone-600 dark:text-stone-300">
             The shop record has not reached this device yet. It arrives with the first sync.
@@ -114,7 +116,7 @@ export function StaffSettings() {
     <Screen
       title="Staff"
       subtitle={`${activeCount} active`}
-      back="/settings"
+      back={back}
       action={
         staff.length > 0 && (
           <Button size="sm" onClick={() => setAdding(true)} disabled={!canInvite}>

@@ -31,6 +31,7 @@ import {
 } from '../online/inventory'
 import { listAllProductVariants, listProducts, type Product, type ProductVariant } from '../online/catalogue'
 import { listMaterials, type Material } from '../online/materials'
+import { useBack } from '../hooks/useBack'
 
 const SCOPE_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -39,6 +40,7 @@ const SCOPE_OPTIONS = [
 ] as const
 
 export function Inventory() {
+  const back = useBack()
   const { shop } = useCurrentShop()
   const online = useOnlineFeature()
   const [items, setItems] = useState<InventoryItem[] | null>(null)
@@ -98,7 +100,7 @@ export function Inventory() {
 
   if (!online) {
     return (
-      <Screen title="Inventory" back="/settings">
+      <Screen title="Inventory" back={back}>
         <EmptyState
           spacious
           illustration={<IconReceipt size={48} />}
@@ -113,7 +115,7 @@ export function Inventory() {
     <>
       <Screen
         title="Inventory"
-        back="/settings"
+        back={back}
         action={<HeaderAction label="Track item" icon={<IconPlus size={16} />} onClick={() => setTracking(true)} />}
       >
         <div class="space-y-4">

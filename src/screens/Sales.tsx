@@ -13,6 +13,7 @@ import {
 import { IconMoney, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQueryStatus, useRxQuery } from '../hooks/useRxQuery'
+import { useBack } from '../hooks/useBack'
 import { itemsSold, saleTotalMinor } from '../db/profit'
 import { voidSale } from '../db/writes'
 import { formatMinor } from '../lib/money'
@@ -29,6 +30,7 @@ const RANGES: readonly { value: Range; label: string }[] = [
 
 export function Sales() {
   const { db, shop, activeStaff } = useCurrentShop()
+  const back = useBack()
   const [range, setRange] = useState<Range>('7')
   const [error, setError] = useState<string | null>(null)
   const now = today()
@@ -64,7 +66,7 @@ export function Sales() {
 
   if (!loaded) {
     return (
-      <Screen title="Sales">
+      <Screen title="Sales" back={back}>
         <div class="space-y-4">
           <Skeleton class="h-20 w-full" />
           <Skeleton class="h-40 w-full" />
@@ -75,7 +77,7 @@ export function Sales() {
 
   if (sales.length === 0) {
     return (
-      <Screen title="Sales" back="/settings">
+      <Screen title="Sales" back={back}>
         <Card padded={false}>
           <EmptyState
             illustration={<IconMoney size={40} />}
@@ -95,7 +97,7 @@ export function Sales() {
   return (
     <Screen
       title="Sales"
-      back="/settings"
+      back={back}
       action={
         <Button size="sm" linkTo="/sales/new">
           <IconPlus size={16} /> Sale

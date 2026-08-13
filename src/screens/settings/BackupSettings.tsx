@@ -10,8 +10,10 @@ import {
   recordBackupTaken,
   type Backup,
 } from '../../lib/backup'
+import { useBack } from '../../hooks/useBack'
 
 export function BackupSettings() {
+  const back = useBack()
   const { db, shop } = useShop()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +39,7 @@ export function BackupSettings() {
   const stale = days === null || days > 14
 
   return (
-    <Screen title="Backup" back="/settings">
+    <Screen title="Backup" back={back}>
       <div class="space-y-5">
         <div
           class={`rounded-card p-4 ${

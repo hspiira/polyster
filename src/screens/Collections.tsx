@@ -35,6 +35,7 @@ import {
   type CollectionInput,
   type CollectionStatus,
 } from '../online/collections'
+import { useBack } from '../hooks/useBack'
 
 const STATUS_LABELS: Record<CollectionStatus, string> = {
   draft: 'Draft',
@@ -45,6 +46,7 @@ const STATUS_LABELS: Record<CollectionStatus, string> = {
 }
 
 export function Collections() {
+  const back = useBack()
   const { shop } = useCurrentShop()
   const online = useOnlineFeature()
   const [collections, setCollections] = useState<Collection[] | null>(null)
@@ -73,7 +75,7 @@ export function Collections() {
 
   if (!online) {
     return (
-      <Screen title="Collections" back="/settings">
+      <Screen title="Collections" back={back}>
         <EmptyState spacious illustration={<IconTag size={48} />} title="No connection" description="Collections live on the server, so this needs a connection to load." />
       </Screen>
     )
@@ -83,7 +85,7 @@ export function Collections() {
     <>
       <Screen
         title="Collections"
-        back="/settings"
+        back={back}
         action={
           collections && collections.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />

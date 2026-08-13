@@ -39,6 +39,7 @@ import {
   type ProductionBatchCost,
 } from '../online/production'
 import { getProduct, type Product } from '../online/catalogue'
+import { useBack } from '../hooks/useBack'
 
 const STATUS_LABELS: Record<BatchStatus, string> = {
   planned: 'Planned',
@@ -60,6 +61,7 @@ const COST_TYPE_LABELS: Record<CostType, string> = {
 }
 
 export function ProductionBatchDetail() {
+  const back = useBack()
   const { params } = useRoute()
   const batchId = params.id ?? ''
   const { shop } = useCurrentShop()
@@ -94,28 +96,28 @@ export function ProductionBatchDetail() {
 
   if (!online) {
     return (
-      <Screen title="Batch" back="/production">
+      <Screen title="Batch" back={back}>
         <EmptyState spacious title="No connection" description="This needs a connection to load." />
       </Screen>
     )
   }
   if (loadError) {
     return (
-      <Screen title="Batch" back="/production">
+      <Screen title="Batch" back={back}>
         <ErrorNote>{loadError}</ErrorNote>
       </Screen>
     )
   }
   if (batch === undefined) {
     return (
-      <Screen title="Batch" back="/production">
+      <Screen title="Batch" back={back}>
         <Skeleton class="h-32" />
       </Screen>
     )
   }
   if (batch === null) {
     return (
-      <Screen title="Batch" back="/production">
+      <Screen title="Batch" back={back}>
         <EmptyState
           spacious
           title="Not found"
@@ -136,7 +138,7 @@ export function ProductionBatchDetail() {
     <>
       <Screen
         title={batch.batch_number}
-        back="/production"
+        back={back}
         action={
           <Button variant="ghost" size="sm" aria-label="Update progress" onClick={() => setEditingProgress(true)}>
             <IconEdit size={20} />

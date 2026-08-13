@@ -13,6 +13,7 @@ import { Card, Chip, HeaderAction, InfoNote, RowList, Screen, SectionTitle, Segm
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
+import { useBack } from '../hooks/useBack'
 import { observeShopBalances, signedAmountMinor } from '../db/balances'
 import { profitAndLoss } from '../db/profit'
 import { customerLifetimeValues } from '../db/customerValue'
@@ -28,6 +29,7 @@ import { ORDER_STAGES } from '../db/schema'
 export function Reports() {
   const { db, shop } = useCurrentShop()
   const flags = useFeatureFlags(db, shop.id)
+  const back = useBack()
   const now = today()
 
   const orderDocs = useRxQuery(
@@ -124,12 +126,9 @@ export function Reports() {
   )
 
   return (
-    // Pushed rather than a tab root (spec A15), reachable from a Settings row
-    // and from Today's profile header -- `back` matches the four sibling
-    // settings sub-screens rather than assuming either entry point.
     <Screen
       title="Reports"
-      back="/settings"
+      back={back}
       action={flags.catalogue ? <HeaderAction href="/reports/advanced" label="Advanced" /> : undefined}
     >
       <div class="space-y-5">
