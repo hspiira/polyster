@@ -15,7 +15,6 @@ import {
   EmptyState,
   ErrorNote,
   Field,
-  InfoNote,
   Input,
   Screen,
   SectionTitle,
@@ -250,13 +249,6 @@ export function MeasurementFieldSettings() {
               </div>
             )}
           </>
-        )}
-
-        {fields.length > 0 && (
-          <InfoNote>
-            Removing a field hides it from new forms. Measurements already recorded against it are
-            kept, so nothing a client gave you is lost.
-          </InfoNote>
         )}
       </div>
 

@@ -14,12 +14,13 @@ import {
   TextFieldSheet,
 } from '../../ui'
 import {
-  IconAlert,
   IconClock,
-  IconLayers,
+  IconGlobe,
+  IconImage,
+  IconLock,
+  IconMail,
   IconMoney,
-  IconReceipt,
-  IconSettings,
+  IconStore,
   IconTag,
   IconWhatsApp,
 } from '../../components/icons'
@@ -114,7 +115,7 @@ export function ShopSettings() {
             <RowList>
               <li>
                 <SettingRow
-                  icon={<IconSettings size={20} />}
+                  icon={<IconStore size={20} />}
                   label="Name"
                   value={shop.name}
                   onClick={() => setEditing('name')}
@@ -161,7 +162,7 @@ export function ShopSettings() {
                 </li>
                 <li>
                   <SettingRow
-                    icon={<IconClock size={20} />}
+                    icon={<IconLock size={20} />}
                     label="Lock after"
                     value={lockLabel(shop.lock_after_minutes)}
                     onClick={() => setEditing('lock')}
@@ -177,7 +178,7 @@ export function ShopSettings() {
               <RowList>
                 <li>
                   <SettingRow
-                    icon={<IconReceipt size={20} />}
+                    icon={<IconMail size={20} />}
                     label="Email"
                     value={shop.email ?? 'Not set'}
                     onClick={() => setEditing('email')}
@@ -185,7 +186,7 @@ export function ShopSettings() {
                 </li>
                 <li>
                   <SettingRow
-                    icon={<IconLayers size={20} />}
+                    icon={<IconGlobe size={20} />}
                     label="Website"
                     value={shop.website ?? 'Not set'}
                     onClick={() => setEditing('website')}
@@ -201,7 +202,7 @@ export function ShopSettings() {
                 </li>
                 <li>
                   <SettingRow
-                    icon={<IconAlert size={20} />}
+                    icon={<IconImage size={20} />}
                     label="Logo URL"
                     value={shop.logo_url ? 'Set' : 'Not set'}
                     onClick={() => setEditing('logo')}

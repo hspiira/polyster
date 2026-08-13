@@ -114,7 +114,6 @@ export function ClientDetail() {
           orderCount={orders.length}
           outstandingMinor={outstandingMinor}
           currency={shop.currency}
-          onEdit={() => setEditing(true)}
         />
 
         <div class="mt-5 space-y-5 lg:mt-0">
@@ -185,13 +184,11 @@ function ProfilePanel({
   orderCount,
   outstandingMinor,
   currency,
-  onEdit,
 }: {
   client: ClientDoc
   orderCount: number
   outstandingMinor: number
   currency: string
-  onEdit: () => void
 }) {
   const waNumber = toWaNumber(client.phone)
 
@@ -201,7 +198,6 @@ function ProfilePanel({
         <div class="flex items-center gap-3">
           <Avatar name={client.name} size="lg" />
           <div class="min-w-0">
-            <p class="truncate font-medium">{client.name}</p>
             {client.phone ? (
               <a
                 href={`tel:${client.phone}`}
@@ -245,9 +241,6 @@ function ProfilePanel({
           </p>
         )}
 
-        <Button variant="secondary" block class="mt-4" onClick={onEdit}>
-          <IconEdit size={16} /> Edit details
-        </Button>
       </Card>
     </aside>
   )

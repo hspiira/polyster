@@ -97,7 +97,7 @@ export function SettingRow({
     </>
   )
 
-  const shape = cn('flex min-h-tap w-full items-center gap-3 py-1.5 text-left', ROW_INSET)
+  const shape = cn('flex min-h-tap w-full items-center gap-3 text-left', ROW_INSET)
   const pressable = 'transition-colors hover:bg-hover active:bg-pressed'
 
   if (href) {

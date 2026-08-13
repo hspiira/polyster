@@ -7,7 +7,6 @@ import {
   CurrencySwitch,
   EmptyState,
   FLUSH_SURFACE,
-  InfoNote,
   PeriodBar,
   PeriodRangeFields,
   Screen,
@@ -298,10 +297,6 @@ export function Money() {
           </section>
         )}
 
-        <InfoNote>
-          Figures come from what is on this device, and count money that actually moved. If it has
-          not synced recently, another device's latest payments may not be counted yet.
-        </InfoNote>
       </Sections>
 
       <AddExpenseSheet open={adding} onClose={() => setAdding(false)} />
@@ -358,7 +353,7 @@ function FeedRow({ entry, now }: { entry: MoneyEntry; now: string }) {
       <span
         class={cn(
           'flex size-9 shrink-0 items-center justify-center rounded-[0.65rem]',
-          incoming ? 'bg-success-soft text-success-on-soft' : 'bg-neutral-soft text-neutral-on-soft',
+          incoming ? 'bg-success-soft text-success-on-soft' : 'bg-danger-soft text-danger-on-soft',
         )}
       >
         {incoming ? <IconArrowDown size={16} /> : <IconArrowUp size={16} />}
@@ -367,7 +362,10 @@ function FeedRow({ entry, now }: { entry: MoneyEntry; now: string }) {
         <span class="flex items-baseline gap-2">
           <span class="min-w-0 flex-1 truncate text-[15px] font-medium">{entry.title}</span>
           <span
-            class={cn('shrink-0 text-sm font-semibold tabular-nums', incoming && 'text-success')}
+            class={cn(
+              'shrink-0 text-sm font-semibold tabular-nums',
+              incoming ? 'text-success' : 'text-danger',
+            )}
           >
             {incoming ? '+' : '−'}
             {formatAmount(entry.amountMinor, entry.currency)}

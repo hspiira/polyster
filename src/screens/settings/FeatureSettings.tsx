@@ -8,7 +8,6 @@
  */
 import {
   Card,
-  InfoNote,
   RowList,
   Screen,
   SectionTitle,
@@ -18,18 +17,22 @@ import {
 import {
   IconBox,
   IconFactory,
-  IconFingerprint,
   IconLayers,
   IconMoney,
   IconOrders,
   IconReceipt,
   IconRepeat,
   IconRuler,
-  IconScissors,
-  IconSpool,
+  IconPreOrder,
+  IconCorporate,
+  IconSale,
+  IconRepair,
+  IconGarment,
+  IconPassport,
   IconTag,
   IconTruck,
   IconUsers,
+  type IconComponent,
 } from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
 import { useFeatureFlags } from '../../hooks/useFeatureFlags'
@@ -57,24 +60,24 @@ const FEATURE_LABELS: Record<FeatureKey, string> = {
   garment_passport: 'Garment passport',
 }
 
-const FEATURE_ICONS: Record<FeatureKey, (props: { size?: number }) => preact.JSX.Element> = {
+const FEATURE_ICONS: Record<FeatureKey, IconComponent> = {
   customers: IconUsers,
   measurements: IconRuler,
   orders: IconOrders,
   payments: IconMoney,
   expenses: IconReceipt,
-  sales: IconMoney,
+  sales: IconSale,
   rentals: IconRepeat,
   catalogue: IconTag,
   inventory: IconBox,
   suppliers: IconTruck,
   production: IconFactory,
-  pre_orders: IconOrders,
-  corporate_orders: IconOrders,
+  pre_orders: IconPreOrder,
+  corporate_orders: IconCorporate,
   collections: IconLayers,
-  repairs: IconScissors,
-  garment_identity: IconFingerprint,
-  garment_passport: IconSpool,
+  repairs: IconRepair,
+  garment_identity: IconGarment,
+  garment_passport: IconPassport,
 }
 
 const GROUPS: readonly { title: string; keys: readonly FeatureKey[] }[] = [
@@ -142,13 +145,6 @@ export function FeatureSettings() {
             </Card>
           </section>
         ))}
-      </div>
-
-      <div class="mt-section">
-        <InfoNote>
-          Turning a module off hides it from navigation. Nothing already recorded through it is
-          deleted, and turning it back on brings the data back into view.
-        </InfoNote>
       </div>
     </Screen>
   )

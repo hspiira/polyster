@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { Button, Card, cn, ErrorNote, InfoNote, Screen, SectionTitle } from '../../ui'
+import { Button, Card, cn, ErrorNote, Screen, SectionTitle } from '../../ui'
 import { IconAlert, IconCheck, IconDownload } from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
 import {
@@ -81,12 +81,6 @@ export function BackupSettings() {
                 ))}
               </dl>
             </Card>
-            <div class="mt-2">
-              <InfoNote>
-                Worth checking against what you expect. A backup nobody has looked inside is a
-                backup nobody knows works.
-              </InfoNote>
-            </div>
           </section>
         )}
 

@@ -16,18 +16,20 @@ import {
   IconCheck,
   IconContrast,
   IconDownload,
+  IconInstall,
   IconFactory,
   IconFingerprint,
   IconLayers,
   IconLock,
   IconSignOut,
   IconRuler,
-  IconSettings,
+  IconStore,
   IconSpool,
   IconTag,
   IconToggle,
   IconTruck,
   IconUsers,
+  type IconComponent,
 } from '../components/icons'
 import { useShop } from '../state/ShopProvider'
 import { useAuth } from '../hooks/useAuth'
@@ -40,11 +42,11 @@ import type { ThemePreference } from '../lib/theme'
 interface Entry {
   href: string
   label: string
-  Icon: (props: { size?: number }) => preact.JSX.Element
+  Icon: IconComponent
 }
 
 const SHOP_ENTRIES: readonly Entry[] = [
-  { href: '/settings/shop', label: 'Shop details', Icon: IconSettings },
+  { href: '/settings/shop', label: 'Shop details', Icon: IconStore },
   { href: '/settings/staff', label: 'Staff', Icon: IconUsers },
   { href: '/settings/measurements', label: 'Measurement fields', Icon: IconRuler },
   { href: '/settings/features', label: 'Modules', Icon: IconToggle },
@@ -139,7 +141,7 @@ export function Settings() {
                   install.canPrompt && (
                     <li>
                       <SettingRow
-                        icon={<IconDownload size={20} />}
+                        icon={<IconInstall size={20} />}
                         label="Add to home screen"
                         onClick={() => void install.prompt()}
                       />

@@ -7,7 +7,7 @@
  * catalogue's own info note says why.
  */
 import { useEffect, useState } from 'preact/hooks'
-import { Card, EmptyState, ErrorNote, InfoNote, RowList, Screen, SectionTitle, Skeleton } from '../components/ui'
+import { Card, EmptyState, ErrorNote, RowList, Screen, SectionTitle, Skeleton } from '../components/ui'
 import { IconChart } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'
@@ -144,11 +144,6 @@ export function AdvancedReports() {
               rows={batches}
             />
 
-            <InfoNote>
-              Revenue is counted at each sold garment's list price, not a reconciled sale amount --
-              sales and payments do not carry a product link to total up any other way. Production
-              cost comes from the cost lines recorded against each batch.
-            </InfoNote>
           </>
         )}
       </div>

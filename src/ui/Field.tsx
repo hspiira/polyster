@@ -97,19 +97,18 @@ export function Switch({
       onClick={() => onChange(!checked)}
       class="flex min-h-tap shrink-0 items-center disabled:pointer-events-none disabled:opacity-40"
     >
-      {/* The track is 44x24 -- proportionate to a 15px label. The 44px tap
-          floor is met by the button around it, not by the drawing. */}
+      {/* 40x22. The 44px tap floor is the button around it, not the drawing. */}
       <span
         class={cn(
-          'flex h-6 w-11 items-center rounded-pill p-0.5 transition-colors',
+          'flex h-[1.375rem] w-10 items-center rounded-pill p-0.5 transition-colors',
           checked ? 'bg-accent' : 'bg-line-strong',
         )}
       >
         <span
           class={cn(
-            'block size-5 rounded-full bg-surface shadow-raise',
+            'block size-[1.125rem] rounded-full bg-surface shadow-raise',
             'transition-transform duration-100',
-            checked ? 'translate-x-5' : 'translate-x-0',
+            checked ? 'translate-x-[1.125rem]' : 'translate-x-0',
           )}
         />
       </span>
