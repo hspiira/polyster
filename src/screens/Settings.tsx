@@ -32,6 +32,7 @@ import {
   IconUsers,
 } from '../components/icons'
 import { ThemeChoice } from '../components/ThemeChoice'
+import { InstallCard } from '../components/InstallCard'
 import { useShop } from '../state/ShopProvider'
 import { useAuth } from '../hooks/useAuth'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
@@ -154,6 +155,11 @@ export function Settings() {
         <section>
           <SectionTitle>Appearance</SectionTitle>
           <ThemeChoice />
+        </section>
+
+        <section>
+          <SectionTitle>Install</SectionTitle>
+          <InstallCard />
         </section>
 
         {activeStaff && (
