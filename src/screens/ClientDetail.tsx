@@ -22,7 +22,7 @@ import {
   SectionTitle,
   Sheet,
   Textarea,
-} from '../components/ui'
+} from '../ui'
 import { IconEdit, IconPlus } from '../components/icons'
 import {
   IllustrationMeasure,
@@ -93,9 +93,9 @@ export function ClientDetail() {
             <Avatar name={client.name} />
             <div class="min-w-0 text-sm">
               <p class="font-medium">
-                {client.phone ?? <span class="text-stone-400">No phone number</span>}
+                {client.phone ?? <span class="text-content-subtle">No phone number</span>}
               </p>
-              <p class="text-stone-500 dark:text-stone-400">
+              <p class="text-content-muted">
                 {orders.length === 0
                   ? 'No orders yet'
                   : `${orders.length} order${orders.length === 1 ? '' : 's'}`}
@@ -103,7 +103,7 @@ export function ClientDetail() {
             </div>
           </div>
           {client.notes && (
-            <p class="mt-3 whitespace-pre-wrap border-t border-stone-100 pt-3 text-sm text-stone-600 dark:border-stone-800 dark:text-stone-300">
+            <p class="mt-3 whitespace-pre-wrap border-t border-line pt-3 text-sm text-content-muted">
               {client.notes}
             </p>
           )}
@@ -116,7 +116,7 @@ export function ClientDetail() {
             action={
               <a
                 href={`/orders/new?client=${client.id}`}
-                class="flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400"
+                class="flex items-center gap-1 text-xs font-semibold text-accent"
               >
                 <IconPlus size={14} /> New
               </a>
@@ -146,7 +146,7 @@ export function ClientDetail() {
                       }
                     >
                       <span class="block truncate font-medium">{order.summary}</span>
-                      <span class="block text-sm text-stone-500 dark:text-stone-400">
+                      <span class="block text-sm text-content-muted">
                         {formatMinor(order.price_total_minor, order.currency)} · due{' '}
                         {formatDueDate(order.pickup_due_date)}
                       </span>
