@@ -4,7 +4,9 @@
  */
 import type { AnyTone } from '../ui/tones'
 import type { CustomerType, FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
-import { IconClock, IconRepeat, IconRuler, IconScissors, IconTag } from '../components/icons'
+import { IconClock, IconRepeat, IconRuler, IconScissors, IconTag,
+  type IconComponent,
+} from '../components/icons'
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
   measured: 'Measured',
@@ -42,7 +44,7 @@ export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
 }
 
 /** Beside the labels so a new order type cannot get one and not the other. */
-export const ORDER_TYPE_ICONS: Record<OrderType, (props: { size?: number }) => preact.JSX.Element> = {
+export const ORDER_TYPE_ICONS: Record<OrderType, IconComponent> = {
   tailor_made: IconRuler,
   rental: IconRepeat,
   purchase: IconTag,

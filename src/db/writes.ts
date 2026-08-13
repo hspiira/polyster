@@ -832,7 +832,7 @@ export async function updateShop(
   db: AppDatabase,
   shopId: string,
   input: {
-    name: string
+    name?: string
     whatsapp_number?: string
     currency?: string
     lock_after_minutes?: number
@@ -846,19 +846,24 @@ export async function updateShop(
   const doc = await db.shops.findOne(shopId).exec()
   if (!doc) throw new Error('Shop record not found on this device.')
 
-  await doc.patch({
-    name: input.name.trim(),
-    whatsapp_number: input.whatsapp_number?.trim() || undefined,
-    ...(input.currency ? { currency: input.currency } : {}),
-    ...(input.lock_after_minutes !== undefined
-      ? { lock_after_minutes: input.lock_after_minutes }
-      : {}),
-    ...(input.business_type ? { business_type: input.business_type } : {}),
-    logo_url: input.logo_url?.trim() || undefined,
-    timezone: input.timezone?.trim() || undefined,
-    email: input.email?.trim() || undefined,
-    website: input.website?.trim() || undefined,
-  })
+  const patch: Record<string, unknown> = {}
+
+  if (input.name !== undefined) {
+    const name = input.name.trim()
+    if (!name) throw new Error('The shop needs a name -- it appears on every message you send.')
+    patch.name = name
+  }
+
+  for (const key of ['whatsapp_number', 'logo_url', 'timezone', 'email', 'website'] as const) {
+    const value = input[key]
+    if (value !== undefined) patch[key] = value.trim() || undefined
+  }
+
+  if (input.currency !== undefined) patch.currency = input.currency
+  if (input.lock_after_minutes !== undefined) patch.lock_after_minutes = input.lock_after_minutes
+  if (input.business_type !== undefined) patch.business_type = input.business_type
+
+  await doc.patch(patch)
 }
 
 /**

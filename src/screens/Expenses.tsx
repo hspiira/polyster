@@ -129,7 +129,7 @@ export function Expenses() {
         <Card flush>
           <p class="text-sm text-content-muted">Spent, {period.label}</p>
           <div class="mt-1">
-            <StatValue value={formatAmount(totalMinor, currency)} />
+            <StatValue value={formatAmount(totalMinor, currency)} tone="danger" />
           </div>
           <p class="mt-1 text-sm text-content-muted">
             {inRange.length} {inRange.length === 1 ? 'entry' : 'entries'}
@@ -184,8 +184,8 @@ export function Expenses() {
                         <span class="min-w-0 flex-1 truncate text-[15px] font-medium">
                           {expense.description}
                         </span>
-                        <span class="shrink-0 text-sm font-semibold tabular-nums">
-                          {formatAmount(expense.amount_minor, currency)}
+                        <span class="shrink-0 text-sm font-semibold tabular-nums text-danger">
+                          -{formatAmount(expense.amount_minor, currency)}
                         </span>
                       </span>
                       <span class="mt-0.5 block truncate text-xs text-content-muted">

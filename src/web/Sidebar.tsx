@@ -32,6 +32,7 @@ import {
   IconTag,
   IconTruck,
   IconUsers,
+  type IconComponent,
 } from '../components/icons'
 import { cn } from '../lib/cn'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
@@ -42,7 +43,7 @@ import type { FeatureKey } from '../db/schema'
 interface NavItem {
   href: string
   label: string
-  Icon?: (props: { size?: number }) => preact.JSX.Element
+  Icon?: IconComponent
   count?: number
   feature?: FeatureKey
 }

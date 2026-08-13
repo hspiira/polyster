@@ -21,6 +21,7 @@ import {
   IconSettings,
   IconTag,
   IconUsers,
+  type IconComponent,
 } from './icons'
 
 /**
@@ -61,7 +62,7 @@ import {
 interface TabDef {
   href: string
   label: string
-  Icon: (props: { size?: number; 'stroke-width'?: number }) => preact.JSX.Element
+  Icon: IconComponent
   /** Path prefix that counts as this tab being active. */
   prefix: string
   feature?: FeatureKey

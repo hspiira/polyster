@@ -6,7 +6,8 @@
  * counter, which is worse than no lock at all.
  */
 import { useState } from 'preact/hooks'
-import { Button, Card, ErrorNote, InfoNote, Screen, SectionTitle } from '../../components/ui'
+import { Button, Card, cn, ErrorNote, InfoNote, Screen, SectionTitle } from '../../ui'
+import { IconAlert, IconLock } from '../../components/icons'
 import { PinPad } from '../../components/PinPad'
 import { useShop } from '../../state/ShopProvider'
 import { clearStaffPin, setStaffPin } from '../../db/writes'
@@ -92,20 +93,34 @@ export function LockSettings() {
   return (
     <Screen title="Lock this phone" back={back}>
       <div class="space-y-5">
-        <SectionTitle>{hasPin ? 'A PIN is set' : 'No PIN set'}</SectionTitle>
+        <SectionTitle>Status</SectionTitle>
         <Card>
-          <p class="px-4 py-3 text-sm leading-relaxed text-content-muted">
-            {hasPin
-              ? 'This phone asks for your PIN when it has been idle, and after it has been closed and reopened.'
-              : 'Anyone who picks up this phone can open your shop. A PIN asks for six digits first.'}
-          </p>
+          <div class="flex items-start gap-3">
+            <span
+              class={cn(
+                'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-[0.65rem]',
+                hasPin ? 'bg-success-soft text-success-on-soft' : 'bg-money-soft text-money-on-soft',
+              )}
+            >
+              {hasPin ? <IconLock size={18} /> : <IconAlert size={18} />}
+            </span>
+            <div class="min-w-0">
+              <p class="font-medium">{hasPin ? 'A PIN is set' : 'No PIN set'}</p>
+              <p class="mt-1 text-sm leading-relaxed text-content-muted">
+                {hasPin
+                  ? 'This phone asks for your PIN when it has been idle, and after it has been closed and reopened.'
+                  : `Anyone who picks up this phone can open your shop. A PIN asks for ${PIN_LENGTH} digits first.`}
+              </p>
+            </div>
+          </div>
         </Card>
 
         {saved && <InfoNote>PIN saved. It will be asked for next time.</InfoNote>}
         {error && <ErrorNote>{error}</ErrorNote>}
 
-        <div class="space-y-2">
+        <div class="flex flex-col gap-2">
           <Button
+            block
             onClick={() => {
               setSaved(false)
               setError(null)
@@ -115,7 +130,7 @@ export function LockSettings() {
             {hasPin ? 'Change PIN' : 'Set a PIN'}
           </Button>
           {hasPin && (
-            <Button variant="secondary" onClick={() => void remove()}>
+            <Button variant="secondary" block onClick={() => void remove()}>
               Remove the PIN
             </Button>
           )}

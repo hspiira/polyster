@@ -16,7 +16,6 @@ import {
   DataRow,
   FlowColumns,
   FLUSH_SURFACE,
-  InfoNote,
   PeriodBar,
   PeriodRangeFields,
   Screen,
@@ -459,10 +458,6 @@ export function Reports() {
           </Card>
         )}
 
-        <InfoNote>
-          Figures come from what is on this device and count money that actually moved. If it has
-          not synced recently, another device's latest payments may not be counted yet.
-        </InfoNote>
       </Sections>
     </Screen>
   )

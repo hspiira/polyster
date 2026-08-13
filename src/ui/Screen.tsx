@@ -30,16 +30,16 @@ export const MEASURE_WIDE = WIDTHS.wide
 
 /**
  * Exactly one of `title` or `label` is required -- never both omitted, which
- * used to compile and render no `h1` at all. `subtitle` rides along with
- * `title` only: it modifies a visible heading, and an orphaned subtitle over a
- * `label`-only tab root (which shows no heading) has nothing to modify.
+ * used to compile and render no `h1` at all.
+ *
+ * There is no subtitle. A shop name or a count under the heading pushes every
+ * screen's content down by a different amount depending on data, so no two
+ * screens start at the same place. Counts belong next to what they count.
  */
 type Heading =
   | {
       /** Visible page heading, for pushed screens. */
       title: string
-      /** A muted line under `title`. Only makes sense once there is a title. */
-      subtitle?: string
       label?: never
     }
   | {
@@ -51,7 +51,6 @@ type Heading =
        */
       label: string
       title?: never
-      subtitle?: never
     }
 
 /**
@@ -70,7 +69,6 @@ export interface ScreenSection {
 export function Screen({
   title,
   label,
-  subtitle,
   back,
   action,
   sections,
@@ -173,7 +171,6 @@ export function Screen({
               <h1 class={cn('truncate text-title font-semibold', !title && 'sr-only')}>
                 {heading}
               </h1>
-              {subtitle && <p class="mt-0.5 truncate text-xs text-content-muted">{subtitle}</p>}
             </div>
           )}
           {action}

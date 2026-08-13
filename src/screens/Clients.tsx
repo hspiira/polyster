@@ -10,17 +10,13 @@ import { useMemo, useState } from 'preact/hooks'
 import {
   Avatar,
   Button,
-  Card,
+  DataList,
   EmptyState,
-  DataRowLink,
-  DataTable,
   HeaderAction,
-  ListRow,
-  RowList,
   Screen,
   SearchInput,
-  Td,
-} from '../components/ui'
+  type Column,
+} from '../ui'
 import { IconPlus } from '../components/icons'
 import { AddClientSheet } from '../components/AddClientSheet'
 import { IllustrationBook, IllustrationSearch } from '../components/illustrations'
@@ -29,14 +25,6 @@ import { useRxQuery } from '../hooks/useRxQuery'
 import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { formatDate } from '../lib/dates'
-
-const CLIENT_COLUMNS = [
-  { label: 'Client' },
-  { label: 'Phone' },
-  { label: 'Orders', align: 'right' as const },
-  { label: 'Outstanding', align: 'right' as const },
-  { label: 'Last order' },
-] as const
 
 interface ClientTally {
   orders: number
@@ -56,9 +44,9 @@ export function Clients() {
   )
   const clients = useMemo(() => docs.map((doc) => doc.toJSON()), [docs])
 
-  // Desktop columns only. A phone shows name and number; a desktop table has
-  // room for the question actually worth asking of a client list -- who owes
-  // money, and when they were last in.
+  // Table-form-only columns (see `wideOnly` below). A phone shows name and
+  // number; the wide form has room for the question actually worth asking of
+  // a client list -- who owes money, and when they were last in.
   const orderDocs = useRxQuery(
     () => db.orders.find({ selector: { shop_id: shop.id } }).$,
     [db, shop.id],
@@ -94,11 +82,58 @@ export function Clients() {
     )
   }, [clients, search])
 
+  // Closes over `tallies` and `shop.currency`, so it lives here rather than
+  // hoisted -- see ORDER_COLUMNS in Orders.tsx for the shape when a row
+  // already carries everything its columns need.
+  const columns: readonly Column<(typeof clients)[number]>[] = [
+    {
+      id: 'name',
+      label: 'Client',
+      role: 'primary',
+      render: (client) => <span class="truncate">{client.name}</span>,
+    },
+    {
+      id: 'phone',
+      label: 'Phone',
+      render: (client) => client.phone ?? 'No phone number',
+    },
+    {
+      id: 'orders',
+      label: 'Orders',
+      role: 'figure',
+      wideOnly: true,
+      render: (client) => tallies.get(client.id)?.orders ?? 0,
+    },
+    {
+      id: 'outstanding',
+      label: 'Outstanding',
+      role: 'figure',
+      srLabel: 'Outstanding',
+      render: (client) => {
+        const tally = tallies.get(client.id)
+        return tally && tally.outstanding_minor > 0 ? (
+          <span class="text-money">{formatMinor(tally.outstanding_minor, shop.currency)}</span>
+        ) : (
+          <span class="hidden font-normal text-content-subtle @[44rem]/data-list:inline">--</span>
+        )
+      },
+    },
+    {
+      id: 'lastOrder',
+      label: 'Last order',
+      wideOnly: true,
+      render: (client) => {
+        const tally = tallies.get(client.id)
+        return tally?.lastOrderDate ? formatDate(tally.lastOrderDate.slice(0, 10)) : '--'
+      },
+    },
+  ]
+
   return (
     <>
       <Screen
         label="Clients"
-        wide
+        width="wide"
         // In the header rather than floating: the tab bar's centre button is
         // already this app's one floating action, and two is a menu (spec N12).
         action={
@@ -141,54 +176,14 @@ export function Clients() {
           )}
 
           {matches.length > 0 && (
-            <Card padded={false} class="lg:hidden">
-              <RowList>
-                {matches.map((client) => (
-                  <li key={client.id}>
-                    <ListRow href={`/clients/${client.id}`} leading={<Avatar name={client.name} />}>
-                      <span class="block truncate font-medium">{client.name}</span>
-                      <span class="block truncate text-sm text-stone-500 dark:text-stone-400">
-                        {client.phone ?? 'No phone number'}
-                      </span>
-                    </ListRow>
-                  </li>
-                ))}
-              </RowList>
-            </Card>
-          )}
-
-          {matches.length > 0 && (
-            <DataTable columns={CLIENT_COLUMNS}>
-              {matches.map((client) => {
-                const tally = tallies.get(client.id)
-                return (
-                  <DataRowLink key={client.id} href={`/clients/${client.id}`}>
-                    <Td>
-                      <span class="flex items-center gap-3">
-                        <Avatar name={client.name} size="sm" />
-                        <span class="truncate font-medium">{client.name}</span>
-                      </span>
-                    </Td>
-                    <Td muted>{client.phone ?? '--'}</Td>
-                    <Td align="right" muted>
-                      {tally?.orders ?? 0}
-                    </Td>
-                    <Td align="right">
-                      {tally && tally.outstanding_minor > 0 ? (
-                        <span class="font-semibold tabular-nums text-amber-700 dark:text-amber-400">
-                          {formatMinor(tally.outstanding_minor, shop.currency)}
-                        </span>
-                      ) : (
-                        <span class="text-stone-400 dark:text-stone-600">--</span>
-                      )}
-                    </Td>
-                    <Td muted>
-                      {tally?.lastOrderDate ? formatDate(tally.lastOrderDate.slice(0, 10)) : '--'}
-                    </Td>
-                  </DataRowLink>
-                )
-              })}
-            </DataTable>
+            <DataList
+              label="Clients"
+              items={matches}
+              columns={columns}
+              getKey={(client) => client.id}
+              href={(client) => `/clients/${client.id}`}
+              leading={(client) => <Avatar name={client.name} size="sm" />}
+            />
           )}
         </div>
       </Screen>

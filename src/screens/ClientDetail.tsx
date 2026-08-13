@@ -1,9 +1,13 @@
 /**
- * One client: their details, their measurements, and their orders.
+ * One client: who they are on the left, everything about them on the right.
  *
  * The measurement form is rendered from `measurement_fields`, which each shop
  * configures for itself. That indirection is what makes one app fit a suit
  * tailor and a dressmaker without a fork -- pwa-schema-and-screens.md s1.
+ *
+ * The profile is a sticky rail rather than a card at the top because contact
+ * details are what you check *while* reading something else -- stacked, they
+ * scroll away exactly when wanted.
  */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
@@ -12,6 +16,7 @@ import {
   Button,
   Card,
   Chip,
+  DataRow,
   EmptyState,
   ErrorNote,
   Field,
@@ -22,8 +27,8 @@ import {
   SectionTitle,
   Sheet,
   Textarea,
-} from '../components/ui'
-import { IconEdit, IconPlus } from '../components/icons'
+} from '../ui'
+import { IconEdit, IconPlus, IconWhatsApp } from '../components/icons'
 import {
   IllustrationMeasure,
   IllustrationOrders,
@@ -31,11 +36,14 @@ import {
 } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
+import { observeShopBalances } from '../db/balances'
 import { saveMeasurements, updateClient } from '../db/writes'
 import { formatMinor } from '../lib/money'
 import { formatDueDate } from '../lib/dates'
+import { toWaNumber } from '../lib/whatsapp'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
 import { useBack } from '../hooks/useBack'
+import type { ClientDoc } from '../db/schema'
 
 export function ClientDetail() {
   const back = useBack()
@@ -56,6 +64,18 @@ export function ClientDetail() {
     [],
   )
   const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
+
+  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+
+  const outstandingMinor = useMemo(
+    () =>
+      orders.reduce((sum, order) => {
+        if (order.stage === 'cancelled') return sum
+        const balance = balances.get(order.id)
+        return balance && balance.balance_minor > 0 ? sum + balance.balance_minor : sum
+      }, 0),
+    [orders, balances],
+  )
 
   const [editing, setEditing] = useState(false)
 
@@ -81,82 +101,69 @@ export function ClientDetail() {
     <Screen
       title={client.name}
       back={back}
+      width="wide"
       action={
         <Button variant="ghost" size="sm" aria-label="Edit client" onClick={() => setEditing(true)}>
           <IconEdit size={20} />
         </Button>
       }
     >
-      <div class="space-y-5">
-        <Card>
-          <div class="flex items-center gap-3">
-            <Avatar name={client.name} />
-            <div class="min-w-0 text-sm">
-              <p class="font-medium">
-                {client.phone ?? <span class="text-stone-400">No phone number</span>}
-              </p>
-              <p class="text-stone-500 dark:text-stone-400">
-                {orders.length === 0
-                  ? 'No orders yet'
-                  : `${orders.length} order${orders.length === 1 ? '' : 's'}`}
-              </p>
-            </div>
-          </div>
-          {client.notes && (
-            <p class="mt-3 whitespace-pre-wrap border-t border-stone-100 pt-3 text-sm text-stone-600 dark:border-stone-800 dark:text-stone-300">
-              {client.notes}
-            </p>
-          )}
-        </Card>
+      <div class="lg:grid lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] lg:items-start lg:gap-5">
+        <ProfilePanel
+          client={client}
+          orderCount={orders.length}
+          outstandingMinor={outstandingMinor}
+          currency={shop.currency}
+        />
 
-        <Measurements clientId={clientId} />
+        <div class="mt-5 space-y-5 lg:mt-0">
+          <Measurements clientId={clientId} />
 
-        <section>
-          <SectionTitle
-            action={
-              <a
-                href={`/orders/new?client=${client.id}`}
-                class="flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-400"
-              >
-                <IconPlus size={14} /> New
-              </a>
-            }
-          >
-            Orders
-          </SectionTitle>
-
-          {orders.length === 0 ? (
-            <EmptyState
-              illustration={<IllustrationOrders size={72} />}
-              title="No orders yet"
-              description={`Nothing has been ordered by ${client.name} so far.`}
+          <section>
+            <SectionTitle
               action={
-                <Button linkTo={`/orders/new?client=${client.id}`}>Take an order</Button>
+                <a
+                  href={`/orders/new?client=${client.id}`}
+                  class="flex items-center gap-1 text-xs font-semibold text-accent"
+                >
+                  <IconPlus size={14} /> New
+                </a>
               }
-            />
-          ) : (
-            <Card padded={false}>
-              <RowList>
-                {orders.map((order) => (
-                  <li key={order.id}>
-                    <ListRow
-                      href={`/orders/${order.id}`}
-                      trailing={
-                        <Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>
-                      }
-                    >
-                      <span class="block truncate font-medium">{order.summary}</span>
-                      <span class="block text-sm text-stone-500 dark:text-stone-400">
-                        {formatMinor(order.price_total_minor, order.currency)} · due{' '}
-                        {formatDueDate(order.pickup_due_date)}
-                      </span>
-                    </ListRow>
-                  </li>
-                ))}
-              </RowList>
-            </Card>
-          )}
-        </section>
+            >
+              Orders
+            </SectionTitle>
+
+            {orders.length === 0 ? (
+              <EmptyState
+                illustration={<IllustrationOrders size={72} />}
+                title="No orders yet"
+                description={`Nothing has been ordered by ${client.name} so far.`}
+                action={<Button linkTo={`/orders/new?client=${client.id}`}>Take an order</Button>}
+              />
+            ) : (
+              <Card padded={false}>
+                <RowList>
+                  {orders.map((order) => (
+                    <li key={order.id}>
+                      <ListRow
+                        href={`/orders/${order.id}`}
+                        trailing={
+                          <Chip tone={STAGE_TONES[order.stage]}>{STAGE_LABELS[order.stage]}</Chip>
+                        }
+                      >
+                        <span class="block truncate font-medium">{order.summary}</span>
+                        <span class="block text-sm text-content-muted">
+                          {formatMinor(order.price_total_minor, order.currency)} · due{' '}
+                          {formatDueDate(order.pickup_due_date)}
+                        </span>
+                      </ListRow>
+                    </li>
+                  ))}
+                </RowList>
+              </Card>
+            )}
+          </section>
+        </div>
       </div>
 
       <EditClientSheet
@@ -168,6 +175,74 @@ export function ClientDetail() {
         notes={client.notes}
       />
     </Screen>
+  )
+}
+
+/** `top-16` clears the sticky page header, which is opaque and would cover this. */
+function ProfilePanel({
+  client,
+  orderCount,
+  outstandingMinor,
+  currency,
+}: {
+  client: ClientDoc
+  orderCount: number
+  outstandingMinor: number
+  currency: string
+}) {
+  const waNumber = toWaNumber(client.phone)
+
+  return (
+    <aside class="lg:sticky lg:top-16">
+      <Card>
+        <div class="flex items-center gap-3">
+          <Avatar name={client.name} size="lg" />
+          <div class="min-w-0">
+            {client.phone ? (
+              <a
+                href={`tel:${client.phone}`}
+                class="text-sm text-content-muted transition-colors hover:text-content"
+              >
+                {client.phone}
+              </a>
+            ) : (
+              <p class="text-sm text-content-subtle">No phone number</p>
+            )}
+          </div>
+        </div>
+
+        {waNumber && (
+          <Button
+            variant="secondary"
+            block
+            class="mt-3"
+            linkTo={`https://wa.me/${waNumber}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <IconWhatsApp size={18} /> Message
+          </Button>
+        )}
+
+        <dl class="mt-4 border-t border-line pt-2">
+          <DataRow label="Orders">{orderCount}</DataRow>
+          <DataRow label="Outstanding">
+            {outstandingMinor > 0 ? (
+              <span class="text-money">{formatMinor(outstandingMinor, currency)}</span>
+            ) : (
+              <span class="text-content-subtle">Nothing owed</span>
+            )}
+          </DataRow>
+        </dl>
+
+        {client.notes && (
+          <p class="mt-3 border-t border-line pt-3 text-sm whitespace-pre-wrap text-content-muted">
+            {client.notes}
+          </p>
+        )}
+
+      </Card>
+    </aside>
   )
 }
 
@@ -351,7 +426,7 @@ function Measurements({ clientId }: { clientId: string }) {
       <SectionTitle>Measurements</SectionTitle>
       <Card>
         <form onSubmit={save} class="space-y-4">
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] gap-3">
             {fields.map((field) => (
               <Field
                 key={field.id}

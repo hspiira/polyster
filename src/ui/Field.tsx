@@ -65,6 +65,58 @@ export function Field({
 }
 
 /**
+ * On/off for a single setting.
+ *
+ * A `Segmented` with On and Off in it was doing this job, which reads as two
+ * choices to compare rather than one thing that is either on or not -- and cost
+ * two tap targets and a row of chrome per setting. Seventeen of them stacked is
+ * what made the modules screen unreadable.
+ *
+ * The knob is `bg-surface` in both states so it never has to be told which
+ * theme it is in; the track carries the state.
+ */
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  /** Named for screen readers -- the visible label is a sibling, not a child. */
+  label: string
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      class="flex min-h-tap shrink-0 items-center disabled:pointer-events-none disabled:opacity-40"
+    >
+      {/* 40x22. The 44px tap floor is the button around it, not the drawing. */}
+      <span
+        class={cn(
+          'flex h-[1.375rem] w-10 items-center rounded-pill p-0.5 transition-colors',
+          checked ? 'bg-accent' : 'bg-line-strong',
+        )}
+      >
+        <span
+          class={cn(
+            'block size-[1.125rem] rounded-full bg-surface shadow-raise',
+            'transition-transform duration-100',
+            checked ? 'translate-x-[1.125rem]' : 'translate-x-0',
+          )}
+        />
+      </span>
+    </button>
+  )
+}
+
+/**
  * Segmented control for a small, fixed set of filters. Use a `<select>` above
  * about five options, where the segments get too narrow to hit.
  */

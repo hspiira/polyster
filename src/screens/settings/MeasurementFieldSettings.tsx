@@ -15,13 +15,12 @@ import {
   EmptyState,
   ErrorNote,
   Field,
-  InfoNote,
   Input,
   Screen,
   SectionTitle,
   Segmented,
   Sheet,
-} from '../../components/ui'
+} from '../../ui'
 import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '../../components/icons'
 import { IllustrationMeasure } from '../../components/illustrations'
 import { useShop } from '../../state/ShopProvider'
@@ -83,7 +82,7 @@ export function MeasurementFieldSettings() {
     return (
       <Screen title="Measurement fields" back={back}>
         <Card>
-          <p class="text-sm text-stone-600 dark:text-stone-300">
+          <p class="text-sm text-content-muted">
             The shop record has not reached this device yet. It arrives with the first sync.
           </p>
         </Card>
@@ -128,7 +127,6 @@ export function MeasurementFieldSettings() {
   return (
     <Screen
       title="Measurements"
-      subtitle={fields.length > 0 ? `${fields.length} fields` : undefined}
       back={back}
       action={
         fields.length > 0 && (
@@ -178,7 +176,7 @@ export function MeasurementFieldSettings() {
                       <span class="min-w-0 flex-1 pl-1">
                         <span class="block truncate font-medium">{field.label}</span>
                         {(field.unit || field.field_type === 'text' || field.group_label) && (
-                          <span class="block text-xs text-stone-500 dark:text-stone-400">
+                          <span class="block text-xs text-content-muted">
                             {[
                               field.unit,
                               // 'number' is the common case; naming it every time would be noise.
@@ -211,7 +209,7 @@ export function MeasurementFieldSettings() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        class="text-red-600 dark:text-red-400"
+                        class="text-danger"
                         aria-label={`Retire ${field.label}`}
                         onClick={() => void retireMeasurementField(db, field.id)}
                       >
@@ -231,13 +229,9 @@ export function MeasurementFieldSettings() {
                     {retiredFields.map((field) => (
                       <li key={field.id} class="flex items-center gap-1 px-3 py-2.5">
                         <span class="min-w-0 flex-1 pl-1">
-                          <span class="block truncate text-stone-500 dark:text-stone-400">
-                            {field.label}
-                          </span>
+                          <span class="block truncate text-content-muted">{field.label}</span>
                           {field.unit && (
-                            <span class="block text-xs text-stone-400 dark:text-stone-500">
-                              {field.unit}
-                            </span>
+                            <span class="block text-xs text-content-subtle">{field.unit}</span>
                           )}
                         </span>
                         <Button
@@ -255,13 +249,6 @@ export function MeasurementFieldSettings() {
               </div>
             )}
           </>
-        )}
-
-        {fields.length > 0 && (
-          <InfoNote>
-            Removing a field hides it from new forms. Measurements already recorded against it are
-            kept, so nothing a client gave you is lost.
-          </InfoNote>
         )}
       </div>
 

@@ -134,7 +134,6 @@ export function OrderDetail() {
   return (
     <Screen
       title={order.summary}
-      subtitle={client?.name}
       back={back}
       wide
       action={
