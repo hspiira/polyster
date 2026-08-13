@@ -356,11 +356,11 @@
     'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     Roboto, 'Helvetica Neue', Arial, sans-serif;
 
-  /* Remapped into 200-300 rather than rewriting every call site. Weight no
-     longer separates emphasis from body text; size and colour do. */
+  /* Remapped rather than rewriting every call site. 300 is body, 400 is the
+     emphasis step, 200 is display text. */
   --font-weight-light: 200;
   --font-weight-normal: 300;
-  --font-weight-medium: 300;
-  --font-weight-semibold: 300;
-  --font-weight-bold: 300;
+  --font-weight-medium: 400;
+  --font-weight-semibold: 400;
+  --font-weight-bold: 400;
 }
