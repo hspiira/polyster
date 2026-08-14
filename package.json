@@ -19,6 +19,7 @@
     "test:e2e": "node .claude/skills/run-polyster/assert.mjs",
     "check:design": "node scripts/check-standards.mjs",
     "verify:rls": "node scripts/verify-rls.mjs",
+    "verify:sync": "node scripts/verify-sync.mjs",
     "shop:credentials": "node scripts/set-shop-credentials.mjs",
     "seed:auth": "node scripts/seed-auth-users.mjs"
   },

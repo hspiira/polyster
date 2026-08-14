@@ -65,19 +65,32 @@ exercised the flow end to end instead of reading the code and assuming.
 
 That is the lesson worth keeping: reading the code does not verify the code.
 
-One caveat, recorded rather than smoothed over. Section 89 evidences the
-Supabase, tenant-isolation, and per-tenant ability items. The device-install
-items from the original Phase 0 checklist (home-screen install on Android and
-iPhone, airplane-mode load, offline-then-sync) rest on sign-off, not on a
-recorded artifact in this repo. If you want them evidenced, add the artifact.
+**Replication is now evidenced too, and repeatably.** `pnpm verify:sync` signs a
+real account into the running app, writes a client locally, and confirms through
+PostgREST that the row reached Postgres under the right `shop_id`; then it edits
+that row server-side and waits for it to appear in the page with no reload. It
+deletes what it made, in a `finally`, and names its rows `zz-sync-check-*` so a
+failed cleanup is obvious rather than looking like a customer. First green run
+2026-08-14 against NORTH//FOUND, 4/4.
+
+It is deliberately not part of `pnpm verify` or `pnpm test:e2e`: it writes to a
+live project, and those two must stay safe to run on any branch at any time.
+
+One caveat remains, recorded rather than smoothed over. The device-install items
+from the original Phase 0 checklist (home-screen install on Android and iPhone,
+airplane-mode load) rest on sign-off, not on a recorded artifact in this repo.
+Those need a physical handset; nothing in a headless browser substitutes.
 
 ## Verification in place
 
 | Check | Where |
 |---|---|
-| Typecheck, tests, standards, build | `pnpm verify` |
+| Typecheck, lint, tests, standards, build | `pnpm verify` |
 | On every push and pull request | `.github/workflows/verify.yml` |
+| Accessibility and hook rules | `eslint.config.js`, in `pnpm verify` |
+| Model-to-screen wiring, in a real browser | `pnpm test:e2e` |
 | RLS structural preconditions | `pnpm verify:rls` |
+| Replication, both directions, live project | `pnpm verify:sync` (opt-in, writes) |
 | Design-system rules | `scripts/check-standards.mjs` |
 
 Current state as of 2026-08-14: 46 test files, 558 tests, `pnpm verify` green.
@@ -92,48 +105,50 @@ The project still has no linter. See L3 below.
 Nothing here blocks anything else, which is a different situation from every
 previous revision of this document. Ordered by value, not by dependency.
 
-**L1. Accessibility audit outside the entry flow.**
-The entry flow and the payment forms were fixed and checked during the
-entry-flow work. The rest of the app has never been audited: form errors tied
-to their field via `aria-invalid` and `aria-describedby`, status changes
-announced, focus moved on navigation. This is most of the app.
-**Done when:** every screen has been walked with a keyboard and a screen reader,
-and the faults found are fixed rather than listed.
+**L1. Accessibility. Largely closed 2026-08-14, and enforced rather than audited.**
+`eslint-plugin-jsx-a11y` runs in `pnpm verify`, so the mechanical class is a
+build error and cannot silently return. The whole tree produced four findings,
+all fixed rather than suppressed. `Field` publishes its hint and error ids
+through context, so all 128 call sites gained `aria-describedby` and
+`aria-invalid` untouched. `ui/Sheet` gained the focus management `web/Dialog`
+already had, and `SyncBadge` became a live region.
+**What is left:** a screen-reader walk of the long tail of back-office screens.
 
-**L2. Component tests.**
-There are 46 test files and all of them are `.test.ts`. There are zero
-`.test.tsx`, and `vitest.config.ts` runs `environment: 'node'` with
-`include: ['src/**/*.test.ts']`. The pure models are well covered. The screens
-are covered by having been driven in a browser once, which does not survive a
-refactor. The order form's validation and the dashboard's bucketing are the two
-worth pinning down first.
-**Note:** this needs a DOM environment and a component testing library added
-first, so it is a larger step than it looks.
+**L2. Screen coverage. Done differently than planned, 2026-08-14.**
+The decision was to extend the existing Playwright driver rather than add a DOM
+environment and a component-testing library. `pnpm test:e2e` runs 16 assertions
+against the real app, and it tests something component tests structurally could
+not: the pointer-type shell split. It shares its signup walk with the screenshot
+driver through `app.mjs`. Kept out of `pnpm verify` because Chromium is a
+per-machine install and verify runs on every push.
+**Still true:** there are zero `.test.tsx` files and `vitest` is `environment: 'node'`.
+That is now a choice rather than a gap.
 
-**L3. A linter.**
-Still none. `strict`, the tests, and `check-standards.mjs` carry most of the
-weight, so this stays lower value than it sounds, but it is cheap.
+**L3. A linter. Done 2026-08-14.** ESLint flat config with `typescript-eslint`,
+`jsx-a11y`, and the two classic `react-hooks` rules. `check-standards.mjs` keeps
+the lexical colour and comment rules; the linter carries what needs an AST. A
+lint directive does not spend the two-line comment budget.
 
-**L4. Decide whether backup needs a restore.**
-`src/lib/backup.ts` exports and has 17 tests. It has no restore path, and the
-screen says so outright. That is honest and it is not a backup strategy. Either
-build the import, or decide the real recovery path is Supabase and say so in the
-UI. This got sharper when registration stopped requiring a phone number: a new
-shop's only copy of its data is local until it is claimed.
+**L4. Backup restore. Resolved by making Supabase true rather than building a
+second mechanism, 2026-08-14.** The recovery path is Supabase, and the work was
+to stop the UI implying otherwise. The dismiss button said "Not now" while the
+code meant never; dismissals are now stamped and lapse after a week
+(`lib/prompts.ts`). `SyncBadge` already said "Only on this phone" permanently and
+linked to the backup screen, so no further UI was added. **No JSON import was
+built, deliberately.**
 
-**L5. Measure the PIN iteration count on real hardware.**
-210,000 iterations was measured on a desktop at roughly 190ms and extrapolated
-to a low-end phone. An extrapolation is not a measurement. Target roughly 250ms
-on the lowest-end Android the shop actually uses. The hash format is
-self-describing, so the cost can be raised without invalidating anyone's PIN.
-**Status: unverified.** Nothing in this repo records a measurement.
+**L5. PIN cost. Made measurable 2026-08-14; the number itself is still yours.**
+`measureHashMs` times a real hash and `recommendIterations` scales the count to
+the 250ms target, surfaced on the lock screen behind `import.meta.env.DEV`.
+`pnpm dev --host`, opened on the shop's phone, is the whole procedure.
+**Still open:** nobody has run it on the lowest-end handset, and
+`DEFAULT_ITERATIONS` is still the extrapolated 210,000.
 
-**L6. Carry-overs from `CODE_REVIEW.md`.**
-That document's own "What to do, in order" is fully closed. Four things remain
-in its "What is left" section: order-type branching in five files and stage in
-eight (a rule for new code, not a repair), the accessibility pass above,
-`supabaseClient.ts` as the last untested module, and `PinRecovery` keeping its
-own copy of the PIN choose-and-confirm dance.
+**L6. Carry-overs from `CODE_REVIEW.md`.** `supabaseClient.ts` now has 9 tests,
+so every source module has a test file. Two remain, both recorded there as
+deliberate: order-type branching in five files (a rule for new code, not a
+repair) and `PinRecovery` keeping its own PIN choose-and-confirm, which needs the
+four-stage wizard reworked rather than a component swapped.
 
 ## Architecture notes this plan depends on
 
@@ -173,8 +188,8 @@ totalling roughly 1,036 KiB.
 
 | Decision | Blocks | Task |
 |---|---|---|
-| Whether backup needs a restore path | Nothing yet, but the UI is making a promise it does not keep | L4 |
-| Whether the online-only split is the intended end state or a staging post | Any future offline work on those modules | D1 |
+| Whether the online-only split is the intended end state or a staging post | Any future offline work on those modules | Section 1a of `ARCHITECTURE.md` documents the split as it stands; whether it is permanent is unanswered |
+| Whether `DEFAULT_ITERATIONS` should change | Nothing, until someone times it on the shop's phone | L5 |
 
 Neither should be resolved by whoever happens to reach it mid-screen. Both are
 written down here because defaulting quietly is how they turn into things nobody
@@ -182,10 +197,9 @@ remembers choosing.
 
 ## Documentation debt
 
-**D1. `ARCHITECTURE.md` does not describe the online-only split.** The document
-still reads as though the whole app is offline-first. That was true when it was
-written and is not true now. Anyone reading it to decide how to build a new
-module will build the wrong thing.
+**D1. ~~`ARCHITECTURE.md` does not describe the online-only split.~~ Closed
+2026-08-14.** Section 1a now names both data paths, which modules take which, and
+states plainly that the online-only screens are blank without a connection.
 
 **D2. This file drifted for two weeks and misreported the state of the
 project.** The cause was that shipping updated `POLYSTER.md` and `CODE_REVIEW.md`

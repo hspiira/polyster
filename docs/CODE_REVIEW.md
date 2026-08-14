@@ -285,8 +285,9 @@ These look like faults but are recorded decisions, and the reasoning holds:
   rationale goes in `docs/`, not in a header.
 - **`ui.tsx` shim existing at all** was a sound migration strategy. Only its
   stalling is the problem.
-- **Chunk size** (536 kB) is flagged by the build. Acceptable for now given the
-  offline-first premise, but worth revisiting.
+- ~~**Chunk size** (536 kB) is flagged by the build.~~ **Stale as written.** That
+  figure predates the route-splitting work. The largest chunk is now
+  `supabaseClient` at 207 kB raw / 53 kB gzipped, and the build flags nothing.
 
 ---
 
@@ -319,13 +320,22 @@ branches belong; the remaining ones should move behind them rather than new
 ones being added. Nothing here is broken, so this is a rule for new code more
 than a repair.
 
-**Accessibility outside the entry flow (section 5.1).** The entry flow and the
-payment forms were fixed and checked. The rest of the app, which is most of it,
-has never been audited: form errors tied to their field, status changes
-announced, focus moved on navigation. This wants its own pass, not a line item.
+**Accessibility outside the entry flow (section 5.1).** **Largely closed
+2026-08-14, and enforced rather than audited.** ESLint with `eslint-plugin-jsx-a11y`
+now runs in `pnpm verify`; the whole tree produced four real findings and all
+four were fixed rather than suppressed. `Field` publishes its hint and error ids
+through context, so all 128 call sites gained `aria-describedby` and
+`aria-invalid` without being touched. `ui/Sheet` gained the focus management
+`web/Dialog` already had, via a shared `useModalChrome`, and `SyncBadge` became a
+live region. Sixteen assertions in `pnpm test:e2e` cover it.
 
-**`supabaseClient.ts` untested.** A thin wrapper, and the only module left with
-no test. Low value on its own; worth covering when something in it grows.
+What is genuinely left here is a screen-reader walk of the long tail of
+back-office screens. The mechanical class is now a lint error, so it cannot
+silently return.
+
+**~~`supabaseClient.ts` untested.~~** **Done.** 9 tests. It reads
+`import.meta.env` at load, so each case imports it fresh after `resetModules`.
+Every source module now has a test file.
 
 **`PinRecovery` keeps its own PIN choose-and-confirm.** The other three call
 sites share `ChoosePinPad`. This one sits in the dark entry world with different

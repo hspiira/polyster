@@ -36,6 +36,24 @@ The core design constraint is that the app must keep working with no internet co
 
 The app always reads and writes to the local RxDB store first. Supabase is a sync partner, not the primary source of truth from the app's point of view -- this is the "local-first" pattern documented in `pwa-research-notes.md` section 8, and it's what makes offline use a first-class case rather than a fallback state.
 
+**That applies to the core, not to everything.** See section 1a: the modules added from Phase 2 onward talk to Supabase directly and do not work offline at all.
+
+
+## 1a. Two data paths: local-first core, online-only modules
+
+This document described a wholly offline-first app, and that stopped being true at Phase 2. Anyone reading section 1 alone and building a new module the way it describes will build the wrong thing.
+
+**Local-first (RxDB, replicated, works offline).** Customers, orders, order units, payments, staff, measurements, message log, sales, expenses, and their derivations. This is the shop-floor path: it is what a tailor uses with no signal, and it is the only data that a device holds a copy of. `REPLICATED_TABLES` in `src/db/replication.ts` is the authoritative list.
+
+**Online-only (`src/online/`, no local copy).** Catalogue and product variants, suppliers, materials, inventory, production batches and costing, collections, garment units and the passport, and advanced reporting analytics. These call PostgREST directly and are gated by `useOnlineFeature()` (`src/hooks/useOnlineFeature.ts`), which is simply online *and* Supabase configured.
+
+Why the split: these modules are back-office work done sitting down, on a connection, by an apparel brand rather than a counter tailor. Giving each one an RxDB schema, a migration strategy, replication config and a conflict story would have cost that for a case nobody has. The tradeoff is real and worth stating plainly: **these screens are blank without a connection**, and no amount of service worker caching changes that.
+
+Two consequences that matter when extending the app:
+
+- A new module has to pick a path deliberately. The wrong default is expensive either way: an offline-first module that did not need to be carries a migration burden forever, and an online-only module that shop staff need on the floor is useless the first time the signal drops.
+- The offline conflict question in section 3 does not arise for the online-only path, because there is no second copy to diverge. That is why the Phase 2 double-booking problem in `IMPLEMENTATION_PLAN.md` was dissolved rather than decided.
+
 
 ## 2. Components
 
