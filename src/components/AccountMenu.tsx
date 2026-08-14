@@ -1,20 +1,13 @@
-/* Who is working, and the two things you can do about it. Separate from the
-   settings gear beside it: one is "the app", this one is "me". */
 import { useState } from 'preact/hooks'
 import { Avatar, Card, RowList, SettingRow, Sheet } from '../ui'
-import { IconSignOut, IconUsers } from './icons'
+import { IconSignOut } from './icons'
 import { useShop } from '../state/ShopProvider'
 import { useAuth } from '../hooks/useAuth'
-import { isLocked } from '../lib/entryState'
 
 export function AccountMenu({ staffName }: { staffName: string }) {
   const [open, setOpen] = useState(false)
-  const { shop, staff, setActiveStaff } = useShop()
+  const { shop } = useShop()
   const { controller } = useAuth()
-
-  /* Clearing the active staff only reaches the PIN screen when someone has a
-     PIN; otherwise app.tsx re-selects staff[0] and the row does nothing. */
-  const canSwitch = isLocked(staff, null)
 
   return (
     <>
@@ -45,18 +38,6 @@ export function AccountMenu({ staffName }: { staffName: string }) {
         <div class="mt-3">
           <Card padded={false}>
             <RowList>
-              {canSwitch && (
-                <li>
-                  <SettingRow
-                    icon={<IconUsers size={20} />}
-                    label="Switch staff"
-                    onClick={() => {
-                      setOpen(false)
-                      setActiveStaff(null)
-                    }}
-                  />
-                </li>
-              )}
               <li>
                 <SettingRow
                   icon={<IconSignOut size={20} />}

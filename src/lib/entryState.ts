@@ -9,6 +9,8 @@ export interface EntryInput {
   authStatus: AuthState['status']
   /** A shop row and at least one staff row exist locally. */
   provisioned: boolean
+  /** The local shop carries a `supabase_auth_user_id`, so an account owns it. */
+  claimed: boolean
   locked: boolean
   /** The user chose "Set up my shop" and the form has not finished. */
   registering: boolean
@@ -21,12 +23,16 @@ export function decideEntryScreen({
   dbStatus,
   authStatus,
   provisioned,
+  claimed,
   locked,
   registering,
   awaitingFirstPull,
 }: EntryInput): EntryScreen {
   if (dbStatus === 'error') return 'fatal'
   if (dbStatus === 'loading' || authStatus === 'checking') return 'splash'
+
+  // Not offline_stale/session_expired: those mean the server was unreachable.
+  if (provisioned && claimed && authStatus === 'signed_out') return 'landing'
 
   if (provisioned) return locked ? 'lock' : 'shell'
   if (registering) return 'register'

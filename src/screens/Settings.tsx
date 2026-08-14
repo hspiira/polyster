@@ -74,7 +74,7 @@ const THEME_LABELS: Record<ThemePreference, string> = {
 
 export function Settings() {
   const back = useBack()
-  const { db, shop, activeStaff, setActiveStaff } = useShop()
+  const { db, shop, activeStaff } = useShop()
   const { controller } = useAuth()
   const flags = useFeatureFlags(db, shop?.id ?? '__none__')
   const [theme, chooseTheme] = useTheme()
@@ -160,7 +160,6 @@ export function Settings() {
                       icon={<IconUsers size={20} />}
                       label="Working as"
                       value={activeStaff.name}
-                      onClick={() => setActiveStaff(null)}
                     />
                   </li>
                 )}

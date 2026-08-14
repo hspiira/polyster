@@ -60,6 +60,7 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
     dbStatus: loaded ? 'ready' : 'loading',
     authStatus: auth.status,
     provisioned,
+    claimed: Boolean(shop?.supabase_auth_user_id),
     locked,
     registering,
     awaitingFirstPull: replication.status === 'syncing',

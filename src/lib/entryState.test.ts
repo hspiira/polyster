@@ -6,6 +6,7 @@ function input(over: Partial<EntryInput> = {}): EntryInput {
     dbStatus: 'ready',
     authStatus: 'signed_out',
     provisioned: false,
+    claimed: false,
     locked: true,
     registering: false,
     awaitingFirstPull: false,
@@ -73,6 +74,23 @@ describe('decideEntryScreen', () => {
       decideEntryScreen(input({ authStatus: 'session_expired', provisioned: true, locked: false })),
     ).toBe('shell')
   })
+
+  it('closes a claimed shop when its account signs out', () => {
+    expect(
+      decideEntryScreen(
+        input({ authStatus: 'signed_out', provisioned: true, claimed: true, locked: false }),
+      ),
+    ).toBe('landing')
+  })
+
+  it.each(['offline_stale', 'session_expired'] as const)(
+    'keeps a claimed shop open when the server is unreachable (%s)',
+    (authStatus) => {
+      expect(
+        decideEntryScreen(input({ authStatus, provisioned: true, claimed: true, locked: false })),
+      ).toBe('shell')
+    },
+  )
 
   it('locks rather than landing when a provisioned device is signed out', () => {
     expect(decideEntryScreen(input({ authStatus: 'signed_out', provisioned: true }))).toBe('lock')
