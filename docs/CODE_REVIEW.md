@@ -142,10 +142,15 @@ mismatch. That two-phase flow, its `firstPin` holding state and its reset, was
 written out at every place a PIN is set: `AddStaffSheet`, `ChangePinSheet`,
 `LockSettings`, and `PinRecovery`.
 
-Three of the four now use one `ChoosePinPad`, which owns the phases and the
-mismatch reset and reports failures back to whatever styling the caller uses.
-`PinRecovery` still has its own copy: it lives in the dark entry world with
-different primitives and its heading is driven by a wider four-stage wizard.
+**Done, all four.** One `ChoosePinPad` owns the phases, the mismatch reset, and
+reports failures back to whatever styling the caller uses.
+
+`PinRecovery` was folded in on 2026-08-14 and turned out not to need the wizard
+reworked after all. `ChoosePinPad` already had both things this note assumed it
+lacked: a `tone="dark"` for the entry world, and an `onPhase` callback that
+exists precisely so a caller's own heading can track the pad's phase. Mapping
+`onPhase` onto the wizard's `newPin`/`confirmPin` stages was the whole change,
+and it deleted the `firstPin` state along with the last copy of the dance.
 
 ### 2.3 Repeated guard clauses in the write layer
 
@@ -314,11 +319,22 @@ Everything in "What to do, in order" is closed, along with every DRY finding
 and every high-risk untested module. Three things this review raised are
 genuinely still open, and one was never in it.
 
-**Open/closed (section 4).** Order type is still branched on in five files and
-stage in eight. `lib/orderTypes.ts` and `screens/orderStage.ts` are where those
-branches belong; the remaining ones should move behind them rather than new
-ones being added. Nothing here is broken, so this is a rule for new code more
-than a repair.
+**Open/closed (section 4).** **Mostly closed 2026-08-14.** Raw `order_type ===`
+comparisons went from eight across five files to three across two, all now behind
+`lib/orderTypes.ts`: the rental deposit checks in `db/writes/orders.ts` and
+`orderFormModel.ts` use `needsReturn`, the pre-order date uses
+`needsFulfilmentDate`, and `OrderDetail`'s twice-written Collection/Pickup label
+became `dueDateShortLabel`.
+
+The three left are not type semantics and should stay: `repairMetrics.ts` filters
+repairs because that is the module's entire purpose, and `OrderForm`'s two are
+feature-flag gating (show a type if its flag is on *or* the order already is that
+type), not a statement about what the type needs.
+
+One inconsistency surfaced and was deliberately left alone rather than fixed
+silently: a purchase order's date is "Handover date" in `dueDateLabel` but
+"Pickup" in the short label. `dueDateShortLabel` preserves the shipped behaviour
+and says so in a comment. Reconciling it changes what a screen says.
 
 **Accessibility outside the entry flow (section 5.1).** **Largely closed
 2026-08-14, and enforced rather than audited.** ESLint with `eslint-plugin-jsx-a11y`
@@ -337,7 +353,17 @@ silently return.
 `import.meta.env` at load, so each case imports it fresh after `resetModules`.
 Every source module now has a test file.
 
-**`PinRecovery` keeps its own PIN choose-and-confirm.** The other three call
-sites share `ChoosePinPad`. This one sits in the dark entry world with different
-primitives, inside a four-stage wizard that drives its own heading, so folding
-it in means reworking the wizard rather than swapping a component.
+**~~`PinRecovery` keeps its own PIN choose-and-confirm.~~ Done 2026-08-14.** See
+section 2.2: the wizard did not need reworking, because `ChoosePinPad` already
+had the dark tone and the `onPhase` hook this note assumed were missing.
+
+---
+
+## Everything above, as of 2026-08-14
+
+Every finding in this review is now closed except the screen-reader walk of the
+back-office tail, and the mechanical half of that is a lint error rather than a
+convention. What made the difference was enforcement over audit: `pnpm verify`
+runs the linter and the standards script, and `pnpm test:e2e` runs 18 assertions
+against a real browser, so none of this can drift back silently the way the 254
+hardcoded colours did.

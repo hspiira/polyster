@@ -24,6 +24,12 @@ export function dueDateLabel(type: OrderType): string {
   return 'Ready on'
 }
 
+/* The same date named where there is no room for the phrase above. Purchase says
+   "Pickup" here and "Handover date" there; that predates this and is unreconciled. */
+export function dueDateShortLabel(type: OrderType): string {
+  return type === 'rental' ? 'Collection' : 'Pickup'
+}
+
 /* The type this shop takes most often, for the form to open on. A tie goes to
    the most recent, so a shop that changes what it does drifts. Newest first. */
 export function usualOrderType(

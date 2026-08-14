@@ -7,6 +7,7 @@ import {
   type OrderType,
 } from '../schema'
 import { DEFAULT_CURRENCY } from '../../lib/money'
+import { needsReturn } from '../../lib/orderTypes'
 import { generateOrderReference } from '../../lib/orderReference'
 import { newId, now, loadOrThrow } from './shared'
 import { recalculateOrder } from './orderUnits'
@@ -152,7 +153,7 @@ export async function updateOrderHeader(
     purchase_order_reference: input.purchase_order_reference?.trim() || undefined,
     contact_person: input.contact_person?.trim() || undefined,
     expected_fulfilment_date: input.expected_fulfilment_date || undefined,
-    rental_deposit_minor: input.order_type === 'rental' ? (input.deposit_minor ?? 0) : 0,
+    rental_deposit_minor: needsReturn(input.order_type) ? (input.deposit_minor ?? 0) : 0,
     updated_at: now(),
   })
 }

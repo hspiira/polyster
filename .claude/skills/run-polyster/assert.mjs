@@ -236,6 +236,29 @@ if (await submit.count()) {
     })
     check('closing a sheet hands focus back, not to the body', restored)
   }
+
+  /* Last, because setting a PIN locks the app for anything after it. Covers the
+     shared choose-then-confirm dance that PinRecovery now routes through. */
+  await page.goto(BASE + '/settings/lock', { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1000)
+  const start = page.getByRole('button', { name: /set a pin|change pin/i })
+  if (await start.count()) {
+    await start.first().click()
+    await page.waitForTimeout(800)
+
+    const pad = page.locator('input[inputmode="numeric"]')
+    await pad.first().fill('135790')
+    await page.waitForTimeout(1200)
+    const asksAgain = /type it again/i.test(await page.locator('body').innerText())
+    check('choosing a PIN asks for it a second time', asksAgain)
+
+    await page.locator('input[inputmode="numeric"]').first().fill('135790')
+    await page.waitForTimeout(2500)
+    check(
+      'a matching second entry saves the PIN',
+      /pin saved/i.test(await page.locator('body').innerText()),
+    )
+  }
 } else {
   check('order form offers a submit', false, 'no "Create order" button on /orders/new')
 }
