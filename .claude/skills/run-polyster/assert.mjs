@@ -219,6 +219,23 @@ if (await submit.count()) {
     await page.waitForTimeout(1600)
     check("a legacy '1' dismissal does not silence it forever", (await page.getByText(ASK).count()) > 0)
   }
+
+  /* A sheet must move focus in and hand it back, or a keyboard user is left
+     behind the scrim. Sheet had neither half until useModalChrome. */
+  if (await openAddClient(page, BASE)) {
+    const inSheet = await page.evaluate(() =>
+      Boolean(document.activeElement?.closest('[role="dialog"]')),
+    )
+    check('opening a sheet moves focus inside it', inSheet)
+
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(700)
+    const restored = await page.evaluate(() => {
+      const el = document.activeElement
+      return Boolean(el && el !== document.body && !el.closest('[role="dialog"]'))
+    })
+    check('closing a sheet hands focus back, not to the body', restored)
+  }
 } else {
   check('order form offers a submit', false, 'no "Create order" button on /orders/new')
 }
