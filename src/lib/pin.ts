@@ -114,6 +114,33 @@ export async function verifyPin(pin: string, stored: string): Promise<boolean> {
   return equals(candidate, parsed.hash)
 }
 
+/* What a PIN check should cost on the slowest phone a shop uses: slow enough to
+   be worth attacking through, fast enough that nobody waits. ARCHITECTURE §9b. */
+export const TARGET_HASH_MS = 250
+
+/* DEFAULT_ITERATIONS was measured on a desktop and extrapolated, which is not a
+   measurement. This is how the number gets checked on the real hardware. */
+export async function measureHashMs(iterations: number = DEFAULT_ITERATIONS): Promise<number> {
+  const started = performance.now()
+  await hashPin('000000', iterations)
+  return performance.now() - started
+}
+
+/* PBKDF2 cost is linear in iterations, so one timing is enough to scale from.
+   Rounded to ten thousand: a single sample does not justify more precision. */
+export function recommendIterations(
+  measuredMs: number,
+  atIterations: number,
+  targetMs: number = TARGET_HASH_MS,
+): number {
+  // Finite as well as positive: Infinity passes a `> 0` test and would then
+  // scale the count to nothing.
+  const sane = (n: number) => Number.isFinite(n) && n > 0
+  if (!sane(measuredMs) || !sane(atIterations) || !sane(targetMs)) return atIterations
+  const scaled = (atIterations * targetMs) / measuredMs
+  return Math.max(10_000, Math.round(scaled / 10_000) * 10_000)
+}
+
 /* Whether a stored hash is behind current policy. The signal to re-hash next
    time the PIN is entered, the only moment the plaintext exists. */
 export function needsRehash(stored: string, iterations: number = DEFAULT_ITERATIONS): boolean {

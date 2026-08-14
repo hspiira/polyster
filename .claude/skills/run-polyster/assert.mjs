@@ -75,6 +75,23 @@ if (await openAddClient(page, BASE)) {
    handler. This is the regression guard for that change. */
 await page.goto(BASE + '/settings/lock', { waitUntil: 'networkidle' })
 await page.waitForTimeout(900)
+/* The PIN cost readout is dev-only, and the whole point is that it produces a
+   real number on whatever hardware opens it. */
+const timeIt = page.getByRole('button', { name: /^time it$/i })
+if (await timeIt.count()) {
+  await timeIt.first().click()
+  await page.waitForTimeout(4000)
+  const readout = (await page.locator('body').innerText()) ?? ''
+  const matched = /(\d+)ms at [\d,]+ iterations\. For \d+ms, use ([\d,]+)\./.exec(readout)
+  check(
+    'the PIN cost check reports a timing and a recommendation',
+    Boolean(matched) && Number(matched?.[1]) > 0,
+    `readout did not contain a timing: ${readout.slice(0, 120)}`,
+  )
+} else {
+  check('the dev PIN cost check is on the lock screen', false, 'no "Time it" button')
+}
+
 const setPin = page.getByRole('button', { name: /pin/i })
 
 if (await setPin.count()) {
