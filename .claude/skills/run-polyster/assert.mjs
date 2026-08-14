@@ -175,6 +175,33 @@ if (await submit.count()) {
     body.includes(CLIENT),
     `Today did not mention "${CLIENT}"`,
   )
+
+  /* The dismiss button says "Not now". It used to mean never, which left an
+     unclaimed shop with no copy anywhere and no further offer of one. */
+  const ASK = 'Your work is only on this phone'
+  const asked = (await page.getByText(ASK).count()) > 0
+  check('the backup ask appears once there is work to lose', asked)
+
+  if (asked) {
+    await page.getByRole('button', { name: /not now/i }).first().click()
+    await page.waitForTimeout(600)
+    check('dismissing it hides it', (await page.getByText(ASK).count()) === 0)
+
+    await page.evaluate(() => {
+      const eightDays = 8 * 86_400_000
+      const at = new Date(Date.now() - eightDays).toISOString()
+      localStorage.setItem('polyster.dismissed.claim', at)
+    })
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.waitForTimeout(1600)
+    check('the ask comes back once the reminder window lapses', (await page.getByText(ASK).count()) > 0)
+
+    // What an older build wrote. Unreadable must mean ask, not stay silent.
+    await page.evaluate(() => localStorage.setItem('polyster.dismissed.claim', '1'))
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.waitForTimeout(1600)
+    check("a legacy '1' dismissal does not silence it forever", (await page.getByText(ASK).count()) > 0)
+  }
 } else {
   check('order form offers a submit', false, 'no "Create order" button on /orders/new')
 }

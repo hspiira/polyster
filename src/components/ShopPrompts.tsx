@@ -7,6 +7,7 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { useShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { claimShop } from '../db/writes'
+import { CLAIM_REMINDER_DAYS, dismissalHolds } from '../lib/prompts'
 import { ClaimShop } from '../screens/entry/ClaimShop'
 import { ReAuth } from '../screens/entry/ReAuth'
 import { IconAlert, IconDownload } from './icons'
@@ -30,6 +31,24 @@ function dismiss(key: string): void {
   }
 }
 
+/* The backup ask is stamped rather than flagged, so it can come back. Losing a
+   home screen icon is recoverable; losing the only copy of the work is not. */
+function dismissedForNow(key: string): boolean {
+  try {
+    return dismissalHolds(localStorage.getItem(key), new Date(), CLAIM_REMINDER_DAYS)
+  } catch {
+    return false
+  }
+}
+
+function dismissUntilLater(key: string): void {
+  try {
+    localStorage.setItem(key, new Date().toISOString())
+  } catch {
+    // Private browsing. The prompt reappears, which is the safe direction.
+  }
+}
+
 export function ShopPrompts() {
   const { state: auth } = useAuth()
   const { db, shop } = useShop()
@@ -37,7 +56,7 @@ export function ShopPrompts() {
   const [claiming, setClaiming] = useState(false)
   const [reauthing, setReauthing] = useState(false)
   const [claimError, setClaimError] = useState<string | null>(null)
-  const [hidClaim, setHidClaim] = useState(() => dismissed(DISMISSED_CLAIM))
+  const [hidClaim, setHidClaim] = useState(() => dismissedForNow(DISMISSED_CLAIM))
   const [hidInstall, setHidInstall] = useState(() => dismissed(DISMISSED_INSTALL))
   const claimingNow = useRef(false)
 
@@ -128,7 +147,7 @@ export function ShopPrompts() {
         actionLabel="Back up my shop"
         onAction={() => setClaiming(true)}
         onDismiss={() => {
-          dismiss(DISMISSED_CLAIM)
+          dismissUntilLater(DISMISSED_CLAIM)
           setHidClaim(true)
         }}
       />
