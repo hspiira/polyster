@@ -7,13 +7,16 @@ import {
   CurrencySwitch,
   EmptyState,
   FLUSH_SURFACE,
+  MoreLink,
   PeriodBar,
   PeriodRangeFields,
   Screen,
   Sections,
+  ShareBar,
   Skeleton,
   StatValue,
   cn,
+  type Share,
 } from '../ui'
 import {
   IconArrowDown,
@@ -29,14 +32,16 @@ import { usePermission } from '../hooks/usePermission'
 import { usePeriod } from '../hooks/usePeriod'
 import { useReportCurrency } from '../hooks/useReportCurrency'
 import { observeShopBalances } from '../db/balances'
-import { profitAndLoss } from '../db/profit'
+import { itemsSold, profitAndLoss } from '../db/profit'
 import { formatAmount } from '../lib/money'
 import { formatPastDay, today } from '../lib/dates'
 import { AddExpenseSheet } from './ExpenseSheet'
 import { useMoneySections } from './moneySections'
+import { EXPENSE_CATEGORY_LABELS } from './expenseCategories'
 import { buildMoneyFeed, type MoneyEntry } from './moneyFeed'
 
-const FEED_LIMIT = 8
+const FEED_LIMIT = 4
+const TOP_SHARES = 4
 
 export function Money() {
   const { db, shop } = useCurrentShop()
@@ -135,6 +140,35 @@ export function Money() {
     [sales, payments, expenses, orderIndex, currency, period.from, period.to],
   )
 
+  const soldShares = useMemo(
+    () =>
+      capped(
+        itemsSold(sales, period.from, period.to).map((row) => ({
+          key: row.item,
+          label: row.item,
+          value: row.revenueMinor,
+          formatted: formatAmount(row.revenueMinor, currency),
+          hint: `${row.quantity} sold`,
+        })),
+        currency,
+      ),
+    [sales, period.from, period.to, currency],
+  )
+
+  const expenseShares = useMemo(
+    () =>
+      capped(
+        pnl.byCategory.map((row) => ({
+          key: row.category,
+          label: EXPENSE_CATEGORY_LABELS[row.category],
+          value: row.amountMinor,
+          formatted: formatAmount(row.amountMinor, currency),
+        })),
+        currency,
+      ),
+    [pnl.byCategory, currency],
+  )
+
   const outstanding = useMemo(() => {
     const cancelled = new Set(
       orders.filter((order) => order.stage === 'cancelled').map((order) => order.id),
@@ -225,9 +259,11 @@ export function Money() {
             />
           </div>
 
-          <FlowBar inMinor={pnl.incomeMinor} outMinor={pnl.expensesMinor} />
+          <p class="mt-1 text-xs text-content-muted">
+            Cash received minus cash spent · {currency}
+          </p>
 
-          <dl class="mt-3 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
+          <dl class="mt-4 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3">
             <FlowLeg
               label="Money in"
               dot="bg-success"
@@ -251,8 +287,6 @@ export function Money() {
           )}
         </Card>
 
-        {actions}
-
         {outstanding.total > 0 && (
           <section class={FLUSH_SURFACE}>
             <AccentRow
@@ -274,27 +308,54 @@ export function Money() {
           </section>
         )}
 
+        {actions}
+
+        {soldShares.length > 0 && (
+          <Card flush>
+            <h2 class="text-heading font-semibold">What sold</h2>
+            <p class="mt-0.5 mb-3 text-xs text-content-muted">
+              {formatAmount(pnl.salesIncomeMinor, currency)} over the counter, {period.label}
+            </p>
+            <ShareBar
+              shares={soldShares}
+              total={pnl.salesIncomeMinor}
+              summary={`Counter sales split across ${soldShares.length} items. Best: ${soldShares[0]?.label ?? 'none'}, ${soldShares[0]?.formatted ?? ''}.`}
+            />
+            <div class="mt-1">
+              <MoreLink href="/sales">All sales</MoreLink>
+            </div>
+          </Card>
+        )}
+
+        {expenseShares.length > 0 && (
+          <Card flush>
+            <h2 class="text-heading font-semibold">Where money went</h2>
+            <p class="mt-0.5 mb-3 text-xs text-content-muted">
+              {formatAmount(pnl.expensesMinor, currency)} out, {period.label}
+            </p>
+            <ShareBar
+              shares={expenseShares}
+              total={pnl.expensesMinor}
+              summary={`Spending split across ${expenseShares.length} categories. Largest: ${expenseShares[0]?.label ?? 'none'}, ${expenseShares[0]?.formatted ?? ''}.`}
+            />
+            <div class="mt-1">
+              <MoreLink href="/expenses">All expenses</MoreLink>
+            </div>
+          </Card>
+        )}
+
         {feed.length > 0 && (
           <section class={FLUSH_SURFACE}>
-            <h2 class="flex items-baseline gap-1.5 px-gutter pt-3 pb-1 text-heading font-semibold">
-              Activity
-              <span class="text-xs font-normal text-content-muted">{feed.length}</span>
-            </h2>
-            <ul class="pb-1">
+            <h2 class="px-gutter pt-3 pb-1 text-heading font-semibold">Recent activity</h2>
+            <ul class="pb-2">
               {feed.slice(0, FEED_LIMIT).map((entry) => (
                 <li key={entry.id}>
                   <FeedRow entry={entry} now={now} />
                 </li>
               ))}
             </ul>
-            {feed.length > FEED_LIMIT && (
-              <p class="px-gutter pt-1 pb-3 text-xs text-content-muted">
-                Showing the latest {FEED_LIMIT} of {feed.length}.
-              </p>
-            )}
           </section>
         )}
-
       </Sections>
 
       <AddExpenseSheet open={adding} onClose={() => setAdding(false)} />
@@ -302,19 +363,25 @@ export function Money() {
   )
 }
 
-function FlowBar({ inMinor, outMinor }: { inMinor: number; outMinor: number }) {
-  const gross = inMinor + outMinor
-  if (gross === 0) return <div class="mt-4 h-2 rounded-pill bg-surface-sunken" />
+/* Top rows plus one bucket for the tail, so the strip still adds up to the
+   period's total rather than showing a selection that does not. */
+function capped(all: Share[], currency: string): Share[] {
+  // A giveaway is a real sale but has no share of the takings to draw.
+  const shares = all.filter((share) => share.value > 0)
+  if (shares.length <= TOP_SHARES) return shares
 
-  return (
-    <div
-      class="mt-4 flex h-2 gap-px overflow-hidden rounded-pill bg-surface-sunken"
-      aria-hidden="true"
-    >
-      <div class="bg-success" style={{ width: `${(inMinor / gross) * 100}%` }} />
-      <div class="flex-1 bg-danger" />
-    </div>
-  )
+  const rest = shares.slice(TOP_SHARES)
+  const total = rest.reduce((sum, share) => sum + share.value, 0)
+
+  return [
+    ...shares.slice(0, TOP_SHARES),
+    {
+      key: '__rest',
+      label: `${rest.length} more`,
+      value: total,
+      formatted: formatAmount(total, currency),
+    },
+  ]
 }
 
 function FlowLeg({
