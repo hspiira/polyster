@@ -137,7 +137,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         role="dialog"
         aria-modal="true"
         aria-label="Search"
-        class={cn('relative w-full max-w-[32rem] overflow-hidden bg-surface shadow-overlay', RADIUS)}
+        class={cn('relative w-full max-w-lg overflow-hidden bg-surface shadow-overlay', RADIUS)}
       >
         <input
           ref={input}
@@ -171,16 +171,17 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         />
 
         {query.trim().length >= 2 && (
-          <ul class="max-h-[22rem] overflow-y-auto border-t border-line">
+          <ul role="listbox" aria-label="Results" class="max-h-88 overflow-y-auto border-t border-line">
             {hits.length === 0 ? (
               <li class={cn('px-3.5 py-3 text-content-subtle', TEXT_SM)}>
                 Nothing matches “{query.trim()}”.
               </li>
             ) : (
               hits.map((hit, index) => (
-                <li key={`${hit.kind}-${hit.id}`}>
+                <li key={`${hit.kind}-${hit.id}`} role="presentation">
                   <button
                     type="button"
+                    role="option"
                     onMouseEnter={() => setCursor(index)}
                     onClick={() => go(hit)}
                     aria-selected={index === cursor}
@@ -191,7 +192,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                   >
                     <span
                       class={cn(
-                        'w-[3.25rem] shrink-0 font-semibold uppercase tracking-[0.05em]',
+                        'w-13 shrink-0 font-semibold uppercase tracking-wider',
                         index === cursor ? 'text-accent-on-soft' : 'text-content-subtle',
                         TEXT_XS,
                       )}

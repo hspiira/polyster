@@ -18,9 +18,10 @@
  *   --staff="Name"              staff member created during setup
  *   --no-client                 skip creating the sample client
  */
-import { chromium, devices } from 'playwright'
+import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { CONTEXTS, requireServer, setUpShop, addClient, setTheme, watchErrors } from './app.mjs'
 
 const argv = process.argv.slice(2)
 const flag = (name, fallback) => {
@@ -51,90 +52,19 @@ const TARGETS = ROUTES.length ? ROUTES : DEFAULT_ROUTES
 
 mkdirSync(OUT, { recursive: true })
 
-const res = await fetch(BASE).catch(() => null)
-if (!res?.ok) {
-  console.error(
-    `Dev server not answering at ${BASE}.\nStart it first:  pnpm dev\n` +
-      `(or pass --url=... if it picked another port -- Vite increments when 5173 is taken)`,
-  )
-  process.exit(1)
-}
+await requireServer(BASE)
 
 const slug = (route) => (route === '/' ? 'today' : route.slice(1).replace(/\//g, '-'))
 const errors = []
 const browser = await chromium.launch()
 
-/**
- * The shell is chosen by pointer type, not viewport width (src/lib/platform.ts):
- * `(pointer: fine)` -> the desktop WebShell, otherwise the phone Shell. Without
- * touch emulation a 390px viewport still renders the desktop rail, and every
- * label truncates. `devices['Pixel 7']` sets hasTouch/isMobile for us.
- */
-const CONTEXTS = {
-  phone: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 },
-  web: { viewport: { width: 1280, height: 900 } },
-}
-
-/**
- * Walks the real signup. There is no seed button -- the README's "Seed sample
- * shop data" belonged to an entry flow that has since been replaced -- and each
- * browser context gets its own empty IndexedDB, so every context re-runs this.
- */
-async function setUpShop(page) {
-  await page.goto(BASE + '/', { waitUntil: 'networkidle' })
-  await page.waitForTimeout(900)
-
-  const start = page.getByText('Set up my shop')
-  if (!(await start.count())) return false // already set up in this context
-
-  await start.first().click()
-  await page.waitForSelector('input', { timeout: 20000 })
-  await page.waitForTimeout(500)
-
-  // Not `input[type="text"]`: these inputs carry no type attribute, so that
-  // attribute selector matches nothing even though `el.type` reads "text".
-  const fields = page.locator('input:not([type="search"])')
-  await fields.nth(0).fill(SHOP)
-  await fields.nth(1).fill(STAFF)
-  await page.getByText('Start taking orders').first().click()
-  await page.waitForTimeout(2500)
-  return true
-}
-
-async function addClient(page) {
-  await page.goto(BASE + '/clients', { waitUntil: 'networkidle' })
-  await page.waitForTimeout(800)
-  const add = page.getByRole('button', { name: /add/i })
-  if (!(await add.count())) return
-  await add.first().click()
-  await page.waitForTimeout(600)
-  const fields = page.locator('input:not([type="search"])')
-  if (await fields.count()) {
-    await fields.nth(0).fill('Grace Nakato')
-    if ((await fields.count()) > 1) await fields.nth(1).fill('+256772123456')
-  }
-  const save = page.getByRole('button', { name: /save client/i })
-  if (await save.count()) await save.first().click()
-  await page.waitForTimeout(1300)
-}
-
-/** Theme is a data-theme attribute on <html>, bootstrapped inline in index.html. */
-async function setTheme(page, theme) {
-  await page.evaluate((t) => {
-    localStorage.setItem('polyster.theme', t)
-    document.documentElement.setAttribute('data-theme', t)
-  }, theme)
-  await page.waitForTimeout(200)
-}
-
 for (const platform of PLATFORMS) {
   const ctx = await browser.newContext(CONTEXTS[platform])
   const page = await ctx.newPage()
-  page.on('pageerror', (e) => errors.push(`[${platform}] pageerror: ${e.message}`))
-  page.on('console', (m) => m.type() === 'error' && errors.push(`[${platform}] ${m.text()}`))
+  watchErrors(page, platform, errors)
 
-  await setUpShop(page)
-  if (!has('no-client')) await addClient(page)
+  await setUpShop(page, { base: BASE, shop: SHOP, staff: STAFF })
+  if (!has('no-client')) await addClient(page, { base: BASE })
 
   for (const theme of THEMES) {
     for (const route of TARGETS) {

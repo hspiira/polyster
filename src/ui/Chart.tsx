@@ -28,8 +28,8 @@ function useWidth(): [{ current: HTMLDivElement | null }, number] {
     }
   }, [])
 
-  // Every render, not only on mount: if neither signal arrived, the next render
-  // corrects a chart drawn to a width the screen no longer has.
+  // Every render on purpose: corrects a chart drawn to a width that has changed
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the guard stops the loop
   useLayoutEffect(() => {
     const measured = ref.current?.clientWidth
     if (measured && measured !== width) setWidth(measured)
@@ -43,7 +43,6 @@ export interface Share {
   label: string
   value: number
   formatted: string
-  /** A muted aside on the legend row: "8 sold". */
   hint?: string
 }
 

@@ -1,6 +1,6 @@
 /* The six-digit pad. Submits itself on the sixth digit; a wrong entry shakes and
    clears. Three ways in -- keys, keyboard, and a hidden autofillable input. */
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useId, useRef, useState } from 'preact/hooks'
 import { cn } from '../lib/cn'
 import { PIN_LENGTH } from '../lib/pin'
 
@@ -34,6 +34,7 @@ export function PinPad({
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState(false)
   const field = useRef<HTMLInputElement>(null)
+  const fieldId = useId()
 
   // Guards a second submission while the first is still running: PBKDF2 takes
   // a moment, and a fast double-tap on the last digit would start two.
@@ -121,6 +122,7 @@ export function PinPad({
           and a paste has somewhere to land. The dots stay the visible control. */}
       <input
         ref={field}
+        id={fieldId}
         type="text"
         inputMode="numeric"
         autocomplete={oneTimeCode ? 'one-time-code' : 'off'}
@@ -132,14 +134,11 @@ export function PinPad({
         class="absolute size-px overflow-hidden opacity-0"
       />
 
-      {/* Tapping the dots focuses the hidden field, which is how you reach paste
-          and autofill without the keyboard opening on top of the pad. */}
-      <div
+      {/* A label, not a click handler: clicking one natively focuses its control,
+          which is how paste and autofill stay reachable without a keyboard. */}
+      <label
+        for={fieldId}
         class={`flex cursor-text justify-center gap-3 ${failed ? 'animate-shake' : ''}`}
-        onClick={() => field.current?.focus()}
-        role="status"
-        aria-live="polite"
-        aria-label={`${pin.length} of ${PIN_LENGTH} digits entered`}
       >
         {Array.from({ length: PIN_LENGTH }, (_, index) => {
           const filled = index < pin.length
@@ -163,7 +162,13 @@ export function PinPad({
             />
           )
         })}
-      </div>
+      </label>
+
+      {/* Its own node: a live region announces its text content, and an aria-label
+          on the dots would have replaced that with a name that never changes. */}
+      <span class="sr-only" role="status" aria-live="polite">
+        {`${pin.length} of ${PIN_LENGTH} digits entered`}
+      </span>
 
       <div class="grid grid-cols-3 justify-items-center gap-x-5 gap-y-4">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => (

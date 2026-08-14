@@ -123,6 +123,24 @@ and clear site data afterwards.
 
 ## Test
 
-`pnpm verify` (typecheck + 426 unit tests + production build). It covers
-no screen-level rendering — see `docs/ARCHITECTURE.md` §11. Green here
-says nothing about how a screen looks.
+`pnpm verify` (typecheck, lint, 558 unit tests, standards, production
+build). It renders no pixels and covers no screen-level rendering — see
+`docs/ARCHITECTURE.md` §11. Green there says nothing about how a screen
+looks.
+
+`pnpm test:e2e` (`assert.mjs`) is the assertion counterpart to this
+driver: same signup walk, but it checks the wiring between model and
+screen rather than writing PNGs. Needs the dev server up:
+
+```bash
+pnpm dev &
+until curl -sf http://localhost:5173 >/dev/null; do sleep 1; done
+pnpm test:e2e
+```
+
+Deliberately **not** in `pnpm verify`: Chromium is a per-machine install
+and verify runs in CI on every push.
+
+Both scripts share `app.mjs` — the signup walk, the context definitions
+and the console-error watcher live there, so an entry-flow change lands
+in one place instead of two.

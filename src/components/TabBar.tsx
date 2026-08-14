@@ -94,7 +94,7 @@ export function TabBar() {
         <a
           href="/orders/new"
           aria-label="Take an order"
-          class="flex size-[46px] items-center justify-center rounded-full bg-accent
+          class="flex size-11.5 items-center justify-center rounded-full bg-accent
                  text-accent-content transition-transform active:scale-95"
         >
           <IconPlus size={22} />
@@ -118,7 +118,7 @@ function Tab({
     <a
       href={href}
       aria-current={active ? 'page' : undefined}
-      class={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-[3px]
+      class={`flex min-h-13 flex-1 flex-col items-center justify-center gap-0.75
               transition-colors ${active ? 'text-accent' : 'text-content-subtle'}`}
     >
       <Icon size={20} stroke-width={active ? 2.1 : 1.75} />

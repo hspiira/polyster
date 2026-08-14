@@ -1,10 +1,55 @@
 /* Choosing who an order is for. A native select breaks down around fifty
    clients and cannot add the person at the counter. This searches and creates. */
 import { useMemo, useState } from 'preact/hooks'
-import { Avatar, Button, Field, Input, Sheet, cn } from '../ui'
+import { Avatar, Button, Field, Input, Sheet, cn, useFieldAria } from '../ui'
 import { IconPlus, IconSearch } from './icons'
 import type { ClientDoc } from '../db/schema'
 import { filterByQuery } from '../lib/search'
+
+/* Its own component so it renders below Field's provider: a hook called beside
+   the <Field> would read the context above it, not the one it publishes. */
+function PickerTrigger({
+  selected,
+  invalid,
+  onOpen,
+}: {
+  selected: ClientDoc | undefined
+  invalid: boolean
+  onOpen: () => void
+}) {
+  return (
+    <button
+      type="button"
+      {...useFieldAria()}
+      onClick={onOpen}
+      class={cn(
+        'flex min-h-tap w-full items-center gap-3 rounded-control border px-3 text-left',
+        'transition-colors active:bg-pressed',
+        invalid ? 'border-danger' : 'border-line-strong',
+      )}
+    >
+      {selected ? (
+        <>
+          <Avatar name={selected.name} size="sm" />
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-[15px] font-medium">{selected.name}</span>
+            {selected.phone && (
+              <span class="block truncate text-[13px] text-content-muted">{selected.phone}</span>
+            )}
+          </span>
+          <span class="shrink-0 text-[13px] text-content-muted">Change</span>
+        </>
+      ) : (
+        <>
+          <span class="text-content-subtle">
+            <IconSearch size={18} />
+          </span>
+          <span class="flex-1 text-[15px] text-content-muted">Search or add a client</span>
+        </>
+      )}
+    </button>
+  )
+}
 
 export function ClientPicker({
   clients,
@@ -70,35 +115,7 @@ export function ClientPicker({
   return (
     <>
       <Field label="Client" error={error}>
-        <button
-          type="button"
-          onClick={() => show(true)}
-          class={cn(
-            'flex min-h-tap w-full items-center gap-3 rounded-control border px-3 text-left',
-            'transition-colors active:bg-pressed',
-            error ? 'border-danger' : 'border-line-strong',
-          )}
-        >
-          {selected ? (
-            <>
-              <Avatar name={selected.name} size="sm" />
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-[15px] font-medium">{selected.name}</span>
-                {selected.phone && (
-                  <span class="block truncate text-[13px] text-content-muted">{selected.phone}</span>
-                )}
-              </span>
-              <span class="shrink-0 text-[13px] text-content-muted">Change</span>
-            </>
-          ) : (
-            <>
-              <span class="text-content-subtle">
-                <IconSearch size={18} />
-              </span>
-              <span class="flex-1 text-[15px] text-content-muted">Search or add a client</span>
-            </>
-          )}
-        </button>
+        <PickerTrigger selected={selected} invalid={Boolean(error)} onOpen={() => show(true)} />
       </Field>
 
       <Sheet open={open} title="Who is this order for?" onClose={close}>

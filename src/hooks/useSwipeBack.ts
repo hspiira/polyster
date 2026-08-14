@@ -14,16 +14,14 @@ const DIRECTION_LOCK_PX = 10
 export function useSwipeBack(target: string | (() => void) | undefined) {
   const location = useLocation()
   const ref = useRef<HTMLDivElement>(null)
-  // A ref, not state: re-rendering the whole screen at 60fps to move it
-  // sideways drops frames on the hardware this targets.
   const drag = useRef({ startX: 0, startY: 0, active: false, locked: false })
-  // Read at completion time, not closed over, so a fresh inline callback still resolves correctly.
   const targetRef = useRef(target)
   targetRef.current = target
+  const hasTarget = Boolean(target)
 
   useEffect(() => {
     const node = ref.current
-    if (!target || !node) return
+    if (!hasTarget || !node) return
 
     function setOffset(px: number, animate: boolean) {
       if (!node) return
@@ -56,10 +54,7 @@ export function useSwipeBack(target: string | (() => void) | undefined) {
         state.locked = true
       }
 
-      // Only now, once the gesture is definitely a back-swipe, is it safe to
-      // stop the page scrolling underneath it.
       if (event.cancelable) event.preventDefault()
-      // Resistance past the completion point, so the drag has a felt limit.
       setOffset(dx > COMPLETE_PX ? COMPLETE_PX + (dx - COMPLETE_PX) * 0.3 : dx, false)
     }
 
@@ -72,8 +67,6 @@ export function useSwipeBack(target: string | (() => void) | undefined) {
       const dx = touch ? touch.clientX - state.startX : 0
 
       if (dx > COMPLETE_PX) {
-        // Slide the rest of the way out before navigating, so the new screen
-        // does not appear on top of a half-dragged old one.
         setOffset(window.innerWidth, true)
         window.setTimeout(() => {
           setOffset(0, false)
@@ -86,8 +79,6 @@ export function useSwipeBack(target: string | (() => void) | undefined) {
       }
     }
 
-    // Not passive: onTouchMove has to be able to preventDefault once it knows
-    // the gesture is a back-swipe.
     node.addEventListener('touchstart', onTouchStart, { passive: true })
     node.addEventListener('touchmove', onTouchMove, { passive: false })
     node.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -101,7 +92,7 @@ export function useSwipeBack(target: string | (() => void) | undefined) {
       node.style.transform = ''
       node.style.transition = ''
     }
-  }, [Boolean(target), location])
+  }, [hasTarget, location])
 
   return ref
 }
