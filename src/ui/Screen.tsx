@@ -1,21 +1,13 @@
-/**
- * The page frame: sticky heading, scrolling body, one shared measure.
- *
- * Width is fluid, not stepped -- `--gutter` grows with the viewport and the
- * measure is a cap. The one `lg:` below is deliberate: which navigation is on
- * screen (floating tab bar vs. side rail) genuinely is a viewport question.
- */
+/* The page frame: sticky heading, scrolling body, one shared measure. The one
+   `lg:` is deliberate -- which navigation shows really is a viewport question. */
 import type { ComponentChildren } from 'preact'
 import { useLocation } from 'preact-iso'
 import { IconChevronLeft } from '../components/icons'
 import { useSwipeBack } from '../hooks/useSwipeBack'
 import { cn } from '../lib/cn'
 
-/**
- * `prose` caps where a line of text stops being comfortable to read -- the
- * default. `wide` is for tables and multi-column records, which have no such
- * limit. `full` opts out, for a screen laying out its own panes.
- */
+/* `prose` caps a comfortable reading line (the default), `wide` is for tables
+   and records, `full` opts out for a screen laying out its own panes. */
 export type ScreenWidth = 'prose' | 'wide' | 'full'
 
 const WIDTHS: Record<ScreenWidth, string> = {
@@ -28,14 +20,8 @@ const WIDTHS: Record<ScreenWidth, string> = {
 export const MEASURE = WIDTHS.prose
 export const MEASURE_WIDE = WIDTHS.wide
 
-/**
- * Exactly one of `title` or `label` is required -- never both omitted, which
- * used to compile and render no `h1` at all.
- *
- * There is no subtitle. A shop name or a count under the heading pushes every
- * screen's content down by a different amount depending on data, so no two
- * screens start at the same place. Counts belong next to what they count.
- */
+/* Exactly one of `title` or `label`. No subtitle: a count under the heading
+   pushes content down by a data-dependent amount, so no two screens align. */
 type Heading =
   | {
       /** Visible page heading, for pushed screens. */
@@ -43,24 +29,14 @@ type Heading =
       label?: never
     }
   | {
-      /**
-       * The accessible name for a tab root, which renders no visible heading --
-       * the active tab already carries that label once, so a title on screen
-       * would say it again. The `h1` still needs a name for screen readers and
-       * the document outline, just not one anyone sees.
-       */
+      /* The accessible name for a tab root, which shows no heading: the active
+         tab already says it. The h1 still needs a name, just not a visible one. */
       label: string
       title?: never
     }
 
-/**
- * The sibling screens of an area, rendered as the heading itself: the open one
- * is the `h1`, the rest are links beside it.
- *
- * Not a title plus a row of pills under it -- that is two rows of chrome saying
- * the same thing twice. Not a dropdown on the title either: a menu hides three
- * destinations behind a tap each, when all four fit on one line.
- */
+/* An area's sibling screens as the heading itself: the open one is the h1, the
+   rest are links beside it. A title plus pills would say it twice. */
 export interface ScreenSection {
   href: string
   label: string
@@ -77,30 +53,18 @@ export function Screen({
   wide,
   children,
 }: Heading & {
-  /**
-   * Renders the area's screens as the heading. Pass `label` as the area's name
-   * for the nav region; the open section supplies the visible `h1`.
-   */
+  /* Renders the area's screens as the heading. `label` names the nav region;
+     the open section supplies the visible h1. */
   sections?: readonly ScreenSection[]
-  /**
-   * Href for the back chevron and the edge-swipe gesture. Omit on tab roots.
-   *
-   * Both, not just the chevron: in an installed PWA there is no browser chrome
-   * and no system back swipe -- see hooks/useSwipeBack.ts.
-   */
+  /* Href for the back chevron and the edge swipe. Both, because an installed
+     PWA has no browser chrome and no system back swipe. */
   back?: string
   action?: ComponentChildren
-  /**
-   * Sticky content below the heading row -- a filter switch, a scope bar --
-   * so it stays put while `children` scrolls, rather than each screen
-   * re-implementing stickiness.
-   */
+  /* Sticky content below the heading row, so it stays put while children
+     scroll rather than each screen re-implementing stickiness. */
   subheader?: ComponentChildren
   width?: ScreenWidth
-  /**
-   * @deprecated Use `width="wide"`. Accepted so screens can be converted one at
-   * a time; delete once none pass it.
-   */
+  /** @deprecated Use `width="wide"`. Delete once no screen passes it. */
   wide?: boolean
   children: ComponentChildren
 }) {
@@ -109,10 +73,8 @@ export function Screen({
   const heading = title ?? label
   const { path } = useLocation()
 
-  // A label-only tab root with no back chevron and no action renders nothing
-  // visible in this row (the h1 is sr-only) -- collapse its padding instead of
-  // reserving sticky space for nothing. A subheader still counts as something
-  // to show, so the row keeps its top clearance for it.
+  // A label-only tab root renders nothing visible in this row, so collapse its
+  // padding. A subheader still counts, and keeps the top clearance.
   const rowHasContent = Boolean(back || title || action || sections)
 
   return (
@@ -187,13 +149,8 @@ export function Screen({
   )
 }
 
-/**
- * Vertical rhythm between the sections of a screen.
- *
- * A named component rather than `space-y-4` repeated on every screen, so the
- * spacing between sections is one decision (`--gap-section`, fluid) instead of
- * a number each screen happens to have picked.
- */
+/* Vertical rhythm between sections. Named rather than `space-y-4` per screen,
+   so the spacing is one decision instead of a number each screen picked. */
 export function Sections({ children }: { children: ComponentChildren }) {
   return <div class="flex flex-col gap-section">{children}</div>
 }

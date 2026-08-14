@@ -1,13 +1,5 @@
-/**
- * Reports: the week or the quarter, read at a glance.
- *
- * Everything is computed on the device from replicated rows, so it works
- * offline and reflects exactly what this device knows -- which the screen says,
- * rather than presenting figures that may be behind as fact.
- *
- * Cash accounting, as everywhere else: money in is money received. Work written
- * up but unpaid is reported separately, as outstanding.
- */
+/* Computed on the device from replicated rows, so it works offline and says so
+   rather than presenting possibly-behind figures as fact. Cash accounting. */
 import { useMemo, useState } from 'preact/hooks'
 import {
   Avatar,
@@ -102,12 +94,8 @@ export function Reports() {
     [orders],
   )
 
-  /**
-   * A payment carries no shop_id -- it hangs off an order -- so it has to be
-   * scoped through one. A device handed on still holds the previous shop's rows
-   * until it is wiped, and unscoped this would count their income against this
-   * shop's expenses.
-   */
+  /* A payment carries no shop_id, so it is scoped through its order: a handed-on
+     device still holds the previous shop's rows until wiped. */
   const payments = useMemo(
     () =>
       paymentDocs
@@ -143,17 +131,8 @@ export function Reports() {
     return { total, count }
   }, [balances, orders, orderCurrencies, currency])
 
-  /**
-   * Counts, not bars.
-   *
-   * A bar has to be a share of something, and a stage count is a share of
-   * nothing the reader can see -- scaled to the largest stage it implied a
-   * denominator that was never on screen. The numbers are the chart; the one
-   * total worth stating is stated in words above them.
-   *
-   * Workflow order, and empty stages dropped: a shop with no repairs should not
-   * read three zeroes.
-   */
+  /* Counts, not bars: a stage count is a share of nothing the reader can see.
+     Workflow order, empty stages dropped, so no shop reads three zeroes. */
   const stages = useMemo(() => {
     const counts = new Map(ORDER_STAGES.map((stage) => [stage, 0]))
     for (const order of orders) counts.set(order.stage, (counts.get(order.stage) ?? 0) + 1)
@@ -178,11 +157,8 @@ export function Reports() {
       ).slice(0, TOP_CUSTOMERS),
     [clientDocs, orders, payments, sales],
   )
-  /**
-   * All customers, not the five shown: a bar measured against the top spender
-   * says "biggest of the five", which is what the order already says. Measured
-   * against everything received it says something the list does not.
-   */
+  /* Measured against all customers, not the five shown: against the top spender
+     a bar only repeats what the ordering already says. */
   const receivedMinor = useMemo(
     () =>
       customerLifetimeValues(

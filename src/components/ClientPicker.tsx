@@ -1,15 +1,10 @@
-/**
- * Choosing who an order is for.
- *
- * A native select over every client stops working somewhere around the fiftieth
- * one, and it had no way to add someone who is standing at the counter for the
- * first time -- you had to leave the form, make the client, and start again.
- * This searches, and offers to create whatever you typed.
- */
+/* Choosing who an order is for. A native select breaks down around fifty
+   clients and cannot add the person at the counter. This searches and creates. */
 import { useMemo, useState } from 'preact/hooks'
-import { Avatar, Button, Field, Input, Sheet, cn } from './ui'
+import { Avatar, Button, Field, Input, Sheet, cn } from '../ui'
 import { IconPlus, IconSearch } from './icons'
 import type { ClientDoc } from '../db/schema'
+import { filterByQuery } from '../lib/search'
 
 export function ClientPicker({
   clients,
@@ -42,14 +37,10 @@ export function ClientPicker({
   const selected = clients.find((client) => client.id === selectedId)
 
   const matches = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return clients.slice(0, 50)
-    return clients
-      .filter(
-        (client) =>
-          client.name.toLowerCase().includes(needle) || (client.phone ?? '').includes(needle),
-      )
-      .slice(0, 50)
+    return filterByQuery(clients, query, (client) => ({
+      text: [client.name],
+      phone: [client.phone],
+    })).slice(0, 50)
   }, [clients, query])
 
   const typed = query.trim()
@@ -117,7 +108,7 @@ export function ClientPicker({
             type="search"
             placeholder="Search by name or phone"
             value={query}
-            onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+            onValue={setQuery}
           />
 
           {matches.length > 0 && (
@@ -158,7 +149,7 @@ export function ClientPicker({
                 type="tel"
                 placeholder="Phone number (optional)"
                 value={phone}
-                onInput={(e) => setPhone((e.target as HTMLInputElement).value)}
+                onValue={setPhone}
               />
               <Button block type="button" disabled={creating} onClick={() => void create()}>
                 <IconPlus size={16} /> {creating ? 'Adding...' : `Add "${typed}"`}

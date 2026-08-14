@@ -1,20 +1,5 @@
-/**
- * Orders, in the web design: the whole book, with a record open beside it.
- *
- * The information architecture differs from the phone's on purpose (spec W6).
- * The phone opens on Today, because someone at a counter holding fabric asks
- * "what do I owe people". This opens on the table, because someone at a desk
- * asks "show me the book" -- and then wants to sort it, filter it, select
- * several rows and act on them.
- *
- * Selecting a row opens it in the inspector rather than navigating, so checking
- * a record never costs you your place in the list. That is the single thing the
- * phone design cannot do and the reason this screen exists.
- *
- * Derivation is shared with the phone build, not reimplemented: the scopes come
- * from todayModel's buckets, so "overdue" cannot mean two different things in
- * two designs.
- */
+/* The whole book with a record beside it (W6). Selecting a row opens the
+   inspector rather than navigating. Scopes come from todayModel, not a copy. */
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
@@ -23,8 +8,8 @@ import { observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDueDate, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from '../screens/orderStage'
+import { OPEN_STAGES } from '../db/schema'
 import {
-  OPEN_STAGES,
   buildBuckets,
   pickupRows,
   type DueRow,

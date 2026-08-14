@@ -1,8 +1,5 @@
-/**
- * Install, which for an offline-first app is the difference between working
- * and not. Chromium fires `beforeinstallprompt`; iOS never does, so it gets
- * instructions instead of a button.
- */
+/* Install, which for an offline-first app is the difference between working and
+   not. Chromium fires `beforeinstallprompt`; iOS gets instructions instead. */
 import { useCallback, useEffect, useState } from 'preact/hooks'
 
 interface BeforeInstallPromptEvent extends Event {

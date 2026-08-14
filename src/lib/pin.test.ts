@@ -9,10 +9,8 @@ import {
   verifyPin,
 } from './pin'
 
-// PBKDF2 at the real iteration count is slow by design, which is the point of
-// the whole module. A lower count keeps the suite fast while exercising
-// identical code -- the parameters live in the hash string, so nothing about
-// the logic changes with the number.
+// A lower iteration count keeps the suite fast while exercising identical code:
+// the parameters live in the hash string, so the logic does not change with it.
 const FAST = 1_000
 
 describe('assertValidPin', () => {
@@ -53,9 +51,8 @@ describe('hashPin / verifyPin', () => {
   })
 
   it('produces a different hash each time for the same PIN', async () => {
-    // Per-hash random salt. Without it, two staff sharing a PIN would be
-    // visibly identical in the database, and one cracked hash would break
-    // every reuse of that PIN across every shop.
+    // Per-hash random salt. Without it two staff sharing a PIN look identical
+    // in the database, and one cracked hash breaks every reuse of it.
     const a = await hashPin('123456', FAST)
     const b = await hashPin('123456', FAST)
     expect(a).not.toBe(b)

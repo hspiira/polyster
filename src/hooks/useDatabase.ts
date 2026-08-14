@@ -6,10 +6,8 @@ export type DatabaseState =
   | { status: 'ready'; db: AppDatabase }
   | { status: 'error'; error: Error }
 
-/**
- * The shared RxDB instance. Every screen renders from this, never from a
- * network call -- see ARCHITECTURE.md section 3.
- */
+/* The shared RxDB instance. Every screen renders from this, never from a
+   network call (ARCHITECTURE §3). */
 export function useDatabase(): DatabaseState {
   const [state, setState] = useState<DatabaseState>({ status: 'loading' })
 

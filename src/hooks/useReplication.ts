@@ -11,16 +11,8 @@ export type ReplicationStatus =
   | { status: 'synced' }
   | { status: 'error'; error: unknown }
 
-/**
- * Starts replication once the shop is authenticated and the database is open,
- * and stops it on sign-out. Replication must not start before auth: RLS has
- * nothing to scope the sync to, so it would quietly sync zero rows and look
- * like a broken connection (see db/replication.ts).
- *
- * A replication error is surfaced, never thrown. Sync failing is a normal
- * condition for this app -- the shop keeps working from the local database and
- * the UI shows that it is behind.
- */
+/* Starts replication once authenticated, stops on sign-out. Errors are
+   surfaced, never thrown: sync failing is normal and the shop keeps working. */
 export function useReplication(db: AppDatabase | null, authenticated: boolean): ReplicationStatus {
   const [status, setStatus] = useState<ReplicationStatus>({ status: 'idle' })
 
@@ -38,11 +30,8 @@ export function useReplication(db: AppDatabase | null, authenticated: boolean): 
     }
 
     setStatus({ status: 'syncing' })
-    // A push can fail for a reason that heals itself: order_units is scoped by
-    // RLS through its parent order, and collections replicate independently, so
-    // a unit can reach the server a moment before the order it belongs to. RxDB
-    // retries and it lands. Reporting that instantly makes the badge cry wolf,
-    // so an error has to still be unresolved a few seconds later to count.
+    // A push can fail and heal itself -- a unit can reach the server before its
+    // order. So an error must still be unresolved seconds later to count.
     let pending: ReturnType<typeof setTimeout> | undefined
     const unsubscribeErrors = handle.onError((error) => {
       console.error('[replication]', error)
@@ -53,9 +42,8 @@ export function useReplication(db: AppDatabase | null, authenticated: boolean): 
       }, ERROR_GRACE_MS)
     })
 
-    // Without this the first error latched: nothing ever moved the status off
-    // 'error', so one failed batch left "Sync problem, saved locally" up for
-    // the rest of the session while sync carried on working.
+    // Without this the first error latched, leaving "Sync problem" up for the
+    // rest of the session while sync carried on working.
     const unsubscribeProgress = handle.onProgress(() => {
       clearTimeout(pending)
       pending = undefined

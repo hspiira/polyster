@@ -1,26 +1,15 @@
-/**
- * One client, at a desk.
- *
- * A full page rather than the inspector pattern Orders uses. A client record is
- * not a summary you glance at while working a list: it holds a measurement form,
- * a history of orders and free-text notes, none of which fit a 21rem pane and
- * all of which are things you sit down to do.
- *
- * Tabs rather than one long scroll, because the three things here are asked for
- * separately -- you came to take a measurement, or to see what they have
- * ordered, or to correct a phone number, and never all three at once.
- */
+/* A full page, not Orders' inspector: none of a measurement form, an order
+   history and notes fit a 21rem pane. Tabs, because you came for one of them. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { clientTotals, observeShopBalances } from '../db/balances'
 import { saveMeasurements, updateClient } from '../db/writes'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
 import { waLink, suggestedMessage } from '../lib/whatsapp'
 import { STAGE_LABELS, STAGE_TONES } from '../screens/orderStage'
-import { OPEN_STAGES } from '../screens/today/todayModel'
 import type { OrderDoc } from '../db/schema'
 import { Chip, EmptyState, getInitials } from '../ui'
 import { IconOrders, IconWhatsApp } from '../components/icons'
@@ -53,17 +42,7 @@ export function ClientDetailPage() {
 
   const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
 
-  const summary = useMemo(() => {
-    let open = 0
-    let owed = 0
-    for (const order of orders) {
-      if (OPEN_STAGES.includes(order.stage)) open += 1
-      if (order.stage === 'cancelled') continue
-      const balance = balances.get(order.id)?.balance_minor ?? 0
-      if (balance > 0) owed += balance
-    }
-    return { open, owed, total: orders.length }
-  }, [orders, balances])
+  const summary = useMemo(() => clientTotals(orders, balances), [orders, balances])
 
   if (!client) {
     return (
@@ -76,14 +55,8 @@ export function ClientDetailPage() {
     )
   }
 
-  /**
-   * Only offered when there is an order to talk about.
-   *
-   * `suggestedMessage` writes about a specific order and dereferences both it
-   * and its balance, so a client with no orders yet has nothing for it to say
-   * and would throw rather than degrade. The button is absent in that case,
-   * which is honest: there is no update to send.
-   */
+  /* Only when there is an order to talk about: suggestedMessage dereferences a
+     specific order and would throw rather than degrade. */
   const latest = orders[0]
   const latestBalance = latest ? balances.get(latest.id) : undefined
   const messageLink =
@@ -204,12 +177,12 @@ export function ClientDetailPage() {
             {getInitials(client.name)}
           </span>
           <Fact label="Phone" value={client.phone ?? 'None'} />
-          <Fact label="Open orders" value={String(summary.open)} />
-          <Fact label="All orders" value={String(summary.total)} />
+          <Fact label="Open orders" value={String(summary.openOrders)} />
+          <Fact label="All orders" value={String(summary.totalOrders)} />
           <Fact
             label="Owed"
-            value={formatMinor(summary.owed, shop.currency)}
-            tone={summary.owed > 0 ? 'money' : undefined}
+            value={formatMinor(summary.owedMinor, shop.currency)}
+            tone={summary.owedMinor > 0 ? 'money' : undefined}
           />
         </div>
 
@@ -263,13 +236,8 @@ function Fact({
   )
 }
 
-/**
- * The measurement form, rendered from the shop's own field list.
- *
- * Wider than the phone's two columns because there is room: `auto-fit` rather
- * than a fixed count, so it is three or five across depending on the pane, and
- * correct in the middle without a breakpoint.
- */
+/* The measurement form, from the shop's own field list. auto-fit rather than a
+   fixed count, so it is correct at any pane width without a breakpoint. */
 function Measurements({ clientId }: { clientId: string }) {
   const { db, shop, activeStaff } = useCurrentShop()
 

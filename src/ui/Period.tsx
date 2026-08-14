@@ -13,17 +13,8 @@ export function PeriodBar({
   return <TabRow value={value} options={PERIOD_OPTIONS} onChange={onChange} label="Period" />
 }
 
-/**
- * Which currency the figures are in, at the right of the filters row.
- *
- * A filter, not a converter: it narrows the report to rows recorded in that
- * currency. Converting would need an exchange rate this app has no offline
- * source for, and a made-up rate is a made-up figure.
- *
- * With one currency in the books there is nothing to choose, so it reads as a
- * label -- the screen still needs to say what unit the amounts are in, since
- * they no longer carry a symbol each.
- */
+/* A filter, not a converter: converting needs a rate with no offline source, and
+   a made-up rate is a made-up figure. With one currency it reads as a label. */
 export function CurrencySwitch({
   value,
   options,

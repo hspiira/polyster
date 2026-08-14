@@ -1,30 +1,19 @@
-/**
- * Clients, at a desk: a table with the two things you actually want when the
- * phone rings, which the phone's own list does not have room for.
- *
- * A client row on the phone shows a name and a number. Here it also shows what
- * they owe and how many orders are open, because that is what the person
- * answering has to know before they finish saying hello. Both come from
- * balances the app already computes -- nothing new is derived.
- *
- * Search filters in memory. A shop has hundreds of clients, not millions, the
- * whole list is already local, and matching on the number as well as the name
- * is how someone is looked up when the phone rings.
- */
+/* Adds what they owe and how many orders are open -- what the person answering
+   the phone needs before they finish saying hello. Search filters in memory. */
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
 import { AddClientSheet } from '../components/AddClientSheet'
 import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { clientTotalsById, noClientTotals, observeShopBalances } from '../db/balances'
 import { formatMinor } from '../lib/money'
-import { OPEN_STAGES } from '../screens/today/todayModel'
 import { EmptyState, getInitials } from '../ui'
 import { IconPlus, IconSearch, IconUsers } from '../components/icons'
 import { cn } from '../lib/cn'
 import { Page } from './Page'
 import { Table, type TableColumn } from './Table'
 import { CONTROL_SM, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
+import { filterByQuery } from '../lib/search'
 
 interface ClientRow {
   id: string
@@ -53,42 +42,26 @@ export function ClientsPage() {
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const rows = useMemo<ClientRow[]>(() => {
-    const open = new Map<string, number>()
-    const owed = new Map<string, number>()
-
-    for (const doc of orderDocs) {
-      const order = doc.toJSON()
-      if (OPEN_STAGES.includes(order.stage)) {
-        open.set(order.client_id, (open.get(order.client_id) ?? 0) + 1)
-      }
-      // Cancelled orders still carry a balance and are not chased, so they are
-      // excluded here the way Reports excludes them from its aggregate.
-      if (order.stage === 'cancelled') continue
-      const balance = balances.get(order.id)?.balance_minor ?? 0
-      if (balance > 0) owed.set(order.client_id, (owed.get(order.client_id) ?? 0) + balance)
-    }
+    const totals = clientTotalsById(
+      orderDocs.map((doc) => doc.toJSON()),
+      balances,
+    )
 
     return clientDocs.map((doc) => {
       const client = doc.toJSON()
+      const theirs = totals.get(client.id) ?? noClientTotals()
       return {
         id: client.id,
         name: client.name,
         phone: client.phone,
-        openOrders: open.get(client.id) ?? 0,
-        owed_minor: owed.get(client.id) ?? 0,
+        openOrders: theirs.openOrders,
+        owed_minor: theirs.owedMinor,
       }
     })
   }, [clientDocs, orderDocs, balances])
 
   const matches = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    if (!term) return rows
-    const digits = term.replace(/\D/g, '')
-    return rows.filter(
-      (row) =>
-        row.name.toLowerCase().includes(term) ||
-        (digits.length > 0 && (row.phone ?? '').replace(/\D/g, '').includes(digits)),
-    )
+    return filterByQuery(rows, search, (row) => ({ text: [row.name], phone: [row.phone] }))
   }, [rows, search])
 
   const columns: TableColumn<ClientRow>[] = [
@@ -169,7 +142,7 @@ export function ClientsPage() {
               type="search"
               value={search}
               placeholder="Search by name or phone"
-              onInput={(event) => setSearch((event.target as HTMLInputElement).value)}
+              onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
               class={cn(
                 'h-full w-[18rem] border border-line-strong bg-surface pl-7 pr-2.5 text-content',
                 'outline-none placeholder:text-content-subtle focus:border-accent',

@@ -10,36 +10,31 @@ interface SyncBadgeProps {
 
 export type SyncTone = 'good' | 'waiting' | 'bad' | 'neutral'
 
-/** The dot colour for each tone -- exported so other renderings of the same
- *  sync state (Today's profile header) use the same colours rather than a
- *  second guess at what "waiting" should look like. */
-/**
- * Ring colours for the same tones, used by Today's profile header where sync
- * shows as a ring around the avatar rather than a dot beside a label. A ring
- * is a box-shadow, so it draws outside the avatar without changing layout.
- */
+/* Exported so Today's profile header, which draws sync as a ring around the
+   avatar, cannot second-guess what "waiting" looks like. */
 export const SYNC_RING_TONES: Record<SyncTone, string> = {
-  good: 'ring-emerald-500',
-  waiting: 'ring-amber-500',
-  bad: 'ring-red-500',
-  neutral: 'ring-stone-400',
+  good: 'ring-success',
+  waiting: 'ring-warning',
+  bad: 'ring-danger',
+  neutral: 'ring-content-subtle',
 }
 
 export const SYNC_DOT_TONES: Record<SyncTone, string> = {
-  good: 'bg-emerald-500',
-  waiting: 'bg-amber-500',
-  bad: 'bg-red-500',
-  neutral: 'bg-stone-400',
+  good: 'bg-success',
+  waiting: 'bg-warning',
+  bad: 'bg-danger',
+  neutral: 'bg-content-subtle',
 }
 
-/**
- * A single honest line about whether this device's work has reached the
- * server, with a status dot that can be read without reading.
- *
- * Deliberately not hidden when things are fine: staff need to learn what fine
- * looks like so they notice when it changes. Unsynced work nobody knows about
- * is the worst outcome this design can produce.
- */
+const SYNC_TEXT_TONES: Record<SyncTone, string> = {
+  good: 'text-success',
+  waiting: 'text-warning',
+  bad: 'text-danger',
+  neutral: 'text-content-muted',
+}
+
+/* One honest line about whether this device's work has reached the server. Never
+   hidden when fine: staff learn what fine looks like, so they notice when it is not. */
 export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
   const { shop } = useShop()
   const claimed = Boolean(shop?.supabase_auth_user_id)
@@ -50,26 +45,19 @@ export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
     return (
       <a
         href="/settings/backup"
-        class="inline-flex min-w-0 items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"
+        class="inline-flex min-w-0 items-center gap-1.5 text-xs text-warning"
       >
         <span class="relative flex size-2 shrink-0">
-          <span class="absolute inline-flex size-full animate-ping rounded-full bg-amber-500 opacity-60" />
-          <span class="relative inline-flex size-2 rounded-full bg-amber-500" />
+          <span class="absolute inline-flex size-full animate-ping rounded-full bg-warning opacity-60" />
+          <span class="relative inline-flex size-2 rounded-full bg-warning" />
         </span>
         <span class="truncate underline underline-offset-2">Only on this phone</span>
       </a>
     )
   }
 
-  const text = {
-    good: 'text-emerald-700 dark:text-emerald-400',
-    waiting: 'text-amber-700 dark:text-amber-400',
-    bad: 'text-red-700 dark:text-red-400',
-    neutral: 'text-stone-500 dark:text-stone-400',
-  } as const
-
   return (
-    <span class={`inline-flex min-w-0 items-center gap-1.5 text-xs ${text[tone]}`}>
+    <span class={`inline-flex min-w-0 items-center gap-1.5 text-xs ${SYNC_TEXT_TONES[tone]}`}>
       <span class="relative flex size-2 shrink-0">
         {tone === 'waiting' && (
           <span
@@ -83,9 +71,8 @@ export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
   )
 }
 
-/** The single source of truth for what each sync state means. Today's profile
- *  header reuses this rather than re-deriving tone from `online`/`auth`/
- *  `replication` a second time. */
+/* What each sync state means. Today's profile header reuses this rather than
+   re-deriving tone from online/auth/replication a second time. */
 export function describe(
   online: boolean,
   auth: AuthState,

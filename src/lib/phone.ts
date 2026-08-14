@@ -1,10 +1,5 @@
-/**
- * Phone numbers as identity (spec E1).
- *
- * Normalisation is deliberately `toWaNumber`'s, not a second opinion: a number
- * that reaches WhatsApp and a number that receives a code must be the same
- * number, or a shop verifies one identity and messages from another.
- */
+/* Phone numbers as identity (spec E1). Normalisation is `toWaNumber`'s, not a
+   second opinion: the number that gets a code must be the one WhatsApp reaches. */
 import { toWaNumber } from './whatsapp'
 
 export const DEFAULT_COUNTRY_CODE = '256'

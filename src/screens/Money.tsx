@@ -106,10 +106,8 @@ export function Money() {
     [allExpenses, currency],
   )
 
-  /**
-   * A payment carries no shop_id -- it hangs off an order -- so it is scoped
-   * through one, which also settles which currency it was taken in.
-   */
+  /* A payment carries no shop_id, so it is scoped through its order -- which
+     also settles which currency it was taken in. */
   const payments = useMemo(
     () =>
       paymentDocs

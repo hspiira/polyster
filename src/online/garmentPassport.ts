@@ -1,13 +1,5 @@
-/**
- * The public garment passport (sections 34, 68). Unlike every other module
- * under src/online/, this is read by anonymous visitors -- no shop session,
- * often no account at all. It calls the garment_passport() Postgres function
- * (0019_garment_passport.sql) rather than selecting a table directly: that
- * function is the entire security boundary, returning only fields section 68
- * allows a stranger to see, and nothing at all if the token is wrong or the
- * owning shop hasn't turned the feature on. There is deliberately no
- * "garment_units select" path available to anon -- see the migration.
- */
+/* Read by anonymous visitors, so it calls the garment_passport() function
+   rather than a table: that function is the entire security boundary. */
 import { getSupabase } from '../lib/supabaseClient'
 
 export interface GarmentPassport {

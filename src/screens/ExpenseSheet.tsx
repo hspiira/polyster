@@ -91,7 +91,7 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
             autofocus
             value={description}
             placeholder="Fabric from Kikuubo"
-            onInput={(e) => setDescription((e.target as HTMLInputElement).value)}
+            onValue={setDescription}
           />
         </Field>
 
@@ -102,7 +102,7 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
                 inputmode="decimal"
                 value={amount}
                 placeholder="0"
-                onInput={(e) => setAmount((e.target as HTMLInputElement).value)}
+                onValue={setAmount}
               />
             </Field>
           </div>
@@ -111,7 +111,7 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
               <Input
                 type="date"
                 value={spentOn}
-                onInput={(e) => setSpentOn((e.target as HTMLInputElement).value)}
+                onValue={setSpentOn}
               />
             </Field>
           </div>
@@ -120,7 +120,7 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
         <Field label="Notes (optional)">
           <Textarea
             value={notes}
-            onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)}
+            onValue={setNotes}
           />
         </Field>
 
@@ -139,12 +139,8 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
   )
 }
 
-/**
- * An expense, and the one place it can be removed.
- *
- * Same reasoning as the sale sheet: removing money out changes the profit
- * figure, so it takes a deliberate step and records why.
- */
+/* An expense, and the one place it can be removed. Removing money out changes
+   the profit figure, so it takes a deliberate step and records why. */
 export function ExpenseDetailSheet({
   expense,
   onClose,
@@ -185,7 +181,7 @@ export function ExpenseDetailSheet({
               autofocus
               value={reason}
               placeholder="Entered twice"
-              onInput={(e) => setReason((e.target as HTMLInputElement).value)}
+              onValue={setReason}
             />
           </Field>
 

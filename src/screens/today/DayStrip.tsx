@@ -1,7 +1,5 @@
-/**
- * Seven days of workload, today first. A cell links out to that day's order
- * list rather than filtering this screen (spec N7).
- */
+/* Seven days of workload, today first. A cell links out to that day's order
+   list rather than filtering this screen (N7). */
 import { formatDate } from '../../lib/dates'
 import { cn } from '../../lib/cn'
 import type { DayCell } from './todayModel'

@@ -1,8 +1,5 @@
-/**
- * Garment identity (section 29). Online-only (see src/online/garmentUnits.ts).
- * Generic -- any tenant may track individual garments, gated behind the
- * garment_identity feature flag.
- */
+/* Garment identity (§29), online-only. Any tenant may track individual
+   garments, gated behind the garment_identity flag. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,
@@ -17,7 +14,7 @@ import {
   Select,
   Sheet,
   Skeleton,
-} from '../components/ui'
+} from '../ui'
 import { IconChevronRight, IconFingerprint, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
@@ -316,7 +313,7 @@ function GarmentUnitSheet({
         )}
 
         <Field label="Variant">
-          <Select value={variantId} onChange={(e) => setVariantId((e.target as HTMLSelectElement).value)}>
+          <Select value={variantId} onValue={setVariantId}>
             <option value="">Choose a variant</option>
             {variants.map((variant) => (
               <option key={variant.id} value={variant.id}>
@@ -327,7 +324,7 @@ function GarmentUnitSheet({
         </Field>
 
         <Field label="Serial number" hint='e.g. "F002-B01-017".'>
-          <Input value={serialNumber} onInput={(e) => setSerialNumber((e.target as HTMLInputElement).value)} />
+          <Input value={serialNumber} onValue={setSerialNumber} />
         </Field>
 
         <Field label="Status">
@@ -341,7 +338,7 @@ function GarmentUnitSheet({
         </Field>
 
         <Field label="Production batch" hint="Optional -- which batch this unit came from.">
-          <Select value={batchId} onChange={(e) => setBatchId((e.target as HTMLSelectElement).value)}>
+          <Select value={batchId} onValue={setBatchId}>
             <option value="">No batch</option>
             {batches.map((batch) => (
               <option key={batch.id} value={batch.id}>
@@ -352,7 +349,7 @@ function GarmentUnitSheet({
         </Field>
 
         <Field label="Customer" hint="Optional -- who this garment belongs to.">
-          <Select value={customerId} onChange={(e) => setCustomerId((e.target as HTMLSelectElement).value)}>
+          <Select value={customerId} onValue={setCustomerId}>
             <option value="">No customer</option>
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
@@ -364,7 +361,7 @@ function GarmentUnitSheet({
 
         {status === 'sold' && (
           <Field label="Sold on" hint="Optional.">
-            <Input type="date" value={soldAt} onInput={(e) => setSoldAt((e.target as HTMLInputElement).value)} />
+            <Input type="date" value={soldAt} onValue={setSoldAt} />
           </Field>
         )}
 

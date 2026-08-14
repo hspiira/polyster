@@ -1,14 +1,5 @@
-/**
- * The web design's density, as class constants.
- *
- * Deliberately not tokens shared with the phone build (spec W7). Once the two
- * shells are separate there is nothing to negotiate, and a token that can hold
- * either value invites a component to try to handle both -- which is the
- * compromise this whole split exists to remove.
- *
- * Colour is not here. Colour is always a role from styles/theme.css, in both
- * designs. Only size, spacing and radius differ.
- */
+/* The web's density as class constants, not tokens shared with the phone (W7).
+   Colour is never here: that is always a role. Only size and spacing differ. */
 
 /** 32px. A mouse does not need 44, and 44 is what made the old build look like a phone. */
 export const CONTROL = 'h-8'

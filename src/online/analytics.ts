@@ -1,17 +1,5 @@
-/**
- * Batch/product/collection profitability and inventory valuation (Phase 11,
- * section 82). Online-only, see catalogue.ts's header comment for why --
- * every table this reads from (products, variants, collections, batches,
- * garment_units, materials, inventory_items) is one.
- *
- * "Keep calculations transparent" (section 82's own instruction): revenue
- * here is counted at each sold unit's list price (product_variants.price_minor),
- * not a reconciled transaction amount -- `sales`/`payments` carry real cash
- * but no product/variant/batch link to join against (free-text item
- * descriptions), so a unit's own listed price is the only revenue figure
- * connected to a specific batch/product/collection at all. This is
- * disclosed in the UI copy, not just here.
- */
+/* Profitability and valuation (§82), online-only. Revenue is each sold unit's
+   list price: sales carry cash but no product link to join against. */
 import { listProducts, listAllProductVariants, type Product, type ProductVariant } from './catalogue'
 import { listCollections, type Collection } from './collections'
 import {

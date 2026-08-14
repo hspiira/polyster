@@ -1,7 +1,5 @@
-/**
- * How order stages and types are presented, in one place so a stage never
- * reads as "in_progress" on one screen and "In progress" on another.
- */
+/* How stages and types are presented, in one place so a stage never reads as
+   "in_progress" on one screen and "In progress" on another. */
 import type { AnyTone } from '../ui/tones'
 import type { CustomerType, FabricSource, OrderStage, OrderType, PaymentMethod } from '../db/schema'
 import { IconClock, IconRepeat, IconRuler, IconScissors, IconTag,
@@ -69,17 +67,8 @@ export const FABRIC_SOURCE_LABELS: Record<FabricSource, string> = {
   shop: "Shop's fabric",
 }
 
-/**
- * The stages an order of each type actually passes through.
- *
- * A tailor-made garment is never "returned" -- the client keeps it. A rental
- * is. Showing every stage for every type would put a button on screen that
- * makes no sense for the order in front of you, which is how bad data gets
- * entered.
- *
- * 'cancelled' is deliberately absent from every flow: it is a terminal exit
- * reachable from any stage, not a rung between 'ready' and 'picked_up'.
- */
+/* The stages each type actually passes through -- a tailor-made garment is never
+   returned. 'cancelled' is absent: a terminal exit, not a rung in the flow. */
 const FLOWS: Record<OrderType, readonly OrderStage[]> = {
   tailor_made: ['measured', 'in_progress', 'ready', 'picked_up'],
   purchase: ['measured', 'ready', 'picked_up'],
@@ -87,10 +76,8 @@ const FLOWS: Record<OrderType, readonly OrderStage[]> = {
   // Same shape as purchase -- a pre-order is a purchase of something not
   // made or in stock yet, so it needs no return leg either.
   pre_order: ['measured', 'ready', 'picked_up'],
-  // 'measured' doubles as "received" and 'picked_up' as "collected" -- the
-  // same reuse every other type already makes of these two labels, not a
-  // repair-specific meaning. 'assessing'/'approved'/'repairing' are the
-  // three states section 33 asks for that nothing existing covers.
+  // 'measured' doubles as "received" and 'picked_up' as "collected", as every
+  // other type does. The three assessing/approved/repairing states are new.
   repair: ['measured', 'assessing', 'approved', 'repairing', 'ready', 'picked_up'],
 }
 
@@ -98,14 +85,8 @@ export function stagesFor(orderType: OrderType): readonly OrderStage[] {
   return FLOWS[orderType]
 }
 
-/**
- * The next stage in the flow, or null at the end.
- *
- * 'cancelled' is a terminal exit with no next stage, never a detour back to
- * the flow's first stage. For any other stage missing from the flow --
- * an order's type changed after the fact -- falling back to the first stage
- * is better than leaving the shop with no way forward.
- */
+/* The next stage, or null. 'cancelled' has none; any other missing stage falls
+   back to the first, which beats leaving the shop no way forward. */
 export function nextStage(orderType: OrderType, current: OrderStage): OrderStage | null {
   if (current === 'cancelled') return null
   const flow = stagesFor(orderType)

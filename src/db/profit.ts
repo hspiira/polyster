@@ -1,10 +1,5 @@
-/**
- * Shop-level profit and loss.
- *
- * Cash accounting: income is money received (sales, plus payments taken
- * against orders), never the value of orders written up. Outstanding is
- * reported separately on Reports.
- */
+/* Shop-level profit and loss. Cash accounting: income is money received, never
+   the value of orders written up. Outstanding is reported separately. */
 import { signedAmountMinor } from './balances'
 import type { ExpenseCategory, ExpenseDoc, PaymentDoc, SaleDoc } from './schema'
 

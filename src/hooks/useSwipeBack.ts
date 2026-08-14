@@ -1,28 +1,8 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 
-/**
- * Edge-swipe to go back, the way a native app does.
- *
- * Three rules keep it from fighting the rest of the screen:
- *
- *  1. **It only starts near the left edge.** Anywhere else and a horizontal
- *     drag belongs to whatever is under the finger -- the segmented filters
- *     scroll sideways, and stealing that would be worse than having no
- *     gesture at all.
- *  2. **It gives up the moment the drag looks vertical.** The first few pixels
- *     decide: more vertical than horizontal and the gesture is abandoned so
- *     the page scrolls normally.
- *  3. **It follows the finger.** A gesture with no feedback until it completes
- *     feels broken, so the screen tracks the drag and either snaps back or
- *     completes.
- *
- * Chrome and Safari already do this natively for browser history. This exists
- * because an installed PWA in standalone display has no browser chrome and no
- * such gesture, which is the mode this app is actually used in.
- *
- * `target` is an href to route to, or a callback for local-state-only steps.
- */
+/* Edge-swipe back, which an installed PWA has no native version of. Left edge
+   only, abandoned the moment the drag looks vertical, and it follows the finger. */
 
 /** Only swipes starting this close to the left edge count. */
 const EDGE_ZONE_PX = 28
@@ -34,9 +14,8 @@ const DIRECTION_LOCK_PX = 10
 export function useSwipeBack(target: string | (() => void) | undefined) {
   const location = useLocation()
   const ref = useRef<HTMLDivElement>(null)
-  // A ref, not state: this updates on every touchmove and re-rendering the
-  // whole screen at 60fps to move it sideways would drop frames on the cheap
-  // hardware this targets.
+  // A ref, not state: re-rendering the whole screen at 60fps to move it
+  // sideways drops frames on the hardware this targets.
   const drag = useRef({ startX: 0, startY: 0, active: false, locked: false })
   // Read at completion time, not closed over, so a fresh inline callback still resolves correctly.
   const targetRef = useRef(target)

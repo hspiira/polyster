@@ -1,12 +1,7 @@
-/**
- * The order type, as one line rather than a five-way row.
- *
- * The form opens on whatever this shop takes most often, so the usual order
- * needs no choice at all. Five labels across a 375px screen were about 70px
- * each, which is a mis-tap waiting to happen.
- */
+/* One line, not a five-way row: the form opens on what this shop takes most
+   often, and five labels across 375px is 70px each. */
 import { useState } from 'preact/hooks'
-import { Sheet, cn } from './ui'
+import { Sheet, cn } from '../ui'
 import { IconCheck, IconChevronRight } from './icons'
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS } from '../screens/orderStage'
 import type { OrderType } from '../db/schema'

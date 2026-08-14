@@ -1,16 +1,5 @@
-/**
- * Export backup (ARCHITECTURE.md D7, Phase 1 step 10).
- *
- * Browser storage is not guaranteed permanent. A device can have its site data
- * cleared by the user, by the OS reclaiming space, or by someone tapping the
- * wrong thing in settings -- and for a shop whose only copy of an offline
- * week's work is that IndexedDB, that is a real risk rather than a theoretical
- * one. This is the cheap mitigation: a JSON file the shop can put anywhere.
- *
- * Deliberately a plain dump rather than a curated format. The value of a
- * backup is that it contains everything; a backup that filters is a backup
- * that surprises you when you need it.
- */
+/* Export backup (ARCHITECTURE.md D7). Browser storage is not permanent, and for
+   an unclaimed shop this JSON dump is the only copy off the device. */
 import type { AppDatabase } from '../db/database'
 import { REPLICATED_TABLES } from '../db/replication'
 
@@ -54,10 +43,8 @@ export function backupFilename(shopName: string, at: Date = new Date()): string 
   return `${slug}-backup-${at.toISOString().slice(0, 10)}.json`
 }
 
-/**
- * Triggers the download. Kept separate from `buildBackup` so the contents can
- * be tested without a DOM.
- */
+/* Triggers the download. Separate from `buildBackup` so the contents can be
+   tested without a DOM. */
 export function downloadBackup(backup: Backup, filename: string): void {
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -93,10 +80,8 @@ export function lastBackupAt(): Date | null {
   }
 }
 
-/**
- * How long since the last backup, in whole days. Null if there has never been
- * one -- which the UI should say plainly rather than showing "0 days ago".
- */
+/* Whole days since the last backup. Null if there has never been one, which the
+   UI should say plainly rather than showing "0 days ago". */
 export function daysSinceBackup(now: Date = new Date()): number | null {
   const last = lastBackupAt()
   if (!last) return null

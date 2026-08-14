@@ -1,7 +1,5 @@
-/**
- * Inventory: finished goods and materials, tracked as a ledger (see
- * src/online/inventory.ts). Online-only, see Catalogue.tsx for the pattern.
- */
+/* Finished goods and materials, tracked as a ledger. Online-only, see
+   Catalogue.tsx for the pattern. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,
@@ -17,7 +15,7 @@ import {
   Select,
   Sheet,
   Skeleton,
-} from '../components/ui'
+} from '../ui'
 import { IconChevronRight, IconPlus, IconReceipt } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'
@@ -275,7 +273,7 @@ function TrackItemSheet({
 
         {itemType === 'product_variant' ? (
           <Field label="Variant">
-            <Select value={refId} onChange={(e) => setRefId((e.target as HTMLSelectElement).value)}>
+            <Select value={refId} onValue={setRefId}>
               <option value="">Choose a variant</option>
               {availableVariants.map((variant) => (
                 <option key={variant.id} value={variant.id}>
@@ -286,7 +284,7 @@ function TrackItemSheet({
           </Field>
         ) : (
           <Field label="Material">
-            <Select value={refId} onChange={(e) => setRefId((e.target as HTMLSelectElement).value)}>
+            <Select value={refId} onValue={setRefId}>
               <option value="">Choose a material</option>
               {availableMaterials.map((material) => (
                 <option key={material.id} value={material.id}>
@@ -302,7 +300,7 @@ function TrackItemSheet({
             type="number"
             inputmode="numeric"
             value={startingQuantity}
-            onInput={(e) => setStartingQuantity((e.target as HTMLInputElement).value)}
+            onValue={setStartingQuantity}
           />
         </Field>
 

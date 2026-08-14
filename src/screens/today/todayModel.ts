@@ -1,17 +1,9 @@
-/**
- * Everything the Today screen derives, as pure functions.
- *
- * Kept out of the component so it is testable without a component-test
- * harness -- the same reason orderStage.ts exists. Nothing here imports Preact
- * or RxDB.
- */
+/* Everything Today derives, as pure functions kept out of the component so they
+   are testable without a harness. Nothing here imports Preact or RxDB. */
 import { addDays, dueBucket } from '../../lib/dates'
 import { formatMinor } from '../../lib/money'
 import type { OrderBalance } from '../../db/balances'
-import type { OrderStage, OrderDoc } from '../../db/schema'
-
-/** Stages that still need something doing. Finished work is not "due". */
-export const OPEN_STAGES: readonly OrderStage[] = ['measured', 'in_progress', 'ready']
+import { OPEN_STAGES, type OrderDoc } from '../../db/schema'
 
 export type HeroTone = 'muted' | 'strong' | 'alert' | 'money'
 
@@ -29,10 +21,8 @@ export interface HeroCounts {
   currency: string
 }
 
-/**
- * The hero statement, as tone-tagged segments rather than a string, so the
- * emphasis is data and the component stays dumb.
- */
+/* The hero statement as tone-tagged segments rather than a string, so the
+   emphasis is data and the component stays dumb. */
 export function heroSegments(counts: HeroCounts): HeroSegment[] {
   const segments: HeroSegment[] = []
 
@@ -108,10 +98,8 @@ function isOutOnRental(order: OrderDoc): boolean {
   )
 }
 
-/**
- * Today's four groups. Overdue rental returns join Overdue; every other return
- * goes to outOnRental, so "items that are out" has one home (spec N9).
- */
+/* Today's four groups. Overdue rental returns join Overdue; every other return
+   goes to outOnRental, so "items that are out" has one home (N9). */
 export function buildBuckets(
   orders: readonly OrderDoc[],
   clientNames: ReadonlyMap<string, string>,
@@ -169,11 +157,8 @@ function countLabelFor(count: number): string {
   return count > 99 ? '99+' : String(count)
 }
 
-/**
- * Seven days from `from`, each carrying the work outstanding on it: open
- * pickups plus rental returns. Informational -- the buckets organise the
- * screen, not this (spec N5, N6).
- */
+/* Seven days from `from`, each carrying its outstanding work. Informational:
+   the buckets organise the screen, not this (N5, N6). */
 export function buildDayStrip(orders: readonly OrderDoc[], from: string): DayCell[] {
   const counts = new Map<string, number>()
   const bump = (date: string) => counts.set(date, (counts.get(date) ?? 0) + 1)
@@ -197,14 +182,8 @@ export function buildDayStrip(orders: readonly OrderDoc[], from: string): DayCel
   })
 }
 
-/**
- * Every row of work falling on one date: open pickups due that day, plus
- * rentals due back that day.
- *
- * This is the same rule `buildDayStrip` counts with, exported so the order list
- * a day cell links to cannot disagree with the number on the cell. A cell
- * reading 3 that opens a list of 5 is worse than no cell at all.
- */
+/* Every row of work falling on one date. The same rule buildDayStrip counts
+   with, so a cell reading 3 cannot open a list of 5. */
 export function rowsDueOn(
   orders: readonly OrderDoc[],
   clientNames: ReadonlyMap<string, string>,
@@ -228,10 +207,8 @@ export function rowsDueOn(
   return rows
 }
 
-/**
- * Orders as plain pickup rows, for the order list's stage-based filters, which
- * are about what an order *is* rather than when it is due.
- */
+/* Orders as plain pickup rows, for the stage-based filters -- those are about
+   what an order is rather than when it is due. */
 export function pickupRows(
   orders: readonly OrderDoc[],
   clientNames: ReadonlyMap<string, string>,
@@ -256,10 +233,8 @@ export interface MoneySummary {
   rows: OwingRow[]
 }
 
-/**
- * What the shop is owed, and by whom. Collected-but-unpaid sorts first because
- * an unpaid garment still on the bench is normal and one already gone is not.
- */
+/* What the shop is owed, and by whom. Collected-but-unpaid sorts first: an
+   unpaid garment on the bench is normal, one already gone is not. */
 export function buildMoneySummary(
   orders: readonly OrderDoc[],
   clientNames: ReadonlyMap<string, string>,

@@ -1,35 +1,17 @@
-/**
- * THE THEME. Everything the app looks like is decided here, and nowhere else
- * may name a colour -- components ask for roles (`bg-surface`, `text-money`)
- * and this file says what a role is worth.
- *
- * To re-skin: `--hue-brand` and `--sat-brand` in section 1. Nothing else.
- * Section 2's ramps are perceptual positions (an L and a C at whatever hue you
- * set), so re-hueing preserves every contrast ratio -- which is the whole
- * reason the palette is oklch rather than hex.
- *
- * No `dark:` utilities exist in this app. A variant writes each colour decision
- * twice at the call site where the copies can drift; here each role is written
- * twice in this file and never again. The theme is a `data-theme` attribute,
- * resolved by src/lib/theme.ts, bootstrapped inline in index.html.
- *
- * (`light-dark()` would collapse the two blocks into one but fails closed: on a
- * browser without it every role resolves to nothing and the app renders
- * unstyled. The attribute degrades to light theme instead.)
- */
+/* The theme. Every colour in the app is decided here; everywhere else asks for
+   a role. To re-skin, change --hue-brand. Rules: docs/DESIGN_SYSTEM.md. */
 
-/* ═══════════════════════════════════════════════════════════ 1. THE KNOBS ═══
-   Change these to change the app. */
+/* ═══════════════════════════════════════════════════════════ 1. THE KNOBS ═══ */
 :root {
-  /* Far enough from money (75), danger (27) and success (158) that no status
-     colour can be mistaken for a brand colour. */
-  /* --brand-600 is #013ef1. Chroma is capped to sRGB at every step. */
+  /* Far from every status hue, so no status reads as brand. #013ef1 at 600. */
   --hue-brand: 263.8;
   /* 0 is greyscale, 1 as designed, 1.2 loud. */
   --sat-brand: 1;
 
-  /* These encode meaning, not style. Amber is money and only money. */
+  /* Meaning, not style. Amber is money and only money; warning gets its own
+     hue between danger and money so a stalled sync never reads as a balance. */
   --hue-money: 75;
+  --hue-warning: 55;
   --hue-danger: 27;
   --hue-success: 158;
 
@@ -39,8 +21,7 @@
 }
 
 /* ══════════════════════════════════════════════════════ 2. THE RAMPS ═══
-   Derived from section 1. Do not hardcode values here, and do not reference
-   these outside section 3. */
+   Derived from section 1. Referenced only by section 3. */
 :root {
   /* -- brand ------------------------------------------------------------- */
   --brand-50: oklch(0.977 calc(0.0105 * var(--sat-brand)) var(--hue-brand));
@@ -79,6 +60,15 @@
   --money-900: oklch(0.375 0.085 var(--hue-money));
   --money-950: oklch(0.255 0.062 var(--hue-money));
 
+  /* -- warning. Needs attention, but nothing has failed: offline, unsynced. */
+  --warning-100: oklch(0.945 0.045 var(--hue-warning));
+  --warning-300: oklch(0.83 0.115 var(--hue-warning));
+  --warning-400: oklch(0.765 0.145 var(--hue-warning));
+  --warning-500: oklch(0.7 0.165 var(--hue-warning));
+  --warning-700: oklch(0.545 0.135 var(--hue-warning));
+  --warning-900: oklch(0.375 0.09 var(--hue-warning));
+  --warning-950: oklch(0.25 0.06 var(--hue-warning));
+
   /* -- danger. Overdue, destructive, failed. ----------------------------- */
   --danger-100: oklch(0.935 0.035 var(--hue-danger));
   --danger-300: oklch(0.8 0.105 var(--hue-danger));
@@ -99,14 +89,12 @@
 }
 
 /* ═════════════════════════════════════════════════════ 3. THE ROLES ═══
-   The only names the rest of the app is allowed to know. Each appears exactly
-   twice: once light, once dark. */
+   The only names the rest of the app knows. Each appears twice, light and dark. */
 :root,
 [data-theme='light'] {
   color-scheme: light;
 
-  /* A surface is separated from the page by its fill, not by a line.
-     Elevation is a lighter fill plus, at most, one soft shadow. */
+  /* A surface is separated from the page by its fill, not by a line. */
   --page: var(--ink-100);
   --surface: var(--ink-0);
   --surface-raised: var(--ink-0);
@@ -114,14 +102,11 @@
   --hover: var(--ink-100);
   --pressed: var(--ink-200);
 
-  /* A step above the page rather than a full surface -- for a screen that is
-     mostly rows (Today, Orders), where the full jump to --surface reads as a
-     stack of cut-out cards rather than one page of content. Still a fill, per
-     the rule above, just a smaller one. */
+  /* A step above the page, for row-heavy screens where a full --surface reads
+     as cut-out cards instead of one page. */
   --surface-flat: var(--ink-50);
 
-  /* For tabular alignment and for dividing a rail from a page. Never for
-     drawing a card. */
+  /* Tabular alignment and rail dividers. Never for drawing a card. */
   --line: var(--ink-200);
   --line-strong: var(--ink-300);
 
@@ -140,6 +125,10 @@
   --money: var(--money-700);
   --money-soft: var(--money-100);
   --money-on-soft: var(--money-900);
+
+  --warning: var(--warning-700);
+  --warning-soft: var(--warning-100);
+  --warning-on-soft: var(--warning-900);
 
   --danger: var(--danger-600);
   --danger-hover: var(--danger-700);
@@ -207,6 +196,10 @@
   --money-soft: var(--money-950);
   --money-on-soft: var(--money-300);
 
+  --warning: var(--warning-400);
+  --warning-soft: var(--warning-950);
+  --warning-on-soft: var(--warning-300);
+
   --danger: var(--danger-400);
   --danger-hover: var(--danger-300);
   --danger-content: var(--ink-1000);
@@ -234,7 +227,26 @@
   --elev-3: 0 12px 36px oklch(0 0 0 / 0.55);
 }
 
-/* ═══════════════════════════════════════ 4. SHAPE, SPACE, TYPE, MOTION ═══ */
+/* ══════════════════════════════════════════════════════ 4. MATERIALS ═══
+   The entry flow's glass. Fixed, not themed: it only ever sits on dark. */
+:root {
+  --glass-fill: color-mix(in oklch, var(--ink-0) 5%, transparent);
+  --glass-line: color-mix(in oklch, var(--ink-0) 9%, transparent);
+  --glass-highlight: color-mix(in oklch, var(--ink-0) 10%, transparent);
+  --glass-sheen: color-mix(in oklch, var(--ink-0) 7%, transparent);
+
+  /* Black-tinted, not white: a white tint over the glow picks the brand hue up
+     and the whole form turns violet. */
+  --glass-inset-fill: color-mix(in oklch, oklch(0 0 0) 42%, transparent);
+  --glass-inset-line: color-mix(in oklch, var(--ink-0) 12%, transparent);
+  --glass-inset-highlight: color-mix(in oklch, var(--ink-0) 8%, transparent);
+  --glass-inset-shade: oklch(0 0 0 / 0.28);
+
+  --glass-edge: color-mix(in oklch, var(--ink-0) 32%, transparent);
+  --glass-rule: color-mix(in oklch, var(--ink-0) 12%, transparent);
+}
+
+/* ═══════════════════════════════════════ 5. SHAPE, SPACE, TYPE, MOTION ═══ */
 :root {
   /* Cards are properly rounded; only chips stay full pills. */
   --r-card: 0.75rem;
@@ -252,11 +264,8 @@
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* ══════════════════════════════════════════ 5. TAILWIND UTILITY EXPORT ═══
-   Publishes the roles above as utilities: `bg-surface`, `text-money`,
-   `px-gutter`, `shadow-raise`. `inline` is load-bearing -- it compiles
-   `bg-surface` to `var(--surface)` directly, so the value resolves in the
-   element's theme scope instead of being frozen at :root. */
+/* ══════════════════════════════════════════ 6. TAILWIND UTILITY EXPORT ═══
+   `inline` is load-bearing: it keeps roles resolving in element scope. */
 @theme inline {
   --color-page: var(--page);
   --color-surface: var(--surface);
@@ -284,6 +293,10 @@
   --color-money-soft: var(--money-soft);
   --color-money-on-soft: var(--money-on-soft);
 
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-on-soft: var(--warning-on-soft);
+
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
   --color-danger-content: var(--danger-content);
@@ -300,9 +313,12 @@
   --color-focus: var(--focus);
   --color-scrim: var(--scrim);
 
-  /* For the entry flow only, which is fixed dark and so cannot use the themed
-     roles above. Unpublished, `bg-brand-500` is an unknown utility that renders
-     transparent. Inside the shell, ask for a role. */
+  /* So the entry flow can say `border-glass-edge` instead of `border-white/32`. */
+  --color-glass-edge: var(--glass-edge);
+  --color-glass-rule: var(--glass-rule);
+
+  /* The entry flow's glow and logomark, which are brand marks rather than
+     themed surfaces. Unpublished, `bg-brand-500` compiles to transparent. */
   --color-brand-50: var(--brand-50);
   --color-brand-100: var(--brand-100);
   --color-brand-200: var(--brand-200);

@@ -1,10 +1,5 @@
-/**
- * Locks the app after it has been in the background too long.
- *
- * `visibilitychange` rather than a timer: a backgrounded tab's timers are
- * throttled or frozen, so counting while away is not something a phone will
- * reliably do.
- */
+/* Locks after too long in the background. `visibilitychange`, not a timer: a
+   backgrounded tab's timers are throttled or frozen. */
 import { useEffect, useRef } from 'preact/hooks'
 import { isLockedByIdle } from '../lib/lockPolicy'
 

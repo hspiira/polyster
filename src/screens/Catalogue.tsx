@@ -1,8 +1,5 @@
-/**
- * Catalogue: products, search, add. Online-only (see src/online/catalogue.ts)
- * -- there is no local cache, so this screen needs a connection to load or
- * change anything.
- */
+/* Products, search, add. Online-only: no local cache, so this screen needs a
+   connection to load or change anything. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,
@@ -21,7 +18,7 @@ import {
   Sheet,
   Skeleton,
   Textarea,
-} from '../components/ui'
+} from '../ui'
 import { IconPlus, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'
@@ -41,6 +38,7 @@ import {
 } from '../online/catalogue'
 import { listCollections, type Collection } from '../online/collections'
 import { useBack } from '../hooks/useBack'
+import { filterByQuery } from '../lib/search'
 
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   garment: 'Garment',
@@ -90,13 +88,9 @@ export function Catalogue() {
 
   const matches = useMemo(() => {
     if (!products) return []
-    const term = search.trim().toLowerCase()
-    if (!term) return products
-    return products.filter(
-      (product) =>
-        product.name.toLowerCase().includes(term) ||
-        (product.brand ?? '').toLowerCase().includes(term),
-    )
+    return filterByQuery(products, search, (product) => ({
+      text: [product.name, product.brand],
+    }))
   }, [products, search])
 
   if (!online) {
@@ -138,7 +132,7 @@ export function Catalogue() {
             <SearchInput
               placeholder="Search by name or brand"
               value={search}
-              onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+              onValue={setSearch}
             />
           )}
 
@@ -283,7 +277,7 @@ function AddProductSheet({
     <Sheet open={open} title="New product" onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} autofocus onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          <Input value={name} autofocus onValue={setName} />
         </Field>
 
         <Field label="Type">
@@ -300,7 +294,7 @@ function AddProductSheet({
         </Field>
 
         <Field label="Category" hint="Optional.">
-          <Select value={categoryId} onChange={(e) => setCategoryId((e.target as HTMLSelectElement).value)}>
+          <Select value={categoryId} onValue={setCategoryId}>
             <option value="">No category</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -311,7 +305,7 @@ function AddProductSheet({
         </Field>
 
         <Field label="Collection" hint="Optional.">
-          <Select value={collectionId} onChange={(e) => setCollectionId((e.target as HTMLSelectElement).value)}>
+          <Select value={collectionId} onValue={setCollectionId}>
             <option value="">No collection</option>
             {collections.map((collection) => (
               <option key={collection.id} value={collection.id}>
@@ -322,11 +316,11 @@ function AddProductSheet({
         </Field>
 
         <Field label="Brand" hint="Optional.">
-          <Input value={brand} onInput={(e) => setBrand((e.target as HTMLInputElement).value)} />
+          <Input value={brand} onValue={setBrand} />
         </Field>
 
         <Field label="Description" hint="Optional.">
-          <Textarea value={description} onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={description} onValue={setDescription} />
         </Field>
 
         <ProductImageField shopId={shop.id} imageUrl={imageUrl} onChange={setImageUrl} />
@@ -406,7 +400,7 @@ function CategorySheet({
             <Input
               value={name}
               placeholder="New category"
-              onInput={(e) => setName((e.target as HTMLInputElement).value)}
+              onValue={setName}
             />
           </div>
           <Button type="submit" disabled={adding}>

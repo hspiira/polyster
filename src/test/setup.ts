@@ -1,19 +1,9 @@
-/**
- * RxDB's Dexie storage needs IndexedDB, which Node does not have. fake-indexeddb
- * provides an in-memory implementation good enough to exercise the real storage
- * adapter -- which matters, because the point of these tests is to run the same
- * code path the browser runs, not a mock of it.
- */
+/* RxDB's Dexie storage needs IndexedDB, which Node lacks. fake-indexeddb is
+   good enough to exercise the real adapter rather than a mock of it. */
 import 'fake-indexeddb/auto'
 
-/**
- * A deterministic in-memory localStorage. lib/auth.ts guards every access in a
- * try/catch, so without this the remembered-user tests would pass vacuously.
- *
- * Installed unconditionally: Node 22 exposes an experimental `localStorage`
- * global that is present but unusable unless `--localstorage-file` points
- * somewhere real, so probing for one is not enough.
- */
+/* Deterministic in-memory localStorage, or the remembered-user tests pass
+   vacuously. Unconditional: Node's own global is present but unusable. */
 const memoryStore = new Map<string, string>()
 
 Object.defineProperty(globalThis, 'localStorage', {

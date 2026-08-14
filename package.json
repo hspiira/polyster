@@ -14,7 +14,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "tsc -b && vitest run && vite build",
+    "verify": "tsc -b && vitest run && node scripts/check-standards.mjs && vite build",
+    "check:design": "node scripts/check-standards.mjs",
     "verify:rls": "node scripts/verify-rls.mjs",
     "shop:credentials": "node scripts/set-shop-credentials.mjs",
     "seed:auth": "node scripts/seed-auth-users.mjs"

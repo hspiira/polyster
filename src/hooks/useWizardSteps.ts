@@ -1,12 +1,5 @@
-/**
- * Wizard step state that back gestures understand.
- *
- * Each step is a real history entry, so Android's system back and the browser's
- * own edge-swipe step back rather than leaving the app. An installed PWA has
- * neither, which is why the depth here also drives the app's own swipe-back
- * (useSwipeBack) -- `canGoBack` is what keeps that gesture from walking off the
- * first step and out of the wizard entirely.
- */
+/* Each step is a real history entry, so system back steps rather than leaving.
+   `canGoBack` stops the app's own swipe walking off the first step. */
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 
 const STEP_KEY = 'polyster.wizardStep'

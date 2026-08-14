@@ -1,7 +1,5 @@
-/**
- * Shop details: what things are, not a column of inputs asking what they
- * should be. Each row opens a sheet holding that one value.
- */
+/* What things are, not a column of inputs asking what they should be. Each row
+   opens a sheet holding that one value. */
 import { useState } from 'preact/hooks'
 import {
   Card,

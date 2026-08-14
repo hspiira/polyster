@@ -12,17 +12,12 @@ startTheme()
 // The layout picker is gone; release anyone it pinned to the wrong design.
 forgetLayoutOverride()
 
-/**
- * A garment passport (sections 34, 68) is public: scanned by anyone, no
- * account, no local database for this shop on the device. Matched here,
- * before <App/> ever mounts, so it never touches ShopProvider/RxDB/the
- * router the rest of the app assumes exists.
- */
+/* A garment passport is public, so it is matched before <App/> mounts and never
+   touches the provider, RxDB or the router the rest of the app assumes. */
 const passportMatch = window.location.pathname.match(/^\/passport\/([^/]+)\/?$/)
 
-// Dev-only console tools. Seed every fixture with
+// Dev-only console tools, never bundled in production. Seed with
 // `__polyster.getDatabase().then(db => __polyster.seedAll(db))`, then reload.
-// Never bundled in production (see the DEV guard below).
 if (import.meta.env.DEV) {
   const { getDatabase } = await import('./db/database.ts')
   const { getSupabase } = await import('./lib/supabaseClient.ts')
@@ -30,19 +25,8 @@ if (import.meta.env.DEV) {
   ;(window as unknown as { __polyster: unknown }).__polyster = { getDatabase, getSupabase, ...fixtures }
 }
 
-/**
- * Paint something when the app fails to mount.
- *
- * Without this, any throw during the first render leaves an empty `#app` and
- * the user gets a white page with one line in a console they are not looking
- * at. That is the least diagnosable failure a web app can have, and it has
- * already cost real time on this project: a duplicate-Preact resolution from a
- * stale Vite optimiser cache produced exactly that, and the symptom carried no
- * information at all.
- *
- * Deliberately plain DOM, no framework. Whatever broke may well be the
- * framework.
- */
+/* Paint something when the app fails to mount: a throw in the first render
+   otherwise leaves a white page. Plain DOM -- whatever broke may be the framework. */
 function showFatal(error: unknown): void {
   const root = document.getElementById('app')
   if (!root) return
@@ -89,9 +73,8 @@ if (!root) {
     showFatal(error)
   }
 
-  // A throw inside an effect or an async render lands here rather than in the
-  // try/catch above. Only acted on if the root is genuinely still empty, so a
-  // stray error from a running app cannot blank a working screen.
+  // A throw in an effect lands here, not the try/catch above. Acted on only if
+  // the root is still empty, so a stray error cannot blank a working screen.
   window.addEventListener('error', (event) => {
     if (root.childElementCount === 0) showFatal(event.error ?? event.message)
   })

@@ -1,15 +1,5 @@
-/**
- * Staff management (Phase 1 step 9): the shop's people, after setup.
- *
- * Staff are deactivated, never deleted: `orders.created_by` and
- * `payments.recorded_by` point at these rows, and a departed employee's name
- * still has to render on the orders they took.
- *
- * Adding someone and changing a PIN both use the same pad as the staff gate,
- * so a person's first encounter with a PIN looks like every later one. A
- * number pad on one screen and a text field on the next is how a small app
- * starts feeling like two.
- */
+/* The shop's people. Deactivated, never deleted: orders point at these rows.
+   PINs use the same pad as the staff gate, so every encounter looks alike. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Avatar,
@@ -26,7 +16,7 @@ import {
   Sheet,
   Switch,
 } from '../../ui'
-import { PinPad } from '../../components/PinPad'
+import { ChoosePinPad } from '../../components/ChoosePinPad'
 import { IconPlus } from '../../components/icons'
 import { IllustrationBook } from '../../components/illustrations'
 import { useShop } from '../../state/ShopProvider'
@@ -208,12 +198,8 @@ export function StaffSettings() {
   )
 }
 
-/**
- * Name and role, then the PIN twice.
- *
- * Twice because a PIN cannot be revealed the way a password field can, and one
- * mistyped digit locks that person out until someone else resets it.
- */
+/* Name and role, then the PIN twice: it cannot be revealed the way a password
+   can, and one mistyped digit locks that person out. */
 function AddStaffSheet({
   open,
   shopId,
@@ -227,14 +213,12 @@ function AddStaffSheet({
   const [name, setName] = useState('')
   // The first person added to a shop is almost always the owner.
   const [role, setRole] = useState<StaffRole>(staff.length === 0 ? 'owner' : 'staff')
-  const [phase, setPhase] = useState<'details' | 'pin' | 'confirm'>('details')
-  const [firstPin, setFirstPin] = useState('')
+  const [phase, setPhase] = useState<'details' | 'pin'>('details')
   const [error, setError] = useState<string | null>(null)
 
   function reset() {
     setName('')
     setPhase('details')
-    setFirstPin('')
     setError(null)
   }
 
@@ -266,7 +250,7 @@ function AddStaffSheet({
             <Input
               autofocus
               value={name}
-              onInput={(e) => setName((e.target as HTMLInputElement).value)}
+              onValue={setName}
             />
           </Field>
 
@@ -293,36 +277,16 @@ function AddStaffSheet({
       ) : (
         <div class="space-y-4 pb-2">
           {error && <ErrorNote>{error}</ErrorNote>}
-          <PinPad
-            key={phase}
-            tone="light"
-            hint={
-              phase === 'confirm'
-                ? 'Type it again to confirm'
-                : `Choose ${PIN_LENGTH} digits for ${name}`
-            }
-            errorHint="Those did not match. Start again."
-            busyHint="Saving..."
-            onComplete={async (pin) => {
-              if (phase === 'pin') {
-                setFirstPin(pin)
-                setPhase('confirm')
-                return true
-              }
-              if (pin !== firstPin) {
-                setFirstPin('')
-                setPhase('pin')
-                setError('Those two PINs did not match. Choose one again.')
-                return false
-              }
+          <ChoosePinPad
+            chooseHint={`Choose ${PIN_LENGTH} digits for ${name}`}
+            onError={setError}
+            onChosen={async (pin) => {
               try {
                 await createStaff(db, shopId, { name, pin, role })
                 close()
-                return true
+                return null
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Could not add this person.')
-                setPhase('pin')
-                return false
+                return err instanceof Error ? err.message : 'Could not add this person.'
               }
             }}
           />
@@ -334,13 +298,9 @@ function AddStaffSheet({
 
 function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose: () => void }) {
   const { db } = useShop()
-  const [phase, setPhase] = useState<'pin' | 'confirm'>('pin')
-  const [firstPin, setFirstPin] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   function close() {
-    setPhase('pin')
-    setFirstPin('')
     setError(null)
     onClose()
   }
@@ -353,33 +313,16 @@ function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose:
     >
       <div class="space-y-4 pb-2">
         {error && <ErrorNote>{error}</ErrorNote>}
-        <PinPad
-          key={phase}
-          tone="light"
-          hint={phase === 'confirm' ? 'Type it again to confirm' : `Choose ${PIN_LENGTH} digits`}
-          errorHint="Those did not match. Start again."
-          busyHint="Saving..."
-          onComplete={async (pin) => {
-            if (!member) return false
-            if (phase === 'pin') {
-              setFirstPin(pin)
-              setPhase('confirm')
-              return true
-            }
-            if (pin !== firstPin) {
-              setFirstPin('')
-              setPhase('pin')
-              setError('Those two PINs did not match. Choose one again.')
-              return false
-            }
+        <ChoosePinPad
+          onError={setError}
+          onChosen={async (pin) => {
+            if (!member) return 'That person is no longer on this device.'
             try {
               await setStaffPin(db, member.id, pin)
               close()
-              return true
+              return null
             } catch (err) {
-              setError(err instanceof Error ? err.message : 'Could not change the PIN.')
-              setPhase('pin')
-              return false
+              return err instanceof Error ? err.message : 'Could not change the PIN.'
             }
           }}
         />
@@ -388,11 +331,8 @@ function ChangePinSheet({ member, onClose }: { member: StaffDoc | null; onClose:
   )
 }
 
-/**
- * Role plus per-person exceptions, in one place -- changing role changes
- * what every toggle below defaults to, so seeing both together is what
- * makes an override legible as an override rather than a mystery setting.
- */
+/* Role and per-person exceptions together: role changes what every toggle
+   defaults to, which is what makes an override legible as one. */
 function PermissionsSheet({ member, onClose }: { member: StaffDoc | null; onClose: () => void }) {
   const { db } = useShop()
   const [role, setRole] = useState<StaffRole>(member?.role ?? 'staff')
@@ -402,9 +342,8 @@ function PermissionsSheet({ member, onClose }: { member: StaffDoc | null; onClos
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // Re-seeds whenever a different member's sheet opens (Sheet is modal, so
-  // this only ever happens between one member's close and the next member's
-  // open, never while the same sheet instance is mid-edit).
+  // Re-seeds when a different member's sheet opens. Sheet is modal, so this
+  // only happens between one close and the next open, never mid-edit.
   useEffect(() => {
     setRole(member?.role ?? 'staff')
     setOverrides(member?.permission_overrides ?? {})

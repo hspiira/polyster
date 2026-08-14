@@ -94,10 +94,8 @@ describe('backfillOrderUnits', () => {
     expect(await db.order_units.count().exec()).toBe(1)
   })
 
-  // Regression guard: a unit soft-deleted mid-archiveOrder (order removed,
-  // unit removal not yet reached) must read as "already had one", not as
-  // "predates order units" -- ordinary queries hide soft-deleted docs, which
-  // is exactly what made the two indistinguishable before this fix.
+  // Regression guard: a unit soft-deleted mid-archiveOrder must read as
+  // "already had one", not "predates order units". Queries hide soft deletes.
   it('does not resurrect a unit that was soft-deleted, rather than never created', async () => {
     const db = await freshDatabase()
     const orderId = await insertOrderWithoutUnits(db, { summary: 'Kanzu', price_total_minor: 45000 })

@@ -83,9 +83,8 @@ describe('profitAndLoss', () => {
   })
 
   it('subtracts refunds from income rather than adding them', () => {
-    // The bug this guards: treating every payment row as money in. A refund is
-    // stored as a positive row with kind 'refund', so a naive sum inflates
-    // income by twice the refund.
+    // Guards against treating every payment row as money in: a refund is a
+    // positive row with kind 'refund', so a naive sum inflates income.
     const result = profitAndLoss({
       ...EMPTY,
       payments: [

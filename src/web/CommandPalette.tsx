@@ -1,16 +1,5 @@
-/**
- * Search everything, on ⌘K.
- *
- * The single most "it is a real tool" affordance a back-office has, and the one
- * the app bar has been advertising with a keyboard hint that did nothing. It
- * searches orders, clients and sales together, because a shop looking for
- * "Achen" does not know or care which table the answer is in.
- *
- * Local and synchronous: the whole shop is already in memory, so there is no
- * request to debounce and no spinner to show. Matching is substring and
- * case-insensitive on the words a person would actually type -- a name, an item,
- * a phone number, an order reference.
- */
+/* Search everything on ⌘K, across orders, clients and sales at once: a shop
+   looking for "Achen" does not care which table it is in. Local and synchronous. */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
@@ -19,6 +8,7 @@ import { saleTotalMinor } from '../db/profit'
 import { formatMinor } from '../lib/money'
 import { cn } from '../lib/cn'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
+import { matchesQuery } from '../lib/search'
 
 interface Hit {
   id: string
@@ -65,16 +55,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const hits = useMemo<Hit[]>(() => {
     const term = query.trim().toLowerCase()
     if (term.length < 2) return []
-    const digits = term.replace(/\D/g, '')
     const found: Hit[] = []
 
     for (const doc of clientDocs) {
       const client = doc.toJSON()
-      const phone = (client.phone ?? '').replace(/\D/g, '')
-      if (
-        client.name.toLowerCase().includes(term) ||
-        (digits.length > 1 && phone.includes(digits))
-      ) {
+      if (matchesQuery(term, { text: [client.name], phone: [client.phone] })) {
         found.push({
           id: client.id,
           kind: 'Client',
@@ -89,9 +74,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       const order = doc.toJSON()
       const client = clientNames.get(order.client_id) ?? ''
       if (
-        order.summary.toLowerCase().includes(term) ||
-        client.toLowerCase().includes(term) ||
-        (order.reference ?? '').toLowerCase().includes(term)
+        matchesQuery(term, { text: [order.summary, client, order.reference] })
       ) {
         found.push({
           id: order.id,
@@ -105,7 +88,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
     for (const doc of saleDocs) {
       const sale = doc.toJSON()
-      if (sale.item_description.toLowerCase().includes(term)) {
+      if (matchesQuery(term, { text: [sale.item_description] })) {
         found.push({
           id: sale.id,
           kind: 'Sale',
@@ -162,7 +145,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           value={query}
           placeholder="Search orders, clients, sales"
           aria-label="Search orders, clients and sales"
-          onInput={(event) => setQuery((event.target as HTMLInputElement).value)}
+          onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
               onClose()

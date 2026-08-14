@@ -1,27 +1,5 @@
-/**
- * The order list, and the worked example for the redesign.
- *
- * Defaults to open work. A shop's list of everything ever made grows forever
- * and is almost never the question being asked on the shop floor -- "what is
- * outstanding" is.
- *
- * ## The scope lives in the URL, not in local state
- *
- * Today links here four ways -- `?filter=overdue|today|week|out` from a
- * bucket's "See all", and `?due=YYYY-MM-DD` from a day-strip cell. While the
- * scope was `useState('open')` every one of those links silently landed on
- * Open, so a shop tapping "See all 6 overdue" got a different list with no
- * indication anything had been ignored. Reading it from the URL also makes the
- * back button behave: changing a segment is a navigation, so backing out of a
- * filter returns to the previous one.
- *
- * Due-based scopes reuse `todayModel`'s bucketing rather than re-deriving it.
- * Two implementations of "overdue" would drift, and the first symptom would be
- * a card saying 6 opening a list of 5.
- *
- * This is the reference screen for the redesign: one `ORDER_COLUMNS`, one
- * `DataList`, no colour named anywhere. Copy its shape when converting others.
- */
+/* The reference screen for the redesign: one ORDER_COLUMNS, one DataList, no
+   colour named. Scope lives in the URL, so Today's links and back both work. */
 import { useMemo } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import {
@@ -41,8 +19,8 @@ import { dueBucket, formatDate, formatDueDate, today } from '../lib/dates'
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from './orderStage'
 import { cn } from '../lib/cn'
 import { normalizeTone, TONE_SOFT } from '../ui/tones'
+import { OPEN_STAGES } from '../db/schema'
 import {
-  OPEN_STAGES,
   buildBuckets,
   pickupRows,
   rowsDueOn,
@@ -52,11 +30,8 @@ import {
 /** Scopes the tab row offers. */
 type Segment = 'open' | 'overdue' | 'ready' | 'owing' | 'all'
 
-/**
- * Scopes only reachable by link, from Today. They are not segments: eight
- * tabs, each carrying a count, would not fit a phone width. They render as a
- * context bar with a way back to the segments instead.
- */
+/* Scopes reachable only by link from Today. Eight counted tabs would not fit a
+   phone, so these render as a context bar with a way back. */
 type LinkedScope = 'today' | 'week' | 'out'
 
 type Scope = Segment | LinkedScope | { due: string }
@@ -95,10 +70,8 @@ function isSegment(scope: Scope): scope is Segment {
   return typeof scope === 'string' && (SEGMENT_VALUES as readonly string[]).includes(scope)
 }
 
-/**
- * Late, and still someone's problem. A return row is overdue on its own date
- * even though the order has already been picked up.
- */
+/* Late, and still someone's problem. A return row is overdue on its own date
+   even though the order has been picked up. */
 function isOverdue(row: DueRow): boolean {
   const stillDue =
     row.kind === 'return' ||
@@ -211,8 +184,7 @@ export function Orders() {
   )
 
   // Shared by the list and the tab counts, computed once: two derivations of
-  // "overdue" would drift, and the first symptom would be a tab saying 6
-  // opening a list of 5.
+  // "overdue" drift, and the symptom is a tab saying 6 opening a list of 5.
   const all = useMemo(() => pickupRows(orders, clientNames, balances), [orders, clientNames, balances])
   const buckets = useMemo(
     () => buildBuckets(orders, clientNames, balances, now),

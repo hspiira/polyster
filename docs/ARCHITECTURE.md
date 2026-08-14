@@ -190,6 +190,45 @@ Four things follow from it that are easy to mistake for bugs:
 Muted text is stone-500, not stone-400. stone-400 on the stone-100 page is roughly 2.3:1, which fails AA, and this app is documented as used outdoors in direct sun. Quiet stops short of unreadable.
 
 
+## 9b. PIN hashing parameters
+
+Moved here from `src/lib/pin.ts`, which now carries a two-line header per the
+comment rule in `docs/DESIGN_SYSTEM.md`.
+
+**What the hash protects.** The PIN is attribution, not a security boundary
+(D4): anyone holding the unlocked device can act as any staff member whose PIN
+they know, and that is accepted. The hash protects something narrower and real —
+`staff.pin_hash` replicates to every device and sits in a Postgres row, so
+anyone reaching that row must not walk away with the PINs themselves, because
+people reuse the same digits on phone locks and mobile money.
+
+**Why a slow KDF for six digits.** A six-digit PIN is a million candidates,
+exhausted against plain SHA-256 in well under a second. A slow KDF does not
+enlarge the keyspace but gives the break a cost, and costs the shop nothing: the
+PIN is verified once when a staff member picks their name, not per action.
+PBKDF2-HMAC-SHA256 via WebCrypto, because it is the only password KDF the
+platform offers natively — Argon2id or scrypt would be better and both mean
+shipping WASM to a low-bandwidth device.
+
+**Iteration count: 210,000.** OWASP's guidance for PBKDF2-HMAC-SHA256 is, to the
+best of my knowledge, 600,000 iterations — **this figure has not been verified
+against OWASP's cheat sheet and should be treated as the number to check, not a
+citation.** That guidance is calibrated for server-side verification on server
+hardware. Measured on the development machine (Node 22, x64 desktop): 210,000
+takes approximately 190ms, 600,000 approximately 490ms. A low-end Android is
+commonly several times slower, which puts 210,000 somewhere around half a second
+to a second and a half on target hardware.
+
+**That extrapolation is not a measurement.** Time it on the lowest-end Android
+the shop actually uses, target roughly 250ms there, and raise the count if there
+is headroom. Raising it later does not invalidate existing PINs: the count lives
+inside every hash string, `verifyPin` reads parameters from the stored hash, and
+`needsRehash` reports which records are behind.
+
+**Format.** `pbkdf2$sha256$<iterations>$<salt-b64>$<hash-b64>` — self-describing,
+so a future change is a migration of records rather than a flag day.
+
+
 ## 10. Corrections folded in at build time
 
 Recorded so the earlier documents can still be read without being misleading.

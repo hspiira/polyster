@@ -1,12 +1,9 @@
-/**
- * The day's work as one list: sections are labels inside one surface, not four
- * cards. Counts live in the hero sentence above, so the labels do not repeat
- * them.
- */
+/* The day's work as one list: sections are labels inside one surface, not four
+   cards. Counts live in the hero above, so labels do not repeat them. */
 import { cn } from '../../lib/cn'
 import { formatMinor } from '../../lib/money'
 import { formatDueDate } from '../../lib/dates'
-import { FLUSH_SURFACE_FLAT, MoreLink } from '../../components/ui'
+import { FLUSH_SURFACE_FLAT, MoreLink } from '../../ui'
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from '../orderStage'
 import { normalizeTone, TONE_SOFT, TONE_SOLID } from '../../ui/tones'
 import { capRows } from './todayModel'

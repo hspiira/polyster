@@ -1,13 +1,7 @@
-/**
- * Batch/product/collection profitability and inventory valuation
- * (Phase 11, section 82). Online-only (see src/online/analytics.ts).
- *
- * "Keep calculations transparent": revenue below is counted at each sold
- * garment unit's list price, not a reconciled transaction amount -- the
- * catalogue's own info note says why.
- */
+/* Profitability and inventory valuation (Phase 11, §82), online-only. Revenue is
+   counted at each sold unit's list price, not a reconciled transaction amount. */
 import { useEffect, useState } from 'preact/hooks'
-import { Card, EmptyState, ErrorNote, RowList, Screen, SectionTitle, Skeleton } from '../components/ui'
+import { Card, EmptyState, ErrorNote, RowList, Screen, SectionTitle, Skeleton } from '../ui'
 import { IconChart } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'
@@ -108,7 +102,7 @@ export function AdvancedReports() {
                       {formatMinor(inventory.materialsValueMinor, currency)}
                     </dd>
                   </div>
-                  <div class="flex justify-between gap-4 border-t border-stone-100 pt-1.5 dark:border-stone-800">
+                  <div class="flex justify-between gap-4 border-t border-line pt-1.5">
                     <dt class="text-content-muted">Total</dt>
                     <dd class="font-semibold tabular-nums">
                       {formatMinor(inventory.totalValueMinor, currency)}
@@ -180,7 +174,7 @@ function ProfitabilitySection<T extends ProfitabilityRow>({
                   <span class="min-w-0 truncate text-sm font-medium">{row.label}</span>
                   <span
                     class={`shrink-0 text-sm font-semibold tabular-nums ${
-                      row.grossProfitMinor < 0 ? 'text-red-700 dark:text-red-400' : ''
+                      row.grossProfitMinor < 0 ? 'text-danger' : ''
                     }`}
                   >
                     {formatMinor(row.grossProfitMinor, currency)}

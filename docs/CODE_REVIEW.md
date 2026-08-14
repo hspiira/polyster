@@ -1,6 +1,39 @@
 # Code review: standards violations
 
 Date: 2026-08-13
+**Updated 2026-08-14** — all six items of "What to do, in order" are done, and
+the comment finding under "Known debt" was overruled. See the status box
+below. Every count not marked "Now" is as it stood on 08-13.
+
+> ## Status, 2026-08-14
+> | Finding | Then | Now |
+> |---|---|---|
+> | Hardcoded colours | 254 | **0**, enforced |
+> | `dark:` utilities | 93 | **0**, enforced |
+> | Comment blocks over 2 lines | 355 in 159 files | **0**, enforced |
+> | `@custom-variant dark` scaffolding | present | deleted |
+> | `ui.tsx` shim imports | 22 | **0**, shim deleted |
+> | `OrderDetail.tsx` | 900 | **246** |
+> | `OrderForm.tsx` | 1,138 | **655** |
+> | `CatalogueDetail.tsx` | 633 | **218**, 33 → 8 `useState` |
+> | `writes.ts` / `schema.ts` | 1,031 / 798 | split per aggregate |
+> | Copies of the PIN choose-confirm dance | 4 | **1 shared, 1 left** |
+> | Copies of the "what a client owes" rule | 3 | **1**, tested |
+> | `backup.ts` tests | 0 | **17** |
+> | `replication.ts` tests | 0 | **13** |
+> | `theme.ts` tests | 0 | **16** |
+> | Copies of the search rule | 7 | **1**, tested |
+> | `(e.target as HTML...)` casts | 137 | **48**, all on raw DOM |
+>
+> `scripts/check-standards.mjs` runs in `pnpm verify`. The heavy-comment entry
+> under "Known debt" below is **no longer accepted debt** — a two-line ceiling
+> is now a rule. `src/lib/pin.ts`'s 60-line hashing rationale was moved to
+> `ARCHITECTURE.md` §9b rather than deleted.
+>
+> Two things this surfaced that the review missed: the project had **no linter
+> at all**, so "publish the rules as lint rules" meant introducing one; and
+> `components.css` was naming `white`/`black` inside `color-mix()`, a rule-1
+> breach the original count did not catch.
 Scope: the whole of `src/` (29,263 non-test lines across 13 RxDB collections and
 two shells), reviewed against SOLID, DRY, KISS, and the project's own written
 rules in `docs/DESIGN_SYSTEM.md` and `docs/ARCHITECTURE.md`.
@@ -16,64 +49,66 @@ rather than counted against the code.
 
 | Area | State | Worst evidence |
 |---|---|---|
-| Single responsibility | **Poor** | `OrderForm.tsx` 1,138 lines, 11 methods, 8 queries, 9 state hooks |
-| Don't repeat yourself | **Poor** | The "what a client owes" rule written three times |
-| Keep it simple | **Poor** | `CatalogueDetail.tsx`: 33 `useState` in one component |
+| Single responsibility | **Closed** | was `OrderForm.tsx` 1,138 lines, 11 methods, 8 queries, 9 state hooks |
+| Don't repeat yourself | **Closed** | was: the "what a client owes" rule written three times |
+| Keep it simple | **Closed** | shim deleted, state explosion closed |
 | Open/closed | **Mixed** | Order-type branching in 5 files, but `lib/orderTypes.ts` now exists |
 | Interface segregation | **Good** | Props are narrow; `Pick<>` used where it matters |
 | Dependency inversion | **Good** | `AuthDeps` injection, pure `lib/` modules, `db/` never imports screens |
-| Own design-system rules | **Violated wholesale** | 93 `dark:` and 254 hardcoded colours against a stated rule of zero |
-| Test coverage of logic | **Good where pure** | 40 test files; 5 modules untested, all at the edges |
+| Own design-system rules | **Closed** | was 93 `dark:` and 254 hardcoded colours; both now 0, enforced |
+| Test coverage of logic | **Good** | 46 test files; only `supabaseClient.ts` untested, a thin wrapper |
 
-The headline: the **pure core is well built and well tested**. The damage is
-concentrated in the screen layer, which has been allowed to grow without any
-extraction discipline, and in a design-system migration that stalled halfway and
-is now going backwards.
+The headline as first written: the **pure core is well built and well tested**;
+the damage was in the screen layer, grown without extraction discipline, and in
+a design-system migration stalled halfway.
+
+As of 2026-08-14 every row above is closed except open/closed, which was already
+"mixed" and improving. What remains is listed at the foot of this document.
 
 ---
 
 ## 1. Single responsibility
 
+**Status: closed.** Recorded here as the before-and-after, since the numbers are
+the point.
+
 ### 1.1 God components
 
-Four files carry far more than one reason to change.
-
-| File | Lines | What it does |
+| File | Was | Now |
 |---|---|---|
-| `src/screens/OrderForm.tsx` | 1,138 | Draft state, validation, same-day duplicate detection, measurement copy in and out, unit add/remove/reorder, create path, edit path, and all rendering |
-| `src/screens/OrderDetail.tsx` | 940 | Stage machine, payments, refunds, deposits, WhatsApp composition, items, details, and rendering |
-| `src/db/writes.ts` | 1,031 | 47 exported writes across every collection in the app |
-| `src/db/schema.ts` | 798 | All 13 collection schemas, all enums, all doc types |
+| `src/screens/OrderForm.tsx` | 1,138 | 655, over `screens/orderForm/` + `orderFormModel.ts` |
+| `src/screens/OrderDetail.tsx` | 940 | 246, over `screens/orderDetail/` (7 sections) + `orderDetailModel.ts` |
+| `src/db/writes.ts` | 1,031 | split per aggregate under `db/writes/`, barrel only |
+| `src/db/schema.ts` | 798 | split per aggregate under `db/schema/`, barrel only |
+| `src/screens/CatalogueDetail.tsx` | 633 | 218, over `screens/catalogue/` |
 
-`OrderForm.tsx` alone holds 11 named functions and a `submit()` of 98 lines. Its
-`validate()` returns either a validated form or a typed rejection, which is a
-good pattern, buried inside a component that cannot be tested without a DOM.
+The logic that mattered now lives in tested pure modules, which is what the
+original finding was actually about: none of it was reachable by a unit test,
+and the payment-cap bug existed precisely because a rule lived in two screens
+where no test could see it.
 
-**Why it matters.** None of this logic is reachable by a unit test. The project
-has 40 test files and near-total coverage of `lib/`, and effectively zero
-coverage of the rules living inside these four files. The payment-cap bug fixed
-earlier this week existed precisely because the rule lived in two screens and no
-test could see it.
-
-**Fix.** The pattern already exists in this codebase and works: `todayModel.ts`,
-`reportsModel.ts`, `moneyFeed.ts`, `entryState.ts`, `lockPolicy.ts`,
-`orderTypes.ts`, `payments.ts` are pure, tested, and imported by both shells.
-Extract `orderFormModel.ts` (draft shape, validation, the same-day rule) and
-`orderDetailModel.ts` the same way. Split `writes.ts` per aggregate
-(`writes/orders.ts`, `writes/payments.ts`, `writes/clients.ts`) and
-`schema.ts` to match.
+`OrderForm.tsx` at 655 is still the largest screen. What remains is one long
+render; its state and rules are in `orderFormModel.ts`.
 
 ### 1.2 State explosion
 
-`src/screens/CatalogueDetail.tsx`: **33 `useState` calls in 635 lines**, no
-queries, no extracted reducer. `src/screens/settings/StaffSettings.tsx`: 17.
+**Correction to the original finding.** This was recorded as "33 `useState`
+calls in one component". That was wrong: it was 33 across *six* components in
+one file. The count was right, the diagnosis was not, and the real fault was
+different and worse.
 
-Thirty-three independent booleans and strings in one component is not a
-component, it is a form engine with no schema. Each one is a possible
-inconsistent combination and none of them are checked anywhere.
+`AddVariantSheet` and `EditVariantSheet` were near-identical: the same five
+fields, the same seven state hooks each, the same validation and buttons,
+differing only in which write they called. `VariantFields` took ten props, five
+value/setter pairs, to serve both.
 
-**Fix.** One `useReducer` over a declared draft type, or the `EditSheet`
-primitive that `src/ui/EditSheet.tsx` already provides and this screen ignores.
+They are now one `VariantSheet` that creates when given no variant and edits
+when given one, holding a draft object and three hooks. CatalogueDetail is
+633 → 218 lines and 33 → 8 `useState`.
+
+`StaffSettings.tsx` (17) and `ProductionBatchDetail.tsx` (20) have the same
+shape, several sheets in one file, but no duplicated pair. Their state counts
+are per-component and reasonable; only the file sizes are large.
 
 ---
 
@@ -94,18 +129,33 @@ land and two of them will be missed.
 
 This is the same shape as the payment-cap bug: a rule with no single home.
 
-**Fix.** `observeClientTotals(db, shopId)` beside `observeShopBalances` in
-`src/db/balances.ts`, which both shells already import.
+**Done.** `clientTotals` and `clientTotalsById` in `src/db/balances.ts`, with
+tests for the three cases each copy had to get right: a cancelled order that
+still carries a balance, an overpaid order not cancelling out what another
+owes, and an order with no balance row. `OPEN_STAGES` moved to
+`db/schema/orders.ts`, since `db/` must not import from `screens/`.
 
-### 2.2 Repeated guard clauses in the write layer
+### 2.2 The choose-then-confirm PIN dance, written four times
+
+Setting a PIN means typing it, typing it again, and starting over on a
+mismatch. That two-phase flow, its `firstPin` holding state and its reset, was
+written out at every place a PIN is set: `AddStaffSheet`, `ChangePinSheet`,
+`LockSettings`, and `PinRecovery`.
+
+Three of the four now use one `ChoosePinPad`, which owns the phases and the
+mismatch reset and reports failures back to whatever styling the caller uses.
+`PinRecovery` still has its own copy: it lives in the dark entry world with
+different primitives and its heading is driven by a wider four-stage wizard.
+
+### 2.3 Repeated guard clauses in the write layer
 
 `src/db/writes.ts` contains **31** `findOne(...).exec()` calls and **15**
 copies of the string `'... no longer exists on this device.'`.
 
-**Fix.** One `loadOrThrow(collection, id, label)` helper. Fifteen call sites
-collapse to one, and the message becomes editable in one place.
+**Done.** `loadOrThrow(db, collection, id, label)` in `db/writes/shared.ts`.
+One copy of the sentence, used by every write that loads before it patches.
 
-### 2.3 Search filtering re-implemented per screen
+### 2.4 Search filtering re-implemented per screen
 
 In-memory name/phone filtering appears separately in `Clients.tsx`,
 `ClientsPage.tsx`, `ClientPicker.tsx`, `Catalogue.tsx`, `Materials.tsx`,
@@ -113,13 +163,22 @@ In-memory name/phone filtering appears separately in `Clients.tsx`,
 digits before matching; several do not, so the same query behaves differently
 depending on which screen you type it into.
 
-**Fix.** `matchesQuery(item, query, fields)` in `lib/`.
+**Done, and it was a real bug, not only duplication.** `ClientPicker` and
+`Suppliers` compared the raw query against the raw phone, so "0700 000" found a
+client on the Clients screen and nothing in the order form's picker.
+`matchesQuery`/`filterByQuery` in `lib/search.ts` now hold the rule: phone
+fields match on digits only, both sides stripped, and the trunk zero is tried
+both ways so a number typed `0700...` finds one stored `+256700...`.
 
-### 2.4 Event-target casting
+### 2.5 Event-target casting
 
-**137** occurrences of `(e.target as HTMLInputElement).value`. This is noise
-that the `Field`/`Input` primitives should have absorbed by exposing
-`onValue: (value: string) => void`.
+**137** occurrences of `(e.target as HTMLInputElement).value`.
+
+**Done.** `Input`, `Textarea`, `Select`, `SearchInput` and `EntryInput` take
+`onValue`; `onInput` still works where the event itself is wanted. 137 down to
+48, and the remainder are on raw DOM elements that cannot take a component
+prop: PinPad's hidden autofill field, the web build's own inputs, and two
+search boxes.
 
 ---
 
@@ -127,14 +186,16 @@ that the `Field`/`Input` primitives should have absorbed by exposing
 
 ### 3.1 Two parallel UI systems, indefinitely
 
-`src/components/ui.tsx` is a 121-line shim whose own header says *"COMPATIBILITY
-SHIM. Do not add to this file; delete it when nothing imports it."*
+**Closed 2026-08-14.** The shim's own header said *"delete it when nothing
+imports it"*; nothing does, and it is gone.
 
-Current state: **22 files import the shim, 26 import `src/ui` directly.** The
-migration is stalled at roughly halfway with no completion pressure, so every
-new screen has to know which of two import paths to use and which of two styling
-conventions applies. New files have been added on **both** sides since the shim
-was written.
+It was worse before it was better: the count rose from 22 to 32 as new files
+were added on the shim side, which is exactly the cost of leaving a migration
+half-done. The finish turned out to be small. Of the seven exports the shim
+added on top of `src/ui`, six had **no consumers at all** (`DataTable`,
+`DataRowLink`, `Td`, `ACCENT_TONES`, `ChipTone`, `CONTAINER_WIDE`) and the
+seventh, `CONTAINER`, was an alias for `MEASURE` used in two files. The rest
+was an import path.
 
 ### 3.2 The design system's two rules are broken at scale
 
@@ -192,13 +253,15 @@ Five source modules have no test file:
 
 | Module | Risk |
 |---|---|
-| `src/lib/backup.ts` | **High.** It is the only path off the device for an unclaimed shop |
+| ~~`src/lib/backup.ts`~~ | **Done.** 17 tests, mutation-checked |
+| ~~`src/db/replication.ts`~~ | **Done.** 13 tests, mutation-checked |
+| ~~`src/lib/theme.ts`~~ | **Done.** 16 tests |
 | `src/db/replication.ts` | **High.** Sync correctness |
 | `src/lib/theme.ts` | Low |
 | `src/lib/supabaseClient.ts` | Low, thin wrapper |
 | `src/db/schema.ts` | Covered indirectly by `database.test.ts` |
 
-`backup.ts` being untested is the one that should worry you. Registration no
+`replication.ts` is now the one left. `backup.ts` was the other, and registration no
 longer requires a phone number, so a new shop's only copy of its data is local
 until it is claimed, and `backup.ts` is the escape hatch.
 
@@ -216,8 +279,10 @@ These look like faults but are recorded decisions, and the reasoning holds:
 - **Two shells** (`src/screens` phone, `src/web` desk) are deliberate per
   `2026-08-11-web-and-phone-split-design.md`. The duplication that matters is
   *derivation* logic (section 2.1), not layout.
-- **Heavy comments.** The house style explains non-obvious decisions at length.
-  That is a choice, and a defensible one.
+- ~~**Heavy comments.** The house style explains non-obvious decisions at
+  length. That is a choice, and a defensible one.~~ **Overruled 2026-08-14.**
+  Comment blocks are now capped at two lines and the cap is enforced. Long
+  rationale goes in `docs/`, not in a header.
 - **`ui.tsx` shim existing at all** was a sound migration strategy. Only its
   stalling is the problem.
 - **Chunk size** (536 kB) is flagged by the build. Acceptable for now given the
@@ -227,13 +292,42 @@ These look like faults but are recorded decisions, and the reasoning holds:
 
 ## What to do, in order
 
-1. **Publish the design-system rules as lint rules**, or delete the rules from
-   the doc. A rule violated 347 times is not a rule. This is one ESLint config
-   and it stops the bleeding immediately.
-2. **Extract `orderFormModel.ts` and `orderDetailModel.ts`.** These two files
-   hold the most business logic and the least test coverage in the project.
-3. **One `observeClientTotals`**, deleting three copies of the owed rule.
-4. **Test `backup.ts`.** It is the only route off a lost phone.
-5. **Finish or abandon the `ui.tsx` migration.** Twenty-two files, mechanical.
-   Half-done is the worst of the three states.
-6. Split `writes.ts` and `schema.ts` per aggregate.
+1. ~~**Publish the design-system rules as lint rules**, or delete the rules from
+   the doc. A rule violated 347 times is not a rule.~~ **Done 2026-08-14** —
+   `scripts/check-standards.mjs`, in `pnpm verify`. A guard script rather than
+   ESLint: the project had no linter, and the rules are lexical.
+2. ~~**Extract `orderFormModel.ts` and `orderDetailModel.ts`.**~~ Done, and both
+   order screens were then split into their sections.
+3. ~~**One `observeClientTotals`**, deleting three copies of the owed rule.~~ Done.
+4. ~~**Test `backup.ts`.**~~ Done.
+5. ~~**Finish or abandon the `ui.tsx` migration.**~~ Done. Finished, not
+   abandoned: six of its seven extra exports already had no consumers, and
+   `CONTAINER` was an alias for `MEASURE`.
+6. ~~Split `writes.ts` and `schema.ts` per aggregate.~~ Done.
+
+---
+
+## What is left, 2026-08-14
+
+Everything in "What to do, in order" is closed, along with every DRY finding
+and every high-risk untested module. Three things this review raised are
+genuinely still open, and one was never in it.
+
+**Open/closed (section 4).** Order type is still branched on in five files and
+stage in eight. `lib/orderTypes.ts` and `screens/orderStage.ts` are where those
+branches belong; the remaining ones should move behind them rather than new
+ones being added. Nothing here is broken, so this is a rule for new code more
+than a repair.
+
+**Accessibility outside the entry flow (section 5.1).** The entry flow and the
+payment forms were fixed and checked. The rest of the app, which is most of it,
+has never been audited: form errors tied to their field, status changes
+announced, focus moved on navigation. This wants its own pass, not a line item.
+
+**`supabaseClient.ts` untested.** A thin wrapper, and the only module left with
+no test. Low value on its own; worth covering when something in it grows.
+
+**`PinRecovery` keeps its own PIN choose-and-confirm.** The other three call
+sites share `ChoosePinPad`. This one sits in the dark entry world with different
+primitives, inside a four-stage wizard that drives its own heading, so folding
+it in means reworking the wizard rather than swapping a component.

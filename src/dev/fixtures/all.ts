@@ -16,11 +16,8 @@ export interface SeededTenants {
   edgeCases: ShopDoc
 }
 
-/**
- * Refuses to run against a configured Supabase because replication is
- * bidirectional (`push: {}` in db/replication.ts): the fixtures would be
- * copied upstream as a second set of tenants alongside supabase/seed.sql.
- */
+/* Refuses to run against a configured Supabase: replication is bidirectional,
+   so the fixtures would be copied upstream as a second set of tenants. */
 export async function seedAll(
   db: AppDatabase,
   options: SeedAllOptions = {},

@@ -1,18 +1,5 @@
-/**
- * Supabase client. Used by three things: replication (../db/replication.ts),
- * shop-level auth (ARCHITECTURE.md section 4), and the online-only modules
- * under ../online/ (features added after RxDB's free-tier collection limit
- * was reached -- see docs/POLYSTER.md's Phase 2 status notes. Those modules
- * query Supabase directly and do not work offline; everything else still
- * goes through RxDB, see ../db/database.ts).
- *
- * The client is created lazily rather than at module load. `createClient()`
- * throws `supabaseUrl is required.` on an empty string, so constructing it
- * eagerly would mean a clone without a `.env` file crashes on import -- the
- * opposite of the offline-first behaviour this app promises. Callers check
- * `isSupabaseConfigured()` first; the app runs local-only when it returns
- * false.
- */
+/* Supabase client, built lazily: `createClient('')` throws, so constructing it
+   eagerly makes a clone with no .env crash on import. */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -24,14 +11,8 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(supabaseUrl && supabaseAnonKey)
 }
 
-/**
- * The shared Supabase client.
- *
- * @throws if the environment variables are missing. Guard with
- * `isSupabaseConfigured()` -- this deliberately throws rather than returning a
- * half-built client, because a client pointed at nothing fails later, further
- * from the cause.
- */
+/* Throws if the env vars are missing -- guard with `isSupabaseConfigured()`. A
+   half-built client pointed at nothing would fail later, further from the cause. */
 export function getSupabase(): SupabaseClient {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(

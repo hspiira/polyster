@@ -16,15 +16,8 @@ import {
 } from './_fixture_helpers'
 import { seedVolume, type VolumeCatalogue } from './volume'
 
-/**
- * Full NORTH//FOUND local/offline fixture.
- *
- * Only data belonging to the current RxDB/offline model is created here.
- * Online-only domains (catalogue, suppliers, inventory, production,
- * collections, garment identity/passport) are seeded by supabase/seed.sql.
- *
- * Default test PIN for all seeded staff: 123456
- */
+/* Full NORTH//FOUND offline fixture; online-only domains come from seed.sql.
+   Default test PIN for all seeded staff: 123456 */
 const NORTHFOUND_CATALOGUE: VolumeCatalogue = {
   garments: [
     { item: 'FOUND 01 Overshirt', price: 245000, type: 'tailor_made' },

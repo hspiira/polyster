@@ -1,6 +1,4 @@
-/**
- * Materials. Online-only (see src/online/materials.ts).
- */
+/* Materials. Online-only (see src/online/materials.ts). */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import {
   Button,
@@ -17,7 +15,7 @@ import {
   Select,
   Sheet,
   Skeleton,
-} from '../components/ui'
+} from '../ui'
 import { IconChevronRight, IconPlus, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'
@@ -35,6 +33,7 @@ import {
 import { listSuppliers, type Supplier } from '../online/suppliers'
 import { findInventoryItem, listInventoryItems } from '../online/inventory'
 import { useBack } from '../hooks/useBack'
+import { filterByQuery } from '../lib/search'
 
 const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
   fabric: 'Fabric',
@@ -101,9 +100,7 @@ export function Materials() {
 
   const matches = useMemo(() => {
     if (!materials) return []
-    const term = search.trim().toLowerCase()
-    if (!term) return materials
-    return materials.filter((m) => m.name.toLowerCase().includes(term))
+    return filterByQuery(materials, search, (m) => ({ text: [m.name] }))
   }, [materials, search])
 
   if (!online) {
@@ -144,7 +141,7 @@ export function Materials() {
             <SearchInput
               placeholder="Search by name"
               value={search}
-              onInput={(e) => setSearch((e.target as HTMLInputElement).value)}
+              onValue={setSearch}
             />
           )}
 
@@ -299,7 +296,7 @@ function MaterialSheet({
     <Sheet open={open} title={material ? 'Edit material' : 'New material'} onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} autofocus onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          <Input value={name} autofocus onValue={setName} />
         </Field>
 
         <Field label="Type">
@@ -316,7 +313,7 @@ function MaterialSheet({
         </Field>
 
         <Field label="Supplier" hint="Optional.">
-          <Select value={supplierId} onChange={(e) => setSupplierId((e.target as HTMLSelectElement).value)}>
+          <Select value={supplierId} onValue={setSupplierId}>
             <option value="">No supplier</option>
             {suppliers.map((supplier) => (
               <option key={supplier.id} value={supplier.id}>
@@ -329,7 +326,7 @@ function MaterialSheet({
         <div class="flex gap-3">
           <div class="flex-1">
             <Field label="Unit" hint="e.g. metres, pieces.">
-              <Input value={unit} onInput={(e) => setUnit((e.target as HTMLInputElement).value)} />
+              <Input value={unit} onValue={setUnit} />
             </Field>
           </div>
           <div class="flex-1">
@@ -342,7 +339,7 @@ function MaterialSheet({
                 inputmode="decimal"
                 value={material ? (liveQuantity ?? '...') : quantity}
                 disabled={Boolean(material)}
-                onInput={(e) => setQuantity((e.target as HTMLInputElement).value)}
+                onValue={setQuantity}
               />
             </Field>
           </div>
@@ -355,7 +352,7 @@ function MaterialSheet({
                 type="number"
                 inputmode="decimal"
                 value={reorderLevel}
-                onInput={(e) => setReorderLevel((e.target as HTMLInputElement).value)}
+                onValue={setReorderLevel}
               />
             </Field>
           </div>
@@ -365,7 +362,7 @@ function MaterialSheet({
                 type="number"
                 inputmode="numeric"
                 value={unitCost}
-                onInput={(e) => setUnitCost((e.target as HTMLInputElement).value)}
+                onValue={setUnitCost}
               />
             </Field>
           </div>
@@ -375,7 +372,7 @@ function MaterialSheet({
           <div class="space-y-4 rounded-control bg-surface-sunken p-3">
             <p class="text-xs font-medium text-content-muted">Fabric details (optional)</p>
             <Field label="Composition" hint='e.g. "100% Cotton".'>
-              <Input value={composition} onInput={(e) => setComposition((e.target as HTMLInputElement).value)} />
+              <Input value={composition} onValue={setComposition} />
             </Field>
             <div class="flex gap-3">
               <div class="flex-1">
@@ -384,25 +381,25 @@ function MaterialSheet({
                     type="number"
                     inputmode="numeric"
                     value={gsm}
-                    onInput={(e) => setGsm((e.target as HTMLInputElement).value)}
+                    onValue={setGsm}
                   />
                 </Field>
               </div>
               <div class="flex-1">
                 <Field label="Width">
-                  <Input value={width} onInput={(e) => setWidth((e.target as HTMLInputElement).value)} />
+                  <Input value={width} onValue={setWidth} />
                 </Field>
               </div>
             </div>
             <div class="flex gap-3">
               <div class="flex-1">
                 <Field label="Colour">
-                  <Input value={colour} onInput={(e) => setColour((e.target as HTMLInputElement).value)} />
+                  <Input value={colour} onValue={setColour} />
                 </Field>
               </div>
               <div class="flex-1">
                 <Field label="Pattern">
-                  <Input value={pattern} onInput={(e) => setPattern((e.target as HTMLInputElement).value)} />
+                  <Input value={pattern} onValue={setPattern} />
                 </Field>
               </div>
             </div>

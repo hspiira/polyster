@@ -1,10 +1,5 @@
-/**
- * Drifting glow behind the entry screens. Parent needs `relative overflow-hidden`.
- *
- * Deliberately dim: these screens should read as black with a blue cast, not
- * as blue screens. Anything stronger tints the glass surfaces on top of it and
- * they stop looking like glass.
- */
+/* Drifting glow behind the entry screens; parent needs relative overflow-hidden.
+   Dim on purpose -- anything stronger tints the glass and it stops reading as glass. */
 export function GlowBackdrop() {
   return (
     <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">

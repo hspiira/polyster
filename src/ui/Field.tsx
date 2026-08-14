@@ -1,11 +1,5 @@
-/**
- * Form controls.
- *
- * `text-base` (16px) is load-bearing, not taste: below it iOS zooms the
- * viewport on focus and does not zoom back out.
- *
- * Focus is drawn once in index.css. Do not restyle it here.
- */
+/* Form controls. `text-base` is load-bearing: below 16px iOS zooms on focus and
+   does not zoom back. Focus is drawn once in index.css. */
 import type { ComponentChildren, JSX } from 'preact'
 import { IconSearch } from '../components/icons'
 import { cn } from '../lib/cn'
@@ -15,25 +9,84 @@ const CONTROL = cn(
   'outline-none transition-colors placeholder:text-content-subtle',
 )
 
-export function Input({ class: className, ...props }: JSX.IntrinsicElements['input']) {
-  return <input {...props} class={cn('min-h-tap', CONTROL, className)} />
+/* `onValue` exists so screens stop writing (e.target as HTMLInputElement).value
+   at every field. `onInput` still works where the event itself is wanted. */
+type ValueProps = { onValue?: (value: string) => void }
+
+function valueHandler<E extends { target: EventTarget | null }>(
+  onValue: ((value: string) => void) | undefined,
+  onInput: ((event: E) => void) | undefined,
+) {
+  if (!onValue) return onInput
+  return (event: E) => {
+    onValue((event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value)
+    onInput?.(event)
+  }
 }
 
-export function Textarea({ class: className, ...props }: JSX.IntrinsicElements['textarea']) {
-  return <textarea {...props} rows={3} class={cn(CONTROL, 'py-2.5', className)} />
+export function Input({
+  class: className,
+  onValue,
+  onInput,
+  ...props
+}: JSX.IntrinsicElements['input'] & ValueProps) {
+  return (
+    <input
+      {...props}
+      onInput={valueHandler(onValue, onInput)}
+      class={cn('min-h-tap', CONTROL, className)}
+    />
+  )
 }
 
-export function Select({ class: className, ...props }: JSX.IntrinsicElements['select']) {
-  return <select {...props} class={cn('min-h-tap', CONTROL, 'pr-8', className)} />
+export function Textarea({
+  class: className,
+  onValue,
+  onInput,
+  ...props
+}: JSX.IntrinsicElements['textarea'] & ValueProps) {
+  return (
+    <textarea
+      {...props}
+      onInput={valueHandler(onValue, onInput)}
+      rows={3}
+      class={cn(CONTROL, 'py-2.5', className)}
+    />
+  )
 }
 
-export function SearchInput({ class: className, ...props }: JSX.IntrinsicElements['input']) {
+export function Select({
+  class: className,
+  onValue,
+  onChange,
+  ...props
+}: JSX.IntrinsicElements['select'] & ValueProps) {
+  return (
+    <select
+      {...props}
+      onChange={valueHandler(onValue, onChange)}
+      class={cn('min-h-tap', CONTROL, 'pr-8', className)}
+    />
+  )
+}
+
+export function SearchInput({
+  class: className,
+  onValue,
+  onInput,
+  ...props
+}: JSX.IntrinsicElements['input'] & ValueProps) {
   return (
     <div class="relative">
       <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-content-subtle">
         <IconSearch size={18} />
       </span>
-      <input {...props} type="search" class={cn('min-h-tap', CONTROL, 'pl-10', className)} />
+      <input
+        {...props}
+        onInput={valueHandler(onValue, onInput)}
+        type="search"
+        class={cn('min-h-tap', CONTROL, 'pl-10', className)}
+      />
     </div>
   )
 }
@@ -64,17 +117,8 @@ export function Field({
   )
 }
 
-/**
- * On/off for a single setting.
- *
- * A `Segmented` with On and Off in it was doing this job, which reads as two
- * choices to compare rather than one thing that is either on or not -- and cost
- * two tap targets and a row of chrome per setting. Seventeen of them stacked is
- * what made the modules screen unreadable.
- *
- * The knob is `bg-surface` in both states so it never has to be told which
- * theme it is in; the track carries the state.
- */
+/* On/off for one setting. A Segmented reads as two choices to compare and costs
+   two tap targets. The knob is bg-surface in both states; the track carries it. */
 export function Switch({
   checked,
   onChange,
@@ -116,11 +160,8 @@ export function Switch({
   )
 }
 
-/**
- * Segmented control for a small, fixed set of filters. Use a `<select>` above
- * about five options, where the segments get too narrow to hit.
- */
-/** Wraps rather than scrolls: a hidden option is an option nobody picks. */
+/* Segmented control for a small fixed set of filters; a <select> above about
+   five. Wraps rather than scrolls -- a hidden option is one nobody picks. */
 export function Segmented<T extends string>({
   value,
   options,

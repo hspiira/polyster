@@ -1,15 +1,5 @@
-/**
- * Where a pushed screen's back chevron points.
- *
- * `Screen`'s back has to be a real href -- the edge-swipe gesture and a cold
- * deep link both need one -- so this reconstructs what history.back() would
- * have done: the last place you actually were. Failing that (a deep link, a
- * cold start), the route's owner in the IA.
- *
- * A screen therefore never has to name a parent, which is what made Sales send
- * you to Settings from the Money tab: two hubs link to it and only one was
- * written down.
- */
+/* Where a pushed screen's back chevron points. Back must be a real href for the
+   edge swipe, so this reconstructs the last place you were, or the IA owner. */
 const MAX_VISITS = 12
 
 const visits: string[] = []
@@ -29,10 +19,8 @@ const OWNERS: Record<string, string> = {
   '/garment-units': '/settings',
 }
 
-/**
- * A task, not a destination: it has its own Cancel, and leaving it discards a
- * draft. Never a place to send someone back to.
- */
+/* A task, not a destination: it has its own Cancel and leaving discards a
+   draft. Never a place to send someone back to. */
 export function isFullScreenTask(path: string): boolean {
   return path === '/orders/new' || path === '/sales/new' || /^\/orders\/[^/]+\/edit$/.test(path)
 }

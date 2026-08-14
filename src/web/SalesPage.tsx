@@ -1,11 +1,5 @@
-/**
- * Sales, at a desk: the counter's day as a ledger.
- *
- * The phone's list answers "did I record that shirt". This answers "what did we
- * sell", which is a different question and wants a total, a period, and what
- * sold grouped by item -- all of which `itemsSold` and `saleTotalMinor` already
- * compute for Reports.
- */
+/* The counter's day as a ledger. The phone answers "did I record that shirt";
+   this answers "what did we sell", which wants a total and a period. */
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
@@ -157,11 +151,8 @@ export function SalesPage() {
   )
 }
 
-/**
- * Grouped by item, best-selling first. Its own pane rather than a second table:
- * "what sells" is a standing question, and it belongs beside the ledger rather
- * than under it where it would be scrolled past.
- */
+/* Grouped by item, best first. Its own pane rather than a second table: "what
+   sells" is a standing question and belongs beside the ledger, not under it. */
 function WhatSold({ items, currency }: { items: readonly SoldItem[]; currency: string }) {
   return (
     <aside class={cn('side-pane flex flex-col overflow-hidden bg-surface', RADIUS)}>

@@ -1,13 +1,5 @@
-/**
- * The measurement field editor (Phase 1 step 3).
- *
- * This is the screen that lets one app serve a suit tailor and a dressmaker
- * without a fork: each shop declares the measurements it takes, and the client
- * measurement form is rendered from that list.
- *
- * Built before Clients on purpose -- the measurement form has nothing to
- * render until a shop has configured something here.
- */
+/* Each shop declares the measurements it takes, and the client form renders from
+   that list. This is what serves a tailor and a dressmaker without a fork. */
 import { useMemo, useState } from 'preact/hooks'
 import {
   Button,
@@ -39,11 +31,8 @@ const FIELD_TYPE_LABELS: Record<MeasurementFieldType, string> = {
   text: 'Text',
 }
 
-/**
- * Offered on an empty list so a shop is not staring at a blank screen trying
- * to remember what a measurement list looks like. Starting points, not
- * defaults -- nothing is created without a tap.
- */
+/* Offered on an empty list, so nobody stares at a blank screen. Starting
+   points, not defaults: nothing is created without a tap. */
 const SUGGESTIONS = [
   { label: 'Chest', unit: 'in' },
   { label: 'Waist', unit: 'in' },
@@ -261,7 +250,7 @@ export function MeasurementFieldSettings() {
                   value={label}
                   autofocus
                   placeholder="Chest"
-                  onInput={(e) => setLabel((e.target as HTMLInputElement).value)}
+                  onValue={setLabel}
                 />
               </Field>
             </div>
@@ -270,7 +259,7 @@ export function MeasurementFieldSettings() {
                 <Input
                   value={unit}
                   placeholder="in"
-                  onInput={(e) => setUnit((e.target as HTMLInputElement).value)}
+                  onValue={setUnit}
                 />
               </Field>
             </div>
@@ -292,7 +281,7 @@ export function MeasurementFieldSettings() {
             <Input
               value={group}
               placeholder="Optional"
-              onInput={(e) => setGroup((e.target as HTMLInputElement).value)}
+              onValue={setGroup}
             />
           </Field>
 

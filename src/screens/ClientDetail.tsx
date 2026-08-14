@@ -1,14 +1,5 @@
-/**
- * One client: who they are on the left, everything about them on the right.
- *
- * The measurement form is rendered from `measurement_fields`, which each shop
- * configures for itself. That indirection is what makes one app fit a suit
- * tailor and a dressmaker without a fork -- pwa-schema-and-screens.md s1.
- *
- * The profile is a sticky rail rather than a card at the top because contact
- * details are what you check *while* reading something else -- stacked, they
- * scroll away exactly when wanted.
- */
+/* The measurement form renders from each shop's own `measurement_fields`, which
+   is what fits one app to a suit tailor and a dressmaker without a fork. */
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import {
@@ -36,7 +27,7 @@ import {
 } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { clientTotals, observeShopBalances } from '../db/balances'
 import { saveMeasurements, updateClient } from '../db/writes'
 import { formatMinor } from '../lib/money'
 import { formatDueDate } from '../lib/dates'
@@ -68,12 +59,7 @@ export function ClientDetail() {
   const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const outstandingMinor = useMemo(
-    () =>
-      orders.reduce((sum, order) => {
-        if (order.stage === 'cancelled') return sum
-        const balance = balances.get(order.id)
-        return balance && balance.balance_minor > 0 ? sum + balance.balance_minor : sum
-      }, 0),
+    () => clientTotals(orders, balances).owedMinor,
     [orders, balances],
   )
 
@@ -373,9 +359,8 @@ function Measurements({ clientId }: { clientId: string }) {
     [retiredFields, stored],
   )
 
-  // Keep in step with what replication brings in, but never clobber
-  // half-typed input: a measurement arriving from the other device mid-entry
-  // must not wipe what is being typed here.
+  // Keep in step with replication without clobbering half-typed input: a
+  // measurement arriving mid-entry must not wipe what is being typed.
   useEffect(() => {
     if (dirty) return
     const next: Record<string, string> = {}
@@ -436,9 +421,9 @@ function Measurements({ clientId }: { clientId: string }) {
                   inputmode="decimal"
                   placeholder="—"
                   value={draft[field.id] ?? ''}
-                  onInput={(e) => {
+                  onValue={(value) => {
                     setDirty(true)
-                    setDraft({ ...draft, [field.id]: (e.target as HTMLInputElement).value })
+                    setDraft({ ...draft, [field.id]: value })
                   }}
                 />
               </Field>

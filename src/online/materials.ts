@@ -1,13 +1,5 @@
-/**
- * Materials. Online-only, see catalogue.ts's header comment for why.
- *
- * quantity_on_hand is a starting balance, set once at creation and never
- * updated after that (see updateMaterial) -- from Phase 4 onward, actual
- * stock changes go through the inventory ledger (src/online/inventory.ts),
- * matching the section 28 invariant that a quantity never changes without a
- * recorded movement. createMaterial seeds the ledger with that starting
- * balance so the two numbers start in agreement.
- */
+/* Materials, online-only. quantity_on_hand is a starting balance set once: real
+   changes go through the inventory ledger, per the §28 invariant. */
 import { getSupabase } from '../lib/supabaseClient'
 import { friendlyError } from './friendlyError'
 import { getOrCreateInventoryItem, recordMovement } from './inventory'

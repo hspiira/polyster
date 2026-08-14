@@ -1,11 +1,5 @@
-/**
- * The application bar: identity on the left, search in the middle, the account
- * on the right.
- *
- * Spans the full width above both the sidebar and the work area, because the
- * things in it are global -- which shop, search everything, who am I. A bar
- * that started after the sidebar would imply search searched the page.
- */
+/* Identity, search, account. Spans the full width above the sidebar because
+   everything in it is global -- a bar starting after it would imply page scope. */
 import { useShop } from '../state/ShopProvider'
 import { getInitials } from '../ui'
 import { UserMenu } from './UserMenu'

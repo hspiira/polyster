@@ -1,11 +1,5 @@
-/**
- * Customer lifetime value (Phase 11, section 82). Cash accounting, same
- * principle as profit.ts and for the same reason: a client who has 500,000
- * of unpaid orders on the books has not given this shop 500,000 of value
- * yet, and a figure that says otherwise is worse than none. Counts payments
- * actually received against their orders, plus sales recorded against them
- * directly -- never an order's face value.
- */
+/* Customer lifetime value (§82). Cash accounting, like profit.ts: unpaid orders
+   are not value received, so this counts payments, never face value. */
 import { signedAmountMinor } from './balances'
 import { saleTotalMinor } from './profit'
 import type { ClientDoc, OrderDoc, PaymentDoc, SaleDoc } from './schema'

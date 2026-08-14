@@ -1,10 +1,5 @@
-/**
- * The period switch the three money pages share.
- *
- * One component so Sales, Expenses and Reports cannot disagree about what
- * "30 days" means -- a shop comparing the three would find the discrepancy
- * before we did.
- */
+/* One component, so Sales, Expenses and Reports cannot disagree about what
+   "30 days" means. */
 import { cn } from '../lib/cn'
 import { CONTROL_SM, RADIUS, TEXT_SM } from './chrome'
 

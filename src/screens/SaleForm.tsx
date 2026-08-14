@@ -1,9 +1,5 @@
-/**
- * Record a sale: money taken over the counter, now.
- *
- * Item first, client last and optional -- a walk-in is not a client record.
- * Anything part-paid or collected later is an order, not a sale.
- */
+/* Money taken over the counter, now. Item first, client last and optional --
+   anything part-paid or collected later is an order, not a sale. */
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import {
@@ -17,7 +13,7 @@ import {
   Segmented,
   Select,
   Textarea,
-} from '../components/ui'
+} from '../ui'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { recordSale } from '../db/writes'
@@ -101,7 +97,7 @@ export function SaleForm() {
                 autofocus
                 value={item}
                 placeholder="Kitenge shirt"
-                onInput={(e) => setItem((e.target as HTMLInputElement).value)}
+                onValue={setItem}
               />
             </Field>
 
@@ -123,14 +119,14 @@ export function SaleForm() {
                     inputmode="decimal"
                     value={price}
                     placeholder="0"
-                    onInput={(e) => setPrice((e.target as HTMLInputElement).value)}
+                    onValue={setPrice}
                   />
                 </Field>
               </div>
             </div>
 
             {totalMinor !== null && count > 1 && (
-              <p class="text-sm text-stone-600 dark:text-stone-300">
+              <p class="text-sm text-content-muted">
                 Total{' '}
                 <span class="font-semibold tabular-nums">
                   {formatMinor(totalMinor, shop.currency)}
@@ -160,7 +156,7 @@ export function SaleForm() {
             >
               <Select
                 value={clientId}
-                onChange={(e) => setClientId((e.target as HTMLSelectElement).value)}
+                onValue={setClientId}
               >
                 <option value="">No client — walk-in</option>
                 {clients.map((client) => (
@@ -174,7 +170,7 @@ export function SaleForm() {
             <Field label="Notes (optional)">
               <Textarea
                 value={notes}
-                onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)}
+                onValue={setNotes}
               />
             </Field>
           </div>

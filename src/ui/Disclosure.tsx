@@ -3,10 +3,8 @@ import { useEffect, useState } from 'preact/hooks'
 import { IconChevronRight } from '../components/icons'
 import { cn } from '../lib/cn'
 
-/**
- * An optional group of fields, closed until asked for. `forceOpen` exists so a
- * validation error inside cannot hide from the person trying to fix it.
- */
+/* An optional group of fields, closed until asked for. `forceOpen` stops a
+   validation error hiding from the person trying to fix it. */
 export function Disclosure({
   label,
   summary,

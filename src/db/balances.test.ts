@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { calculateBalance, signedAmountMinor } from './balances'
+import {
+  calculateBalance,
+  clientTotals,
+  clientTotalsById,
+  noClientTotals,
+  signedAmountMinor,
+} from './balances'
 import type { OrderDoc } from './schema'
 
 const order = { id: 'order-1', price_total_minor: 250000 }
@@ -15,9 +21,8 @@ describe('signedAmountMinor', () => {
     expect(signedAmountMinor({ amount_minor: 5000, kind: 'refund' })).toBe(-5000)
   })
 
-  // The Reports screen aggregates "collected" separately from calculateBalance.
-  // Both go through here so they cannot drift from each other, or from the
-  // order_balances view's matching `case when pm.kind = 'refund'` arm.
+  // Reports aggregates "collected" separately, but through here, so it cannot
+  // drift from calculateBalance or the view's `case when pm.kind = 'refund'`.
   it('is what every money-in total is summed through', () => {
     const rows = [
       { amount_minor: 100000, kind: 'payment' as const },
@@ -96,11 +101,8 @@ describe('calculateBalance', () => {
   })
 
   it('ignores rental_deposit_minor even when the order object carries one', () => {
-    // The signature does not accept rental_deposit_minor at all -- Pick<> only
-    // admits 'id' and 'price_total_minor'. A type assertion smuggles a
-    // non-zero deposit past that so the deposit is present in the input and
-    // provably ignored, rather than merely absent (a fixture that never sets
-    // the field would pass just as well if this invariant were violated).
+    // Pick<> admits only id and price_total_minor, so an assertion smuggles a
+    // deposit in: present and provably ignored, rather than merely absent.
     const orderWithDeposit = {
       id: 'o1',
       price_total_minor: 100000,
@@ -118,11 +120,8 @@ describe('calculateBalance', () => {
   })
 
   it('reports a larger balance when refunds exceed everything paid', () => {
-    // Not a workflow the shop should ever reach on purpose -- a refund larger
-    // than what was collected -- but calculateBalance is a pure, unclamped
-    // sum. Same convention as the overpayment case above (report the real
-    // number, do not clamp), just the mirror direction: net money-in goes
-    // negative, so the balance owed grows past the order's own total.
+    // A refund larger than what was collected. Same convention as overpayment
+    // above -- report the real number -- so the balance grows past the total.
     const result = calculateBalance({ id: 'o1', price_total_minor: 100000 }, [
       { amount_minor: 50000, kind: 'payment' },
       { amount_minor: 80000, kind: 'refund' },
@@ -130,5 +129,102 @@ describe('calculateBalance', () => {
     expect(result.amount_paid_minor).toBe(-30000)
     expect(result.balance_minor).toBe(130000)
     expect(result.fully_paid).toBe(false)
+  })
+})
+
+describe('clientTotals', () => {
+  const balances = new Map([
+    ['a', { order_id: 'a', price_total_minor: 100, amount_paid_minor: 40, balance_minor: 60, fully_paid: false }],
+    ['b', { order_id: 'b', price_total_minor: 100, amount_paid_minor: 100, balance_minor: 0, fully_paid: true }],
+    ['c', { order_id: 'c', price_total_minor: 100, amount_paid_minor: 0, balance_minor: 100, fully_paid: false }],
+    ['d', { order_id: 'd', price_total_minor: 100, amount_paid_minor: 130, balance_minor: -30, fully_paid: true }],
+  ])
+
+  it('sums only what is still owed', () => {
+    const totals = clientTotals(
+      [
+        { id: 'a', stage: 'in_progress' },
+        { id: 'b', stage: 'ready' },
+      ],
+      balances,
+    )
+    expect(totals.owedMinor).toBe(60)
+  })
+
+  // Cancelled work keeps its balance in the data but is never chased.
+  it('ignores a cancelled order even when it still shows a balance', () => {
+    const totals = clientTotals(
+      [
+        { id: 'a', stage: 'in_progress' },
+        { id: 'c', stage: 'cancelled' },
+      ],
+      balances,
+    )
+    expect(totals.owedMinor).toBe(60)
+  })
+
+  // An overpayment on one order must not cancel out what another owes.
+  it('does not let an overpaid order reduce the total', () => {
+    const totals = clientTotals(
+      [
+        { id: 'a', stage: 'in_progress' },
+        { id: 'd', stage: 'ready' },
+      ],
+      balances,
+    )
+    expect(totals.owedMinor).toBe(60)
+  })
+
+  it('counts only stages that still need doing as open', () => {
+    const totals = clientTotals(
+      [
+        { id: 'a', stage: 'measured' },
+        { id: 'b', stage: 'in_progress' },
+        { id: 'c', stage: 'picked_up' },
+        { id: 'd', stage: 'cancelled' },
+      ],
+      balances,
+    )
+    expect(totals.openOrders).toBe(2)
+    expect(totals.totalOrders).toBe(4)
+  })
+
+  it('reports nothing for a client with no orders', () => {
+    expect(clientTotals([], balances)).toEqual(noClientTotals())
+  })
+
+  it('treats an order with no balance row as owing nothing', () => {
+    expect(clientTotals([{ id: 'missing', stage: 'ready' }], balances).owedMinor).toBe(0)
+  })
+})
+
+describe('clientTotalsById', () => {
+  const balances = new Map([
+    ['a', { order_id: 'a', price_total_minor: 100, amount_paid_minor: 0, balance_minor: 100, fully_paid: false }],
+    ['b', { order_id: 'b', price_total_minor: 100, amount_paid_minor: 25, balance_minor: 75, fully_paid: false }],
+  ])
+
+  it('keeps each client to their own orders', () => {
+    const totals = clientTotalsById(
+      [
+        { id: 'a', client_id: 'ama', stage: 'ready' },
+        { id: 'b', client_id: 'ben', stage: 'cancelled' },
+      ],
+      balances,
+    )
+    expect(totals.get('ama')?.owedMinor).toBe(100)
+    expect(totals.get('ben')?.owedMinor).toBe(0)
+  })
+
+  it('agrees with clientTotals over the same orders', () => {
+    const orders = [
+      { id: 'a', client_id: 'ama', stage: 'ready' as const },
+      { id: 'b', client_id: 'ama', stage: 'in_progress' as const },
+    ]
+    expect(clientTotalsById(orders, balances).get('ama')).toEqual(clientTotals(orders, balances))
+  })
+
+  it('has no entry for a client with no orders', () => {
+    expect(clientTotalsById([], balances).get('ama')).toBeUndefined()
   })
 })

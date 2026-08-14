@@ -1,8 +1,5 @@
-/**
- * Catalogue: products, categories, variants. Online-only -- queries Supabase
- * directly rather than through RxDB. See supabaseClient.ts's header comment
- * for why.
- */
+/* Products, categories, variants. Online-only: queries Supabase directly rather
+   than through RxDB, per supabaseClient.ts. */
 import { getSupabase } from '../lib/supabaseClient'
 
 export type ProductType = 'garment' | 'accessory' | 'service' | 'rental' | 'custom'

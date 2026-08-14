@@ -1,8 +1,5 @@
-/**
- * One inventory item: its running quantity and its movement history. Every
- * quantity change happens by recording a movement here -- see
- * src/online/inventory.ts's header comment for why there is no direct edit.
- */
+/* One item: its running quantity and movement history. Every change happens by
+   recording a movement -- there is deliberately no direct edit. */
 import { useEffect, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import {
@@ -18,7 +15,7 @@ import {
   Sheet,
   Skeleton,
   Textarea,
-} from '../components/ui'
+} from '../ui'
 import { IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'
@@ -279,16 +276,16 @@ function RecordMovementSheet({
             type="number"
             inputmode="numeric"
             value={quantity}
-            onInput={(e) => setQuantity((e.target as HTMLInputElement).value)}
+            onValue={setQuantity}
           />
         </Field>
 
         <Field label="Reason" hint={movementType === 'adjustment' ? 'Required for an adjustment.' : 'Optional.'}>
-          <Input value={reason} onInput={(e) => setReason((e.target as HTMLInputElement).value)} />
+          <Input value={reason} onValue={setReason} />
         </Field>
 
         <Field label="Notes" hint="Optional.">
-          <Textarea value={notes} onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={notes} onValue={setNotes} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}

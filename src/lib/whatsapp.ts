@@ -1,24 +1,12 @@
-/**
- * wa.me link building (ARCHITECTURE.md D6).
- *
- * Manual send, not automated: the link opens WhatsApp with the message
- * pre-filled and the shop taps send. No Cloud API token, no backend, and it
- * works from a phone with no special setup. Automation is Phase 3.
- *
- * This is also the one part of the app that deliberately leaves the app.
- */
+/* wa.me link building (D6). Manual send: the link pre-fills the message and the
+   shop taps send. No Cloud API token, no backend. Automation is Phase 3. */
 import { formatMinor } from './money'
 import { formatDate } from './dates'
 import type { OrderDoc } from '../db/schema'
 import type { OrderBalance } from '../db/balances'
 
-/**
- * wa.me wants digits only, with country code and no leading `+` or zero.
- *
- * Returns null rather than guessing when the number cannot be made sense of.
- * A wrong number here does not fail loudly -- it opens a chat with a stranger,
- * which is worse than showing the shop a disabled button.
- */
+/* Digits only, country code, no leading + or zero. Returns null rather than
+   guessing: a wrong number opens a chat with a stranger, silently. */
 export function toWaNumber(phone: string | undefined, defaultCountryCode = '256'): string | null {
   if (!phone) return null
 
@@ -54,13 +42,8 @@ interface MessageContext {
   balance: OrderBalance
 }
 
-/**
- * The message that fits where the order currently is.
- *
- * Each one is short, names the item, and states one thing to do. Written to be
- * sent as-is: a template the shop has to edit every time is a template they
- * will stop using.
- */
+/* The message that fits where the order is. Written to be sent as-is: a template
+   the shop edits every time is one they stop using. */
 export function suggestedMessage({ shopName, clientName, order, balance }: MessageContext): string {
   const item = order.summary
   const outstanding =

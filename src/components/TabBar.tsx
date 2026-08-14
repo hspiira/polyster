@@ -1,13 +1,13 @@
 import { useMemo } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
-import { Avatar } from './ui'
+import { Avatar } from '../ui'
 import { SyncBadge } from './SyncBadge'
 import { useCurrentShop } from '../state/ShopProvider'
 import { useRxQuery } from '../hooks/useRxQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { today } from '../lib/dates'
 import { isFullScreenTask } from '../lib/navigation'
-import { OPEN_STAGES } from '../screens/today/todayModel'
+import { OPEN_STAGES } from '../db/schema'
 import type { AuthState } from '../lib/auth'
 import type { ReplicationStatus } from '../hooks/useReplication'
 import type { FeatureKey } from '../db/schema'
@@ -24,41 +24,8 @@ import {
   type IconComponent,
 } from './icons'
 
-/**
- * Bottom navigation: a floating pill inset from the left, right and bottom
- * edges, rather than a bar welded to the bottom edge.
- *
- * Bottom rather than top because the top of a modern handset is out of thumb
- * reach one-handed. Four destinations -- Today, Clients, Orders -- plus the
- * create action between them (A25).
- *
- * Four was the ceiling this file used to argue against, and the argument was
- * about four *labels* at 390px. That is no longer what is on screen: only the
- * active tab is labelled (A6), so four items cost four icons and one word.
- *
- * Orders and Clients were briefly merged behind one "Book" tab (A13/A14). It
- * shipped two stacked segmented rows on /orders -- the Orders|Clients switch
- * above the filter row Orders already had -- so the merge is withdrawn. Reports
- * and Settings are reached from the More sheet in Today's profile header.
- *
- * Only the active tab carries a label, as a filled pill; the inactive one is
- * a bare icon at a fixed 44px square. That is the point of the change -- the
- * label appears exactly once on screen instead of competing with the
- * screen's own title -- and it is why the bar's items are not equal width:
- * the active pill sizes to its own content while its neighbour stays fixed,
- * so the layout is flex, not a grid.
- *
- * The pill itself is content-sized and centred, so it breathes in and out by
- * the few pixels between "Today" and "Book" as you move between tabs. It is
- * deliberately not viewport-width: three items stretched across 512px read as
- * three unrelated buttons rather than one control.
- *
- * The centre action sits *in* the bar rather than raised above it. Raised, it
- * overhung the bar's top edge in its own stacking context, and on the order
- * form it covered part of the "Create order" button: a tap inside the submit
- * button's own rectangle navigated to a new order instead of submitting. Flat
- * and laid out normally, that class of overlap cannot happen at all.
- */
+/* Bottom navigation: four destinations plus the create action between them
+   (A25). Bottom, not top -- a handset's top edge is out of thumb reach. */
 interface TabDef {
   href: string
   label: string
@@ -74,11 +41,8 @@ const LEADING_TABS: readonly TabDef[] = [
   { href: '/orders', label: 'Orders', Icon: IconOrders, prefix: '/orders' },
 ]
 
-/**
- * "Money" rather than "Reports": the phone's question is what the shop took and
- * spent. The tab opens a hub over sales, expenses and reports, so none of the
- * three is buried in Settings.
- */
+/* "Money", not "Reports": the phone's question is what the shop took and spent.
+   The tab opens a hub over sales, expenses and reports. */
 const TRAILING_TABS: readonly TabDef[] = [
   { href: '/clients', label: 'Clients', Icon: IconUsers, prefix: '/clients' },
   { href: '/money', label: 'Money', Icon: IconChart, prefix: '/money' },
@@ -158,32 +122,15 @@ function Tab({
               transition-colors ${active ? 'text-accent' : 'text-content-subtle'}`}
     >
       <Icon size={20} stroke-width={active ? 2.1 : 1.75} />
-      {/* Every label, always. Four destinations is under the legibility ceiling
-          this file used to argue about, and a bar where only the active item is
-          named makes you tap to find out what the others are. */}
+      {/* Every label, always: a bar where only the active item is named makes
+          you tap to find out what the others are. */}
       <span class={`text-[10px] ${active ? 'font-semibold' : 'font-medium'}`}>{label}</span>
     </a>
   )
 }
 
-/**
- * Desktop navigation: a fixed rail down the left edge, from `lg` up.
- *
- * Structured rather than a list of links, because a rail is the one piece of
- * chrome always on screen and it can carry things the tab bar has no room for:
- *
- *  - who is working and which shop, which on a phone lives in Today's profile
- *    header and in the Shell's status strip. Both are mobile answers to
- *    "there is nowhere else to put this"; on desktop there is.
- *  - Reports and Settings as real destinations. They were reachable only
- *    through a `...` sheet on Today -- two taps deep for the screen that
- *    answers "what did I collect this week", which is the question a shop
- *    owner asks daily.
- *  - the overdue count, next to the destination that resolves it.
- *  - sync state, pinned at the foot. ARCHITECTURE section 9 requires it to be
- *    visible on every screen; the rail satisfies that for all of them at once,
- *    which is why the Shell's strip stands down at this width.
- */
+/* Desktop navigation from `lg` up. Carries what the tab bar has no room for:
+   who is working, Reports and Settings, the overdue count, and sync state. */
 export function SideRail({
   online,
   auth,
@@ -218,20 +165,20 @@ export function SideRail({
 
   return (
     <nav
-      class="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-stone-200
-             bg-white px-3 py-4 lg:flex dark:border-stone-800 dark:bg-stone-900"
+      class="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line
+             bg-surface px-3 py-4 lg:flex"
       aria-label="Main"
     >
       <a
         href="/settings"
         class="mb-4 flex min-h-12 items-center gap-2.5 rounded-card px-2 transition-colors
-               hover:bg-stone-100 dark:hover:bg-stone-800"
+               hover:bg-hover"
       >
         {activeStaff && <Avatar name={activeStaff.name} size="sm" />}
         <span class="min-w-0 flex-1">
           <span class="block truncate text-sm font-semibold">{shop.name}</span>
           {activeStaff && (
-            <span class="block truncate text-xs text-stone-500 dark:text-stone-400">
+            <span class="block truncate text-xs text-content-muted">
               {activeStaff.name}
             </span>
           )}
@@ -242,8 +189,8 @@ export function SideRail({
       <a
         href="/orders/new"
         class="mb-4 flex min-h-11 items-center justify-center gap-2 rounded-control
-               bg-stone-900 px-4 text-[15px] font-medium text-white
-               transition-transform active:scale-[0.98] dark:bg-white dark:text-stone-900"
+               bg-content px-4 text-[15px] font-medium text-content-inverted
+               transition-transform active:scale-[0.98]"
       >
         <IconPlus size={20} /> Take an order
       </a>
@@ -261,7 +208,7 @@ export function SideRail({
         ))}
       </div>
 
-      <div class="my-3 border-t border-stone-200 dark:border-stone-800" />
+      <div class="my-3 border-t border-line" />
 
       <div class="flex flex-col gap-0.5">
         {railMoney.map((tab) => (
@@ -297,8 +244,8 @@ function RailItem({
       class={`flex min-h-11 items-center gap-3 rounded-control px-3.5 text-[15px]
               transition-colors ${
                 active
-                  ? 'bg-stone-900 font-medium text-white dark:bg-white dark:text-stone-900'
-                  : 'text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800'
+                  ? 'bg-content font-medium text-content-inverted'
+                  : 'text-content-muted hover:bg-hover'
               }`}
     >
       <Icon size={20} stroke-width={active ? 2.1 : 1.75} />
@@ -307,8 +254,8 @@ function RailItem({
         <span
           class={`min-w-5 rounded-full px-1.5 text-center text-xs font-semibold tabular-nums ${
             active
-              ? 'bg-white/20 text-white dark:bg-stone-900/15 dark:text-stone-900'
-              : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+              ? 'bg-content-inverted/20 text-content-inverted'
+              : 'bg-danger-soft text-danger-on-soft'
           }`}
           aria-label={`${badge} overdue`}
         >

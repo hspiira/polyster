@@ -1,8 +1,6 @@
-/**
- * Today's top: the date, sync state, and the way to Settings. The date is the
- * heading rather than the word "Today", which the tab bar already says.
- */
-import { Avatar } from '../../components/ui'
+/* The date, sync state, and the way to Settings. The date is the heading, not
+   the word "Today", which the tab bar already says. */
+import { Avatar } from '../../ui'
 import { SyncBadge } from '../../components/SyncBadge'
 import { IconSettings } from '../../components/icons'
 import type { AuthState } from '../../lib/auth'

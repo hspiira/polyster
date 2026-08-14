@@ -1,22 +1,11 @@
-/**
- * New and edit order form: a header plus a unit editor (Task 10).
- *
- * One component for both, because the fields are identical and keeping two
- * copies in step is a losing game. `/orders/new` creates, `/orders/:id/edit`
- * updates. Editing routes every unit change through the unit operations in
- * db/writes.ts rather than `updateOrder`, which refuses any order with more
- * than one item -- see the save path in `submit` below.
- *
- * The save button is pinned to the bottom rather than sitting at the end of
- * the form: on a phone with the keyboard up, a button below several fields is
- * two scrolls away from wherever you are typing.
- */
+/* New and edit in one component, because the fields are identical. The save
+   button is pinned: below the fields it is two scrolls from where you type. */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useLocation, useRoute } from 'preact-iso'
 import {
   Button,
   Card,
-  CONTAINER,
+  MEASURE,
   Disclosure,
   cn,
   ErrorNote,
@@ -26,8 +15,8 @@ import {
   Segmented,
   Sheet,
   Textarea,
-} from '../components/ui'
-import { IconPlus, IconTrash } from '../components/icons'
+} from '../ui'
+import { IconPlus } from '../components/icons'
 import { ClientPicker } from '../components/ClientPicker'
 import { OrderTypePicker } from '../components/OrderTypePicker'
 import { useCurrentShop } from '../state/ShopProvider'
@@ -42,23 +31,11 @@ import {
   setOrderAdjustment,
   updateOrderHeader,
   updateOrderUnit,
-  type OrderHeaderInput,
-  type OrderUnitInput,
 } from '../db/writes'
-import {
-  CUSTOMER_TYPES,
-  FABRIC_SOURCES,
-  ORDER_TYPES,
-  type CustomerType,
-  type FabricSource,
-  type MeasurementFieldDoc,
-  type OrderDoc,
-  type OrderStage,
-  type OrderType,
-} from '../db/schema'
-import { CUSTOMER_TYPE_LABELS, FABRIC_SOURCE_LABELS } from './orderStage'
-import { addDays, formatDate, today } from '../lib/dates'
-import { formatMinor, fromMinorUnits, parseToMinor } from '../lib/money'
+import { CUSTOMER_TYPES, ORDER_TYPES, type OrderDoc } from '../db/schema'
+import { CUSTOMER_TYPE_LABELS } from './orderStage'
+import { formatDate } from '../lib/dates'
+import { formatMinor, parseToMinor } from '../lib/money'
 import {
   dueDateLabel,
   needsFulfilmentDate,
@@ -66,105 +43,29 @@ import {
   needsReturn,
   usualOrderType,
 } from '../lib/orderTypes'
-
-/** A same-day match must still be open -- a finished order is not a candidate. */
-const CLOSED_STAGES: readonly OrderStage[] = ['picked_up', 'returned', 'cancelled']
-
-type AdjustmentType = 'none' | 'discount' | 'charge'
+import {
+  CLOSED_STAGES,
+  blankHeader,
+  blankUnit,
+  draftFromOrder,
+  isInvalid,
+  planUnitWrites,
+  unitsSubtotalMinor,
+  validateOrderForm,
+  type AdjustmentType,
+  type HeaderDraft,
+  type HeaderFieldKey,
+  type Invalid,
+  type UnitDraft,
+  type UnitFieldKey,
+} from './orderFormModel'
+import { UnitCard } from './orderForm/UnitCard'
 
 const ADJUSTMENT_OPTIONS: { value: AdjustmentType; label: string }[] = [
   { value: 'none', label: 'None' },
   { value: 'discount', label: 'Discount' },
   { value: 'charge', label: 'Extra charge' },
 ]
-
-interface HeaderDraft {
-  client_id: string
-  order_type: OrderType
-  pickup_due_date: string
-  return_due_date: string
-  notes: string
-  adjustment_type: AdjustmentType
-  adjustment_amount: string
-  adjustment_reason: string
-  customer_type: CustomerType
-  organisation_name: string
-  purchase_order_reference: string
-  contact_person: string
-  expected_fulfilment_date: string
-  /** Rental only. */
-  deposit_amount: string
-}
-
-/** One item on the order. `key` is stable across renders; `id` exists once persisted. */
-interface UnitDraft {
-  key: string
-  id?: string
-  wearer_name: string
-  item_description: string
-  price: string
-  fabric_source: FabricSource
-  measurements: Record<string, string>
-}
-
-function blankUnit(): UnitDraft {
-  return {
-    key: crypto.randomUUID(),
-    wearer_name: '',
-    item_description: '',
-    price: '',
-    fabric_source: 'shop',
-    measurements: {},
-  }
-}
-
-const BLANK_HEADER: HeaderDraft = {
-  client_id: '',
-  order_type: 'tailor_made',
-  // A week out is the common case and saves a date-picker interaction on
-  // nearly every order.
-  pickup_due_date: addDays(today(), 7),
-  return_due_date: '',
-  notes: '',
-  adjustment_type: 'none',
-  adjustment_amount: '',
-  adjustment_reason: '',
-  customer_type: 'individual',
-  organisation_name: '',
-  purchase_order_reference: '',
-  contact_person: '',
-  expected_fulfilment_date: '',
-  deposit_amount: '',
-}
-
-type HeaderFieldKey =
-  | 'client_id'
-  | 'pickup_due_date'
-  | 'return_due_date'
-  | 'adjustment_amount'
-  | 'organisation_name'
-  | 'deposit_amount'
-type UnitFieldKey = 'item_description' | 'price'
-
-/**
- * A rejection carries which field it is about, so the message can be shown
- * beside that field rather than in one note at the foot of the form.
- */
-type Invalid =
-  | { scope: 'header'; field: HeaderFieldKey; message: string }
-  | { scope: 'unit'; key: string; field: UnitFieldKey; message: string }
-
-interface ValidatedUnit extends OrderUnitInput {
-  key: string
-  id?: string
-}
-
-interface ValidatedForm {
-  header: OrderHeaderInput
-  units: ValidatedUnit[]
-  adjustmentMinor: number
-  adjustmentReason?: string
-}
 
 export function OrderForm() {
   const { params } = useRoute()
@@ -217,7 +118,7 @@ export function OrderForm() {
   const retiredFields = useMemo(() => retiredFieldDocs.map((doc) => doc.toJSON()), [retiredFieldDocs])
 
   const [header, setHeader] = useState<HeaderDraft>(() => ({
-    ...BLANK_HEADER,
+    ...blankHeader(),
     // /orders/new?client=<id> from a client's page, so taking an order for
     // someone you are already looking at does not mean finding them again.
     client_id: new URLSearchParams(location.query as Record<string, string>).get('client') ?? '',
@@ -231,9 +132,8 @@ export function OrderForm() {
   // Once the user picks a type themselves, stop second-guessing them.
   const typeTouched = useRef(false)
 
-  // A sheet owns the screen while it is up. The pinned bar is `bottom-0` but a
-  // sheet's `inset-0` stops at the safe area, so it would otherwise show through
-  // the last few pixels -- and stay tappable behind a modal.
+  // A sheet owns the screen while it is up: the pinned bar would otherwise show
+  // through the last few pixels, and stay tappable behind a modal.
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const [sameDayMatches, setSameDayMatches] = useState<OrderDoc[]>([])
@@ -277,43 +177,9 @@ export function OrderForm() {
 
   useEffect(() => {
     if (!isEdit || loaded || !orderDoc || existingUnits.length === 0) return
-    const order = orderDoc.toJSON()
-    setHeader({
-      client_id: order.client_id,
-      order_type: order.order_type,
-      pickup_due_date: order.pickup_due_date,
-      return_due_date: order.return_due_date ?? '',
-      notes: order.notes ?? '',
-      adjustment_type:
-        order.price_adjustment_minor === 0 ? 'none' : order.price_adjustment_minor < 0 ? 'discount' : 'charge',
-      adjustment_amount:
-        order.price_adjustment_minor === 0
-          ? ''
-          : String(fromMinorUnits(Math.abs(order.price_adjustment_minor), order.currency)),
-      adjustment_reason: order.adjustment_reason ?? '',
-      customer_type: order.customer_type ?? 'individual',
-      organisation_name: order.organisation_name ?? '',
-      purchase_order_reference: order.purchase_order_reference ?? '',
-      contact_person: order.contact_person ?? '',
-      expected_fulfilment_date: order.expected_fulfilment_date ?? '',
-      deposit_amount:
-        order.rental_deposit_minor > 0
-          ? String(fromMinorUnits(order.rental_deposit_minor, order.currency))
-          : '',
-    })
-    setUnits(
-      existingUnits.map((unit) => ({
-        key: unit.id,
-        id: unit.id,
-        wearer_name: unit.wearer_name ?? '',
-        item_description: unit.item_description,
-        price: String(fromMinorUnits(unit.price_minor, order.currency)),
-        fabric_source: unit.fabric_source,
-        measurements: Object.fromEntries(
-          Object.entries(unit.measurements).map(([key, value]) => [key, String(value)]),
-        ),
-      })),
-    )
+    const draft = draftFromOrder(orderDoc.toJSON(), existingUnits)
+    setHeader(draft.header)
+    setUnits(draft.units)
     setLoaded(true)
   }, [isEdit, loaded, orderDoc, existingUnits])
 
@@ -392,118 +258,11 @@ export function OrderForm() {
     }
   }
 
-  function validate(): ValidatedForm | Invalid {
-    if (!header.client_id) {
-      return { scope: 'header', field: 'client_id', message: 'Choose which client this order is for.' }
-    }
-    if (!header.pickup_due_date) {
-      return { scope: 'header', field: 'pickup_due_date', message: 'A pickup date is needed.' }
-    }
-    if (header.return_due_date && header.return_due_date < header.pickup_due_date) {
-      return {
-        scope: 'header',
-        field: 'return_due_date',
-        message: 'The return date cannot be before the pickup date.',
-      }
-    }
-    if (header.customer_type === 'corporate' && !header.organisation_name.trim()) {
-      return {
-        scope: 'header',
-        field: 'organisation_name',
-        message: 'Name the company this order is for.',
-      }
-    }
-
-    let depositMinor = 0
-    if (header.order_type === 'rental' && header.deposit_amount.trim()) {
-      const parsed = parseToMinor(header.deposit_amount, currency)
-      if (parsed === null || parsed < 0) {
-        return {
-          scope: 'header',
-          field: 'deposit_amount',
-          message: 'Enter the deposit as a number.',
-        }
-      }
-      depositMinor = parsed
-    }
-
-    let adjustmentMinor = 0
-    if (header.adjustment_type !== 'none') {
-      const magnitude = parseToMinor(header.adjustment_amount, currency)
-      if (magnitude === null || magnitude === 0) {
-        return {
-          scope: 'header',
-          field: 'adjustment_amount',
-          message: 'Enter the adjustment as a number greater than zero.',
-        }
-      }
-      adjustmentMinor = header.adjustment_type === 'discount' ? -magnitude : magnitude
-    }
-
-    const validatedUnits: ValidatedUnit[] = []
-    for (const unit of units) {
-      if (!unit.item_description.trim()) {
-        return { scope: 'unit', key: unit.key, field: 'item_description', message: 'Describe this item.' }
-      }
-      const price = parseToMinor(unit.price, currency)
-      if (price === null) {
-        return { scope: 'unit', key: unit.key, field: 'price', message: 'Enter the price as a number.' }
-      }
-      validatedUnits.push({
-        key: unit.key,
-        id: unit.id,
-        item_description: unit.item_description,
-        price_minor: price,
-        fabric_source: unit.fabric_source,
-        measurements: unit.measurements,
-        ...(unit.wearer_name.trim() ? { wearer_name: unit.wearer_name } : {}),
-      })
-    }
-
-    // Mirrors the check setOrderAdjustment makes before it patches, one level
-    // up: nothing is written until everything checkable has been checked, so
-    // a discount larger than the subtotal never leaves an order half-written.
-    const subtotal = validatedUnits.reduce((sum, unit) => sum + unit.price_minor, 0)
-    if (subtotal + adjustmentMinor < 0) {
-      return {
-        scope: 'header',
-        field: 'adjustment_amount',
-        message: 'That discount is larger than the order total.',
-      }
-    }
-
-    return {
-      header: {
-        client_id: header.client_id,
-        order_type: header.order_type,
-        pickup_due_date: header.pickup_due_date,
-        ...(header.return_due_date ? { return_due_date: header.return_due_date } : {}),
-        ...(header.notes.trim() ? { notes: header.notes } : {}),
-        customer_type: header.customer_type,
-        ...(header.customer_type === 'corporate'
-          ? {
-              organisation_name: header.organisation_name,
-              ...(header.purchase_order_reference.trim()
-                ? { purchase_order_reference: header.purchase_order_reference }
-                : {}),
-              ...(header.contact_person.trim() ? { contact_person: header.contact_person } : {}),
-            }
-          : {}),
-        ...(header.order_type === 'pre_order' && header.expected_fulfilment_date
-          ? { expected_fulfilment_date: header.expected_fulfilment_date }
-          : {}),
-        ...(header.order_type === 'rental' ? { deposit_minor: depositMinor } : {}),
-      },
-      units: validatedUnits,
-      adjustmentMinor,
-      adjustmentReason: header.adjustment_reason.trim() || undefined,
-    }
-  }
 
   async function submit(event: Event) {
     event.preventDefault()
-    const result = validate()
-    if ('scope' in result) {
+    const result = validateOrderForm({ header, units, currency })
+    if (isInvalid(result)) {
       setInvalid(result)
       return
     }
@@ -515,29 +274,21 @@ export function OrderForm() {
       if (orderId) {
         await updateOrderHeader(db, orderId, result.header)
 
-        // Add first, remove last: removeOrderUnit refuses to leave zero
-        // units, so the persisted count must never dip below the draft's
-        // final length while these writes are in flight.
-        for (const unit of result.units) {
-          if (unit.id) continue
+        const plan = planUnitWrites(
+          result.units,
+          existingUnits.map((unit) => unit.id),
+        )
+        for (const unit of plan.toAdd) {
           const added = await addOrderUnit(db, orderId, unit)
-          // Recorded into the draft immediately, not just used locally here:
-          // if a later step in this save throws, retrying must see this unit
-          // as already persisted and route it through updateOrderUnit, not
-          // addOrderUnit a second time.
           setUnits((current) =>
             current.map((draft) => (draft.key === unit.key ? { ...draft, id: added.id } : draft)),
           )
         }
-        for (const unit of result.units) {
-          if (!unit.id) continue
-          await updateOrderUnit(db, unit.id, unit)
+        for (const unit of plan.toUpdate) {
+          await updateOrderUnit(db, unit.id!, unit)
         }
-        const keptIds = new Set(
-          result.units.map((unit) => unit.id).filter((id): id is string => Boolean(id)),
-        )
-        for (const original of existingUnits) {
-          if (!keptIds.has(original.id)) await removeOrderUnit(db, original.id)
+        for (const id of plan.toRemoveIds) {
+          await removeOrderUnit(db, id)
         }
 
         await setOrderAdjustment(db, orderId, result.adjustmentMinor, result.adjustmentReason)
@@ -580,11 +331,7 @@ export function OrderForm() {
 
   const isCorporate = header.customer_type === 'corporate'
 
-  // Shown while you type, because it is the figure the client asks for.
-  const unitsTotalMinor = units.reduce(
-    (sum, unit) => sum + (parseToMinor(unit.price, currency) ?? 0),
-    0,
-  )
+  const unitsTotalMinor = unitsSubtotalMinor(units, currency)
   const adjustmentMinor =
     header.adjustment_type === 'none'
       ? 0
@@ -592,9 +339,8 @@ export function OrderForm() {
         (header.adjustment_type === 'discount' ? -1 : 1)
   const totalMinor = Math.max(0, unitsTotalMinor + adjustmentMinor)
 
-  // A flag turned off after an order was created must not hide that order's
-  // own type/customer -- only new selections it, so the value the order
-  // already has always stays visible even when the module is disabled.
+  // A flag turned off after an order was created must not hide that order's own
+  // type: it gates new selections only, so the existing value stays visible.
   const visibleOrderTypes = ORDER_TYPES.filter((type) => {
     if (type === 'pre_order') return flags.pre_orders || header.order_type === 'pre_order'
     if (type === 'repair') return flags.repairs || header.order_type === 'repair'
@@ -651,9 +397,9 @@ export function OrderForm() {
             <h2 class="px-1 text-[13px] font-semibold">Items</h2>
 
             {activeFields.length === 0 && (
-              <p class="px-1 text-xs text-stone-500 dark:text-stone-400">
+              <p class="px-1 text-xs text-content-muted">
                 No measurement fields set up yet.{' '}
-                <a href="/settings/measurements" class="font-medium text-brand-700 dark:text-brand-400">
+                <a href="/settings/measurements" class="font-medium text-accent">
                   Set them up
                 </a>
                 .
@@ -849,7 +595,7 @@ export function OrderForm() {
             sheetOpen && 'hidden',
           )}
         >
-          <div class={cn(CONTAINER, 'space-y-2')}>
+          <div class={cn(MEASURE, 'space-y-2')}>
             {/* The one figure you are asked for out loud, kept in view while you type. */}
             <div class="flex items-baseline justify-between px-0.5">
               <span class="text-[13px] text-content-muted">
@@ -882,7 +628,7 @@ export function OrderForm() {
         title="Same-day order already open"
         onClose={() => setSameDayMatches([])}
       >
-        <p class="text-sm text-stone-600 dark:text-stone-300">
+        <p class="text-sm text-content-muted">
           {clientName} already has{' '}
           {sameDayMatches.length === 1 ? 'an open order' : `${sameDayMatches.length} open orders`} due{' '}
           {formatDate(header.pickup_due_date)}. Add this item to one of them, or keep this as a separate
@@ -905,234 +651,5 @@ export function OrderForm() {
         </div>
       </Sheet>
     </Screen>
-  )
-}
-
-function UnitCard({
-  index,
-  unit,
-  currency,
-  canRemove,
-  activeFields,
-  retiredFields,
-  clientId,
-  clientName,
-  showMeasurements,
-  hasClientProfile,
-  errorFor,
-  onChange,
-  onRemove,
-  onCopyFromClient,
-  onSaveToClient,
-}: {
-  index: number
-  unit: UnitDraft
-  currency: string
-  canRemove: boolean
-  activeFields: MeasurementFieldDoc[]
-  retiredFields: MeasurementFieldDoc[]
-  clientId: string
-  clientName: string
-  /** Only where something is made or altered to fit. */
-  showMeasurements: boolean
-  hasClientProfile: boolean
-  errorFor: (field: UnitFieldKey) => string | null
-  onChange: (patch: Partial<UnitDraft>) => void
-  onRemove: () => void
-  onCopyFromClient: () => void
-  onSaveToClient: () => void
-}) {
-  const retiredWithValue = retiredFields.filter((field) => unit.measurements[field.id] !== undefined)
-  const filledMeasurements = Object.values(unit.measurements).filter((v) => v.trim()).length
-  const detailSummary = [
-    unit.wearer_name.trim() || null,
-    FABRIC_SOURCE_LABELS[unit.fabric_source],
-    filledMeasurements > 0 ? `${filledMeasurements} measured` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
-
-  return (
-    <Card flush>
-      <div class="mb-3 flex items-center justify-between gap-2">
-        <p class="text-sm font-semibold text-stone-500 dark:text-stone-400">Item {index + 1}</p>
-        {canRemove && (
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            class="text-red-600 dark:text-red-400"
-            aria-label={`Remove ${unit.item_description || `item ${index + 1}`}`}
-            onClick={onRemove}
-          >
-            <IconTrash size={18} />
-          </Button>
-        )}
-      </div>
-
-      <div class="space-y-4">
-        <Field label="Description" error={errorFor('item_description')}>
-          <Input
-            value={unit.item_description}
-            placeholder="Navy two-piece suit"
-            onInput={(e) => onChange({ item_description: (e.target as HTMLInputElement).value })}
-          />
-        </Field>
-
-        <Field label="Price" hint={`Amount in ${currency}.`} error={errorFor('price')}>
-          <Input
-            inputmode="decimal"
-            placeholder="0"
-            value={unit.price}
-            onInput={(e) => onChange({ price: (e.target as HTMLInputElement).value })}
-          />
-        </Field>
-
-        {/* Measurements are the point of a tailored item, so they sit on the card
-            rather than behind a disclosure. A rental or a shelf purchase is not
-            being made to fit, so it does not ask. */}
-        {showMeasurements && (activeFields.length > 0 || retiredWithValue.length > 0) && (
-          <MeasurementsBlock
-            fields={activeFields}
-            retiredWithValue={retiredWithValue}
-            values={unit.measurements}
-            clientId={clientId}
-            clientName={clientName}
-            hasClientProfile={hasClientProfile}
-            onChangeField={(fieldId, value) =>
-              onChange({ measurements: { ...unit.measurements, [fieldId]: value } })
-            }
-            onCopyFromClient={onCopyFromClient}
-            onSaveToClient={onSaveToClient}
-          />
-        )}
-
-        <Disclosure label="Wearer and fabric" summary={detailSummary}>
-          <Field label="Wearer" hint="Who this is for, if not the client themselves.">
-            <Input
-              value={unit.wearer_name}
-              placeholder="Optional"
-              onInput={(e) => onChange({ wearer_name: (e.target as HTMLInputElement).value })}
-            />
-          </Field>
-
-          <Field label="Fabric">
-            <Segmented
-              value={unit.fabric_source}
-              options={FABRIC_SOURCES.map((value) => ({ value, label: FABRIC_SOURCE_LABELS[value] }))}
-              onChange={(fabric_source) => onChange({ fabric_source })}
-              label="Fabric source"
-            />
-          </Field>
-        </Disclosure>
-      </div>
-    </Card>
-  )
-}
-
-function MeasurementsBlock({
-  fields,
-  retiredWithValue,
-  values,
-  clientId,
-  clientName,
-  hasClientProfile,
-  onChangeField,
-  onCopyFromClient,
-  onSaveToClient,
-}: {
-  fields: MeasurementFieldDoc[]
-  retiredWithValue: MeasurementFieldDoc[]
-  values: Record<string, string>
-  clientId: string
-  clientName: string
-  hasClientProfile: boolean
-  onChangeField: (fieldId: string, value: string) => void
-  onCopyFromClient: () => void
-  onSaveToClient: () => void
-}) {
-  // Fields with no group sort first, then each named group -- a display
-  // grouping only, never a reordering of the shop's own field order.
-  const groups = useMemo(() => {
-    const byGroup = new Map<string, MeasurementFieldDoc[]>()
-    for (const field of fields) {
-      const key = field.group_label ?? ''
-      const bucket = byGroup.get(key)
-      if (bucket) bucket.push(field)
-      else byGroup.set(key, [field])
-    }
-    return [...byGroup.entries()]
-  }, [fields])
-
-  return (
-    <div class="space-y-3 border-t border-stone-100 pt-4 dark:border-stone-800">
-      <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <p class="text-sm font-medium text-stone-700 dark:text-stone-300">Measurements</p>
-        {clientId && (
-          <div class="flex flex-wrap gap-x-3 gap-y-1">
-            {hasClientProfile && (
-              <button
-                type="button"
-                onClick={onCopyFromClient}
-                class="text-xs font-semibold text-brand-700 dark:text-brand-400"
-              >
-                Copy from {clientName}'s measurements
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onSaveToClient}
-              class="text-xs font-semibold text-brand-700 dark:text-brand-400"
-            >
-              Save to {clientName}'s measurements
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* copyMeasurementsFromClient is a no-op with no profile to copy --
-          the button must not imply otherwise, so it is hidden rather than
-          shown disabled. */}
-      {clientId && !hasClientProfile && (
-        <p class="text-xs text-stone-500 dark:text-stone-400">
-          {clientName} has no saved measurements yet -- nothing to copy in.
-        </p>
-      )}
-
-      {groups.map(([group, groupFields]) => (
-        <div key={group || '_ungrouped'} class="space-y-3">
-          {group && (
-            <p class="text-xs font-semibold tracking-wide text-stone-400 uppercase dark:text-stone-500">
-              {group}
-            </p>
-          )}
-          <div class="grid grid-cols-2 gap-3">
-            {groupFields.map((field) => (
-              <Field key={field.id} label={field.unit ? `${field.label} (${field.unit})` : field.label}>
-                <Input
-                  inputmode={field.field_type === 'text' ? undefined : 'decimal'}
-                  placeholder="—"
-                  value={values[field.id] ?? ''}
-                  onInput={(e) => onChangeField(field.id, (e.target as HTMLInputElement).value)}
-                />
-              </Field>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      {retiredWithValue.length > 0 && (
-        <div class="grid grid-cols-2 gap-3">
-          {retiredWithValue.map((field) => (
-            <Field
-              key={field.id}
-              label={`${field.unit ? `${field.label} (${field.unit})` : field.label} (retired)`}
-            >
-              <Input value={values[field.id] ?? ''} disabled readOnly />
-            </Field>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }

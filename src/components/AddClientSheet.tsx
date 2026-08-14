@@ -1,6 +1,4 @@
-/**
- * Adding a client, shared by both shells so the two never drift apart.
- */
+/* Adding a client, shared by both shells so the two never drift apart. */
 import { useState } from 'preact/hooks'
 import { Button, ErrorNote, Field, Input, Sheet, Textarea } from '../ui'
 import { useCurrentShop } from '../state/ShopProvider'
@@ -57,7 +55,7 @@ export function AddClientSheet({
           <Input
             value={name}
             autofocus
-            onInput={(e) => setName((e.target as HTMLInputElement).value)}
+            onValue={setName}
           />
         </Field>
 
@@ -69,12 +67,12 @@ export function AddClientSheet({
             type="tel"
             inputmode="tel"
             value={phone}
-            onInput={(e) => setPhone((e.target as HTMLInputElement).value)}
+            onValue={setPhone}
           />
         </Field>
 
         <Field label="Notes">
-          <Textarea value={notes} onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)} />
+          <Textarea value={notes} onValue={setNotes} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}

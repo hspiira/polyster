@@ -1,21 +1,8 @@
-/**
- * The few patterns that cannot be utilities.
- *
- * Everything here either needs a container query, a pseudo-element, or a
- * declaration Tailwind has no utility for. Nothing here names a colour: every
- * value is a role from theme.css, so this file is theme-agnostic too.
- */
+/* The few patterns that cannot be utilities: container queries, pseudo-elements,
+   declarations Tailwind has no utility for. Every value is a role. */
 
 /* ═════════════════════════════════════════════════════════ DATA LIST ═══
- *
- * Layout for ui/DataList.tsx. The DOM is always the same -- a list of rows,
- * each a grid of cells tagged with the part they play -- and only the placement
- * changes. Wide, tracks come from `--data-cols` and the meta wrapper goes
- * `display: contents` so its children align against the header; narrow, the
- * cells fold into two rows and the wrapper becomes a wrapping flex line.
- *
- * A container query, not a breakpoint: the question is how much room the list
- * has, which stops matching window size the moment it sits in a sidebar. */
+   Same DOM at every width. Container query, so it works inside a sidebar. */
 .data-list {
   container-type: inline-size;
   container-name: data-list;
@@ -188,33 +175,28 @@
 }
 
 /* ════════════════════════════════════════════════════════════ GLASS ═══
- *
- * The entry flow (setup, PIN, lock) is a fixed dark world with its own rules.
- * `backdrop-filter` sits behind `@supports` so the fallback is a flat
- * translucent fill rather than an invisible control. */
+   Tints in theme.css. `@supports` keeps the fallback a flat fill, not nothing. */
 .glass,
 .glass-flat {
   position: relative;
-  background: color-mix(in oklch, white 5%, transparent);
-  border: 1px solid color-mix(in oklch, white 9%, transparent);
-  box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 10%, transparent);
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-line);
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight);
 }
 
-/* Recessed, for inputs. Black-tinted, not white: a white tint over the entry
-   flow's glow picks the colour up and the whole form turns brand-coloured. */
+/* Recessed, for inputs. */
 .glass-inset {
   position: relative;
-  background: color-mix(in oklch, black 42%, transparent);
-  border: 1px solid color-mix(in oklch, white 12%, transparent);
+  background: var(--glass-inset-fill);
+  border: 1px solid var(--glass-inset-line);
   box-shadow:
-    inset 0 1px 0 0 color-mix(in oklch, white 8%, transparent),
-    inset 0 2px 6px oklch(0 0 0 / 0.28);
+    inset 0 1px 0 0 var(--glass-inset-highlight),
+    inset 0 2px 6px var(--glass-inset-shade);
 }
 
 @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  /* `.glass-flat` is deliberately excluded: it is for surfaces repeated many
-     times, and ten pad keys re-sampling their backdrop every frame costs more
-     than blurring a soft gradient is worth. */
+  /* `.glass-flat` is excluded: ten pad keys re-sampling their backdrop every
+     frame costs more than blurring a soft gradient is worth. */
   .glass {
     -webkit-backdrop-filter: blur(24px) saturate(120%);
     backdrop-filter: blur(24px) saturate(120%);
@@ -235,44 +217,27 @@
   background: linear-gradient(
     100deg,
     transparent 30%,
-    color-mix(in oklch, white 7%, transparent) 46%,
+    var(--glass-sheen) 46%,
     transparent 62%
   );
 }
 
 /* ════════════════════════════════════════════════ WEB WORKSPACE ═══
- *
- * Layout for the web design's list-and-record screens (src/web/).
- *
- * The record pane is persistent only while there is room for both it and a
- * readable table. There was not, and the failure was silent: at a 900px window
- * the rail took 224px and the pane 336px, leaving 306px for a table whose fixed
- * columns already needed 304. The two flexible tracks were `minmax(0, Nfr)`, so
- * they collapsed to exactly zero -- an orders table showing a checkbox, a stage,
- * a date and an amount, and no indication of which order any row was.
- *
- * Two separate mistakes, fixed separately: a pane that refused to yield, and
- * columns permitted to vanish. Below the threshold the record overlays the list
- * instead of dividing it, which is what a master-detail layout does when the
- * master can no longer be read. */
+   src/web/. Narrow, the record overlays the list instead of collapsing it. */
 .panes {
   container-type: inline-size;
   container-name: panes;
   position: relative;
 }
 
-/* Wide: the pane is a column and there is nothing to dismiss.
-   Declared before the container query, not after: same specificity, so the last
-   rule wins and putting the default afterwards pinned the button shut. */
+/* Declared before the container query, not after: same specificity, so putting
+   the default afterwards pinned the button shut. */
 .record-close {
   display: none;
 }
 
-/* 64rem, not the 58rem the arithmetic allows.
-   At 58 the split is possible but not comfortable: every flexible column sits
-   exactly on its minimum, so an order called "School uniforms x12" truncates the
-   moment the pane appears. The line is where both halves are comfortable, which
-   puts 1280px and up in split and leaves 1024 and 1152 a full-width table. */
+/* 64rem, not the 58rem the arithmetic allows: at 58 every flexible column sits
+   on its minimum and long order names truncate the moment the pane appears. */
 @container panes (width < 64rem) {
   .record-pane {
     position: absolute;
@@ -294,14 +259,8 @@
   }
 }
 
-/* A table with a supplementary pane beside it -- Sales' "what sold", Expenses'
- * "where it went".
- *
- * Unlike the record pane these are not a second half of the screen, so they
- * stack under the table rather than overlaying it: the information is still
- * worth having, it just stops being worth a column. Same failure as the record
- * pane otherwise -- at 900px Sales' item column measured 11px and its client
- * column 6px, which is not a narrow column, it is an absent one. */
+/* A supplementary pane beside a table. Narrow, it stacks under rather than
+   overlaying: still worth having, no longer worth a column. */
 .work-split-outer {
   container-type: inline-size;
   container-name: worksplit;

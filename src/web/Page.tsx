@@ -1,12 +1,5 @@
-/**
- * The page frame inside the work area: breadcrumb, title, optional tabs, an
- * optional view bar, and the body.
- *
- * The web design's equivalent of ui/Screen.tsx, and deliberately a different
- * component rather than a prop on that one. Screen caps a reading measure and
- * clears a floating tab bar; neither is true here, and a component that did
- * both would be the compromise again.
- */
+/* The page frame inside the work area. A separate component from ui/Screen:
+   that caps a measure and clears a tab bar, neither of which applies here. */
 import type { ComponentChildren } from 'preact'
 import { cn } from '../lib/cn'
 import { GUTTER, TEXT_UI, TEXT_XS } from './chrome'

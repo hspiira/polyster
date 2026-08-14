@@ -15,14 +15,8 @@ import {
 } from './_fixture_helpers'
 import { seedVolume, type VolumeCatalogue } from './volume'
 
-/**
- * Generic tailoring-shop fixture.
- *
- * Deliberately does not enable NORTH//FOUND-style catalogue, production,
- * collections, garment identity or passport features.
- *
- * Default test PIN for all seeded staff: 123456
- */
+/* Generic tailoring-shop fixture, with none of the catalogue/production
+   features enabled. Default test PIN for all seeded staff: 123456 */
 const MIREMBE_CATALOGUE: VolumeCatalogue = {
   garments: [
     { item: 'Two-piece suit, navy', price: 450000, type: 'tailor_made' },

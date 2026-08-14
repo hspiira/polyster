@@ -1,9 +1,5 @@
-/**
- * Surfaces: the things content sits on.
- *
- * A surface is separated from the page by its fill, never by a border. If one
- * of these needs a hairline to read, the spacing around it is wrong.
- */
+/* The things content sits on. A surface is separated by its fill, never a
+   border -- if one needs a hairline to read, the spacing is wrong. */
 import type { ComponentChildren } from 'preact'
 import { useEffect } from 'preact/hooks'
 import { cn } from '../lib/cn'
@@ -13,12 +9,8 @@ import { cn } from '../lib/cn'
 export const FLUSH_SURFACE =
   '-mx-gutter overflow-hidden bg-surface sm:mx-0 sm:rounded-card sm:shadow-raise'
 
-/**
- * Same shape, on `--surface-flat` instead of `--surface`: a step above the
- * page rather than the full jump. For a screen that is mostly rows -- Today,
- * Orders -- where every row sitting on a full-contrast card reads as a stack
- * of cut-out tiles instead of one page of content.
- */
+/* Same shape on --surface-flat: a step above the page, not the full jump. For
+   row-heavy screens, where full cards read as cut-out tiles. */
 export const FLUSH_SURFACE_FLAT =
   '-mx-gutter overflow-hidden bg-surface-flat sm:mx-0 sm:rounded-card sm:shadow-raise'
 
@@ -100,12 +92,8 @@ export function SectionCard({
   )
 }
 
-/**
- * A form that interrupts a screen rather than belonging to it.
- *
- * Bottom sheet on a phone, centred dialog above `sm`: the bottom edge exists
- * because that is where the thumb is, which stops being true with a mouse.
- */
+/* A form that interrupts a screen. Bottom sheet on a phone, centred dialog
+   above sm: the bottom edge is where the thumb is, but not the mouse. */
 export function Sheet({
   open,
   title,

@@ -1,14 +1,5 @@
-/**
- * The web design's keyboard map (spec, "Keyboard, which the web design
- * requires").
- *
- * Registered once at the shell rather than per screen, so a shortcut cannot
- * mean two things in two places.
- *
- * Every handler bails while the user is typing. A shop naming an order "Navy
- * suit" must not have the N open a new order, and that single check is the
- * difference between shortcuts and a haunted keyboard.
- */
+/* Registered once at the shell, so a shortcut cannot mean two things. Every
+   handler bails while typing: naming an order "Navy suit" must not open one. */
 import { useEffect } from 'preact/hooks'
 
 /** True when the event came from somewhere a character is expected. */

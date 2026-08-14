@@ -1,8 +1,5 @@
-/**
- * Garment identity (section 29). Online-only, see catalogue.ts's header
- * comment for why. Generic -- any tenant may track individual garments, not
- * just NORTH//FOUND.
- */
+/* Garment identity (§29), online-only. Generic: any tenant may track
+   individual garments. */
 import { getSupabase } from '../lib/supabaseClient'
 import { friendlyError } from './friendlyError'
 
