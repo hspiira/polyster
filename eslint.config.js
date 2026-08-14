@@ -41,8 +41,9 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
-    // Node script whose page.evaluate callbacks run in the browser.
-    files: ['.claude/**/*.mjs'],
+    // Browser drivers: Node scripts whose page.evaluate callbacks run in a page,
+    // so both sets of globals are legitimate.
+    files: ['.claude/**/*.mjs', '*.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 )
