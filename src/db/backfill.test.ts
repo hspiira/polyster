@@ -149,11 +149,17 @@ describe('backfillOrderUnits', () => {
       return originalInsert(doc)
     })
 
+    // The log is the only trace an operator gets that an order was skipped, so
+    // assert it rather than let it leak into the run's stderr.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
     expect(await backfillOrderUnits(db)).toBe(1)
 
     expect(await db.order_units.findOne(orderA).exec()).toBeNull()
     expect(await db.order_units.findOne(orderB).exec()).not.toBeNull()
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(orderA), expect.any(Error))
 
+    errorSpy.mockRestore()
     insertSpy.mockRestore()
   })
 })
