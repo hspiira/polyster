@@ -2,6 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createDatabase, type AppDatabase } from './database'
 import { backfillOrderUnits } from './backfill'
 import type { OrderUnitDoc } from './schema'
+import {
+  addOrderUnit,
+  createClient,
+  createOrder,
+  createShop,
+  setOrderAdjustment,
+} from './writes'
 
 const created: AppDatabase[] = []
 
@@ -161,5 +168,71 @@ describe('backfillOrderUnits', () => {
 
     errorSpy.mockRestore()
     insertSpy.mockRestore()
+  })
+
+  describe('against an order the app itself created', () => {
+    async function realOrder(db: AppDatabase) {
+      const shop = await createShop(db, { name: 'Northfound', whatsapp_number: '+256772123456' })
+      const client = await createClient(db, shop.id, { name: 'Grace' })
+      const order = await createOrder(db, shop.id, {
+        client_id: client.id,
+        order_type: 'tailor_made',
+        pickup_due_date: '2026-09-01',
+        item_description: 'Navy three-piece suit',
+        price_total_minor: 450000,
+      })
+      return order
+    }
+
+    it('fabricates nothing for a single-item order', async () => {
+      const db = await freshDatabase()
+      const order = await realOrder(db)
+
+      expect(await backfillOrderUnits(db)).toBe(0)
+      expect(await db.order_units.count({ selector: { order_id: order.id } }).exec()).toBe(1)
+    })
+
+    it('fabricates nothing for a multi-item order', async () => {
+      const db = await freshDatabase()
+      const order = await realOrder(db)
+      await addOrderUnit(db, order.id, { item_description: 'Waistcoat', price_minor: 120000 })
+
+      expect(await backfillOrderUnits(db)).toBe(0)
+      expect(await db.order_units.count({ selector: { order_id: order.id } }).exec()).toBe(2)
+    })
+
+    it('leaves the order total alone across a recalculate', async () => {
+      const db = await freshDatabase()
+      const order = await realOrder(db)
+
+      await backfillOrderUnits(db)
+      await setOrderAdjustment(db, order.id, 0)
+
+      expect((await db.orders.findOne(order.id).exec())?.price_total_minor).toBe(450000)
+    })
+
+    it('still skips an order whose only unit is keyed on the order id', async () => {
+      const db = await freshDatabase()
+      const orderId = await insertOrderWithoutUnits(db, {
+        summary: 'Kanzu',
+        price_total_minor: 45000,
+      })
+      const timestamp = new Date().toISOString()
+      await db.order_units.insert({
+        id: orderId,
+        order_id: orderId,
+        position: 0,
+        item_description: 'Kanzu, navy',
+        price_minor: 45000,
+        measurements: {},
+        fabric_source: 'shop',
+        done: false,
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+
+      expect(await backfillOrderUnits(db)).toBe(0)
+      expect(await db.order_units.count().exec()).toBe(1)
+    })
   })
 })

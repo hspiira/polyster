@@ -4,14 +4,21 @@ import type { AppDatabase } from './database'
 
 export async function backfillOrderUnits(db: AppDatabase): Promise<number> {
   const orders = await db.orders.find().exec()
+  if (orders.length === 0) return 0
+
+  // Has the order any units -- not: does one carry the order's own id.
+  const existingUnits = await db.order_units.find().exec()
+  const ordersWithUnits = new Set(existingUnits.map((unit) => unit.order_id))
+
   let created = 0
 
   for (const order of orders) {
     try {
-      // Storage instance, not a query: RxDB hides soft-deleted docs, so a unit
-      // removed mid-archiveOrder would look like "never had one" and resurrect.
-      const [existing] = await db.order_units.storageInstance.findDocumentsById([order.id], true)
-      if (existing) continue
+      if (ordersWithUnits.has(order.id)) continue
+
+      // The query hides soft deletes, which would else read as "never had one".
+      const [tombstone] = await db.order_units.storageInstance.findDocumentsById([order.id], true)
+      if (tombstone) continue
 
       await db.order_units.insert({
         id: order.id,
