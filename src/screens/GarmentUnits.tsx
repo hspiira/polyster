@@ -34,6 +34,7 @@ import {
   type GarmentUnitStatus,
 } from '../online/garmentUnits'
 import { useBack } from '../hooks/useBack'
+import { useDraft } from '../hooks/useDraft'
 
 const STATUS_LABELS: Record<GarmentUnitStatus, string> = {
   produced: 'Produced',
@@ -45,6 +46,15 @@ const STATUS_LABELS: Record<GarmentUnitStatus, string> = {
   retired: 'Retired',
   lost: 'Lost',
   damaged: 'Damaged',
+}
+
+interface GarmentUnitDraft {
+  variantId: string
+  batchId: string
+  serialNumber: string
+  status: GarmentUnitStatus
+  customerId: string
+  soldAt: string
 }
 
 export function GarmentUnits() {
@@ -246,34 +256,36 @@ function GarmentUnitSheet({
 }) {
   const { shop } = useCurrentShop()
   const [copied, setCopied] = useState(false)
-  const [variantId, setVariantId] = useState(unit?.product_variant_id ?? variants[0]?.id ?? '')
-  const [batchId, setBatchId] = useState(unit?.production_batch_id ?? '')
-  const [serialNumber, setSerialNumber] = useState(unit?.serial_number ?? '')
-  const [status, setStatus] = useState<GarmentUnitStatus>(unit?.status ?? 'produced')
-  const [customerId, setCustomerId] = useState(unit?.customer_id ?? '')
-  const [soldAt, setSoldAt] = useState(unit?.sold_at?.slice(0, 10) ?? '')
+  const { draft, set } = useDraft<GarmentUnitDraft>(() => ({
+    variantId: unit?.product_variant_id ?? variants[0]?.id ?? '',
+    batchId: unit?.production_batch_id ?? '',
+    serialNumber: unit?.serial_number ?? '',
+    status: unit?.status ?? 'produced',
+    customerId: unit?.customer_id ?? '',
+    soldAt: unit?.sold_at?.slice(0, 10) ?? '',
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   async function submit(event: Event) {
     event.preventDefault()
-    if (!variantId) {
+    if (!draft.variantId) {
       setError('Choose which variant this garment is.')
       return
     }
-    if (!serialNumber.trim()) {
+    if (!draft.serialNumber.trim()) {
       setError('Give this garment a serial number.')
       return
     }
     setSaving(true)
     setError(null)
     const input: GarmentUnitInput = {
-      product_variant_id: variantId,
-      production_batch_id: batchId || undefined,
-      serial_number: serialNumber,
-      status,
-      customer_id: customerId || undefined,
-      sold_at: status === 'sold' ? soldAt || undefined : undefined,
+      product_variant_id: draft.variantId,
+      production_batch_id: draft.batchId || undefined,
+      serial_number: draft.serialNumber,
+      status: draft.status,
+      customer_id: draft.customerId || undefined,
+      sold_at: draft.status === 'sold' ? draft.soldAt || undefined : undefined,
     }
     try {
       if (unit) {
@@ -313,7 +325,7 @@ function GarmentUnitSheet({
         )}
 
         <Field label="Variant">
-          <Select value={variantId} onValue={setVariantId}>
+          <Select value={draft.variantId} onValue={(v) => set('variantId', v)}>
             <option value="">Choose a variant</option>
             {variants.map((variant) => (
               <option key={variant.id} value={variant.id}>
@@ -324,11 +336,11 @@ function GarmentUnitSheet({
         </Field>
 
         <Field label="Serial number" hint='e.g. "F002-B01-017".'>
-          <Input value={serialNumber} onValue={setSerialNumber} />
+          <Input value={draft.serialNumber} onValue={(v) => set('serialNumber', v)} />
         </Field>
 
         <Field label="Status">
-          <Select value={status} onChange={(e) => setStatus((e.target as HTMLSelectElement).value as GarmentUnitStatus)}>
+          <Select value={draft.status} onValue={(v) => set('status', v as GarmentUnitStatus)}>
             {GARMENT_UNIT_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABELS[s]}
@@ -338,7 +350,7 @@ function GarmentUnitSheet({
         </Field>
 
         <Field label="Production batch" hint="Optional -- which batch this unit came from.">
-          <Select value={batchId} onValue={setBatchId}>
+          <Select value={draft.batchId} onValue={(v) => set('batchId', v)}>
             <option value="">No batch</option>
             {batches.map((batch) => (
               <option key={batch.id} value={batch.id}>
@@ -349,7 +361,7 @@ function GarmentUnitSheet({
         </Field>
 
         <Field label="Customer" hint="Optional -- who this garment belongs to.">
-          <Select value={customerId} onValue={setCustomerId}>
+          <Select value={draft.customerId} onValue={(v) => set('customerId', v)}>
             <option value="">No customer</option>
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
@@ -359,9 +371,9 @@ function GarmentUnitSheet({
           </Select>
         </Field>
 
-        {status === 'sold' && (
+        {draft.status === 'sold' && (
           <Field label="Sold on" hint="Optional.">
-            <Input type="date" value={soldAt} onValue={setSoldAt} />
+            <Input type="date" value={draft.soldAt} onValue={(v) => set('soldAt', v)} />
           </Field>
         )}
 

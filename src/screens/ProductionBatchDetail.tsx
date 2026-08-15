@@ -38,6 +38,7 @@ import {
 } from '../online/production'
 import { getProduct, type Product } from '../online/catalogue'
 import { useBack } from '../hooks/useBack'
+import { useDraft } from '../hooks/useDraft'
 
 const STATUS_LABELS: Record<BatchStatus, string> = {
   planned: 'Planned',
@@ -56,6 +57,21 @@ const COST_TYPE_LABELS: Record<CostType, string> = {
   labels: 'Labels',
   quality_control: 'Quality control',
   other: 'Other',
+}
+
+interface ProgressDraft {
+  status: BatchStatus
+  produced: string
+  accepted: string
+  rejected: string
+  rejectedReason: string
+  notes: string
+}
+
+interface CostDraft {
+  costType: CostType
+  description: string
+  amount: string
 }
 
 export function ProductionBatchDetail() {
@@ -257,35 +273,34 @@ function ProgressSheet({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [status, setStatus] = useState<BatchStatus>(batch.status)
-  const [produced, setProduced] = useState(String(batch.produced_quantity))
-  const [accepted, setAccepted] = useState(String(batch.accepted_quantity))
-  const [rejected, setRejected] = useState(String(batch.rejected_quantity))
-  const [rejectedReason, setRejectedReason] = useState(batch.rejected_reason ?? '')
-  const [notes, setNotes] = useState(batch.notes ?? '')
+  const progressOf = (source: ProductionBatch): ProgressDraft => ({
+    status: source.status,
+    produced: String(source.produced_quantity),
+    accepted: String(source.accepted_quantity),
+    rejected: String(source.rejected_quantity),
+    rejectedReason: source.rejected_reason ?? '',
+    notes: source.notes ?? '',
+  })
+  const { draft, set, reset } = useDraft<ProgressDraft>(() => progressOf(batch))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setStatus(batch.status)
-    setProduced(String(batch.produced_quantity))
-    setAccepted(String(batch.accepted_quantity))
-    setRejected(String(batch.rejected_quantity))
-    setRejectedReason(batch.rejected_reason ?? '')
-    setNotes(batch.notes ?? '')
+    reset(progressOf(batch))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch])
 
   async function submit(event: Event) {
     event.preventDefault()
     const input: BatchProgressInput = {
-      status,
-      produced_quantity: Math.max(0, Math.round(Number(produced) || 0)),
-      accepted_quantity: Math.max(0, Math.round(Number(accepted) || 0)),
-      rejected_quantity: Math.max(0, Math.round(Number(rejected) || 0)),
-      rejected_reason: rejectedReason,
-      notes,
+      status: draft.status,
+      produced_quantity: Math.max(0, Math.round(Number(draft.produced) || 0)),
+      accepted_quantity: Math.max(0, Math.round(Number(draft.accepted) || 0)),
+      rejected_quantity: Math.max(0, Math.round(Number(draft.rejected) || 0)),
+      rejected_reason: draft.rejectedReason,
+      notes: draft.notes,
     }
-    if (input.rejected_quantity > 0 && !rejectedReason.trim()) {
+    if (input.rejected_quantity > 0 && !draft.rejectedReason.trim()) {
       setError('A rejected quantity needs a reason.')
       return
     }
@@ -306,7 +321,7 @@ function ProgressSheet({
     <Sheet open={open} title="Update progress" onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Status">
-          <Select value={status} onChange={(e) => setStatus((e.target as HTMLSelectElement).value as BatchStatus)}>
+          <Select value={draft.status} onValue={(v) => set('status', v as BatchStatus)}>
             {BATCH_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABELS[s]}
@@ -316,7 +331,7 @@ function ProgressSheet({
         </Field>
 
         <Field label="Produced">
-          <Input type="number" inputmode="numeric" value={produced} onValue={setProduced} />
+          <Input type="number" inputmode="numeric" value={draft.produced} onValue={(v) => set('produced', v)} />
         </Field>
 
         <div class="flex gap-3">
@@ -325,8 +340,8 @@ function ProgressSheet({
               <Input
                 type="number"
                 inputmode="numeric"
-                value={accepted}
-                onValue={setAccepted}
+                value={draft.accepted}
+                onValue={(v) => set('accepted', v)}
               />
             </Field>
           </div>
@@ -335,19 +350,19 @@ function ProgressSheet({
               <Input
                 type="number"
                 inputmode="numeric"
-                value={rejected}
-                onValue={setRejected}
+                value={draft.rejected}
+                onValue={(v) => set('rejected', v)}
               />
             </Field>
           </div>
         </div>
 
-        <Field label="Rejection reason" hint={Number(rejected) > 0 ? 'Required when anything is rejected.' : 'Optional.'}>
-          <Input value={rejectedReason} onValue={setRejectedReason} />
+        <Field label="Rejection reason" hint={Number(draft.rejected) > 0 ? 'Required when anything is rejected.' : 'Optional.'}>
+          <Input value={draft.rejectedReason} onValue={(v) => set('rejectedReason', v)} />
         </Field>
 
         <Field label="Notes" hint="Optional.">
-          <Textarea value={notes} onValue={setNotes} />
+          <Textarea value={draft.notes} onValue={(v) => set('notes', v)} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}
@@ -378,9 +393,11 @@ function AddCostSheet({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [costType, setCostType] = useState<CostType>('materials')
-  const [description, setDescription] = useState('')
-  const [amount, setAmount] = useState('0')
+  const { draft: cost, set: setCost, reset: resetCost } = useDraft<CostDraft>(() => ({
+    costType: 'materials',
+    description: '',
+    amount: '0',
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -390,12 +407,11 @@ function AddCostSheet({
     setError(null)
     try {
       await addBatchCost(shopId, batchId, {
-        cost_type: costType,
-        description,
-        amount_minor: Math.max(0, Math.round(Number(amount) || 0)),
+        cost_type: cost.costType,
+        description: cost.description,
+        amount_minor: Math.max(0, Math.round(Number(cost.amount) || 0)),
       })
-      setDescription('')
-      setAmount('0')
+      resetCost({ costType: cost.costType, description: '', amount: '0' })
       onClose()
       onSaved()
     } catch (err) {
@@ -409,7 +425,7 @@ function AddCostSheet({
     <Sheet open={open} title="Add cost" onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Type">
-          <Select value={costType} onChange={(e) => setCostType((e.target as HTMLSelectElement).value as CostType)}>
+          <Select value={cost.costType} onValue={(v) => setCost('costType', v as CostType)}>
             {COST_TYPES.map((type) => (
               <option key={type} value={type}>
                 {COST_TYPE_LABELS[type]}
@@ -418,10 +434,10 @@ function AddCostSheet({
           </Select>
         </Field>
         <Field label="Description" hint="Optional.">
-          <Input value={description} onValue={setDescription} />
+          <Input value={cost.description} onValue={(v) => setCost('description', v)} />
         </Field>
         <Field label="Amount (minor units)">
-          <Input type="number" inputmode="numeric" value={amount} onValue={setAmount} />
+          <Input type="number" inputmode="numeric" value={cost.amount} onValue={(v) => setCost('amount', v)} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}

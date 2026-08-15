@@ -38,6 +38,7 @@ import {
 } from '../online/catalogue'
 import { listCollections, type Collection } from '../online/collections'
 import { useBack } from '../hooks/useBack'
+import { useDraft } from '../hooks/useDraft'
 import { filterByQuery } from '../lib/search'
 
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
@@ -46,6 +47,16 @@ const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   service: 'Service',
   rental: 'Rental',
   custom: 'Custom',
+}
+
+interface ProductDraft {
+  name: string
+  productType: ProductType
+  categoryId: string
+  collectionId: string
+  brand: string
+  description: string
+  imageUrl: string
 }
 
 export function Catalogue() {
@@ -224,30 +235,27 @@ function AddProductSheet({
   onSaved: () => void
 }) {
   const { shop } = useCurrentShop()
-  const [name, setName] = useState('')
-  const [productType, setProductType] = useState<ProductType>('garment')
-  const [categoryId, setCategoryId] = useState('')
-  const [collectionId, setCollectionId] = useState('')
-  const [brand, setBrand] = useState('')
-  const [description, setDescription] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
+  const blank = (): ProductDraft => ({
+    name: '',
+    productType: 'garment',
+    categoryId: '',
+    collectionId: '',
+    brand: '',
+    description: '',
+    imageUrl: '',
+  })
+  const { draft, set, reset: resetDraft } = useDraft<ProductDraft>(blank)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   function reset() {
-    setName('')
-    setProductType('garment')
-    setCategoryId('')
-    setCollectionId('')
-    setBrand('')
-    setDescription('')
-    setImageUrl('')
+    resetDraft(blank())
     setError(null)
   }
 
   async function submit(event: Event) {
     event.preventDefault()
-    if (!name.trim()) {
+    if (!draft.name.trim()) {
       setError('Give the product a name.')
       return
     }
@@ -255,13 +263,13 @@ function AddProductSheet({
     setError(null)
     try {
       await createProduct(shop.id, {
-        name,
-        product_type: productType,
-        category_id: categoryId || undefined,
-        collection_id: collectionId || undefined,
-        brand,
-        description,
-        image_url: imageUrl,
+        name: draft.name,
+        product_type: draft.productType,
+        category_id: draft.categoryId || undefined,
+        collection_id: draft.collectionId || undefined,
+        brand: draft.brand,
+        description: draft.description,
+        image_url: draft.imageUrl,
       })
       reset()
       onClose()
@@ -277,13 +285,13 @@ function AddProductSheet({
     <Sheet open={open} title="New product" onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} autofocus onValue={setName} />
+          <Input value={draft.name} autofocus onValue={(v) => set('name', v)} />
         </Field>
 
         <Field label="Type">
           <Select
-            value={productType}
-            onChange={(e) => setProductType((e.target as HTMLSelectElement).value as ProductType)}
+            value={draft.productType}
+            onValue={(v) => set('productType', v as ProductType)}
           >
             {PRODUCT_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -294,7 +302,7 @@ function AddProductSheet({
         </Field>
 
         <Field label="Category" hint="Optional.">
-          <Select value={categoryId} onValue={setCategoryId}>
+          <Select value={draft.categoryId} onValue={(v) => set('categoryId', v)}>
             <option value="">No category</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -305,7 +313,7 @@ function AddProductSheet({
         </Field>
 
         <Field label="Collection" hint="Optional.">
-          <Select value={collectionId} onValue={setCollectionId}>
+          <Select value={draft.collectionId} onValue={(v) => set('collectionId', v)}>
             <option value="">No collection</option>
             {collections.map((collection) => (
               <option key={collection.id} value={collection.id}>
@@ -316,14 +324,14 @@ function AddProductSheet({
         </Field>
 
         <Field label="Brand" hint="Optional.">
-          <Input value={brand} onValue={setBrand} />
+          <Input value={draft.brand} onValue={(v) => set('brand', v)} />
         </Field>
 
         <Field label="Description" hint="Optional.">
-          <Textarea value={description} onValue={setDescription} />
+          <Textarea value={draft.description} onValue={(v) => set('description', v)} />
         </Field>
 
-        <ProductImageField shopId={shop.id} imageUrl={imageUrl} onChange={setImageUrl} />
+        <ProductImageField shopId={shop.id} imageUrl={draft.imageUrl} onChange={(v) => set('imageUrl', v)} />
 
         {error && <ErrorNote>{error}</ErrorNote>}
 
