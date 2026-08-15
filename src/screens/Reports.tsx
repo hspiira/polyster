@@ -289,8 +289,7 @@ export function Reports() {
             <div class="mt-2">
               <Sparkline
                 values={running}
-                tone={inProfit ? 'var(--success)' : 'var(--danger)'}
-                summary={`Running net from ${money(running[0]!)} to ${money(running[running.length - 1]!)} over ${running.length} periods.`}
+                summary={`Running net from ${money(running[0]!)} to ${money(running[running.length - 1]!)} over ${running.length} periods, low point ${money(Math.min(...running))}.`}
               />
             </div>
             <p class="mt-1 text-xs text-content-muted">
