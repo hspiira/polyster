@@ -29,12 +29,21 @@ import {
   type SupplierInput,
 } from '../online/suppliers'
 import { useBack } from '../hooks/useBack'
+import { useDraft } from '../hooks/useDraft'
 import { filterByQuery } from '../lib/search'
 
 const TOGGLE_OPTIONS = [
   { value: 'on', label: 'Active' },
   { value: 'off', label: 'Inactive' },
 ] as const
+
+interface SupplierDraft {
+  name: string
+  phone: string
+  email: string
+  address: string
+  notes: string
+}
 
 export function Suppliers() {
   const back = useBack()
@@ -183,23 +192,25 @@ function SupplierSheet({
   onSaved: () => void
 }) {
   const { shop } = useCurrentShop()
-  const [name, setName] = useState(supplier?.name ?? '')
-  const [phone, setPhone] = useState(supplier?.phone ?? '')
-  const [email, setEmail] = useState(supplier?.email ?? '')
-  const [address, setAddress] = useState(supplier?.address ?? '')
-  const [notes, setNotes] = useState(supplier?.notes ?? '')
+  const { draft, set } = useDraft<SupplierDraft>(() => ({
+    name: supplier?.name ?? '',
+    phone: supplier?.phone ?? '',
+    email: supplier?.email ?? '',
+    address: supplier?.address ?? '',
+    notes: supplier?.notes ?? '',
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   async function submit(event: Event) {
     event.preventDefault()
-    if (!name.trim()) {
+    if (!draft.name.trim()) {
       setError('Give the supplier a name.')
       return
     }
     setSaving(true)
     setError(null)
-    const input: SupplierInput = { name, phone, email, address, notes }
+    const input: SupplierInput = { ...draft }
     try {
       if (supplier) {
         await updateSupplier(supplier.id, input)
@@ -219,24 +230,24 @@ function SupplierSheet({
     <Sheet open={open} title={supplier ? 'Edit supplier' : 'New supplier'} onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} autofocus onValue={setName} />
+          <Input value={draft.name} autofocus onValue={(v) => set('name', v)} />
         </Field>
         <Field label="Phone" hint="Optional.">
           <Input
             type="tel"
             inputmode="tel"
-            value={phone}
-            onValue={setPhone}
+            value={draft.phone}
+            onValue={(v) => set('phone', v)}
           />
         </Field>
         <Field label="Email" hint="Optional.">
-          <Input type="email" value={email} onValue={setEmail} />
+          <Input type="email" value={draft.email} onValue={(v) => set('email', v)} />
         </Field>
         <Field label="Address" hint="Optional.">
-          <Input value={address} onValue={setAddress} />
+          <Input value={draft.address} onValue={(v) => set('address', v)} />
         </Field>
         <Field label="Notes" hint="Optional.">
-          <Textarea value={notes} onValue={setNotes} />
+          <Textarea value={draft.notes} onValue={(v) => set('notes', v)} />
         </Field>
 
         {supplier && (
