@@ -7,23 +7,31 @@ import { EXPENSE_CATEGORIES, type ExpenseCategory, type ExpenseDoc } from '../db
 import { formatMinor, parseToMinor } from '../lib/money'
 import { formatDate, today } from '../lib/dates'
 import { EXPENSE_CATEGORY_LABELS } from './expenseCategories'
+import { useDraft } from '../hooks/useDraft'
+
+interface ExpenseDraft {
+  category: ExpenseCategory
+  description: string
+  amount: string
+  spentOn: string
+  notes: string
+}
 
 /** Shared by the Expenses screen and the Money tab's quick action. */
 export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { db, shop, activeStaff } = useCurrentShop()
-  const [category, setCategory] = useState<ExpenseCategory>('materials')
-  const [description, setDescription] = useState('')
-  const [amount, setAmount] = useState('')
-  const [spentOn, setSpentOn] = useState(today())
-  const [notes, setNotes] = useState('')
+  const { draft, set, reset } = useDraft<ExpenseDraft>(() => ({
+    category: 'materials',
+    description: '',
+    amount: '',
+    spentOn: today(),
+    notes: '',
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   function close() {
-    setDescription('')
-    setAmount('')
-    setNotes('')
-    setSpentOn(today())
+    reset({ category: draft.category, description: '', amount: '', spentOn: today(), notes: '' })
     setError(null)
     onClose()
   }
@@ -31,16 +39,16 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
   async function submit(event: Event) {
     event.preventDefault()
 
-    if (!description.trim()) {
+    if (!draft.description.trim()) {
       setError('Say what the money went on, or the report cannot tell you anything.')
       return
     }
-    const amountMinor = parseToMinor(amount, shop.currency)
+    const amountMinor = parseToMinor(draft.amount, shop.currency)
     if (amountMinor === null || amountMinor <= 0) {
       setError('Enter an amount greater than zero.')
       return
     }
-    if (!spentOn) {
+    if (!draft.spentOn) {
       setError('A date is needed, so it lands in the right period.')
       return
     }
@@ -52,11 +60,11 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
         db,
         shop,
         {
-          category,
-          description,
+          category: draft.category,
+          description: draft.description,
           amount_minor: amountMinor,
-          spent_on: spentOn,
-          ...(notes.trim() ? { notes } : {}),
+          spent_on: draft.spentOn,
+          ...(draft.notes.trim() ? { notes: draft.notes } : {}),
         },
         activeStaff?.id,
       )
@@ -73,10 +81,8 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
       <form onSubmit={submit} class="space-y-4">
         <Field label="Category">
           <Select
-            value={category}
-            onChange={(e) =>
-              setCategory((e.target as HTMLSelectElement).value as ExpenseCategory)
-            }
+            value={draft.category}
+            onValue={(v) => set('category', v as ExpenseCategory)}
           >
             {EXPENSE_CATEGORIES.map((value) => (
               <option key={value} value={value}>
@@ -89,9 +95,9 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
         <Field label="What for">
           <Input
             autofocus
-            value={description}
+            value={draft.description}
             placeholder="Fabric from Kikuubo"
-            onValue={setDescription}
+            onValue={(v) => set('description', v)}
           />
         </Field>
 
@@ -100,9 +106,9 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
             <Field label="Amount" hint={`In ${shop.currency}.`}>
               <Input
                 inputmode="decimal"
-                value={amount}
+                value={draft.amount}
                 placeholder="0"
-                onValue={setAmount}
+                onValue={(v) => set('amount', v)}
               />
             </Field>
           </div>
@@ -110,8 +116,8 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
             <Field label="Date">
               <Input
                 type="date"
-                value={spentOn}
-                onValue={setSpentOn}
+                value={draft.spentOn}
+                onValue={(v) => set('spentOn', v)}
               />
             </Field>
           </div>
@@ -119,8 +125,8 @@ export function AddExpenseSheet({ open, onClose }: { open: boolean; onClose: () 
 
         <Field label="Notes (optional)">
           <Textarea
-            value={notes}
-            onValue={setNotes}
+            value={draft.notes}
+            onValue={(v) => set('notes', v)}
           />
         </Field>
 

@@ -1,7 +1,7 @@
 /* The date, sync state, and the way to Settings. The date is the heading, not
    the word "Today", which the tab bar already says. */
-import { Avatar } from '../../ui'
 import { SyncBadge } from '../../components/SyncBadge'
+import { AccountMenu } from '../../components/AccountMenu'
 import { IconSettings } from '../../components/icons'
 import type { AuthState } from '../../lib/auth'
 import type { ReplicationStatus } from '../../hooks/useReplication'
@@ -34,15 +34,25 @@ export function TodayTop({
     <header class="mb-3">
       <div class="flex items-center justify-between gap-3">
         <SyncBadge online={online} auth={auth} replication={replication} />
-        <a
-          href="/settings"
-          aria-label="Settings"
-          class="-mr-1 flex min-h-11 items-center gap-1.5 rounded-control px-1
-                 text-content-subtle active:bg-pressed"
-        >
-          <IconSettings size={17} />
-          {staffName && <Avatar name={staffName} size="sm" />}
-        </a>
+
+        {/* Two targets, not one. The gear was previously inside the same link
+            as the avatar, so tapping a face opened preferences. */}
+        <div class="-mr-1.5 flex shrink-0 items-center gap-0.5">
+          <a
+            href="/settings"
+            aria-label="Settings"
+            class="flex size-11 items-center justify-center rounded-full
+                   text-content-subtle active:bg-pressed"
+          >
+            <IconSettings size={20} />
+          </a>
+          {staffName && (
+            <>
+              <span aria-hidden="true" class="h-5 w-px shrink-0 bg-line-strong" />
+              <AccountMenu staffName={staffName} />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Not an `h1`: `Screen label` already renders one, visually hidden. */}

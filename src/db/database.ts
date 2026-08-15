@@ -210,8 +210,10 @@ export async function createDatabase(
   if (import.meta.env.DEV && devMode) {
     const { RxDBDevModePlugin, disableWarnings } = await import('rxdb/plugins/dev-mode')
     const { wrappedValidateAjvStorage } = await import('rxdb/plugins/validate-ajv')
-    addRxPlugin(RxDBDevModePlugin)
+    // Before addRxPlugin, not after: the banner prints from the plugin's own
+    // init hook, which addRxPlugin runs synchronously.
     disableWarnings()
+    addRxPlugin(RxDBDevModePlugin)
     storage = wrappedValidateAjvStorage({ storage }) as typeof storage
   }
 

@@ -1,6 +1,7 @@
 /* Form controls. `text-base` is load-bearing: below 16px iOS zooms on focus and
    does not zoom back. Focus is drawn once in index.css. */
-import type { ComponentChildren, JSX } from 'preact'
+import { createContext, type ComponentChildren, type JSX } from 'preact'
+import { useContext, useId } from 'preact/hooks'
 import { IconSearch } from '../components/icons'
 import { cn } from '../lib/cn'
 
@@ -12,6 +13,16 @@ const CONTROL = cn(
 /* `onValue` exists so screens stop writing (e.target as HTMLInputElement).value
    at every field. `onInput` still works where the event itself is wanted. */
 type ValueProps = { onValue?: (value: string) => void }
+
+/* Field owns the hint and error ids, so it publishes them here rather than every
+   screen threading aria props by hand. Spread before {...props}: callers win. */
+const FieldAriaContext = createContext<{ describedBy?: string; invalid?: boolean }>({})
+
+/** Exported for the raw elements Field also wraps, which are not these controls. */
+export function useFieldAria() {
+  const { describedBy, invalid } = useContext(FieldAriaContext)
+  return { 'aria-describedby': describedBy, 'aria-invalid': invalid || undefined }
+}
 
 function valueHandler<E extends { target: EventTarget | null }>(
   onValue: ((value: string) => void) | undefined,
@@ -32,6 +43,7 @@ export function Input({
 }: JSX.IntrinsicElements['input'] & ValueProps) {
   return (
     <input
+      {...useFieldAria()}
       {...props}
       onInput={valueHandler(onValue, onInput)}
       class={cn('min-h-tap', CONTROL, className)}
@@ -47,6 +59,7 @@ export function Textarea({
 }: JSX.IntrinsicElements['textarea'] & ValueProps) {
   return (
     <textarea
+      {...useFieldAria()}
       {...props}
       onInput={valueHandler(onValue, onInput)}
       rows={3}
@@ -63,6 +76,7 @@ export function Select({
 }: JSX.IntrinsicElements['select'] & ValueProps) {
   return (
     <select
+      {...useFieldAria()}
       {...props}
       onChange={valueHandler(onValue, onChange)}
       class={cn('min-h-tap', CONTROL, 'pr-8', className)}
@@ -82,6 +96,7 @@ export function SearchInput({
         <IconSearch size={18} />
       </span>
       <input
+        {...useFieldAria()}
         {...props}
         onInput={valueHandler(onValue, onInput)}
         type="search"
@@ -103,13 +118,28 @@ export function Field({
   error?: string | null
   children: ComponentChildren
 }) {
+  const id = useId()
+  const hintId = `${id}-hint`
+  const errorId = `${id}-error`
+
   return (
     <label class="block">
       <span class="mb-1.5 block text-sm font-medium text-content">{label}</span>
-      {children}
-      {hint && !error && <span class="mt-1 block text-xs text-content-muted">{hint}</span>}
+      <FieldAriaContext.Provider
+        value={{
+          describedBy: error ? errorId : hint ? hintId : undefined,
+          invalid: Boolean(error),
+        }}
+      >
+        {children}
+      </FieldAriaContext.Provider>
+      {hint && !error && (
+        <span id={hintId} class="mt-1 block text-xs text-content-muted">
+          {hint}
+        </span>
+      )}
       {error && (
-        <span role="alert" class="mt-1 block text-xs text-danger">
+        <span id={errorId} role="alert" class="mt-1 block text-xs text-danger">
           {error}
         </span>
       )}
@@ -144,15 +174,15 @@ export function Switch({
       {/* 40x22. The 44px tap floor is the button around it, not the drawing. */}
       <span
         class={cn(
-          'flex h-[1.375rem] w-10 items-center rounded-pill p-0.5 transition-colors',
+          'flex h-5.5 w-10 items-center rounded-pill p-0.5 transition-colors',
           checked ? 'bg-accent' : 'bg-line-strong',
         )}
       >
         <span
           class={cn(
-            'block size-[1.125rem] rounded-full bg-surface shadow-raise',
+            'block size-4.5 rounded-full bg-surface shadow-raise',
             'transition-transform duration-100',
-            checked ? 'translate-x-[1.125rem]' : 'translate-x-0',
+            checked ? 'translate-x-4.5' : 'translate-x-0',
           )}
         />
       </span>

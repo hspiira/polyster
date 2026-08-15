@@ -10,15 +10,6 @@ interface SyncBadgeProps {
 
 export type SyncTone = 'good' | 'waiting' | 'bad' | 'neutral'
 
-/* Exported so Today's profile header, which draws sync as a ring around the
-   avatar, cannot second-guess what "waiting" looks like. */
-export const SYNC_RING_TONES: Record<SyncTone, string> = {
-  good: 'ring-success',
-  waiting: 'ring-warning',
-  bad: 'ring-danger',
-  neutral: 'ring-content-subtle',
-}
-
 export const SYNC_DOT_TONES: Record<SyncTone, string> = {
   good: 'bg-success',
   waiting: 'bg-warning',
@@ -56,9 +47,15 @@ export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
     )
   }
 
+  /* A live region: this is the one place the app says whether work has left the
+     device, and it changes without anyone navigating to it. */
   return (
-    <span class={`inline-flex min-w-0 items-center gap-1.5 text-xs ${SYNC_TEXT_TONES[tone]}`}>
-      <span class="relative flex size-2 shrink-0">
+    <span
+      role="status"
+      aria-live="polite"
+      class={`inline-flex min-w-0 items-center gap-1.5 text-xs ${SYNC_TEXT_TONES[tone]}`}
+    >
+      <span class="relative flex size-2 shrink-0" aria-hidden="true">
         {tone === 'waiting' && (
           <span
             class={`absolute inline-flex size-full animate-ping rounded-full ${SYNC_DOT_TONES[tone]} opacity-60`}
@@ -71,8 +68,8 @@ export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
   )
 }
 
-/* What each sync state means. Today's profile header reuses this rather than
-   re-deriving tone from online/auth/replication a second time. */
+/* What each sync state means. The one place online/auth/replication are turned
+   into a label, so no caller re-derives it. */
 export function describe(
   online: boolean,
   auth: AuthState,

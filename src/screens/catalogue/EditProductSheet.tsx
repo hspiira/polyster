@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { Button, ErrorNote, Field, Input, Select, Sheet, Textarea } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { ProductImageField } from '../ProductImageField'
+import { useDraft } from '../../hooks/useDraft'
 import {
   PRODUCT_TYPES,
   updateProduct,
@@ -17,6 +18,16 @@ const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   service: 'Service',
   rental: 'Rental',
   custom: 'Custom',
+}
+
+interface ProductDraft {
+  name: string
+  productType: ProductType
+  categoryId: string
+  collectionId: string
+  brand: string
+  description: string
+  imageUrl: string
 }
 
 export function EditProductSheet({
@@ -35,29 +46,27 @@ export function EditProductSheet({
   onSaved: () => void
 }) {
   const { shop } = useCurrentShop()
-  const [name, setName] = useState(product.name)
-  const [productType, setProductType] = useState<ProductType>(product.product_type)
-  const [categoryId, setCategoryId] = useState(product.category_id ?? '')
-  const [collectionId, setCollectionId] = useState(product.collection_id ?? '')
-  const [brand, setBrand] = useState(product.brand ?? '')
-  const [description, setDescription] = useState(product.description ?? '')
-  const [imageUrl, setImageUrl] = useState(product.image_url ?? '')
+  const from = (source: Product): ProductDraft => ({
+    name: source.name,
+    productType: source.product_type,
+    categoryId: source.category_id ?? '',
+    collectionId: source.collection_id ?? '',
+    brand: source.brand ?? '',
+    description: source.description ?? '',
+    imageUrl: source.image_url ?? '',
+  })
+  const { draft, set, reset } = useDraft<ProductDraft>(() => from(product))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setName(product.name)
-    setProductType(product.product_type)
-    setCategoryId(product.category_id ?? '')
-    setCollectionId(product.collection_id ?? '')
-    setBrand(product.brand ?? '')
-    setDescription(product.description ?? '')
-    setImageUrl(product.image_url ?? '')
+    reset(from(product))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product])
 
   async function submit(event: Event) {
     event.preventDefault()
-    if (!name.trim()) {
+    if (!draft.name.trim()) {
       setError('Give the product a name.')
       return
     }
@@ -65,13 +74,13 @@ export function EditProductSheet({
     setError(null)
     try {
       await updateProduct(product.id, {
-        name,
-        product_type: productType,
-        category_id: categoryId || undefined,
-        collection_id: collectionId || undefined,
-        brand,
-        description,
-        image_url: imageUrl,
+        name: draft.name,
+        product_type: draft.productType,
+        category_id: draft.categoryId || undefined,
+        collection_id: draft.collectionId || undefined,
+        brand: draft.brand,
+        description: draft.description,
+        image_url: draft.imageUrl,
       })
       onClose()
       onSaved()
@@ -86,12 +95,12 @@ export function EditProductSheet({
     <Sheet open={open} title="Edit product" onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} onValue={setName} />
+          <Input value={draft.name} onValue={(v) => set('name', v)} />
         </Field>
         <Field label="Type">
           <Select
-            value={productType}
-            onChange={(e) => setProductType((e.target as HTMLSelectElement).value as ProductType)}
+            value={draft.productType}
+            onValue={(v) => set('productType', v as ProductType)}
           >
             {PRODUCT_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -101,7 +110,7 @@ export function EditProductSheet({
           </Select>
         </Field>
         <Field label="Category" hint="Optional.">
-          <Select value={categoryId} onValue={setCategoryId}>
+          <Select value={draft.categoryId} onValue={(v) => set('categoryId', v)}>
             <option value="">No category</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
@@ -111,7 +120,7 @@ export function EditProductSheet({
           </Select>
         </Field>
         <Field label="Collection" hint="Optional.">
-          <Select value={collectionId} onValue={setCollectionId}>
+          <Select value={draft.collectionId} onValue={(v) => set('collectionId', v)}>
             <option value="">No collection</option>
             {collections.map((collection) => (
               <option key={collection.id} value={collection.id}>
@@ -121,12 +130,12 @@ export function EditProductSheet({
           </Select>
         </Field>
         <Field label="Brand" hint="Optional.">
-          <Input value={brand} onValue={setBrand} />
+          <Input value={draft.brand} onValue={(v) => set('brand', v)} />
         </Field>
         <Field label="Description" hint="Optional.">
-          <Textarea value={description} onValue={setDescription} />
+          <Textarea value={draft.description} onValue={(v) => set('description', v)} />
         </Field>
-        <ProductImageField shopId={shop.id} imageUrl={imageUrl} onChange={setImageUrl} />
+        <ProductImageField shopId={shop.id} imageUrl={draft.imageUrl} onChange={(v) => set('imageUrl', v)} />
 
         {error && <ErrorNote>{error}</ErrorNote>}
 

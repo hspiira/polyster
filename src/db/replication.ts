@@ -39,6 +39,7 @@ export function dropNullFields<T extends object>(row: T): T {
 export function withNullStrippedRows<T extends PromiseLike<{ data: unknown; error: unknown }>>(builder: T): T {
   // Patching a third-party builder's `.then` at runtime has no structurally
   // sound generic type -- see the block comment above for what this does and why.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see above
   const mutable = builder as any
   const originalThen = mutable.then.bind(builder)
   mutable.then = (onFulfilled?: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) =>

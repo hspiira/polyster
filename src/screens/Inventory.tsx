@@ -30,12 +30,19 @@ import {
 import { listAllProductVariants, listProducts, type Product, type ProductVariant } from '../online/catalogue'
 import { listMaterials, type Material } from '../online/materials'
 import { useBack } from '../hooks/useBack'
+import { useDraft } from '../hooks/useDraft'
 
 const SCOPE_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'product_variant', label: 'Finished goods' },
   { value: 'material', label: 'Materials' },
 ] as const
+
+interface InventoryDraft {
+  itemType: ItemType
+  refId: string
+  startingQuantity: string
+}
 
 export function Inventory() {
   const back = useBack()
@@ -208,9 +215,11 @@ function TrackItemSheet({
   onSaved: () => void
 }) {
   const { shop } = useCurrentShop()
-  const [itemType, setItemType] = useState<ItemType>('product_variant')
-  const [refId, setRefId] = useState('')
-  const [startingQuantity, setStartingQuantity] = useState('0')
+  const { draft, set, patch } = useDraft<InventoryDraft>(() => ({
+    itemType: 'product_variant',
+    refId: '',
+    startingQuantity: '0',
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -222,21 +231,23 @@ function TrackItemSheet({
 
   async function submit(event: Event) {
     event.preventDefault()
-    if (!refId) {
+    if (!draft.refId) {
       setError('Choose what to track.')
       return
     }
     setSaving(true)
     setError(null)
     try {
-      const unit = itemType === 'material' ? (materials.find((m) => m.id === refId)?.unit ?? 'unit') : 'unit'
+      const unit = draft.itemType === 'material' ? (materials.find((m) => m.id === draft.refId)?.unit ?? 'unit') : 'unit'
       const item = await getOrCreateInventoryItem(
         shop.id,
-        itemType,
-        itemType === 'product_variant' ? { productVariantId: refId } : { materialId: refId },
+        draft.itemType,
+        draft.itemType === 'product_variant'
+          ? { productVariantId: draft.refId }
+          : { materialId: draft.refId },
         unit,
       )
-      const qty = Math.round(Number(startingQuantity) || 0)
+      const qty = Math.round(Number(draft.startingQuantity) || 0)
       if (qty !== 0) {
         await recordMovement(shop.id, item.id, {
           movement_type: 'adjustment',
@@ -258,22 +269,19 @@ function TrackItemSheet({
       <form onSubmit={submit} class="space-y-4">
         <Field label="Type">
           <Segmented
-            value={itemType}
+            value={draft.itemType}
             options={[
               { value: 'product_variant', label: 'Finished good' },
               { value: 'material', label: 'Material' },
             ]}
-            onChange={(value) => {
-              setItemType(value as ItemType)
-              setRefId('')
-            }}
+            onChange={(value) => patch({ itemType: value as ItemType, refId: '' })}
             label="Item type"
           />
         </Field>
 
-        {itemType === 'product_variant' ? (
+        {draft.itemType === 'product_variant' ? (
           <Field label="Variant">
-            <Select value={refId} onValue={setRefId}>
+            <Select value={draft.refId} onValue={(v) => set('refId', v)}>
               <option value="">Choose a variant</option>
               {availableVariants.map((variant) => (
                 <option key={variant.id} value={variant.id}>
@@ -284,7 +292,7 @@ function TrackItemSheet({
           </Field>
         ) : (
           <Field label="Material">
-            <Select value={refId} onValue={setRefId}>
+            <Select value={draft.refId} onValue={(v) => set('refId', v)}>
               <option value="">Choose a material</option>
               {availableMaterials.map((material) => (
                 <option key={material.id} value={material.id}>
@@ -299,8 +307,8 @@ function TrackItemSheet({
           <Input
             type="number"
             inputmode="numeric"
-            value={startingQuantity}
-            onValue={setStartingQuantity}
+            value={draft.startingQuantity}
+            onValue={(v) => set('startingQuantity', v)}
           />
         </Field>
 

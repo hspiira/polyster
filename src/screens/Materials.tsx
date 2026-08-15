@@ -33,7 +33,23 @@ import {
 import { listSuppliers, type Supplier } from '../online/suppliers'
 import { findInventoryItem, listInventoryItems } from '../online/inventory'
 import { useBack } from '../hooks/useBack'
+import { useDraft } from '../hooks/useDraft'
 import { filterByQuery } from '../lib/search'
+
+interface MaterialDraft {
+  name: string
+  materialType: MaterialType
+  unit: string
+  quantity: string
+  reorderLevel: string
+  unitCost: string
+  supplierId: string
+  composition: string
+  gsm: string
+  width: string
+  colour: string
+  pattern: string
+}
 
 const MATERIAL_TYPE_LABELS: Record<MaterialType, string> = {
   fabric: 'Fabric',
@@ -228,10 +244,20 @@ function MaterialSheet({
   onSaved: () => void
 }) {
   const { shop } = useCurrentShop()
-  const [name, setName] = useState(material?.name ?? '')
-  const [materialType, setMaterialType] = useState<MaterialType>(material?.material_type ?? 'fabric')
-  const [unit, setUnit] = useState(material?.unit ?? 'unit')
-  const [quantity, setQuantity] = useState(String(material?.quantity_on_hand ?? 0))
+  const { draft, set } = useDraft<MaterialDraft>(() => ({
+    name: material?.name ?? '',
+    materialType: material?.material_type ?? 'fabric',
+    unit: material?.unit ?? 'unit',
+    quantity: String(material?.quantity_on_hand ?? 0),
+    reorderLevel: String(material?.reorder_level ?? 0),
+    unitCost: String(material?.unit_cost_minor ?? 0),
+    supplierId: material?.supplier_id ?? '',
+    composition: material?.composition ?? '',
+    gsm: material?.gsm ? String(material.gsm) : '',
+    width: material?.width ?? '',
+    colour: material?.colour ?? '',
+    pattern: material?.pattern ?? '',
+  }))
   const [liveQuantity, setLiveQuantity] = useState<number | null>(null)
 
   useEffect(() => {
@@ -244,38 +270,30 @@ function MaterialSheet({
       cancelled = true
     }
   }, [material])
-  const [reorderLevel, setReorderLevel] = useState(String(material?.reorder_level ?? 0))
-  const [unitCost, setUnitCost] = useState(String(material?.unit_cost_minor ?? 0))
-  const [supplierId, setSupplierId] = useState(material?.supplier_id ?? '')
-  const [composition, setComposition] = useState(material?.composition ?? '')
-  const [gsm, setGsm] = useState(material?.gsm ? String(material.gsm) : '')
-  const [width, setWidth] = useState(material?.width ?? '')
-  const [colour, setColour] = useState(material?.colour ?? '')
-  const [pattern, setPattern] = useState(material?.pattern ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   async function submit(event: Event) {
     event.preventDefault()
-    if (!name.trim()) {
+    if (!draft.name.trim()) {
       setError('Give the material a name.')
       return
     }
     setSaving(true)
     setError(null)
     const input: MaterialInput = {
-      name,
-      material_type: materialType,
-      unit,
-      quantity_on_hand: Math.max(0, Number(quantity) || 0),
-      reorder_level: Math.max(0, Number(reorderLevel) || 0),
-      unit_cost_minor: Math.max(0, Math.round(Number(unitCost) || 0)),
-      supplier_id: supplierId || undefined,
-      composition,
-      gsm: gsm ? Number(gsm) : undefined,
-      width,
-      colour,
-      pattern,
+      name: draft.name,
+      material_type: draft.materialType,
+      unit: draft.unit,
+      quantity_on_hand: Math.max(0, Number(draft.quantity) || 0),
+      reorder_level: Math.max(0, Number(draft.reorderLevel) || 0),
+      unit_cost_minor: Math.max(0, Math.round(Number(draft.unitCost) || 0)),
+      supplier_id: draft.supplierId || undefined,
+      composition: draft.composition,
+      gsm: draft.gsm ? Number(draft.gsm) : undefined,
+      width: draft.width,
+      colour: draft.colour,
+      pattern: draft.pattern,
     }
     try {
       if (material) {
@@ -296,13 +314,13 @@ function MaterialSheet({
     <Sheet open={open} title={material ? 'Edit material' : 'New material'} onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} autofocus onValue={setName} />
+          <Input value={draft.name} autofocus onValue={(v) => set('name', v)} />
         </Field>
 
         <Field label="Type">
           <Select
-            value={materialType}
-            onChange={(e) => setMaterialType((e.target as HTMLSelectElement).value as MaterialType)}
+            value={draft.materialType}
+            onValue={(v) => set('materialType', v as MaterialType)}
           >
             {MATERIAL_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -313,7 +331,7 @@ function MaterialSheet({
         </Field>
 
         <Field label="Supplier" hint="Optional.">
-          <Select value={supplierId} onValue={setSupplierId}>
+          <Select value={draft.supplierId} onValue={(v) => set('supplierId', v)}>
             <option value="">No supplier</option>
             {suppliers.map((supplier) => (
               <option key={supplier.id} value={supplier.id}>
@@ -326,7 +344,7 @@ function MaterialSheet({
         <div class="flex gap-3">
           <div class="flex-1">
             <Field label="Unit" hint="e.g. metres, pieces.">
-              <Input value={unit} onValue={setUnit} />
+              <Input value={draft.unit} onValue={(v) => set('unit', v)} />
             </Field>
           </div>
           <div class="flex-1">
@@ -337,9 +355,9 @@ function MaterialSheet({
               <Input
                 type="number"
                 inputmode="decimal"
-                value={material ? (liveQuantity ?? '...') : quantity}
+                value={material ? (liveQuantity ?? '...') : draft.quantity}
                 disabled={Boolean(material)}
-                onValue={setQuantity}
+                onValue={(v) => set('quantity', v)}
               />
             </Field>
           </div>
@@ -351,8 +369,8 @@ function MaterialSheet({
               <Input
                 type="number"
                 inputmode="decimal"
-                value={reorderLevel}
-                onValue={setReorderLevel}
+                value={draft.reorderLevel}
+                onValue={(v) => set('reorderLevel', v)}
               />
             </Field>
           </div>
@@ -361,18 +379,18 @@ function MaterialSheet({
               <Input
                 type="number"
                 inputmode="numeric"
-                value={unitCost}
-                onValue={setUnitCost}
+                value={draft.unitCost}
+                onValue={(v) => set('unitCost', v)}
               />
             </Field>
           </div>
         </div>
 
-        {materialType === 'fabric' && (
+        {draft.materialType === 'fabric' && (
           <div class="space-y-4 rounded-control bg-surface-sunken p-3">
             <p class="text-xs font-medium text-content-muted">Fabric details (optional)</p>
             <Field label="Composition" hint='e.g. "100% Cotton".'>
-              <Input value={composition} onValue={setComposition} />
+              <Input value={draft.composition} onValue={(v) => set('composition', v)} />
             </Field>
             <div class="flex gap-3">
               <div class="flex-1">
@@ -380,26 +398,26 @@ function MaterialSheet({
                   <Input
                     type="number"
                     inputmode="numeric"
-                    value={gsm}
-                    onValue={setGsm}
+                    value={draft.gsm}
+                    onValue={(v) => set('gsm', v)}
                   />
                 </Field>
               </div>
               <div class="flex-1">
                 <Field label="Width">
-                  <Input value={width} onValue={setWidth} />
+                  <Input value={draft.width} onValue={(v) => set('width', v)} />
                 </Field>
               </div>
             </div>
             <div class="flex gap-3">
               <div class="flex-1">
                 <Field label="Colour">
-                  <Input value={colour} onValue={setColour} />
+                  <Input value={draft.colour} onValue={(v) => set('colour', v)} />
                 </Field>
               </div>
               <div class="flex-1">
                 <Field label="Pattern">
-                  <Input value={pattern} onValue={setPattern} />
+                  <Input value={draft.pattern} onValue={(v) => set('pattern', v)} />
                 </Field>
               </div>
             </div>

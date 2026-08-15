@@ -1,6 +1,7 @@
 /* Charts drawn by hand: a few hundred bytes of SVG against tens of kilobytes of
    library (§8). Each measures its own box, so nothing is stretched to fit. */
-import { useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { useId, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { smoothPath } from './chartPath'
 
 const MAX_BAR = 24
 const MIN_BAR = 8
@@ -28,8 +29,8 @@ function useWidth(): [{ current: HTMLDivElement | null }, number] {
     }
   }, [])
 
-  // Every render, not only on mount: if neither signal arrived, the next render
-  // corrects a chart drawn to a width the screen no longer has.
+  // Every render on purpose: corrects a chart drawn to a width that has changed
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the guard stops the loop
   useLayoutEffect(() => {
     const measured = ref.current?.clientWidth
     if (measured && measured !== width) setWidth(measured)
@@ -43,7 +44,6 @@ export interface Share {
   label: string
   value: number
   formatted: string
-  /** A muted aside on the legend row: "8 sold". */
   hint?: string
 }
 
@@ -226,28 +226,35 @@ export function FlowColumns({
   )
 }
 
-/* One series over time: a 2px line on a 10% wash, last point marked. No legend
-   -- the heading above says what is plotted. */
+/* One series over time, read against zero: the area fills to the zero line
+   rather than the bottom edge, so a deficit hangs below the axis as a trough. */
 export function Sparkline({
   values,
   summary,
-  tone = 'var(--accent)',
+  positiveTone = 'var(--success)',
+  negativeTone = 'var(--danger)',
 }: {
   values: readonly number[]
   summary: string
-  tone?: string
+  positiveTone?: string
+  negativeTone?: string
 }) {
   const [ref, width] = useWidth()
+  const clipId = useId()
   const height = 72
   const pad = 6
 
+  // Zero is always on the scale: it is the thing the reader is measuring against.
   const min = Math.min(0, ...values)
-  const max = Math.max(1, ...values)
+  const max = Math.max(0, ...values)
   const span = max - min || 1
   const x = (index: number) => (index / Math.max(1, values.length - 1)) * width
   const y = (value: number) => pad + (1 - (value - min) / span) * (height - pad * 2)
 
-  const line = values.map((value, index) => `${index === 0 ? 'M' : 'L'}${x(index)} ${y(value)}`)
+  const zeroY = y(0)
+  const points = values.map((value, index) => ({ x: x(index), y: y(value) }))
+  const line = smoothPath(points)
+  const area = `${line} L${x(values.length - 1)} ${zeroY} L${x(0)} ${zeroY} Z`
   const last = values[values.length - 1]
 
   return (
@@ -261,25 +268,42 @@ export function Sparkline({
           role="img"
           aria-label={summary}
         >
-          <path
-            d={`${line.join(' ')} L${width} ${height} L0 ${height} Z`}
-            fill={tone}
-            opacity="0.1"
+          <defs>
+            {/* Two halves of the box, so one path can be drawn in two colours
+                without splitting the curve at every zero crossing. */}
+            <clipPath id={`${clipId}-up`}>
+              <rect x="0" y="0" width={width} height={Math.max(0, zeroY)} />
+            </clipPath>
+            <clipPath id={`${clipId}-down`}>
+              <rect x="0" y={zeroY} width={width} height={Math.max(0, height - zeroY)} />
+            </clipPath>
+          </defs>
+
+          <g clip-path={`url(#${clipId}-up)`}>
+            <path d={area} fill={positiveTone} opacity="0.14" />
+            <path d={line} fill="none" stroke={positiveTone} stroke-width="2" stroke-linecap="round" />
+          </g>
+          <g clip-path={`url(#${clipId}-down)`}>
+            <path d={area} fill={negativeTone} opacity="0.14" />
+            <path d={line} fill="none" stroke={negativeTone} stroke-width="2" stroke-linecap="round" />
+          </g>
+
+          {/* The reference the whole chart is read against. */}
+          <line
+            x1="0"
+            y1={zeroY}
+            x2={width}
+            y2={zeroY}
+            stroke="var(--line-strong)"
+            stroke-width="1"
           />
-          <path
-            d={line.join(' ')}
-            fill="none"
-            stroke={tone}
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
+
           {/* Ringed in the surface colour so it reads where it crosses the line. */}
           <circle
             cx={x(values.length - 1)}
             cy={y(last)}
             r="4"
-            fill={tone}
+            fill={last < 0 ? negativeTone : positiveTone}
             stroke="var(--surface)"
             stroke-width="2"
           />

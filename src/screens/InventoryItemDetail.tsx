@@ -33,6 +33,7 @@ import {
 import { listAllProductVariants, listProducts, type Product, type ProductVariant } from '../online/catalogue'
 import { listMaterials, type Material } from '../online/materials'
 import { useBack } from '../hooks/useBack'
+import { useDraft } from '../hooks/useDraft'
 
 const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   purchase: 'Purchase',
@@ -46,6 +47,13 @@ const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
   adjustment: 'Adjustment',
   sample: 'Sample',
   repair: 'Repair',
+}
+
+interface MovementDraft {
+  movementType: MovementType
+  quantity: string
+  reason: string
+  notes: string
 }
 
 export function InventoryItemDetail() {
@@ -216,21 +224,23 @@ function RecordMovementSheet({
   onSaved: () => void
 }) {
   const { shop } = useCurrentShop()
-  const [movementType, setMovementType] = useState<MovementType>('adjustment')
-  const [quantity, setQuantity] = useState('')
-  const [reason, setReason] = useState('')
-  const [notes, setNotes] = useState('')
+  const { draft, set, patch } = useDraft<MovementDraft>(() => ({
+    movementType: 'adjustment',
+    quantity: '',
+    reason: '',
+    notes: '',
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   async function submit(event: Event) {
     event.preventDefault()
-    const qty = Math.round(Number(quantity) || 0)
+    const qty = Math.round(Number(draft.quantity) || 0)
     if (qty === 0) {
       setError('Enter a non-zero quantity -- positive to add stock, negative to remove it.')
       return
     }
-    if (movementType === 'adjustment' && !reason.trim()) {
+    if (draft.movementType === 'adjustment' && !draft.reason.trim()) {
       setError('An adjustment needs a reason.')
       return
     }
@@ -238,14 +248,12 @@ function RecordMovementSheet({
     setError(null)
     try {
       await recordMovement(shop.id, item.id, {
-        movement_type: movementType,
+        movement_type: draft.movementType,
         quantity: qty,
-        reason,
-        notes,
+        reason: draft.reason,
+        notes: draft.notes,
       })
-      setQuantity('')
-      setReason('')
-      setNotes('')
+      patch({ quantity: '', reason: '', notes: '' })
       onClose()
       onSaved()
     } catch (err) {
@@ -260,8 +268,8 @@ function RecordMovementSheet({
       <form onSubmit={submit} class="space-y-4">
         <Field label="Type">
           <Select
-            value={movementType}
-            onChange={(e) => setMovementType((e.target as HTMLSelectElement).value as MovementType)}
+            value={draft.movementType}
+            onValue={(v) => set('movementType', v as MovementType)}
           >
             {MOVEMENT_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -275,17 +283,17 @@ function RecordMovementSheet({
           <Input
             type="number"
             inputmode="numeric"
-            value={quantity}
-            onValue={setQuantity}
+            value={draft.quantity}
+            onValue={(v) => set('quantity', v)}
           />
         </Field>
 
-        <Field label="Reason" hint={movementType === 'adjustment' ? 'Required for an adjustment.' : 'Optional.'}>
-          <Input value={reason} onValue={setReason} />
+        <Field label="Reason" hint={draft.movementType === 'adjustment' ? 'Required for an adjustment.' : 'Optional.'}>
+          <Input value={draft.reason} onValue={(v) => set('reason', v)} />
         </Field>
 
         <Field label="Notes" hint="Optional.">
-          <Textarea value={notes} onValue={setNotes} />
+          <Textarea value={draft.notes} onValue={(v) => set('notes', v)} />
         </Field>
 
         {error && <ErrorNote>{error}</ErrorNote>}

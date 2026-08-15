@@ -33,6 +33,7 @@ import {
   type CollectionStatus,
 } from '../online/collections'
 import { useBack } from '../hooks/useBack'
+import { useDraft } from '../hooks/useDraft'
 
 const STATUS_LABELS: Record<CollectionStatus, string> = {
   draft: 'Draft',
@@ -40,6 +41,21 @@ const STATUS_LABELS: Record<CollectionStatus, string> = {
   active: 'Active',
   sold_out: 'Sold out',
   archived: 'Archived',
+}
+
+interface CollectionDraft {
+  name: string
+  code: string
+  status: CollectionStatus
+  releaseDate: string
+  description: string
+  tagline: string
+  story: string
+  coverImageUrl: string
+  coordinateLabel: string
+  latitude: string
+  longitude: string
+  productionLimit: string
 }
 
 export function Collections() {
@@ -172,44 +188,44 @@ function CollectionSheet({
   onSaved: () => void
 }) {
   const { shop } = useCurrentShop()
-  const [name, setName] = useState(collection?.name ?? '')
-  const [code, setCode] = useState(collection?.code ?? '')
-  const [status, setStatus] = useState<CollectionStatus>(collection?.status ?? 'draft')
-  const [releaseDate, setReleaseDate] = useState(collection?.release_date ?? '')
-  const [description, setDescription] = useState(collection?.description ?? '')
-  const [tagline, setTagline] = useState(collection?.tagline ?? '')
-  const [story, setStory] = useState(collection?.story ?? '')
-  const [coverImageUrl, setCoverImageUrl] = useState(collection?.cover_image_url ?? '')
-  const [coordinateLabel, setCoordinateLabel] = useState(collection?.coordinate_label ?? '')
-  const [latitude, setLatitude] = useState(collection?.latitude ? String(collection.latitude) : '')
-  const [longitude, setLongitude] = useState(collection?.longitude ? String(collection.longitude) : '')
-  const [productionLimit, setProductionLimit] = useState(
-    collection?.production_limit ? String(collection.production_limit) : '',
-  )
+  const { draft, set } = useDraft<CollectionDraft>(() => ({
+    name: collection?.name ?? '',
+    code: collection?.code ?? '',
+    status: collection?.status ?? 'draft',
+    releaseDate: collection?.release_date ?? '',
+    description: collection?.description ?? '',
+    tagline: collection?.tagline ?? '',
+    story: collection?.story ?? '',
+    coverImageUrl: collection?.cover_image_url ?? '',
+    coordinateLabel: collection?.coordinate_label ?? '',
+    latitude: collection?.latitude ? String(collection.latitude) : '',
+    longitude: collection?.longitude ? String(collection.longitude) : '',
+    productionLimit: collection?.production_limit ? String(collection.production_limit) : '',
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   async function submit(event: Event) {
     event.preventDefault()
-    if (!name.trim()) {
+    if (!draft.name.trim()) {
       setError('Give the collection a name.')
       return
     }
     setSaving(true)
     setError(null)
     const input: CollectionInput = {
-      name,
-      code,
-      status,
-      release_date: releaseDate || undefined,
-      description,
-      tagline,
-      story,
-      cover_image_url: coverImageUrl,
-      coordinate_label: coordinateLabel,
-      latitude: latitude ? Number(latitude) : undefined,
-      longitude: longitude ? Number(longitude) : undefined,
-      production_limit: productionLimit ? Number(productionLimit) : undefined,
+      name: draft.name,
+      code: draft.code,
+      status: draft.status,
+      release_date: draft.releaseDate || undefined,
+      description: draft.description,
+      tagline: draft.tagline,
+      story: draft.story,
+      cover_image_url: draft.coverImageUrl,
+      coordinate_label: draft.coordinateLabel,
+      latitude: draft.latitude ? Number(draft.latitude) : undefined,
+      longitude: draft.longitude ? Number(draft.longitude) : undefined,
+      production_limit: draft.productionLimit ? Number(draft.productionLimit) : undefined,
     }
     try {
       if (collection) {
@@ -230,13 +246,13 @@ function CollectionSheet({
     <Sheet open={open} title={collection ? 'Edit collection' : 'New collection'} onClose={onClose}>
       <form onSubmit={submit} class="space-y-4">
         <Field label="Name">
-          <Input value={name} autofocus onValue={setName} />
+          <Input value={draft.name} autofocus onValue={(v) => set('name', v)} />
         </Field>
         <Field label="Code" hint='Optional, e.g. "FOUND002".'>
-          <Input value={code} onValue={setCode} />
+          <Input value={draft.code} onValue={(v) => set('code', v)} />
         </Field>
         <Field label="Status">
-          <Select value={status} onChange={(e) => setStatus((e.target as HTMLSelectElement).value as CollectionStatus)}>
+          <Select value={draft.status} onValue={(v) => set('status', v as CollectionStatus)}>
             {COLLECTION_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABELS[s]}
@@ -245,22 +261,22 @@ function CollectionSheet({
           </Select>
         </Field>
         <Field label="Release date" hint="Optional.">
-          <Input type="date" value={releaseDate} onValue={setReleaseDate} />
+          <Input type="date" value={draft.releaseDate} onValue={(v) => set('releaseDate', v)} />
         </Field>
         <Field label="Tagline" hint='Optional, e.g. "KEEP GOING."'>
-          <Input value={tagline} onValue={setTagline} />
+          <Input value={draft.tagline} onValue={(v) => set('tagline', v)} />
         </Field>
         <Field label="Description" hint="Optional.">
-          <Textarea value={description} onValue={setDescription} />
+          <Textarea value={draft.description} onValue={(v) => set('description', v)} />
         </Field>
         <Field label="Story" hint="Optional.">
-          <Textarea value={story} onValue={setStory} />
+          <Textarea value={draft.story} onValue={(v) => set('story', v)} />
         </Field>
 
         <ImageUploadField
           label="Cover image"
-          imageUrl={coverImageUrl}
-          onChange={setCoverImageUrl}
+          imageUrl={draft.coverImageUrl}
+          onChange={(v) => set('coverImageUrl', v)}
           upload={(file) => uploadCollectionImage(shop.id, file)}
           onDelete={deleteCollectionImage}
         />
@@ -268,17 +284,17 @@ function CollectionSheet({
         <div class="space-y-4 rounded-control bg-surface-sunken p-3">
           <p class="text-xs font-medium text-content-muted">Coordinates and limit (optional)</p>
           <Field label="Coordinate label" hint='e.g. "08.13° N 32.58° E".'>
-            <Input value={coordinateLabel} onValue={setCoordinateLabel} />
+            <Input value={draft.coordinateLabel} onValue={(v) => set('coordinateLabel', v)} />
           </Field>
           <div class="flex gap-3">
             <div class="flex-1">
               <Field label="Latitude">
-                <Input type="number" inputmode="decimal" value={latitude} onValue={setLatitude} />
+                <Input type="number" inputmode="decimal" value={draft.latitude} onValue={(v) => set('latitude', v)} />
               </Field>
             </div>
             <div class="flex-1">
               <Field label="Longitude">
-                <Input type="number" inputmode="decimal" value={longitude} onValue={setLongitude} />
+                <Input type="number" inputmode="decimal" value={draft.longitude} onValue={(v) => set('longitude', v)} />
               </Field>
             </div>
           </div>
@@ -286,8 +302,8 @@ function CollectionSheet({
             <Input
               type="number"
               inputmode="numeric"
-              value={productionLimit}
-              onValue={setProductionLimit}
+              value={draft.productionLimit}
+              onValue={(v) => set('productionLimit', v)}
             />
           </Field>
         </div>

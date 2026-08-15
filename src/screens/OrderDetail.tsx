@@ -2,6 +2,7 @@
    The balance comes from observeBalance(), never the view -- D9. */
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation, useRoute } from 'preact-iso'
+import { dueDateShortLabel } from '../lib/orderTypes'
 import {
   Button,
   Card,
@@ -131,7 +132,7 @@ export function OrderDetail() {
               <StatTile label="Paid">
                 {formatMinor(balance.amount_paid_minor, order.currency)}
               </StatTile>
-              <StatTile label={order.order_type === 'rental' ? 'Collection' : 'Pickup'} tone={overdue ? 'alert' : undefined}>
+              <StatTile label={dueDateShortLabel(order.order_type)} tone={overdue ? 'alert' : undefined}>
                 {formatDate(order.pickup_due_date)}
               </StatTile>
             </StatStrip>
@@ -174,7 +175,7 @@ export function OrderDetail() {
                 )}
               </DataRow>
               <DataRow label="Type">{ORDER_TYPE_LABELS[order.order_type]}</DataRow>
-              <DataRow label={order.order_type === 'rental' ? 'Collection' : 'Pickup'}>
+              <DataRow label={dueDateShortLabel(order.order_type)}>
                 <span class={overdue ? 'text-danger' : ''}>
                   {formatDate(order.pickup_due_date)}
                   <span class="ml-1 font-normal text-content-muted">

@@ -1,7 +1,7 @@
 /* A forgotten PIN, two paths, decided by lib/recovery.ts. Signing in proves you
    own the account, not that it owns this shop -- so the ids are compared. */
 import { useState } from 'preact/hooks'
-import { PinPad } from '../../components/PinPad'
+import { ChoosePinPad } from '../../components/ChoosePinPad'
 import { useAuth } from '../../hooks/useAuth'
 import { useOnline } from '../../hooks/useOnline'
 import { useShop } from '../../state/ShopProvider'
@@ -30,7 +30,6 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
   const { db, shop } = useShop()
 
   const [stage, setStage] = useState<Stage>('choose')
-  const [firstPin, setFirstPin] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const path = recoveryPath({ online, shopAuthUserId: shop?.supabase_auth_user_id })
@@ -87,31 +86,21 @@ export function PinRecovery({ person, onCancel }: { person: StaffDoc; onCancel: 
             }
           />
           {error && <EntryError>{error}</EntryError>}
-          <PinPad
-            key={stage}
-            hint={confirming ? 'Confirm your new PIN' : 'Choose your new PIN'}
-            errorHint="Those did not match. Start again."
-            busyHint="Saving..."
-            onComplete={async (pin) => {
-              if (!confirming) {
-                setFirstPin(pin)
-                setStage('confirmPin')
-                return true
-              }
-              if (pin !== firstPin) {
-                setFirstPin('')
-                setError('Those two PINs did not match. Choose one again.')
-                setStage('newPin')
-                return false
-              }
+          {/* onPhase keeps the wizard's own heading tracking the pad's phase,
+              which is why this screen does not need its own copy of the dance. */}
+          <ChoosePinPad
+            tone="dark"
+            chooseHint="Choose your new PIN"
+            confirmHint="Confirm your new PIN"
+            onError={setError}
+            onPhase={(isConfirming) => setStage(isConfirming ? 'confirmPin' : 'newPin')}
+            onChosen={async (pin) => {
               try {
                 await setStaffPin(db, person.id, pin)
                 onCancel()
-                return true
+                return null
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Could not save the new PIN.')
-                setStage('newPin')
-                return false
+                return err instanceof Error ? err.message : 'Could not save the new PIN.'
               }
             }}
           />

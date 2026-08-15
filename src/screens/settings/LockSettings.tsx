@@ -6,7 +6,13 @@ import { IconAlert, IconLock } from '../../components/icons'
 import { ChoosePinPad } from '../../components/ChoosePinPad'
 import { useShop } from '../../state/ShopProvider'
 import { clearStaffPin, setStaffPin } from '../../db/writes'
-import { PIN_LENGTH } from '../../lib/pin'
+import {
+  DEFAULT_ITERATIONS,
+  PIN_LENGTH,
+  TARGET_HASH_MS,
+  measureHashMs,
+  recommendIterations,
+} from '../../lib/pin'
 import { useBack } from '../../hooks/useBack'
 
 type Phase = 'idle' | 'choose' | 'confirm'
@@ -113,7 +119,45 @@ export function LockSettings() {
             </Button>
           )}
         </div>
+
+        <PinCostCheck />
       </div>
     </Screen>
+  )
+}
+
+/* DEFAULT_ITERATIONS was extrapolated from a desktop, never measured on a phone.
+   Dev only: this is a workbench reading, not something a shop owner needs. */
+function PinCostCheck() {
+  const [ms, setMs] = useState<number | null>(null)
+  const [running, setRunning] = useState(false)
+
+  if (!import.meta.env.DEV) return null
+
+  async function run() {
+    setRunning(true)
+    try {
+      setMs(await measureHashMs())
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <>
+      <SectionTitle>PIN cost on this device</SectionTitle>
+      <Card>
+        <p class="text-sm leading-relaxed text-content-muted">
+          {ms === null
+            ? `Times one hash at ${DEFAULT_ITERATIONS.toLocaleString()} iterations. Target is ${TARGET_HASH_MS}ms on the slowest phone a shop uses.`
+            : `${Math.round(ms)}ms at ${DEFAULT_ITERATIONS.toLocaleString()} iterations. For ${TARGET_HASH_MS}ms, use ${recommendIterations(ms, DEFAULT_ITERATIONS).toLocaleString()}.`}
+        </p>
+        <div class="mt-3">
+          <Button variant="secondary" onClick={() => void run()} disabled={running}>
+            {running ? 'Timing...' : 'Time it'}
+          </Button>
+        </div>
+      </Card>
+    </>
   )
 }

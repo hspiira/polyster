@@ -1,0 +1,13 @@
+{
+  // No $schema: wrangler is deliberately not a dependency, so the path a
+  // generated config would point at does not exist here.
+  "name": "polyster",
+  "compatibility_date": "2026-08-15",
+  "observability": { "enabled": true },
+  "assets": {
+    // No "main": this is a static PWA, so the Worker serves assets and nothing
+    // else. SPA handling is what makes /orders/:id survive a cold reload.
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

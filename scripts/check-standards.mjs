@@ -69,6 +69,9 @@ function longCommentRuns(source) {
 
   source.split('\n').forEach((raw, i) => {
     const line = raw.trim()
+    // A lint directive instructs a machine rather than explaining anything, so
+    // it neither spends the two-line budget nor ends a run.
+    if (!inBlock && /^\/\/\s*eslint-(disable|enable)/.test(line)) return
     const isComment = inBlock || line.startsWith('//') || line.startsWith('/*')
     if (line.startsWith('/*') && !line.includes('*/')) inBlock = true
     if (inBlock && line.includes('*/')) inBlock = false

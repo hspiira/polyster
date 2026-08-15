@@ -2,6 +2,7 @@
    are testable without a harness. Nothing here imports Preact or RxDB. */
 import { addDays, dueBucket } from '../../lib/dates'
 import { formatMinor } from '../../lib/money'
+import { needsReturn } from '../../lib/orderTypes'
 import type { OrderBalance } from '../../db/balances'
 import { OPEN_STAGES, type OrderDoc } from '../../db/schema'
 
@@ -91,7 +92,7 @@ function toRow(
 /** A rental that is out and has a date it is due back on. */
 function isOutOnRental(order: OrderDoc): boolean {
   return (
-    order.order_type === 'rental' &&
+    needsReturn(order.order_type) &&
     order.stage === 'picked_up' &&
     typeof order.return_due_date === 'string' &&
     order.return_due_date.length > 0

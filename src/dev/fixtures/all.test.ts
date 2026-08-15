@@ -1,7 +1,19 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDatabase, type AppDatabase } from '../../db/database'
 import { REPLICATED_TABLES } from '../../db/replication'
 import { seedAll } from './all'
+
+/* supabaseClient reads import.meta.env once at module load, so the real guard is
+   armed by whether the machine has a .env -- green here, red in CI. Mocked. */
+const { isSupabaseConfigured } = vi.hoisted(() => ({ isSupabaseConfigured: vi.fn() }))
+vi.mock('../../lib/supabaseClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/supabaseClient')>()),
+  isSupabaseConfigured,
+}))
+
+beforeEach(() => {
+  isSupabaseConfigured.mockReturnValue(false)
+})
 
 const created: AppDatabase[] = []
 
@@ -45,11 +57,20 @@ describe('seedAll', () => {
   it('refuses to seed over a configured Supabase unless forced', async () => {
     // Replication pushes as well as pulls, so an unguarded seed here would
     // copy three fixture tenants into the remote database.
+    isSupabaseConfigured.mockReturnValue(true)
     const db = await freshDatabase()
     await expect(seedAll(db)).rejects.toThrow(/replication would push/)
 
     const shops = await db.shops.find().exec()
     expect(shops).toHaveLength(0)
+  }, 120000)
+
+  // The other half of the guard, which no test could reach while the answer
+  // came from the machine's own .env.
+  it('seeds without force when there is no Supabase to push to', async () => {
+    const db = await freshDatabase()
+    await expect(seedAll(db)).resolves.toBeDefined()
+    expect(await db.shops.count().exec()).toBe(3)
   }, 120000)
 
   it('seeds enough of everything to exercise lists, filters and reports', async () => {

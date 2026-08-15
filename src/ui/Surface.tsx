@@ -1,8 +1,8 @@
 /* The things content sits on. A surface is separated by its fill, never a
    border -- if one needs a hairline to read, the spacing is wrong. */
 import type { ComponentChildren } from 'preact'
-import { useEffect } from 'preact/hooks'
 import { cn } from '../lib/cn'
+import { useModalChrome } from '../hooks/useModalChrome'
 
 /** Edge to edge on a phone, inset card from `sm`. Cancels the page gutter so
  *  rows pad once, not twice. */
@@ -105,20 +105,9 @@ export function Sheet({
   onClose: () => void
   children: ComponentChildren
 }) {
-  // Escape closes, and the page behind must not scroll while it is open.
-  useEffect(() => {
-    if (!open) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = previous
-    }
-  }, [open, onClose])
+  // Escape, scroll lock, and focus in and back. 'panel' rather than the first
+  // field: on a phone that would open the keyboard over the sheet.
+  const panel = useModalChrome(open, onClose)
 
   if (!open) return null
 
@@ -136,8 +125,10 @@ export function Sheet({
         class="absolute inset-0 animate-fade-in bg-scrim backdrop-blur-[2px]"
       />
       <div
+        ref={panel}
+        tabIndex={-1}
         class="relative max-h-[88svh] w-full animate-sheet-in overflow-y-auto rounded-t-panel
-               bg-surface-raised shadow-overlay safe-bottom
+               bg-surface-raised shadow-overlay outline-none safe-bottom
                sm:max-w-lg sm:rounded-panel sm:pb-0"
       >
         {/* A signal that this is dismissable. Dragging is not implemented. */}

@@ -25,7 +25,7 @@ export { Card, FLUSH_SURFACE, FLUSH_SURFACE_FLAT, SectionCard, SectionTitle, She
 export { ChoiceSheet, TextFieldSheet } from './EditSheet'
 export { Disclosure } from './Disclosure'
 export { Button, HeaderAction } from './Button'
-export { Field, Input, SearchInput, Segmented, Select, Switch, Textarea } from './Field'
+export { Field, Input, SearchInput, Segmented, Select, Switch, Textarea, useFieldAria } from './Field'
 export { CurrencySwitch, PeriodBar, PeriodRangeFields } from './Period'
 export { TabRow, type TabOption } from './TabRow'
 export { DataList, type CellRole, type Column } from './DataList'

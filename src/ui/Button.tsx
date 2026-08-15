@@ -47,8 +47,14 @@ export function Button(props: ButtonProps | ButtonLinkProps) {
   )
 
   if (props.linkTo) {
-    const { linkTo, variant: _v, size: _s, block: _b, class: _c, ...rest } = props
-    return <a {...rest} href={linkTo} class={classes} />
+    // Children spelled out rather than left in the spread: an anchor whose
+    // content arrives that way cannot be checked for having any.
+    const { linkTo, variant: _v, size: _s, block: _b, class: _c, children, ...rest } = props
+    return (
+      <a {...rest} href={linkTo} class={classes}>
+        {children}
+      </a>
+    )
   }
 
   // Narrowed by hand: `linkTo?: never` does not discriminate the union well

@@ -213,7 +213,7 @@ export function Orders() {
         // not creation order.
         return [...all].reverse()
     }
-  }, [orders, clientNames, balances, scope, now, all, buckets])
+  }, [orders, clientNames, balances, scope, all, buckets])
 
   const segmentCounts: Record<Segment, number> = useMemo(
     () => ({

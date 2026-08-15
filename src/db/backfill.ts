@@ -4,22 +4,25 @@ import type { AppDatabase } from './database'
 
 export async function backfillOrderUnits(db: AppDatabase): Promise<number> {
   const orders = await db.orders.find().exec()
+  if (orders.length === 0) return 0
+
+  const existingUnits = await db.order_units.find().exec()
+  const ordersWithUnits = new Set(existingUnits.map((unit) => unit.order_id))
+
   let created = 0
 
   for (const order of orders) {
     try {
-      // Storage instance, not a query: RxDB hides soft-deleted docs, so a unit
-      // removed mid-archiveOrder would look like "never had one" and resurrect.
-      const [existing] = await db.order_units.storageInstance.findDocumentsById([order.id], true)
-      if (existing) continue
+      if (ordersWithUnits.has(order.id)) continue
+
+      const [tombstone] = await db.order_units.storageInstance.findDocumentsById([order.id], true)
+      if (tombstone) continue
 
       await db.order_units.insert({
         id: order.id,
         order_id: order.id,
         position: 0,
         item_description: order.summary || 'Item',
-        // price_total_minor is units + adjustment (invariant 1), so recovering
-        // the lone unit subtracts it back out. Clamped against a stale value.
         price_minor: Math.max(0, order.price_total_minor - order.price_adjustment_minor),
         measurements: {},
         fabric_source: 'shop',
@@ -29,8 +32,6 @@ export async function backfillOrderUnits(db: AppDatabase): Promise<number> {
       })
       created++
     } catch (error) {
-      // One unrepairable order must not stop the rest of the shop's orders
-      // from being fixed; a later app start retries this same order.
       console.error(`[db] backfill failed for order ${order.id}:`, error)
     }
   }

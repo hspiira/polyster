@@ -2,6 +2,7 @@
    component so the rules are testable without a DOM -- see docs/CODE_REVIEW.md. */
 import { addDays, today } from '../lib/dates'
 import { fromMinorUnits, parseToMinor } from '../lib/money'
+import { needsFulfilmentDate, needsReturn } from '../lib/orderTypes'
 import type { OrderHeaderInput, OrderUnitInput } from '../db/writes'
 import type {
   CustomerType,
@@ -195,7 +196,7 @@ export function validateOrderForm({
   }
 
   let depositMinor = 0
-  if (header.order_type === 'rental' && header.deposit_amount.trim()) {
+  if (needsReturn(header.order_type) && header.deposit_amount.trim()) {
     const parsed = parseToMinor(header.deposit_amount, currency)
     if (parsed === null || parsed < 0) {
       return { scope: 'header', field: 'deposit_amount', message: 'Enter the deposit as a number.' }
@@ -264,10 +265,10 @@ export function validateOrderForm({
             ...(header.contact_person.trim() ? { contact_person: header.contact_person } : {}),
           }
         : {}),
-      ...(header.order_type === 'pre_order' && header.expected_fulfilment_date
+      ...(needsFulfilmentDate(header.order_type) && header.expected_fulfilment_date
         ? { expected_fulfilment_date: header.expected_fulfilment_date }
         : {}),
-      ...(header.order_type === 'rental' ? { deposit_minor: depositMinor } : {}),
+      ...(needsReturn(header.order_type) ? { deposit_minor: depositMinor } : {}),
     },
     units: validatedUnits,
     adjustmentMinor,

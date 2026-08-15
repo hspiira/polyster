@@ -3,9 +3,12 @@ import {
   DEFAULT_ITERATIONS,
   InvalidPinError,
   PIN_LENGTH,
+  TARGET_HASH_MS,
   assertValidPin,
   hashPin,
+  measureHashMs,
   needsRehash,
+  recommendIterations,
   verifyPin,
 } from './pin'
 
@@ -114,5 +117,51 @@ describe('needsRehash', () => {
 
   it('flags an unparseable hash for replacement', () => {
     expect(needsRehash('nonsense')).toBe(true)
+  })
+})
+
+describe('recommendIterations', () => {
+  it('scales linearly, which is how PBKDF2 cost behaves', () => {
+    // Half the target time at 100k means the count can double.
+    expect(recommendIterations(125, 100_000, 250)).toBe(200_000)
+    expect(recommendIterations(500, 200_000, 250)).toBe(100_000)
+  })
+
+  it('lands on the current count when the phone already hits the target', () => {
+    expect(recommendIterations(250, 210_000, 250)).toBe(210_000)
+  })
+
+  it('rounds to ten thousand, since one sample does not justify more', () => {
+    expect(recommendIterations(251, 210_000, 250) % 10_000).toBe(0)
+    expect(recommendIterations(37, 210_000, 250) % 10_000).toBe(0)
+  })
+
+  it('never recommends a count low enough to be pointless', () => {
+    expect(recommendIterations(100_000, 210_000, 250)).toBe(10_000)
+  })
+
+  it('keeps the current count rather than dividing by a nonsense measurement', () => {
+    for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(recommendIterations(bad, 210_000, 250)).toBe(210_000)
+    }
+    expect(recommendIterations(250, 0, 250)).toBe(0)
+  })
+
+  it('defaults to the documented target', () => {
+    expect(recommendIterations(TARGET_HASH_MS, 210_000)).toBe(210_000)
+  })
+})
+
+describe('measureHashMs', () => {
+  it('reports a real elapsed time for a real hash', async () => {
+    const ms = await measureHashMs(FAST)
+    expect(ms).toBeGreaterThan(0)
+    expect(Number.isFinite(ms)).toBe(true)
+  })
+
+  it('costs more at a higher count, which is what makes it worth measuring', async () => {
+    const cheap = await measureHashMs(FAST)
+    const dearer = await measureHashMs(FAST * 20)
+    expect(dearer).toBeGreaterThan(cheap)
   })
 })
