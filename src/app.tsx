@@ -134,7 +134,7 @@ function SignedOut({ onStartRegister }: { onStartRegister: () => void }) {
 
 function Splash() {
   return (
-    <main data-theme="dark" class="flex min-h-svh items-center justify-center bg-brand-950">
+    <main data-theme="dark" class="flex min-h-dvh items-center justify-center bg-brand-950">
       <Logomark size={44} class="animate-pulse text-brand-300" />
     </main>
   )
@@ -142,7 +142,7 @@ function Splash() {
 
 function FatalError({ error }: { error: Error }) {
   return (
-    <main class="flex min-h-svh items-center justify-center bg-page px-6 text-content">
+    <main class="flex min-h-dvh items-center justify-center bg-page px-6 text-content">
       <div class="max-w-md space-y-3 text-center">
         <h1 class="text-xl font-semibold">The local database did not open</h1>
         <p class="text-sm text-content-muted">

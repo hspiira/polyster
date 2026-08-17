@@ -4,15 +4,17 @@ import { cloneElement } from 'preact'
 import { useId } from 'preact/hooks'
 import type { ComponentChildren, JSX, RefObject, VNode } from 'preact'
 import { cn } from '../../lib/cn'
+import { useForcedTheme } from '../../hooks/useForcedTheme'
 import { GlowBackdrop } from '../../components/GlowBackdrop'
 
 /* `data-theme` pins the subtree dark, which is what lets everything inside ask
    for a role instead of naming a colour. Nesting is for the safe-area padding. */
 export function EntryScreen({ children }: { children: ComponentChildren }) {
+  useForcedTheme('dark')
   return (
     <main
       data-theme="dark"
-      class="relative flex min-h-svh flex-col overflow-hidden bg-page px-6 text-content"
+      class="relative flex min-h-dvh flex-col overflow-hidden bg-page px-6 text-content"
     >
       <GlowBackdrop />
       <div class="safe-top safe-bottom relative z-10 flex flex-1 flex-col">

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   THEME_STORAGE_KEY,
   applyTheme,
+  forceTheme,
   readPreference,
   resolve,
   savePreference,
@@ -178,5 +179,61 @@ describe('startTheme', () => {
   it('returns a working unsubscribe', () => {
     startTheme()()
     expect(listeners).toHaveLength(0)
+  })
+})
+
+describe('forceTheme', () => {
+  it('pins the document dark whatever the preference says', () => {
+    savePreference('light')
+    forceTheme('dark')
+    expect(root.dataset.theme).toBe('dark')
+  })
+
+  it('ignores applyTheme while forced', () => {
+    forceTheme('dark')
+    applyTheme('light')
+    expect(root.dataset.theme).toBe('dark')
+  })
+
+  // The entry flow is fixed dark, but a system flip mid-signup must not repaint
+  // the document light underneath it.
+  it('survives a system theme change while forced', () => {
+    savePreference('system')
+    forceTheme('dark')
+    systemPrefersDark = false
+    const stop = watchSystemTheme()
+    listeners.forEach((fn) => fn())
+    expect(root.dataset.theme).toBe('dark')
+    stop()
+  })
+
+  it('restores the stored preference when released', () => {
+    savePreference('light')
+    const release = forceTheme('dark')
+    release()
+    expect(root.dataset.theme).toBe('light')
+  })
+
+  it('restores to the system theme when the preference is system', () => {
+    systemPrefersDark = true
+    savePreference('system')
+    const release = forceTheme('dark')
+    release()
+    expect(root.dataset.theme).toBe('dark')
+    systemPrefersDark = false
+    applyTheme('system')
+    expect(root.dataset.theme).toBe('light')
+  })
+
+  it('still reports the real preference to callers while forced', () => {
+    savePreference('light')
+    forceTheme('dark')
+    expect(applyTheme(readPreference())).toBe('light')
+  })
+
+  it('syncs the status-bar colour, so it cannot stay light behind a dark screen', () => {
+    metaContent = null
+    forceTheme('dark')
+    expect(metaContent).toBe('#0f1e52')
   })
 })

@@ -28,10 +28,11 @@ export function resolve(preference: ThemePreference): ResolvedTheme {
   return matchMedia(DARK_QUERY).matches ? 'dark' : 'light'
 }
 
-/* Writes the resolved theme to <html> and syncs the status-bar colour, read
-   back out of the stylesheet so theme.css stays the only file that decides. */
-export function applyTheme(preference: ThemePreference): ResolvedTheme {
-  const resolved = resolve(preference)
+let forced: ResolvedTheme | null = null
+
+/* Writes to <html> and syncs the status-bar colour, read back out of the
+   stylesheet so theme.css stays the only file that decides. */
+function write(resolved: ResolvedTheme): void {
   const root = document.documentElement
   root.dataset.theme = resolved
 
@@ -40,8 +41,23 @@ export function applyTheme(preference: ThemePreference): ResolvedTheme {
     const colour = getComputedStyle(root).getPropertyValue('--meta-theme-color').trim()
     if (colour) meta.setAttribute('content', colour)
   }
+}
 
+export function applyTheme(preference: ThemePreference): ResolvedTheme {
+  const resolved = resolve(preference)
+  if (!forced) write(resolved)
   return resolved
+}
+
+/* The entry flow is fixed dark (spec E6) and owns the whole document, so it
+   forces the theme rather than tinting one element and leaving body light. */
+export function forceTheme(theme: ResolvedTheme): () => void {
+  forced = theme
+  write(theme)
+  return () => {
+    forced = null
+    applyTheme(readPreference())
+  }
 }
 
 export function savePreference(preference: ThemePreference): ResolvedTheme {
