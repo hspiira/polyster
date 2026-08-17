@@ -4,6 +4,7 @@ import { GlowBackdrop } from '../../components/GlowBackdrop'
 import { Logomark } from '../../components/Logomark'
 import { IconArrowUpRight } from '../../components/icons'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
+import { useForcedTheme } from '../../hooks/useForcedTheme'
 
 export function Landing({
   onStart,
@@ -13,12 +14,13 @@ export function Landing({
   /** Absent when the build has no Supabase credentials -- there is nothing to sign in to. */
   onSignIn?: () => void
 }) {
+  useForcedTheme('dark')
   const install = useInstallPrompt()
 
   return (
     <main
       data-theme="dark"
-      class="relative flex min-h-svh flex-col overflow-hidden bg-page
+      class="relative flex min-h-dvh flex-col overflow-hidden bg-page
              px-[clamp(1.5rem,1.1rem+1.6vw,3rem)] text-content"
     >
       <GlowBackdrop />
