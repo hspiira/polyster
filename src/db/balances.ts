@@ -1,7 +1,5 @@
-/* Order balances, derived locally from replicated payments. The `order_balances`
-   view stays server-side only; its rules are mirrored here and tested. */
-import { combineLatest, map, type Observable } from 'rxjs'
-import type { AppDatabase } from './database'
+/* Order balances, derived from the payments on the device. The live versions
+   are in db/repo/balances.ts; everything here is pure. */
 import { OPEN_STAGES, type OrderDoc, type PaymentDoc } from './schema'
 
 export interface OrderBalance {
@@ -80,49 +78,4 @@ export function clientTotalsById(
 
 export function noClientTotals(): ClientTotals {
   return NO_TOTALS
-}
-
-/* Live balance for one order. Re-emits when the price or any payment changes,
-   locally or via replication. */
-export function observeBalance(db: AppDatabase, orderId: string): Observable<OrderBalance | null> {
-  return combineLatest([
-    db.orders.findOne(orderId).$,
-    db.payments.find({ selector: { order_id: orderId } }).$,
-  ]).pipe(
-    map(([order, payments]) =>
-      order ? calculateBalance(order, payments.map((p) => p.toJSON())) : null,
-    ),
-  )
-}
-
-/* Live balances for every order in a shop, keyed by order id. Drives the
-   dashboard's outstanding-balance figures. */
-export function observeShopBalances(
-  db: AppDatabase,
-  shopId: string,
-): Observable<Map<string, OrderBalance>> {
-  return combineLatest([
-    db.orders.find({ selector: { shop_id: shopId } }).$,
-    db.payments.find().$,
-  ]).pipe(
-    map(([orders, payments]) => {
-      // One pass to bucket payments by order, rather than filtering the whole
-      // payments list once per order.
-      const byOrder = new Map<string, PaymentDoc[]>()
-      for (const payment of payments) {
-        const bucket = byOrder.get(payment.order_id)
-        if (bucket) {
-          bucket.push(payment.toJSON())
-        } else {
-          byOrder.set(payment.order_id, [payment.toJSON()])
-        }
-      }
-
-      const balances = new Map<string, OrderBalance>()
-      for (const order of orders) {
-        balances.set(order.id, calculateBalance(order, byOrder.get(order.id) ?? []))
-      }
-      return balances
-    }),
-  )
 }

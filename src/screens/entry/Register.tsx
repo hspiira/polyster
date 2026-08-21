@@ -3,7 +3,7 @@
 import { useRef, useState } from 'preact/hooks'
 import { useAuth } from '../../hooks/useAuth'
 import { useShop } from '../../state/ShopProvider'
-import { createShop, createStaff } from '../../db/writes'
+import { createShop, createStaff } from '../../db/repo'
 import { EntryButton, EntryField, EntryForm, EntryHeading, EntryInput, EntryScreen } from './parts'
 
 type Invalid = 'shop' | 'you' | null

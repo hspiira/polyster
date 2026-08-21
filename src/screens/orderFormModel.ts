@@ -4,7 +4,7 @@ import { addDays, today } from '../lib/dates'
 import { newId } from '../lib/ids'
 import { fromMinorUnits, parseToMinor } from '../lib/money'
 import { needsFulfilmentDate, needsReturn } from '../lib/orderTypes'
-import type { OrderHeaderInput, OrderUnitInput } from '../db/writes'
+import type { OrderHeaderInput, OrderUnitInput } from '../db/repo'
 import type {
   CustomerType,
   FabricSource,

@@ -2,9 +2,9 @@
    cost six round trips. Reads its own balance rather than the row's figure. */
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { usePermission } from '../hooks/usePermission'
-import { observeBalance, signedAmountMinor } from '../db/balances'
+import { signedAmountMinor } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
 import {
@@ -19,7 +19,7 @@ import { IconChevronRight } from '../components/icons'
 import { cn } from '../lib/cn'
 import { CONTROL, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import { PaymentDialog } from './PaymentDialog'
-import { refundDeposit } from '../db/writes'
+import { observeBalance, observeOrderPayments, observeOrderUnits, observeStageHistory, refundDeposit } from '../db/repo'
 
 type Tab = 'record' | 'units' | 'payments' | 'history'
 
@@ -51,24 +51,13 @@ export function Inspector({
   const [paying, setPaying] = useState(false)
 
   const orderId = row?.order.id ?? '__none__'
-  const balance = useRxQuery(() => observeBalance(db, orderId), [db, orderId], null)
+  const balance = useQuery(() => observeBalance(db, orderId), [db, orderId], null)
 
-  const unitDocs = useRxQuery(
-    () => db.order_units.find({ selector: { order_id: orderId }, sort: [{ position: 'asc' }] }).$,
-    [db, orderId],
-    [],
-  )
-  const paymentDocs = useRxQuery(
-    () => db.payments.find({ selector: { order_id: orderId }, sort: [{ payment_date: 'desc' }] }).$,
-    [db, orderId],
-    [],
-  )
-  const historyDocs = useRxQuery(
+  const unitRows = useQuery(() => observeOrderUnits(db, orderId), [db, orderId], [])
+  const paymentRows = useQuery(() => observeOrderPayments(db, orderId), [db, orderId], [])
+  const historyRows = useQuery(
     () =>
-      db.order_stage_history.find({
-        selector: { order_id: orderId },
-        sort: [{ changed_at: 'desc' }],
-      }).$,
+      observeStageHistory(db, orderId),
     [db, orderId],
     [],
   )
@@ -247,12 +236,11 @@ export function Inspector({
         )}
 
         {tab === 'units' && (
-          <Section label={`Units · ${unitDocs.length}`}>
-            {unitDocs.length === 0 ? (
+          <Section label={`Units · ${unitRows.length}`}>
+            {unitRows.length === 0 ? (
               <Empty>This order is a single item, with no separate units.</Empty>
             ) : (
-              unitDocs.map((doc) => {
-                const unit = doc.toJSON()
+              unitRows.map((unit) => {
                 return (
                   <div
                     key={unit.id}
@@ -279,12 +267,11 @@ export function Inspector({
         )}
 
         {tab === 'payments' && (
-          <Section label={`Payments · ${paymentDocs.length}`}>
-            {paymentDocs.length === 0 ? (
+          <Section label={`Payments · ${paymentRows.length}`}>
+            {paymentRows.length === 0 ? (
               <Empty>Nothing has been paid against this order yet.</Empty>
             ) : (
-              paymentDocs.map((doc) => {
-                const payment = doc.toJSON()
+              paymentRows.map((payment) => {
                 const amount = signedAmountMinor(payment)
                 return (
                   <div
@@ -314,11 +301,10 @@ export function Inspector({
 
         {tab === 'history' && (
           <Section label="Activity">
-            {historyDocs.length === 0 ? (
+            {historyRows.length === 0 ? (
               <Empty>No stage changes recorded on this device.</Empty>
             ) : (
-              historyDocs.map((doc) => {
-                const entry = doc.toJSON()
+              historyRows.map((entry) => {
                 return (
                   <div
                     key={entry.id}

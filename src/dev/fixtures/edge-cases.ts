@@ -1,4 +1,4 @@
-import type { AppDatabase } from '../../db/database'
+import type { PolysterDatabase } from '../../db/dexie/database'
 import {
   createClient,
   createMeasurementField,
@@ -9,10 +9,11 @@ import {
   setFeatureEnabled,
   type ShopDoc,
 } from './_fixture_helpers'
+import { listBy, patchRow } from '../../db/repo'
 
 /* Edge-case fixture for local/offline testing: states the UI should handle
    without relying on online-only tables. */
-export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
+export async function seedEdgeCaseTenant(db: PolysterDatabase): Promise<ShopDoc> {
   const shop = await seedTenant(db, {
     name: 'Ssenga Bridal & Tailoring',
     businessType: 'hybrid',
@@ -33,9 +34,8 @@ export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
     },
   })
 
-  const ownerDoc = await db.staff.findOne({ selector: { shop_id: shop.id, role: 'owner' } }).exec()
-  if (!ownerDoc) throw new Error('Seed owner was not created.')
-  const owner = ownerDoc.toJSON()
+  const owner = (await listBy(db.staff, 'shop_id', shop.id)).find((row) => row.role === 'owner')
+  if (!owner) throw new Error('Seed owner was not created.')
   await createStaff(db, shop.id, {
     name: 'Irene Nampijja',
     pin: '123456',
@@ -45,8 +45,7 @@ export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
     name: 'Moses Kigozi',
     role: 'staff',
   })
-  const inactiveDoc = await db.staff.findOne(inactive.id).exec()
-  await inactiveDoc?.patch({
+  await patchRow(db.staff, inactive.id, {
     active: false,
     deactivated_at: '2026-08-01T09:00:00.000Z',
     updated_at: '2026-08-01T09:00:00.000Z',
@@ -76,8 +75,7 @@ export async function seedEdgeCaseTenant(db: AppDatabase): Promise<ShopDoc> {
     pickup_due_date: '2026-07-20',
   }, owner.id)
 
-  const historicalDoc = await db.orders.findOne(historical.id).exec()
-  await historicalDoc?.patch({
+  await patchRow(db.orders, historical.id, {
     stage: 'picked_up',
     picked_up_at: '2026-07-20T15:00:00.000Z',
     updated_at: '2026-07-20T15:00:00.000Z',

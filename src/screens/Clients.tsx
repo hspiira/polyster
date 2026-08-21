@@ -15,11 +15,11 @@ import { IconPlus } from '../components/icons'
 import { AddClientSheet } from '../components/AddClientSheet'
 import { IllustrationBook, IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { useQuery } from '../hooks/useQuery'
 import { formatMinor } from '../lib/money'
 import { filterByQuery } from '../lib/search'
 import { formatDate } from '../lib/dates'
+import { observeClients, observeOrders, observeShopBalances } from '../db/repo'
 
 interface ClientTally {
   orders: number
@@ -32,26 +32,16 @@ export function Clients() {
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
 
-  const docs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id }, sort: [{ name: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clients = useMemo(() => docs.map((doc) => doc.toJSON()), [docs])
+  const clients = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
 
   // Table-form-only columns. A phone shows name and number; the wide form has
   // room for who owes money and when they were last in.
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const orderRows = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const tallies = useMemo(() => {
     const byClient = new Map<string, ClientTally>()
-    for (const doc of orderDocs) {
-      const order = doc.toJSON()
+    for (const order of orderRows) {
       if (order.stage === 'cancelled') continue
       const tally = byClient.get(order.client_id) ?? { orders: 0, outstanding_minor: 0 }
       tally.orders += 1
@@ -63,7 +53,7 @@ export function Clients() {
       byClient.set(order.client_id, tally)
     }
     return byClient
-  }, [orderDocs, balances])
+  }, [orderRows, balances])
 
   const matches = useMemo(() => {
     return filterByQuery(clients, search, (client) => ({

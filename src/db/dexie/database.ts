@@ -82,3 +82,11 @@ export function getDatabase(): PolysterDatabase {
 export function createDatabase(name: string): PolysterDatabase {
   return new PolysterDatabase(name)
 }
+
+/* Deletes every store on the device. Always presented as destructive: the local
+   copy is the only copy until it is backed up. Callers must reload afterwards. */
+export async function wipeLocalDatabase(db: PolysterDatabase): Promise<void> {
+  db.close()
+  await db.delete()
+  if (instance === db) instance = null
+}

@@ -1,5 +1,3 @@
-import type { RxJsonSchema } from 'rxdb'
-import { idField } from './shared'
 
 // ------------------------------------------------------------- order units
 
@@ -23,35 +21,4 @@ export interface OrderUnitDoc {
   notes?: string
   created_at: string
   updated_at: string
-}
-export const orderUnitSchema: RxJsonSchema<OrderUnitDoc> = {
-  version: 0,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    id: idField,
-    order_id: idField,
-    position: { type: 'number' },
-    wearer_name: { type: 'string' },
-    item_description: { type: 'string' },
-    price_minor: { type: 'integer', minimum: 0 },
-    measurements: { type: 'object', additionalProperties: true },
-    fabric_source: { type: 'string', enum: [...FABRIC_SOURCES] },
-    done: { type: 'boolean' },
-    catalogue_item_id: idField,
-    photo_url: { type: 'string' },
-    notes: { type: 'string' },
-    created_at: { type: 'string', format: 'date-time' },
-    updated_at: { type: 'string', format: 'date-time' },
-  },
-  required: [
-    'id',
-    'order_id',
-    'position',
-    'item_description',
-    'price_minor',
-    'fabric_source',
-    'done',
-  ],
-  indexes: ['order_id'],
 }

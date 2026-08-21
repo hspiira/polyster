@@ -4,7 +4,7 @@ import { SyncBadge } from '../../components/SyncBadge'
 import { AccountMenu } from '../../components/AccountMenu'
 import { IconSettings } from '../../components/icons'
 import type { AuthState } from '../../lib/auth'
-import type { ReplicationStatus } from '../../hooks/useReplication'
+import type { ReplicationStatus } from '../../lib/syncState'
 
 const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'long' })
 const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'short' })

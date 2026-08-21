@@ -2,7 +2,7 @@
    this answers "what did we sell", which wants a total and a period. */
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { itemsSold, saleTotalMinor, type SoldItem } from '../db/profit'
 import { formatMinor } from '../lib/money'
 import { addDays, formatDate, today } from '../lib/dates'
@@ -15,6 +15,7 @@ import { Page } from './Page'
 import { Table, type TableColumn } from './Table'
 import { CONTROL_SM, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import { PeriodSwitch, RANGES, type RangeKey } from './period'
+import { observeClients, observeSales } from '../db/repo'
 
 
 export function SalesPage() {
@@ -23,23 +24,14 @@ export function SalesPage() {
   const now = today()
   const from = addDays(now, -(RANGES[range].days - 1))
 
-  const saleDocs = useRxQuery(
-    () => db.sales.find({ selector: { shop_id: shop.id }, sort: [{ sold_at: 'desc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
+  const sales = useQuery(() => observeSales(db, shop.id), [db, shop.id], [])
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
 
   const clientNames = useMemo(
-    () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
-    [clientDocs],
+    () => new Map(clientRows.map((doc) => [doc.id, doc.name])),
+    [clientRows],
   )
 
-  const sales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
   const inPeriod = useMemo(
     () => sales.filter((sale) => sale.sold_at.slice(0, 10) >= from && sale.sold_at.slice(0, 10) <= now),
     [sales, from, now],

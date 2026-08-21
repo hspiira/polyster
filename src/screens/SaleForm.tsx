@@ -1,6 +1,6 @@
 /* Money taken over the counter, now. Item first, client last and optional --
    anything part-paid or collected later is an order, not a sale. */
-import { useMemo, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import {
   Button,
@@ -15,8 +15,8 @@ import {
   Textarea,
 } from '../ui'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { recordSale } from '../db/writes'
+import { useQuery } from '../hooks/useQuery'
+import { observeClients, recordSale } from '../db/repo'
 import { PAYMENT_METHODS, type PaymentMethod } from '../db/schema'
 import { PAYMENT_METHOD_LABELS } from './orderStage'
 import { formatMinor, parseToMinor } from '../lib/money'
@@ -36,12 +36,7 @@ export function SaleForm() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id }, sort: [{ name: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clients = useMemo(() => clientDocs.map((doc) => doc.toJSON()), [clientDocs])
+  const clients = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
 
   const unitMinor = parseToMinor(price, shop.currency)
   const count = Number.parseInt(quantity, 10)

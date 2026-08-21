@@ -1,8 +1,8 @@
 import { Button, Card, SectionTitle } from '../../ui'
 import { IconAlert, IconWhatsApp } from '../../components/icons'
 import { useCurrentShop } from '../../state/ShopProvider'
-import { useRxQuery } from '../../hooks/useRxQuery'
-import { logMessage } from '../../db/writes'
+import { useQuery } from '../../hooks/useQuery'
+import { logMessage, observeOrderMessages } from '../../db/repo'
 import { formatDateTime } from '../../lib/dates'
 import { balanceReminder, suggestedMessage, waLink } from '../../lib/whatsapp'
 import { canSendBalanceReminder, lastMessage } from '../orderDetailModel'
@@ -103,15 +103,8 @@ export function WhatsAppSection({
 
 function LastReminderSent({ orderId, staff }: { orderId: string; staff: StaffDoc[] }) {
   const { db } = useCurrentShop()
-  const logDocs = useRxQuery(
-    () => db.message_log.find({ selector: { order_id: orderId }, sort: [{ sent_at: 'desc' }] }).$,
-    [db, orderId],
-    [],
-  )
-  const latest = lastMessage(
-    logDocs.map((doc) => doc.toJSON()),
-    staff,
-  )
+  const log = useQuery(() => observeOrderMessages(db, orderId), [db, orderId], [])
+  const latest = lastMessage(log, staff)
   if (!latest) return null
 
   return (

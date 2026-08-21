@@ -30,7 +30,7 @@ import {
 } from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
 import { useFeatureFlags } from '../../hooks/useFeatureFlags'
-import { setFeatureEnabled } from '../../db/writes'
+import { setFeatureEnabled } from '../../db/repo'
 import { FEATURE_KEYS, type FeatureKey } from '../../db/schema'
 import { useBack } from '../../hooks/useBack'
 

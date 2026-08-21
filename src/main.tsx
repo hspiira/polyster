@@ -13,13 +13,13 @@ startTheme()
 forgetLayoutOverride()
 
 /* A garment passport is public, so it is matched before <App/> mounts and never
-   touches the provider, RxDB or the router the rest of the app assumes. */
+   touches the provider or the router the rest of the app assumes. */
 const passportMatch = window.location.pathname.match(/^\/passport\/([^/]+)\/?$/)
 
 // Dev-only console tools, never bundled in production. Seed with
 // `__polyster.getDatabase().then(db => __polyster.seedAll(db))`, then reload.
 if (import.meta.env.DEV) {
-  const { getDatabase } = await import('./db/database.ts')
+  const { getDatabase } = await import('./db/dexie/database.ts')
   const { getSupabase } = await import('./lib/supabaseClient.ts')
   const fixtures = await import('./dev/fixtures/index.ts')
   ;(window as unknown as { __polyster: unknown }).__polyster = { getDatabase, getSupabase, ...fixtures }

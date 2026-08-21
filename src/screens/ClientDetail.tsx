@@ -26,9 +26,9 @@ import {
   IllustrationSearch,
 } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { clientTotals, observeShopBalances } from '../db/balances'
-import { saveMeasurements, updateClient } from '../db/writes'
+import { useQuery } from '../hooks/useQuery'
+import { clientTotals } from '../db/balances'
+import { observeActiveMeasurementFields, observeClient, observeClientOrders, observeMeasurementProfile, observeRetiredMeasurementFields, observeShopBalances, saveMeasurements, updateClient } from '../db/repo'
 import { formatMinor } from '../lib/money'
 import { formatDueDate } from '../lib/dates'
 import { toWaNumber } from '../lib/whatsapp'
@@ -42,21 +42,16 @@ export function ClientDetail() {
   const clientId = params.id ?? ''
   const { db, shop } = useCurrentShop()
 
-  const clientDoc = useRxQuery(() => db.clients.findOne(clientId).$, [db, clientId], null)
-  const client = clientDoc?.toJSON() ?? null
+  const client = useQuery(() => observeClient(db, clientId), [db, clientId], null)
 
-  const orderDocs = useRxQuery(
+  const orders = useQuery(
     () =>
-      db.orders.find({
-        selector: { shop_id: shop.id, client_id: clientId },
-        sort: [{ pickup_due_date: 'desc' }],
-      }).$,
+      observeClientOrders(db, clientId),
     [db, shop.id, clientId],
     [],
   )
-  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
 
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const outstandingMinor = useMemo(
     () => clientTotals(orders, balances).owedMinor,
@@ -312,45 +307,30 @@ function Measurements({ clientId }: { clientId: string }) {
 
   // $ne rather than true, so fields predating this column (undefined active)
   // still count as active instead of being silently dropped from the form.
-  const fieldDocs = useRxQuery(
+  const fields = useQuery(
     () =>
-      db.measurement_fields.find({
-        selector: { shop_id: shop.id, active: { $ne: false } },
-        sort: [{ display_order: 'asc' }],
-      }).$,
+      observeActiveMeasurementFields(db, shop.id),
     [db, shop.id],
     [],
   )
-  const fields = useMemo(() => fieldDocs.map((doc) => doc.toJSON()), [fieldDocs])
 
   // Retired fields load separately so a recorded value can still be shown,
   // read-only, instead of becoming unlabellable once a field is retired.
-  const retiredFieldDocs = useRxQuery(
+  const retiredFields = useQuery(
     () =>
-      db.measurement_fields.find({
-        selector: { shop_id: shop.id, active: false },
-        sort: [{ display_order: 'asc' }],
-      }).$,
+      observeRetiredMeasurementFields(db, shop.id),
     [db, shop.id],
     [],
   )
-  const retiredFields = useMemo(
-    () => retiredFieldDocs.map((doc) => doc.toJSON()),
-    [retiredFieldDocs],
-  )
 
-  const profileDoc = useRxQuery(
-    () => db.measurement_profiles.findOne({ selector: { client_id: clientId } }).$,
-    [db, clientId],
-    null,
-  )
+  const profileRow = useQuery(() => observeMeasurementProfile(db, clientId), [db, clientId], null)
 
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const stored = useMemo(() => profileDoc?.toJSON().values ?? {}, [profileDoc])
+  const stored = useMemo(() => profileRow?.values ?? {}, [profileRow])
 
   // The retired-field fix: a value recorded against a since-retired field
   // must stay visible and labelled, just no longer editable.

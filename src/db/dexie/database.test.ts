@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { REPLICATED_TABLES } from '../replication'
 import type { EventDoc, Product } from '../schema'
 import { createDatabase, type PolysterDatabase } from './database'
 import { STORE_NAMES, STORES } from './stores'
@@ -26,8 +25,12 @@ describe('stores', () => {
     expect(db.tables.map((t) => t.name).sort()).toEqual([...STORE_NAMES].sort())
   })
 
-  it('keeps every collection RxDB replicated', () => {
-    for (const table of REPLICATED_TABLES) {
+  it('keeps every collection the app had before', () => {
+    for (const table of [
+      'shops', 'staff', 'clients', 'measurement_fields', 'measurement_profiles',
+      'orders', 'payments', 'order_stage_history', 'order_units', 'sales',
+      'expenses', 'message_log', 'tenant_features',
+    ]) {
       expect(STORE_NAMES).toContain(table)
     }
   })

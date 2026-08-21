@@ -4,8 +4,8 @@ import { useMemo, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
 import { AddClientSheet } from '../components/AddClientSheet'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { clientTotalsById, noClientTotals, observeShopBalances } from '../db/balances'
+import { useQuery } from '../hooks/useQuery'
+import { clientTotalsById, noClientTotals } from '../db/balances'
 import { formatMinor } from '../lib/money'
 import { EmptyState, getInitials } from '../ui'
 import { IconPlus, IconSearch, IconUsers } from '../components/icons'
@@ -14,6 +14,7 @@ import { Page } from './Page'
 import { Table, type TableColumn } from './Table'
 import { CONTROL_SM, RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import { filterByQuery } from '../lib/search'
+import { observeClients, observeOrders, observeShopBalances } from '../db/repo'
 
 interface ClientRow {
   id: string
@@ -29,26 +30,17 @@ export function ClientsPage() {
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
 
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id }, sort: [{ name: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const orderRows = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const rows = useMemo<ClientRow[]>(() => {
     const totals = clientTotalsById(
-      orderDocs.map((doc) => doc.toJSON()),
+      orderRows,
       balances,
     )
 
-    return clientDocs.map((doc) => {
-      const client = doc.toJSON()
+    return clientRows.map((client) => {
       const theirs = totals.get(client.id) ?? noClientTotals()
       return {
         id: client.id,
@@ -58,7 +50,7 @@ export function ClientsPage() {
         owed_minor: theirs.owedMinor,
       }
     })
-  }, [clientDocs, orderDocs, balances])
+  }, [clientRows, orderRows, balances])
 
   const matches = useMemo(() => {
     return filterByQuery(rows, search, (row) => ({ text: [row.name], phone: [row.phone] }))

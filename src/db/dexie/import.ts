@@ -1,7 +1,6 @@
 /* Moves a shop off RxDB's databases into ours. Safe to run more than once. */
 import { STORE_NAMES, type StoreName } from './stores'
 import { getDatabase, type PolysterDatabase } from './database'
-import { DATABASE_NAME as RXDB_NAME } from '../database'
 import {
   newestPerCollection,
   parseSource,
@@ -9,6 +8,9 @@ import {
   type RxdbSource,
   type StoredRow,
 } from './importRow'
+
+/** The name RxDB's databases were kept under. */
+const RXDB_NAME = 'tailor_tracker'
 
 export interface StoreReport {
   store: StoreName

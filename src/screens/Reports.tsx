@@ -20,11 +20,10 @@ import {
 } from '../ui'
 import { IconChevronRight } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { usePeriod } from '../hooks/usePeriod'
 import { useReportCurrency } from '../hooks/useReportCurrency'
-import { observeShopBalances } from '../db/balances'
 import { profitAndLoss } from '../db/profit'
 import { customerLifetimeValues } from '../db/customerValue'
 import { repairMetrics } from '../db/repairMetrics'
@@ -34,6 +33,7 @@ import { EXPENSE_CATEGORY_LABELS } from './expenseCategories'
 import { formatAmount } from '../lib/money'
 import { STAGE_LABELS, STAGE_TONES } from './orderStage'
 import { ORDER_STAGES, type OrderStage } from '../db/schema'
+import { observeClients, observeExpenses, observeOrders, observePayments, observeSales, observeShopBalances } from '../db/repo'
 
 const TOP_CUSTOMERS = 5
 
@@ -47,32 +47,13 @@ export function Reports() {
   const period = usePeriod('30')
   const [picked, setPicked] = useState<number | null>(null)
 
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const paymentDocs = useRxQuery(() => db.payments.find().$, [db], [])
-  const saleDocs = useRxQuery(
-    () => db.sales.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const expenseDocs = useRxQuery(
-    () => db.expenses.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const orders = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const paymentRows = useQuery(() => observePayments(db), [db], [])
+  const allSales = useQuery(() => observeSales(db, shop.id), [db, shop.id], [])
+  const allExpenses = useQuery(() => observeExpenses(db, shop.id), [db, shop.id], [])
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
-  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
-  const allSales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
-  const allExpenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
 
   const { currency, options: currencies, setCurrency } = useReportCurrency(shop.currency, [
     ...allSales.map((sale) => sale.currency),
@@ -98,10 +79,10 @@ export function Reports() {
      device still holds the previous shop's rows until wiped. */
   const payments = useMemo(
     () =>
-      paymentDocs
-        .map((doc) => doc.toJSON())
+      paymentRows
+        
         .filter((payment) => orderCurrencies.get(payment.order_id) === currency),
-    [paymentDocs, orderCurrencies, currency],
+    [paymentRows, orderCurrencies, currency],
   )
 
   const pnl = useMemo(
@@ -150,24 +131,24 @@ export function Reports() {
   const topCustomers = useMemo(
     () =>
       customerLifetimeValues(
-        clientDocs.map((doc) => doc.toJSON()),
+        clientRows,
         orders,
         payments,
         sales,
       ).slice(0, TOP_CUSTOMERS),
-    [clientDocs, orders, payments, sales],
+    [clientRows, orders, payments, sales],
   )
   /* Measured against all customers, not the five shown: against the top spender
      a bar only repeats what the ordering already says. */
   const receivedMinor = useMemo(
     () =>
       customerLifetimeValues(
-        clientDocs.map((doc) => doc.toJSON()),
+        clientRows,
         orders,
         payments,
         sales,
       ).reduce((sum, customer) => sum + customer.paidMinor, 0),
-    [clientDocs, orders, payments, sales],
+    [clientRows, orders, payments, sales],
   )
 
   const repairs = useMemo(() => repairMetrics(orders, payments), [orders, payments])

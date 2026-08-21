@@ -1,4 +1,4 @@
-export { seedAll, type SeedAllOptions, type SeededTenants } from './all'
+export { seedAll, type SeededTenants } from './all'
 export { seedTenant, type SeedTenantInput } from './base'
 export { seedGenericTailorData } from './tailor'
 export { seedNorthFoundData } from './northfound'

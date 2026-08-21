@@ -1,25 +1,29 @@
 import { useEffect, useState } from 'preact/hooks'
-import { getDatabase, type AppDatabase } from '../db/database'
+import { getDatabase, type PolysterDatabase } from '../db/dexie/database'
+import { runImport } from '../db/dexie/import'
 
 export type DatabaseState =
   | { status: 'loading' }
-  | { status: 'ready'; db: AppDatabase }
+  | { status: 'ready'; db: PolysterDatabase }
   | { status: 'error'; error: Error }
 
-/* The shared RxDB instance. Every screen renders from this, never from a
-   network call (ARCHITECTURE §3). */
+/* Opens the database and brings across anything left by an older version of
+   the app. Every screen renders from this, never from a network call. */
 export function useDatabase(): DatabaseState {
   const [state, setState] = useState<DatabaseState>({ status: 'loading' })
 
   useEffect(() => {
     let cancelled = false
+    const db = getDatabase()
 
-    getDatabase()
-      .then((db) => {
+    db.open()
+      .then(() => runImport(db))
+      .then((report) => {
+        if (report.written > 0) console.info('[db] brought across', report.written, 'rows')
         if (!cancelled) setState({ status: 'ready', db })
       })
       .catch((error: unknown) => {
-        console.error('[db] RxDB init failed:', error)
+        console.error('[db] open failed:', error)
         if (!cancelled) {
           setState({
             status: 'error',

@@ -1,6 +1,6 @@
 /* Ordered the way a shop needs it: where is it, what is owed, tell the client.
    The balance comes from observeBalance(), never the view -- D9. */
-import { useMemo, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import { useLocation, useRoute } from 'preact-iso'
 import { dueDateShortLabel } from '../lib/orderTypes'
 import {
@@ -17,11 +17,10 @@ import {
 import { IconCheck, IconEdit } from '../components/icons'
 import { IllustrationSearch } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { usePermission } from '../hooks/usePermission'
 import { useBack } from '../hooks/useBack'
-import { observeBalance } from '../db/balances'
-import { changeOrderStage } from '../db/writes'
+import { changeOrderStage, observeBalance, observeClient, observeOrder, observeOrderPayments } from '../db/repo'
 import { formatMinor } from '../lib/money'
 import { formatDate, formatDueDate } from '../lib/dates'
 import { isOverdue } from './orderDetailModel'
@@ -42,24 +41,13 @@ export function OrderDetail() {
   const { db, shop, activeStaff } = useCurrentShop()
   const canEdit = usePermission('orders.edit')
 
-  const orderDoc = useRxQuery(() => db.orders.findOne(orderId).$, [db, orderId], null)
-  const order = orderDoc?.toJSON() ?? null
+  const order = useQuery(() => observeOrder(db, orderId), [db, orderId], null)
 
-  const clientDoc = useRxQuery(
-    () => db.clients.findOne(order?.client_id ?? '__none__').$,
-    [db, order?.client_id],
-    null,
-  )
-  const client = clientDoc?.toJSON() ?? null
+  const client = useQuery(() => observeClient(db, order?.client_id ?? '__none__'), [db, order?.client_id], null)
 
-  const balance = useRxQuery(() => observeBalance(db, orderId), [db, orderId], null)
+  const balance = useQuery(() => observeBalance(db, orderId), [db, orderId], null)
 
-  const paymentDocs = useRxQuery(
-    () => db.payments.find({ selector: { order_id: orderId }, sort: [{ payment_date: 'desc' }] }).$,
-    [db, orderId],
-    [],
-  )
-  const payments = useMemo(() => paymentDocs.map((doc) => doc.toJSON()), [paymentDocs])
+  const payments = useQuery(() => observeOrderPayments(db, orderId), [db, orderId], [])
 
   const [error, setError] = useState<string | null>(null)
 

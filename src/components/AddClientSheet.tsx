@@ -2,7 +2,7 @@
 import { useState } from 'preact/hooks'
 import { Button, ErrorNote, Field, Input, Sheet, Textarea } from '../ui'
 import { useCurrentShop } from '../state/ShopProvider'
-import { createClient } from '../db/writes'
+import { createClient } from '../db/repo'
 
 export function AddClientSheet({
   open,

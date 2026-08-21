@@ -2,7 +2,7 @@
    adds is reading them back -- a period, a total, and where it went. */
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { formatMinor } from '../lib/money'
 import { addDays, formatDate, today } from '../lib/dates'
 import { EXPENSE_CATEGORY_LABELS } from '../screens/expenseCategories'
@@ -14,6 +14,7 @@ import { Page } from './Page'
 import { Table, type TableColumn } from './Table'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import { PeriodSwitch, RANGES, type RangeKey } from './period'
+import { observeExpenses } from '../db/repo'
 
 export function ExpensesPage() {
   const { db, shop } = useCurrentShop()
@@ -21,18 +22,14 @@ export function ExpensesPage() {
   const now = today()
   const from = addDays(now, -(RANGES[range].days - 1))
 
-  const expenseDocs = useRxQuery(
-    () => db.expenses.find({ selector: { shop_id: shop.id }, sort: [{ spent_on: 'desc' }] }).$,
-    [db, shop.id],
-    [],
-  )
+  const expenseRows = useQuery(() => observeExpenses(db, shop.id), [db, shop.id], [])
 
   const inPeriod = useMemo(
     () =>
-      expenseDocs
-        .map((doc) => doc.toJSON())
+      expenseRows
+        
         .filter((expense) => expense.spent_on >= from && expense.spent_on <= now),
-    [expenseDocs, from, now],
+    [expenseRows, from, now],
   )
 
   const total = useMemo(

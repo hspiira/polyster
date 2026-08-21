@@ -3,8 +3,7 @@
 import { useMemo, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { useQuery } from '../hooks/useQuery'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDueDate, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from '../screens/orderStage'
@@ -21,6 +20,7 @@ import { Page, PageTab } from './Page'
 import { Table, type TableColumn } from './Table'
 import { Inspector } from './Inspector'
 import { CONTROL_SM, RADIUS, TEXT_SM } from './chrome'
+import { observeClients, observeOrders, observeShopBalances } from '../db/repo'
 
 type Scope = 'open' | 'overdue' | 'ready' | 'owing' | 'all'
 
@@ -84,22 +84,13 @@ export function OrdersPage() {
 
   const openId = new URLSearchParams(location.query as Record<string, string>).get('open')
 
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id }, sort: [{ pickup_due_date: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const orders = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
-  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
   const clientNames = useMemo(
-    () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
-    [clientDocs],
+    () => new Map(clientRows.map((doc) => [doc.id, doc.name])),
+    [clientRows],
   )
 
   const rows = useMemo(() => {

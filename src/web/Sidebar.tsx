@@ -3,7 +3,7 @@
 import { useMemo } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { usePermission } from '../hooks/usePermission'
 import { OPEN_STAGES } from '../db/schema'
@@ -27,8 +27,9 @@ import {
 import { cn } from '../lib/cn'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import type { AuthState } from '../lib/auth'
-import type { ReplicationStatus } from '../hooks/useReplication'
+import type { ReplicationStatus } from '../lib/syncState'
 import type { FeatureKey } from '../db/schema'
+import { observeClients, observeOrders } from '../db/repo'
 
 interface NavItem {
   href: string
@@ -57,22 +58,14 @@ export function Sidebar({
   const flags = useFeatureFlags(db, shop.id)
   const canViewReports = usePermission('reports.view')
 
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
+  const orderRows = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
 
   // Orders counts what is open, not what exists. "142" beside Orders when 128
   // of them were collected last year is a number nobody can act on.
   const openOrders = useMemo(
-    () => orderDocs.filter((doc) => OPEN_STAGES.includes(doc.toJSON().stage)).length,
-    [orderDocs],
+    () => orderRows.filter((doc) => OPEN_STAGES.includes(doc.stage)).length,
+    [orderRows],
   )
 
   const rawGroups: { label: string; items: NavItem[] }[] = [
@@ -81,7 +74,7 @@ export function Sidebar({
       items: [
         { href: '/', label: 'Today', Icon: IconOrders },
         { href: '/orders', label: 'Orders', Icon: IconOrders, count: openOrders },
-        { href: '/clients', label: 'Clients', Icon: IconUsers, count: clientDocs.length },
+        { href: '/clients', label: 'Clients', Icon: IconUsers, count: clientRows.length },
         { href: '/settings/measurements', label: 'Measurements', Icon: IconRuler, feature: 'measurements' },
         { href: '/catalogue', label: 'Catalogue', Icon: IconTag, feature: 'catalogue' },
         { href: '/collections', label: 'Collections', Icon: IconLayers, feature: 'collections' },

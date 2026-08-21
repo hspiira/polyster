@@ -1,5 +1,3 @@
-import type { RxJsonSchema } from 'rxdb'
-import { idField } from './shared'
 
 // -------------------------------------------------------- tenant features
 
@@ -53,21 +51,6 @@ export interface TenantFeatureDoc {
   enabled: boolean
   created_at: string
   updated_at: string
-}
-export const tenantFeatureSchema: RxJsonSchema<TenantFeatureDoc> = {
-  version: 0,
-  primaryKey: 'id',
-  type: 'object',
-  properties: {
-    id: idField,
-    shop_id: idField,
-    feature_key: { type: 'string', enum: [...FEATURE_KEYS], maxLength: 20 },
-    enabled: { type: 'boolean' },
-    created_at: { type: 'string', format: 'date-time' },
-    updated_at: { type: 'string', format: 'date-time' },
-  },
-  required: ['id', 'shop_id', 'feature_key', 'enabled'],
-  indexes: [['shop_id', 'feature_key']],
 }
 
 /** Phase 12 (section 11, 83): 'manager' sits between the original two. */

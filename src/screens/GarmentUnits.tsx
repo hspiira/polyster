@@ -17,7 +17,7 @@ import {
 } from '../ui'
 import { IconChevronRight, IconFingerprint, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { useOnlineFeature } from '../hooks/useOnlineFeature'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { withTimeout } from '../lib/withTimeout'
@@ -35,6 +35,7 @@ import {
 } from '../online/garmentUnits'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
+import { observeClients } from '../db/repo'
 
 const STATUS_LABELS: Record<GarmentUnitStatus, string> = {
   produced: 'Produced',
@@ -70,12 +71,7 @@ export function GarmentUnits() {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<GarmentUnit | null>(null)
 
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id }, sort: [{ name: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clients = useMemo(() => clientDocs.map((doc) => doc.toJSON()), [clientDocs])
+  const clients = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
 
   async function reload() {
     try {

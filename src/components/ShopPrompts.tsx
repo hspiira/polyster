@@ -5,8 +5,8 @@ import type { ComponentChildren } from 'preact'
 import { useAuth } from '../hooks/useAuth'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
 import { useShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { claimShop } from '../db/writes'
+import { useQuery } from '../hooks/useQuery'
+import { claimShop, observeHasOrders } from '../db/repo'
 import { CLAIM_REMINDER_DAYS, dismissalHolds } from '../lib/prompts'
 import { ClaimShop } from '../screens/entry/ClaimShop'
 import { ReAuth } from '../screens/entry/ReAuth'
@@ -62,8 +62,7 @@ export function ShopPrompts() {
 
   // "Real work" is one saved order. Before that there is nothing worth the
   // interruption, and the standing line in SyncBadge is telling the truth anyway.
-  const orders = useRxQuery(() => db.orders.find({ limit: 1 }).$, [db], [])
-  const hasWork = orders.length > 0
+  const hasWork = useQuery(() => observeHasOrders(db), [db], false)
 
   const unclaimed =
     auth.status !== 'local_only' && shop !== null && !shop.supabase_auth_user_id

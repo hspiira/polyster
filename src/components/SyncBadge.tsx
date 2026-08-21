@@ -1,6 +1,6 @@
 import { useShop } from '../state/ShopProvider'
 import type { AuthState } from '../lib/auth'
-import type { ReplicationStatus } from '../hooks/useReplication'
+import type { ReplicationStatus } from '../lib/syncState'
 
 interface SyncBadgeProps {
   online: boolean

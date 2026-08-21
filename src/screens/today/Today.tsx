@@ -6,12 +6,11 @@ import { IconPlus } from '../../components/icons'
 import { IllustrationOrders } from '../../components/illustrations'
 import { ShopPrompts } from '../../components/ShopPrompts'
 import { useCurrentShop } from '../../state/ShopProvider'
-import { useRxQuery, useRxQueryStatus } from '../../hooks/useRxQuery'
-import { observeShopBalances } from '../../db/balances'
+import { useQuery, useQueryStatus } from '../../hooks/useQuery'
 import { formatMinor } from '../../lib/money'
 import { today } from '../../lib/dates'
 import type { AuthState } from '../../lib/auth'
-import type { ReplicationStatus } from '../../hooks/useReplication'
+import type { ReplicationStatus } from '../../lib/syncState'
 import { Hero } from './Hero'
 import { TodayTop } from './TodayTop'
 import { DayStrip } from './DayStrip'
@@ -22,6 +21,7 @@ import {
   buildMoneySummary,
   heroSegments,
 } from './todayModel'
+import { observeClients, observeOrders, observeShopBalances } from '../../db/repo'
 
 interface TodayProps {
   online: boolean
@@ -35,28 +35,20 @@ export function Today({ online, auth, replication }: TodayProps) {
 
   // Only the count matters, and only on the empty state -- which branch of it
   // to show. See the comment there.
-  const clientCount = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  ).length
+  const clientCount = useQuery(() => observeClients(db, shop.id), [db, shop.id], []).length
 
-  const { value: orderDocs, loaded } = useRxQueryStatus(
-    () => db.orders.find({ selector: { shop_id: shop.id }, sort: [{ pickup_due_date: 'asc' }] }).$,
+  const { value: orderDocs, loaded } = useQueryStatus(
+    () => observeOrders(db, shop.id),
     [db, shop.id],
     [],
   )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
-  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
+  const orders = orderDocs
   const clientNames = useMemo(
-    () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
-    [clientDocs],
+    () => new Map(clientRows.map((doc) => [doc.id, doc.name])),
+    [clientRows],
   )
 
   const buckets = useMemo(

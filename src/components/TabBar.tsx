@@ -3,13 +3,13 @@ import { useLocation } from 'preact-iso'
 import { Avatar } from '../ui'
 import { SyncBadge } from './SyncBadge'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import { today } from '../lib/dates'
 import { isFullScreenTask } from '../lib/navigation'
 import { OPEN_STAGES } from '../db/schema'
 import type { AuthState } from '../lib/auth'
-import type { ReplicationStatus } from '../hooks/useReplication'
+import type { ReplicationStatus } from '../lib/syncState'
 import type { FeatureKey } from '../db/schema'
 import {
   IconChart,
@@ -23,6 +23,7 @@ import {
   IconUsers,
   type IconComponent,
 } from './icons'
+import { observeOrders } from '../db/repo'
 
 /* Bottom navigation: four destinations plus the create action between them
    (A25). Bottom, not top -- a handset's top edge is out of thumb reach. */
@@ -146,21 +147,16 @@ export function SideRail({
   const flags = useFeatureFlags(db, shop.id)
   const railMoney = RAIL_MONEY.filter((tab) => !tab.feature || flags[tab.feature])
 
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
+  const orderRows = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
 
   // Only overdue gets a badge. A count beside every destination is wallpaper;
   // a count beside the one thing that is late is a prompt.
   const overdue = useMemo(
     () =>
-      orderDocs.filter((doc) => {
-        const order = doc.toJSON()
+      orderRows.filter((order) => {
         return OPEN_STAGES.includes(order.stage) && order.pickup_due_date < now
       }).length,
-    [orderDocs, now],
+    [orderRows, now],
   )
 
   return (

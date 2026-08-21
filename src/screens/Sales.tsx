@@ -21,11 +21,11 @@ import {
 } from '../ui'
 import { IconMoney, IconPlus, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQueryStatus, useRxQuery } from '../hooks/useRxQuery'
+import { useQueryStatus, useQuery } from '../hooks/useQuery'
 import { usePeriod } from '../hooks/usePeriod'
 import { useReportCurrency } from '../hooks/useReportCurrency'
 import { itemsSold, saleTotalMinor } from '../db/profit'
-import { voidSale } from '../db/writes'
+import { observeClients, observeSales, voidSale } from '../db/repo'
 import { formatAmount, formatMinor } from '../lib/money'
 import { formatPastDay, formatTime } from '../lib/dates'
 import { useMoneySections } from './moneySections'
@@ -40,22 +40,18 @@ export function Sales() {
   const period = usePeriod('7')
   const [open, setOpen] = useState<SaleDoc | null>(null)
 
-  const { value: saleDocs, loaded } = useRxQueryStatus(
-    () => db.sales.find({ selector: { shop_id: shop.id }, sort: [{ sold_at: 'desc' }] }).$,
+  const { value: saleDocs, loaded } = useQueryStatus(
+    () => observeSales(db, shop.id),
     [db, shop.id],
     [],
   )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
 
   const clientNames = useMemo(
-    () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
-    [clientDocs],
+    () => new Map(clientRows.map((doc) => [doc.id, doc.name])),
+    [clientRows],
   )
-  const allSales = useMemo(() => saleDocs.map((doc) => doc.toJSON()), [saleDocs])
+  const allSales = saleDocs
 
   const { currency, options: currencies, setCurrency } = useReportCurrency(
     shop.currency,

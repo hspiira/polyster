@@ -1,9 +1,8 @@
-import { useMemo } from 'preact/hooks'
 import { Card, SectionTitle, cn } from '../../ui'
 import { IconCheck } from '../../components/icons'
 import { useCurrentShop } from '../../state/ShopProvider'
-import { useRxQuery } from '../../hooks/useRxQuery'
-import { setUnitDone } from '../../db/writes'
+import { useQuery } from '../../hooks/useQuery'
+import { observeOrderUnits, setUnitDone } from '../../db/repo'
 import { formatMinor } from '../../lib/money'
 
 /** The unit list, with a per-unit done tick (Task 10). */
@@ -17,12 +16,7 @@ export function ItemsSection({
   onError: (message: string | null) => void
 }) {
   const { db } = useCurrentShop()
-  const unitDocs = useRxQuery(
-    () => db.order_units.find({ selector: { order_id: orderId }, sort: [{ position: 'asc' }] }).$,
-    [db, orderId],
-    [],
-  )
-  const units = useMemo(() => unitDocs.map((doc) => doc.toJSON()), [unitDocs])
+  const units = useQuery(() => observeOrderUnits(db, orderId), [db, orderId], [])
 
   if (units.length === 0) return null
 

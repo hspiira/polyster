@@ -16,13 +16,8 @@ import {
 import { IconArrowDown, IconArrowUp, IconPlus, IconTrash } from '../../components/icons'
 import { IllustrationMeasure } from '../../components/illustrations'
 import { useShop } from '../../state/ShopProvider'
-import { useRxQuery } from '../../hooks/useRxQuery'
-import {
-  createMeasurementField,
-  reactivateMeasurementField,
-  retireMeasurementField,
-  reorderMeasurementFields,
-} from '../../db/writes'
+import { useQuery } from '../../hooks/useQuery'
+import { createMeasurementField, observeMeasurementFields, reactivateMeasurementField, reorderMeasurementFields, retireMeasurementField } from '../../db/repo'
 import { MEASUREMENT_FIELD_TYPES, type MeasurementFieldType } from '../../db/schema'
 import { useBack } from '../../hooks/useBack'
 
@@ -52,16 +47,12 @@ export function MeasurementFieldSettings() {
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
-  const fieldDocs = useRxQuery(
+  const fields = useQuery(
     () =>
-      db.measurement_fields.find({
-        selector: { shop_id: shop?.id ?? '__none__' },
-        sort: [{ display_order: 'asc' }],
-      }).$,
+      observeMeasurementFields(db, shop?.id ?? '__none__'),
     [db, shop?.id],
     [],
   )
-  const fields = useMemo(() => fieldDocs.map((doc) => doc.toJSON()), [fieldDocs])
   // Retired fields stay visible here (with a restore control) rather than
   // vanishing, since nothing elsewhere lets a shop see or undo a retirement.
   const activeFields = useMemo(() => fields.filter((field) => field.active !== false), [fields])

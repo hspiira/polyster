@@ -3,7 +3,7 @@ import { Button, Card, ErrorNote, Field, Input, SectionTitle, Segmented, Sheet }
 import { IconPlus } from '../../components/icons'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { usePermission } from '../../hooks/usePermission'
-import { recordPayment, voidPayment } from '../../db/writes'
+import { recordPayment, voidPayment } from '../../db/repo'
 import { PAYMENT_METHODS, type PaymentDoc, type PaymentMethod } from '../../db/schema'
 import { formatMinor, fromMinorUnits, parseToMinor } from '../../lib/money'
 import { outstandingMinor, paymentDateError, paymentError } from '../../lib/payments'
