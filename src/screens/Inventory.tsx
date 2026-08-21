@@ -1,6 +1,5 @@
-/* Finished goods and materials, tracked as a ledger. Online-only, see
-   Catalogue.tsx for the pattern. */
-import { useEffect, useMemo, useState } from 'preact/hooks'
+/* Finished goods and materials, tracked as a ledger. */
+import { useMemo, useState } from 'preact/hooks'
 import {
   Button,
   Card,
@@ -14,21 +13,25 @@ import {
   Segmented,
   Select,
   Sheet,
-  Skeleton,
 } from '../ui'
 import { IconChevronRight, IconPlus, IconReceipt } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
+import { useQuery } from '../hooks/useQuery'
 import {
   getOrCreateInventoryItem,
-  listInventoryItems,
+  observeAllProductVariants,
+  observeInventoryItems,
+  observeMaterials,
+  observeProducts,
   recordMovement,
-  type InventoryItem,
-  type ItemType,
-} from '../online/inventory'
-import { listAllProductVariants, listProducts, type Product, type ProductVariant } from '../online/catalogue'
-import { listMaterials, type Material } from '../online/materials'
+} from '../db/repo'
+import type {
+  InventoryItem,
+  ItemType,
+  Material,
+  Product,
+  ProductVariant,
+} from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
 
@@ -46,42 +49,14 @@ interface InventoryDraft {
 
 export function Inventory() {
   const back = useBack()
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-  const [items, setItems] = useState<InventoryItem[] | null>(null)
-  const [variants, setVariants] = useState<ProductVariant[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [materials, setMaterials] = useState<Material[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [scope, setScope] = useState<'all' | ItemType>('all')
   const [tracking, setTracking] = useState(false)
 
-  async function reload() {
-    try {
-      const [itemList, variantList, productList, materialList] = await withTimeout(
-        Promise.all([
-          listInventoryItems(shop.id),
-          listAllProductVariants(shop.id),
-          listProducts(shop.id),
-          listMaterials(shop.id),
-        ]),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      setItems(itemList)
-      setVariants(variantList)
-      setProducts(productList)
-      setMaterials(materialList)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load inventory.')
-    }
-  }
-
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, shop.id])
+  const items = useQuery(() => observeInventoryItems(db, shop.id), [db, shop.id], [])
+  const variants = useQuery(() => observeAllProductVariants(db, shop.id), [db, shop.id], [])
+  const products = useQuery(() => observeProducts(db, shop.id), [db, shop.id], [])
+  const materials = useQuery(() => observeMaterials(db, shop.id), [db, shop.id], [])
 
   const label = useMemo(() => {
     const variantById = new Map(variants.map((v) => [v.id, v]))
@@ -98,23 +73,10 @@ export function Inventory() {
     }
   }, [variants, products, materials])
 
-  const filtered = useMemo(() => {
-    if (!items) return []
-    return scope === 'all' ? items : items.filter((item) => item.item_type === scope)
-  }, [items, scope])
-
-  if (!online) {
-    return (
-      <Screen title="Inventory" back={back}>
-        <EmptyState
-          spacious
-          illustration={<IconReceipt size={48} />}
-          title="No connection"
-          description="Inventory lives on the server, so this needs a connection to load."
-        />
-      </Screen>
-    )
-  }
+  const filtered = useMemo(
+    () => (scope === 'all' ? items : items.filter((item) => item.item_type === scope)),
+    [items, scope],
+  )
 
   return (
     <>
@@ -124,20 +86,11 @@ export function Inventory() {
         action={<HeaderAction label="Track item" icon={<IconPlus size={16} />} onClick={() => setTracking(true)} />}
       >
         <div class="space-y-4">
-          {loadError && <ErrorNote>{loadError}</ErrorNote>}
-
-          {items === null && !loadError && (
-            <div class="space-y-2">
-              <Skeleton class="h-14" />
-              <Skeleton class="h-14" />
-            </div>
-          )}
-
-          {items && items.length > 0 && (
+          {items.length > 0 && (
             <Segmented value={scope} options={SCOPE_OPTIONS} onChange={setScope} label="Scope" />
           )}
 
-          {items && items.length === 0 && (
+          {items.length === 0 && (
             <EmptyState
               spacious
               illustration={<IconReceipt size={48} />}
@@ -189,9 +142,8 @@ export function Inventory() {
         variants={variants}
         products={products}
         materials={materials}
-        existing={items ?? []}
+        existing={items}
         onClose={() => setTracking(false)}
-        onSaved={reload}
       />
     </>
   )
@@ -204,7 +156,6 @@ function TrackItemSheet({
   materials,
   existing,
   onClose,
-  onSaved,
 }: {
   open: boolean
   variants: ProductVariant[]
@@ -212,9 +163,8 @@ function TrackItemSheet({
   materials: Material[]
   existing: InventoryItem[]
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const { draft, set, patch } = useDraft<InventoryDraft>(() => ({
     itemType: 'product_variant',
     refId: '',
@@ -240,6 +190,7 @@ function TrackItemSheet({
     try {
       const unit = draft.itemType === 'material' ? (materials.find((m) => m.id === draft.refId)?.unit ?? 'unit') : 'unit'
       const item = await getOrCreateInventoryItem(
+        db,
         shop.id,
         draft.itemType,
         draft.itemType === 'product_variant'
@@ -249,14 +200,13 @@ function TrackItemSheet({
       )
       const qty = Math.round(Number(draft.startingQuantity) || 0)
       if (qty !== 0) {
-        await recordMovement(shop.id, item.id, {
+        await recordMovement(db, shop.id, item.id, {
           movement_type: 'adjustment',
           quantity: qty,
           reason: 'Starting quantity, set when tracking began',
         })
       }
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not start tracking this item.')
     } finally {

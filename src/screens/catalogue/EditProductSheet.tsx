@@ -3,14 +3,14 @@ import { Button, ErrorNote, Field, Input, Select, Sheet, Textarea } from '../../
 import { useCurrentShop } from '../../state/ShopProvider'
 import { ProductImageField } from '../ProductImageField'
 import { useDraft } from '../../hooks/useDraft'
+import { updateProduct } from '../../db/repo'
 import {
   PRODUCT_TYPES,
-  updateProduct,
+  type Collection,
   type Product,
   type ProductCategory,
   type ProductType,
-} from '../../online/catalogue'
-import { type Collection } from '../../online/collections'
+} from '../../db/schema'
 
 const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   garment: 'Garment',
@@ -36,16 +36,14 @@ export function EditProductSheet({
   categories,
   collections,
   onClose,
-  onSaved,
 }: {
   open: boolean
   product: Product
   categories: ProductCategory[]
   collections: Collection[]
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const from = (source: Product): ProductDraft => ({
     name: source.name,
     productType: source.product_type,
@@ -73,7 +71,7 @@ export function EditProductSheet({
     setSaving(true)
     setError(null)
     try {
-      await updateProduct(product.id, {
+      await updateProduct(db, product.id, {
         name: draft.name,
         product_type: draft.productType,
         category_id: draft.categoryId || undefined,
@@ -83,7 +81,6 @@ export function EditProductSheet({
         image_url: draft.imageUrl,
       })
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this product.')
     } finally {

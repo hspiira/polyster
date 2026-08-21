@@ -1,11 +1,10 @@
-/* One product: its details and its variants. Online-only, see Catalogue.tsx. */
-import { useEffect, useState } from 'preact/hooks'
+/* One product: its details and its variants. */
+import { useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import {
   Button,
   Card,
   EmptyState,
-  ErrorNote,
   RowList,
   Screen,
   SectionTitle,
@@ -13,18 +12,14 @@ import {
 } from '../ui'
 import { IconEdit, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
+import { useQuery, useQueryStatus } from '../hooks/useQuery'
 import {
-  getProduct,
-  listProductCategories,
-  listProductVariants,
-  type Product,
-  type ProductCategory,
-  type ProductType,
-  type ProductVariant,
-} from '../online/catalogue'
-import { listCollections, type Collection } from '../online/collections'
+  observeCollections,
+  observeProduct,
+  observeProductCategories,
+  observeProductVariants,
+} from '../db/repo'
+import type { ProductType } from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { EditProductSheet } from './catalogue/EditProductSheet'
 import { VariantRow } from './catalogue/VariantRow'
@@ -42,65 +37,17 @@ export function CatalogueDetail() {
   const back = useBack()
   const { params } = useRoute()
   const productId = params.id ?? ''
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-
-  const [product, setProduct] = useState<Product | null | undefined>(undefined)
-  const [categories, setCategories] = useState<ProductCategory[]>([])
-  const [collections, setCollections] = useState<Collection[]>([])
-  const [variants, setVariants] = useState<ProductVariant[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [editing, setEditing] = useState(false)
   const [addingVariant, setAddingVariant] = useState(false)
 
-  async function reload() {
-    try {
-      const [found, categoryList, collectionList, variantList] = await withTimeout(
-        Promise.all([
-          getProduct(productId),
-          listProductCategories(shop.id),
-          listCollections(shop.id),
-          listProductVariants(productId),
-        ]),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      setProduct(found)
-      setCategories(categoryList)
-      setCollections(collectionList)
-      setVariants(variantList)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load this product.')
-    }
-  }
+  const found = useQueryStatus(() => observeProduct(db, productId), [db, productId], null)
+  const product = found.value
+  const categories = useQuery(() => observeProductCategories(db, shop.id), [db, shop.id], [])
+  const collections = useQuery(() => observeCollections(db, shop.id), [db, shop.id], [])
+  const variants = useQuery(() => observeProductVariants(db, productId), [db, productId], [])
 
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, productId])
-
-  if (!online) {
-    return (
-      <Screen title="Product" back={back}>
-        <EmptyState
-          spacious
-          title="No connection"
-          description="The catalogue lives on the server, so this needs a connection."
-        />
-      </Screen>
-    )
-  }
-
-  if (loadError) {
-    return (
-      <Screen title="Product" back={back}>
-        <ErrorNote>{loadError}</ErrorNote>
-      </Screen>
-    )
-  }
-
-  if (product === undefined) {
+  if (!found.loaded) {
     return (
       <Screen title="Product" back={back}>
         <Skeleton class="h-32" />
@@ -108,7 +55,7 @@ export function CatalogueDetail() {
     )
   }
 
-  if (product === null) {
+  if (!product) {
     return (
       <Screen title="Product" back={back}>
         <EmptyState
@@ -180,7 +127,7 @@ export function CatalogueDetail() {
               <Card padded={false}>
                 <RowList>
                   {variants.map((variant) => (
-                    <VariantRow key={variant.id} variant={variant} onChanged={reload} />
+                    <VariantRow key={variant.id} variant={variant} />
                   ))}
                 </RowList>
               </Card>
@@ -195,13 +142,11 @@ export function CatalogueDetail() {
         categories={categories}
         collections={collections}
         onClose={() => setEditing(false)}
-        onSaved={reload}
       />
       <VariantSheet
         open={addingVariant}
         productId={product.id}
         onClose={() => setAddingVariant(false)}
-        onSaved={reload}
       />
     </>
   )

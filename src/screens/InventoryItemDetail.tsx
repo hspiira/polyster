@@ -1,6 +1,6 @@
 /* One item: its running quantity and movement history. Every change happens by
    recording a movement -- there is deliberately no direct edit. */
-import { useEffect, useState } from 'preact/hooks'
+import { useMemo, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import {
   Button,
@@ -18,20 +18,24 @@ import {
 } from '../ui'
 import { IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
+import { useQuery, useQueryStatus } from '../hooks/useQuery'
 import { formatDate } from '../lib/dates'
 import {
-  MOVEMENT_TYPES,
-  listInventoryItems,
-  listMovements,
+  observeAllProductVariants,
+  observeInventoryItem,
+  observeMaterials,
+  observeMovements,
+  observeProducts,
   recordMovement,
+} from '../db/repo'
+import {
+  MOVEMENT_TYPES,
   type InventoryItem,
-  type InventoryMovement,
+  type Material,
   type MovementType,
-} from '../online/inventory'
-import { listAllProductVariants, listProducts, type Product, type ProductVariant } from '../online/catalogue'
-import { listMaterials, type Material } from '../online/materials'
+  type Product,
+  type ProductVariant,
+} from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
 
@@ -60,65 +64,29 @@ export function InventoryItemDetail() {
   const back = useBack()
   const { params } = useRoute()
   const itemId = params.id ?? ''
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-
-  const [item, setItem] = useState<InventoryItem | null | undefined>(undefined)
-  const [label, setLabel] = useState('')
-  const [movements, setMovements] = useState<InventoryMovement[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [recording, setRecording] = useState(false)
 
-  async function reload() {
-    try {
-      const [items, variants, products, materials, moves] = await withTimeout(
-        Promise.all([
-          listInventoryItems(shop.id),
-          listAllProductVariants(shop.id),
-          listProducts(shop.id),
-          listMaterials(shop.id),
-          listMovements(itemId),
-        ]),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      const found = items.find((i) => i.id === itemId) ?? null
-      setItem(found)
-      if (found) setLabel(describeItem(found, variants, products, materials))
-      setMovements(moves)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load this item.')
-    }
-  }
+  const found = useQueryStatus(() => observeInventoryItem(db, itemId), [db, itemId], null)
+  const item = found.value
+  const movements = useQuery(() => observeMovements(db, itemId), [db, itemId], [])
+  const variants = useQuery(() => observeAllProductVariants(db, shop.id), [db, shop.id], [])
+  const products = useQuery(() => observeProducts(db, shop.id), [db, shop.id], [])
+  const materials = useQuery(() => observeMaterials(db, shop.id), [db, shop.id], [])
 
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, itemId])
+  const label = useMemo(
+    () => (item ? describeItem(item, variants, products, materials) : ''),
+    [item, variants, products, materials],
+  )
 
-  if (!online) {
-    return (
-      <Screen title="Inventory item" back={back}>
-        <EmptyState spacious title="No connection" description="This needs a connection to load." />
-      </Screen>
-    )
-  }
-  if (loadError) {
-    return (
-      <Screen title="Inventory item" back={back}>
-        <ErrorNote>{loadError}</ErrorNote>
-      </Screen>
-    )
-  }
-  if (item === undefined) {
+  if (!found.loaded) {
     return (
       <Screen title="Inventory item" back={back}>
         <Skeleton class="h-32" />
       </Screen>
     )
   }
-  if (item === null) {
+  if (!item) {
     return (
       <Screen title="Inventory item" back={back}>
         <EmptyState
@@ -187,12 +155,7 @@ export function InventoryItemDetail() {
         </div>
       </Screen>
 
-      <RecordMovementSheet
-        open={recording}
-        item={item}
-        onClose={() => setRecording(false)}
-        onSaved={reload}
-      />
+      <RecordMovementSheet open={recording} item={item} onClose={() => setRecording(false)} />
     </>
   )
 }
@@ -216,14 +179,12 @@ function RecordMovementSheet({
   open,
   item,
   onClose,
-  onSaved,
 }: {
   open: boolean
   item: InventoryItem
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const { draft, set, patch } = useDraft<MovementDraft>(() => ({
     movementType: 'adjustment',
     quantity: '',
@@ -247,7 +208,7 @@ function RecordMovementSheet({
     setSaving(true)
     setError(null)
     try {
-      await recordMovement(shop.id, item.id, {
+      await recordMovement(db, shop.id, item.id, {
         movement_type: draft.movementType,
         quantity: qty,
         reason: draft.reason,
@@ -255,7 +216,6 @@ function RecordMovementSheet({
       })
       patch({ quantity: '', reason: '', notes: '' })
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not record that movement.')
     } finally {

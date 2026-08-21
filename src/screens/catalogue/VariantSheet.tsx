@@ -3,11 +3,8 @@
 import { useEffect, useState } from 'preact/hooks'
 import { Button, ErrorNote, Field, Input, Sheet } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
-import {
-  createProductVariant,
-  updateProductVariant,
-  type ProductVariant,
-} from '../../online/catalogue'
+import { createProductVariant, updateProductVariant } from '../../db/repo'
+import type { ProductVariant } from '../../db/schema'
 
 interface VariantDraft {
   sku: string
@@ -37,16 +34,14 @@ export function VariantSheet({
   productId,
   variant,
   onClose,
-  onSaved,
 }: {
   open: boolean
   productId: string
   /** Absent means this is a new variant. */
   variant?: ProductVariant
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const [draft, setDraft] = useState<VariantDraft>(() => draftFrom(variant))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -75,10 +70,9 @@ export function VariantSheet({
       cost_minor: toMinor(draft.cost),
     }
     try {
-      if (variant) await updateProductVariant(variant.id, fields)
-      else await createProductVariant(shop.id, productId, fields)
+      if (variant) await updateProductVariant(db, variant.id, fields)
+      else await createProductVariant(db, shop.id, productId, fields)
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this variant.')
     } finally {

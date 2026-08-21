@@ -5,12 +5,16 @@ import {
   inventoryValuation,
   productProfitability,
 } from './analytics'
-import type { ProductVariant, Product } from './catalogue'
-import type { ProductionBatch, ProductionBatchCost } from './production'
-import type { GarmentUnit } from './garmentUnits'
-import type { Material } from './materials'
-import type { InventoryItem } from './inventory'
-import type { Collection } from './collections'
+import type {
+  Collection,
+  GarmentUnit,
+  InventoryItem,
+  Material,
+  Product,
+  ProductVariant,
+  ProductionBatch,
+  ProductionBatchCost,
+} from '../schema'
 
 const variant = (over: Partial<ProductVariant> = {}): ProductVariant => ({
   id: 'v1',

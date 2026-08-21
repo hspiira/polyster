@@ -2,7 +2,8 @@ import { useState } from 'preact/hooks'
 import { Segmented } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
 import { formatMinor } from '../../lib/money'
-import { setProductVariantActive, type ProductVariant } from '../../online/catalogue'
+import { setProductVariantActive } from '../../db/repo'
+import type { ProductVariant } from '../../db/schema'
 import { VariantSheet } from './VariantSheet'
 
 const TOGGLE_OPTIONS = [
@@ -10,16 +11,15 @@ const TOGGLE_OPTIONS = [
   { value: 'off', label: 'Off' },
 ] as const
 
-export function VariantRow({ variant, onChanged }: { variant: ProductVariant; onChanged: () => void }) {
-  const { shop } = useCurrentShop()
+export function VariantRow({ variant }: { variant: ProductVariant }) {
+  const { db, shop } = useCurrentShop()
   const [editing, setEditing] = useState(false)
   const [toggling, setToggling] = useState(false)
 
   async function toggleActive(value: string) {
     setToggling(true)
     try {
-      await setProductVariantActive(variant.id, value === 'on')
-      onChanged()
+      await setProductVariantActive(db, variant.id, value === 'on')
     } finally {
       setToggling(false)
     }
@@ -50,7 +50,6 @@ export function VariantRow({ variant, onChanged }: { variant: ProductVariant; on
         open={editing}
         variant={variant}
         onClose={() => setEditing(false)}
-        onSaved={onChanged}
       />
       {toggling && <span class="sr-only">Saving</span>}
     </li>

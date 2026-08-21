@@ -1,6 +1,6 @@
 /* Products, search, add. Online-only: no local cache, so this screen needs a
    connection to load or change anything. */
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useMemo, useState } from 'preact/hooks'
 import {
   Button,
   Card,
@@ -16,27 +16,27 @@ import {
   SearchInput,
   Select,
   Sheet,
-  Skeleton,
   Textarea,
 } from '../ui'
 import { IconPlus, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
+import { useQuery } from '../hooks/useQuery'
 import { ProductImageField } from './ProductImageField'
 import {
-  PRODUCT_TYPES,
   createProduct,
   createProductCategory,
   deleteProductCategory,
-  listProductCategories,
-  listProducts,
+  observeCollections,
+  observeProductCategories,
+  observeProducts,
   renameProductCategory,
-  type Product,
+} from '../db/repo'
+import {
+  PRODUCT_TYPES,
+  type Collection,
   type ProductCategory,
   type ProductType,
-} from '../online/catalogue'
-import { listCollections, type Collection } from '../online/collections'
+} from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
 import { filterByQuery } from '../lib/search'
@@ -61,61 +61,24 @@ interface ProductDraft {
 
 export function Catalogue() {
   const back = useBack()
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-  const [products, setProducts] = useState<Product[] | null>(null)
-  const [categories, setCategories] = useState<ProductCategory[]>([])
-  const [collections, setCollections] = useState<Collection[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const [managingCategories, setManagingCategories] = useState(false)
 
-  async function reload() {
-    try {
-      const [productList, categoryList, collectionList] = await withTimeout(
-        Promise.all([listProducts(shop.id), listProductCategories(shop.id), listCollections(shop.id)]),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      setProducts(productList)
-      setCategories(categoryList)
-      setCollections(collectionList)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load the catalogue.')
-    }
-  }
-
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, shop.id])
+  const products = useQuery(() => observeProducts(db, shop.id), [db, shop.id], [])
+  const categories = useQuery(() => observeProductCategories(db, shop.id), [db, shop.id], [])
+  const collections = useQuery(() => observeCollections(db, shop.id), [db, shop.id], [])
 
   const categoryName = useMemo(() => {
     const byId = new Map(categories.map((c) => [c.id, c.name]))
     return (id: string | null) => (id ? (byId.get(id) ?? null) : null)
   }, [categories])
 
-  const matches = useMemo(() => {
-    if (!products) return []
-    return filterByQuery(products, search, (product) => ({
-      text: [product.name, product.brand],
-    }))
-  }, [products, search])
-
-  if (!online) {
-    return (
-      <Screen title="Catalogue" back={back}>
-        <EmptyState
-          spacious
-          illustration={<IconTag size={48} />}
-          title="No connection"
-          description="The catalogue lives on the server, not on this device, so it needs a connection to load."
-        />
-      </Screen>
-    )
-  }
+  const matches = useMemo(
+    () => filterByQuery(products, search, (product) => ({ text: [product.name, product.brand] })),
+    [products, search],
+  )
 
   return (
     <>
@@ -123,23 +86,13 @@ export function Catalogue() {
         title="Catalogue"
         back={back}
         action={
-          products && products.length > 0 ? (
+          products.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />
           ) : undefined
         }
       >
         <div class="space-y-4">
-          {loadError && <ErrorNote>{loadError}</ErrorNote>}
-
-          {products === null && !loadError && (
-            <div class="space-y-2">
-              <Skeleton class="h-14" />
-              <Skeleton class="h-14" />
-              <Skeleton class="h-14" />
-            </div>
-          )}
-
-          {products && products.length > 0 && (
+          {products.length > 0 && (
             <SearchInput
               placeholder="Search by name or brand"
               value={search}
@@ -209,13 +162,11 @@ export function Catalogue() {
         categories={categories}
         collections={collections}
         onClose={() => setAdding(false)}
-        onSaved={reload}
       />
       <CategorySheet
         open={managingCategories}
         categories={categories}
         onClose={() => setManagingCategories(false)}
-        onChanged={reload}
       />
     </>
   )
@@ -226,15 +177,13 @@ function AddProductSheet({
   categories,
   collections,
   onClose,
-  onSaved,
 }: {
   open: boolean
   categories: ProductCategory[]
   collections: Collection[]
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const blank = (): ProductDraft => ({
     name: '',
     productType: 'garment',
@@ -262,7 +211,7 @@ function AddProductSheet({
     setSaving(true)
     setError(null)
     try {
-      await createProduct(shop.id, {
+      await createProduct(db, shop.id, {
         name: draft.name,
         product_type: draft.productType,
         category_id: draft.categoryId || undefined,
@@ -273,7 +222,6 @@ function AddProductSheet({
       })
       reset()
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this product.')
     } finally {
@@ -352,14 +300,12 @@ function CategorySheet({
   open,
   categories,
   onClose,
-  onChanged,
 }: {
   open: boolean
   categories: ProductCategory[]
   onClose: () => void
-  onChanged: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -370,9 +316,8 @@ function CategorySheet({
     setAdding(true)
     setError(null)
     try {
-      await createProductCategory(shop.id, name)
+      await createProductCategory(db, shop.id, name)
       setName('')
-      onChanged()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add that category.')
     } finally {
@@ -384,8 +329,7 @@ function CategorySheet({
     const next = prompt('Rename category', category.name)
     if (!next || !next.trim() || next.trim() === category.name) return
     try {
-      await renameProductCategory(category.id, next)
-      onChanged()
+      await renameProductCategory(db, category.id, next)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not rename that category.')
     }
@@ -393,8 +337,7 @@ function CategorySheet({
 
   async function remove(category: ProductCategory) {
     try {
-      await deleteProductCategory(category.id)
-      onChanged()
+      await deleteProductCategory(db, category.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not remove that category.')
     }
