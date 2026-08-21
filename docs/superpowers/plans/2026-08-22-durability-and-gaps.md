@@ -228,8 +228,16 @@ because a backup importer is the fallback for sync going wrong.
 - ~~**3a — id migration**~~ — done 2026-08-22. No local rewrite was needed:
   there was no data worth keeping, so the schema changed and the device kept
   generating what it already generated.
-- **3b — `shop_id` on `payments`.** Needed to scope a sync payload per shop, and
-  it removes the join-through-orders workaround Reports carries today.
+- ~~**3b — `shop_id` on `payments`**~~ — done 2026-08-22. Dexie schema v2 with a
+  backfill off the order, Postgres migration 0021, and the RLS policy now matches
+  directly instead of joining orders per row. Reports keeps the order join, but
+  only for the currency, which a payment does not carry.
+
+  The version guard from Phase 0 earned itself immediately: changing the index
+  failed the build until the version was bumped and a fingerprint recorded, which
+  is exactly the break it exists to catch. `verify:schema` then caught two more —
+  an RLS policy name I had guessed wrong, and twelve `seed.sql` inserts that had
+  no `shop_id` to give.
 - **3c — the push/pull loop.** Design not settled and deliberately not sketched
   here; it needs its own plan once Decision 1 is made. The offline-conflict
   question returns with it and is still unanswered.

@@ -15,6 +15,7 @@ import {
   createOrder,
   getRow,
   listBy,
+  listPayments,
   logMessage,
   observeActiveMeasurementFields,
   observeRetiredMeasurementFields,
@@ -664,5 +665,33 @@ describe('setFeatureEnabled', () => {
     const rows = await listBy(db.tenant_features, 'shop_id', shopId)
     expect(rows).toHaveLength(1)
     expect(rows[0]?.enabled).toBe(false)
+  })
+})
+
+describe('payments carry their shop', () => {
+  /* Reading a shop's payments used to mean reading every payment on the device
+     and filtering through orders. This is what makes the query scope. */
+  it('takes the shop off the order', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    const payment = await recordPayment(db, orderId, { amount_minor: 1000, method: 'cash' })
+
+    expect(payment.shop_id).toBe(shopId)
+    expect((await db.payments.get(payment.id))?.shop_id).toBe(shopId)
+  })
+
+  it('is readable by shop without touching orders', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    await recordPayment(db, orderId, { amount_minor: 1000, method: 'cash' })
+
+    expect(await listPayments(db, shopId)).toHaveLength(1)
+    expect(await listPayments(db, 'another-shop')).toEqual([])
+  })
+
+  it('never disagrees with the order it belongs to', async () => {
+    const { db, orderId } = await orderWithUnits([45000])
+    const payment = await recordPayment(db, orderId, { amount_minor: 1000, method: 'cash' })
+
+    const order = await db.orders.get(orderId)
+    expect((await db.payments.get(payment.id))?.shop_id).toBe(order?.shop_id)
   })
 })

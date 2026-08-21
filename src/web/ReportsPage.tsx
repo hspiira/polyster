@@ -29,7 +29,7 @@ export function ReportsPage() {
   const saleRows = useQuery(() => observeSales(db, shop.id), [db, shop.id], [])
   const expenseRows = useQuery(() => observeExpenses(db, shop.id), [db, shop.id], [])
   const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
-  const paymentRows = useQuery(() => observePayments(db), [db], [])
+  const paymentRows = useQuery(() => observePayments(db, shop.id), [db, shop.id], [])
   const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
   const orderIds = useMemo(() => new Set(orders.map((order) => order.id)), [orders])

@@ -22,6 +22,7 @@ const order = (over: Partial<OrderDoc> = {}): OrderDoc => ({
 
 const payment = (over: Partial<PaymentDoc> = {}): PaymentDoc => ({
   id: crypto.randomUUID(),
+  shop_id: 'shop-1',
   order_id: 'order-1',
   amount_minor: 10000,
   kind: 'payment',

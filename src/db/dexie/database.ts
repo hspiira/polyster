@@ -1,5 +1,5 @@
 /* The on-device database. Read and write through src/db/repo, not this. */
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type EntityTable, type Transaction } from 'dexie'
 import { SCHEMA_VERSION, STORES } from './stores'
 import type {
   ClientDoc,
@@ -31,6 +31,22 @@ import type {
 } from '../schema'
 
 export const DATABASE_NAME = 'polyster'
+
+/* v2 added shop_id to payments. An installed app has payments without one, and
+   the order they belong to is where it comes from. */
+async function backfillPaymentShops(tx: Transaction): Promise<void> {
+  const orders = await tx.table('orders').toArray()
+  const shopByOrder = new Map<string, string>(orders.map((order) => [order.id, order.shop_id]))
+
+  await tx
+    .table('payments')
+    .toCollection()
+    .modify((payment: { order_id: string; shop_id?: string }) => {
+      if (payment.shop_id) return
+      const shopId = shopByOrder.get(payment.order_id)
+      if (shopId) payment.shop_id = shopId
+    })
+}
 
 /** A stored row, which may be soft-deleted. */
 export type Stored<T> = T & { deleted_at?: string }
@@ -67,7 +83,7 @@ export class PolysterDatabase extends Dexie {
 
   constructor(name: string = DATABASE_NAME) {
     super(name)
-    this.version(SCHEMA_VERSION).stores(STORES)
+    this.version(SCHEMA_VERSION).stores(STORES).upgrade(backfillPaymentShops)
   }
 }
 

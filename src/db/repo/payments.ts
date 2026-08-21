@@ -5,11 +5,9 @@ import { calculateBalance } from '../balances'
 import { newId } from '../../lib/ids'
 import {
   insertRow,
-  listAll,
   listBy,
   loadOrThrow,
   now,
-  observeAll,
   observeBy,
   voidRow,
   type Observable,
@@ -23,14 +21,19 @@ export function observeOrderPayments(
   return observeBy(db.payments, 'order_id', orderId, { key: 'payment_date', dir: 'desc' })
 }
 
-/* Every payment on the device. Payments carry no shop of their own, and the
-   reports need them all to bucket by order. */
-export function observePayments(db: PolysterDatabase): Observable<Stored<PaymentDoc>[]> {
-  return observeAll(db.payments)
+/** Every payment in one shop, which is what the reports bucket by order. */
+export function observePayments(
+  db: PolysterDatabase,
+  shopId: string,
+): Observable<Stored<PaymentDoc>[]> {
+  return observeBy(db.payments, 'shop_id', shopId)
 }
 
-export function listPayments(db: PolysterDatabase): Promise<Stored<PaymentDoc>[]> {
-  return listAll(db.payments)
+export function listPayments(
+  db: PolysterDatabase,
+  shopId: string,
+): Promise<Stored<PaymentDoc>[]> {
+  return listBy(db.payments, 'shop_id', shopId)
 }
 
 export interface NewPaymentInput {
@@ -69,6 +72,7 @@ export async function recordPayment(
   const timestamp = now()
   const doc: PaymentDoc = {
     id: newId(),
+    shop_id: order.shop_id,
     order_id: orderId,
     amount_minor: input.amount_minor,
     kind,

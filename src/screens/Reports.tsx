@@ -48,7 +48,7 @@ export function Reports() {
   const [picked, setPicked] = useState<number | null>(null)
 
   const orders = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
-  const paymentRows = useQuery(() => observePayments(db), [db], [])
+  const paymentRows = useQuery(() => observePayments(db, shop.id), [db, shop.id], [])
   const allSales = useQuery(() => observeSales(db, shop.id), [db, shop.id], [])
   const allExpenses = useQuery(() => observeExpenses(db, shop.id), [db, shop.id], [])
   const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
@@ -75,8 +75,8 @@ export function Reports() {
     [orders],
   )
 
-  /* A payment carries no shop_id, so it is scoped through its order: a handed-on
-     device still holds the previous shop's rows until wiped. */
+  // Scoped by shop in the query; the order is only for the currency, which a
+  // payment does not carry.
   const payments = useMemo(
     () =>
       paymentRows

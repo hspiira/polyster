@@ -359,7 +359,12 @@ begin
   update orders set price_total_minor = 180000 where id='43000000-0000-4000-8000-000000000002';
   update orders set price_total_minor = 850000 where id='43000000-0000-4000-8000-000000000003';
 
-  insert into payments (id,order_id,amount_minor,kind,payment_date,method,reference,recorded_by,notes) values
+  -- shop_id comes off the order rather than being repeated per row, so these
+  -- cannot drift from the order they belong to.
+  insert into payments (id,shop_id,order_id,amount_minor,kind,payment_date,method,reference,recorded_by,notes)
+  select v.id, o.shop_id, v.order_id, v.amount_minor, v.kind, v.payment_date::timestamptz,
+         v.method, v.reference, v.recorded_by, v.notes
+  from (values
     ('45000000-0000-4000-8000-000000000001','43000000-0000-4000-8000-000000000001',100000,'payment','2026-08-10T10:00:00+03','mobile_money','MPESA-NF-001','20000000-0000-4000-8000-000000000001','Deposit'),
     ('45000000-0000-4000-8000-000000000002','43000000-0000-4000-8000-000000000001',185000,'payment','2026-08-11T16:00:00+03','cash',null,'20000000-0000-4000-8000-000000000001','Balance'),
     ('45000000-0000-4000-8000-000000000003','43000000-0000-4000-8000-000000000002',90000,'payment','2026-08-11T11:00:00+03','mobile_money','MPESA-NF-002','20000000-0000-4000-8000-000000000002','Pre-order deposit'),
@@ -369,7 +374,9 @@ begin
     ('45000000-0000-4000-8000-000000000007','43000000-0000-4000-8000-000000000004',250000,'refund','2026-08-10T17:30:00+03','cash',null,'20000000-0000-4000-8000-000000000003','Deposit returned, garment undamaged'),
     ('45000000-0000-4000-8000-000000000008','43000000-0000-4000-8000-000000000005',30000,'payment','2026-08-11T15:00:00+03','mobile_money','MPESA-NF-004','20000000-0000-4000-8000-000000000001','Repair deposit'),
     ('45000000-0000-4000-8000-000000000009','43000000-0000-4000-8000-000000000006',85000,'payment','2026-08-12T12:00:00+03','cash',null,'20000000-0000-4000-8000-000000000003','Paid in full'),
-    ('45000000-0000-4000-8000-000000000010','43000000-0000-4000-8000-000000000007',15000,'payment','2026-08-12T09:30:00+03','cash',null,'20000000-0000-4000-8000-000000000005','Deposit on approval');
+    ('45000000-0000-4000-8000-000000000010','43000000-0000-4000-8000-000000000007',15000,'payment','2026-08-12T09:30:00+03','cash',null,'20000000-0000-4000-8000-000000000005','Deposit on approval')
+  ) v(id,order_id,amount_minor,kind,payment_date,method,reference,recorded_by,notes)
+  join orders o on o.id = v.order_id;
 
   insert into order_stage_history (id,order_id,from_stage,to_stage,note,changed_by,changed_at) values
     ('46000000-0000-4000-8000-000000000001','43000000-0000-4000-8000-000000000001',null,'measured','Order created','20000000-0000-4000-8000-000000000001','2026-08-08T09:00:00+03'),
@@ -527,8 +534,8 @@ begin
     'NFB-' || lpad((i + 1)::text, 4, '0'), 'UGX', '20000000-0000-4000-8000-000000000001', 'individual'
   from rows;
 
-  insert into payments (id, order_id, amount_minor, method, recorded_by, payment_date)
-  select gen_random_uuid()::text, o.id,
+  insert into payments (id, shop_id, order_id, amount_minor, method, recorded_by, payment_date)
+  select gen_random_uuid()::text, o.shop_id, o.id,
     case when o.stage in ('picked_up', 'returned') then o.price_total_minor
          else greatest(1, (o.price_total_minor * 4 / 10))::bigint end,
     case (substring(o.reference from 5)::int % 3)
@@ -580,8 +587,8 @@ begin
     'MTB-' || lpad((i + 1)::text, 4, '0'), 'UGX', '20000000-0000-4000-8000-000000000004', 'individual'
   from rows;
 
-  insert into payments (id, order_id, amount_minor, method, recorded_by, payment_date)
-  select gen_random_uuid()::text, o.id,
+  insert into payments (id, shop_id, order_id, amount_minor, method, recorded_by, payment_date)
+  select gen_random_uuid()::text, o.shop_id, o.id,
     case when o.stage in ('picked_up', 'returned') then o.price_total_minor
          else greatest(1, (o.price_total_minor * 4 / 10))::bigint end,
     case (substring(o.reference from 5)::int % 3)

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import Dexie from 'dexie'
 import type { EventDoc, Product } from '../schema'
 import { createDatabase, type PolysterDatabase } from './database'
 import {
@@ -233,12 +234,69 @@ describe('schema version', () => {
   })
 
   it('fingerprints the indexes, not just the store names', () => {
-    const withExtraIndex = { ...STORES, payments: 'id, order_id, shop_id' }
+    const withExtraIndex = { ...STORES, shops: `${STORES.shops}, name` }
     expect(fingerprint(withExtraIndex)).not.toBe(fingerprint(STORES))
   })
 
   it('does not depend on the order stores are declared in', () => {
     const reversed = Object.fromEntries(Object.entries(STORES).reverse())
     expect(fingerprint(reversed)).toBe(fingerprint(STORES))
+  })
+})
+
+describe('the v1 to v2 upgrade', () => {
+  /* An installed app has payments with no shop_id. The order they belong to is
+     where it comes from, and nothing else can supply it. */
+  it('fills shop_id in from the order', async () => {
+    const name = `upgrade_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    const v1 = new Dexie(name)
+    v1.version(1).stores({ ...STORES, payments: 'id, order_id' })
+    await v1.table('orders').add({ id: 'o1', shop_id: 'shop-1' })
+    await v1.table('orders').add({ id: 'o2', shop_id: 'shop-2' })
+    await v1.table('payments').bulkAdd([
+      { id: 'p1', order_id: 'o1', amount_minor: 1000 },
+      { id: 'p2', order_id: 'o2', amount_minor: 2000 },
+    ])
+    v1.close()
+
+    const db = createDatabase(name)
+    opened.push(db)
+    await db.open()
+
+    expect((await db.payments.get('p1'))?.shop_id).toBe('shop-1')
+    expect((await db.payments.get('p2'))?.shop_id).toBe('shop-2')
+    expect(await db.payments.where('shop_id').equals('shop-1').count()).toBe(1)
+  })
+
+  // An orphan must not block the upgrade: the app has to open regardless.
+  it('leaves a payment whose order is gone, and still opens', async () => {
+    const name = `orphan_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    const v1 = new Dexie(name)
+    v1.version(1).stores({ ...STORES, payments: 'id, order_id' })
+    await v1.table('payments').add({ id: 'p1', order_id: 'missing', amount_minor: 1000 })
+    v1.close()
+
+    const db = createDatabase(name)
+    opened.push(db)
+    await expect(db.open()).resolves.toBeTruthy()
+    expect((await db.payments.get('p1'))?.shop_id).toBeUndefined()
+  })
+
+  it('does not overwrite a shop_id that is already there', async () => {
+    const name = `keep_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    const v1 = new Dexie(name)
+    v1.version(1).stores({ ...STORES, payments: 'id, order_id' })
+    await v1.table('orders').add({ id: 'o1', shop_id: 'shop-1' })
+    await v1.table('payments').add({ id: 'p1', order_id: 'o1', shop_id: 'shop-kept' })
+    v1.close()
+
+    const db = createDatabase(name)
+    opened.push(db)
+    await db.open()
+
+    expect((await db.payments.get('p1'))?.shop_id).toBe('shop-kept')
   })
 })

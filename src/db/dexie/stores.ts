@@ -15,7 +15,7 @@ export const STORES = {
   orders: 'id, shop_id, client_id, created_at, [shop_id+pickup_due_date], [shop_id+stage]',
   order_units: 'id, order_id',
   order_stage_history: 'id, order_id',
-  payments: 'id, order_id',
+  payments: 'id, order_id, shop_id',
 
   // -- money ------------------------------------------------------------
   sales: 'id, shop_id, [shop_id+sold_at]',
@@ -51,7 +51,7 @@ export const STORE_NAMES = Object.keys(STORES) as StoreName[]
 
 /* The version Dexie opens. Bump it in the same commit as any change to STORES,
    or an installed app cannot open the database it already has. */
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 /** A store list reduced to one comparable string. */
 export function fingerprint(stores: Record<string, string>): string {
@@ -73,4 +73,6 @@ export function fingerprint(stores: Record<string, string>): string {
    an entry, and never compute one -- that would agree with any change. */
 export const SCHEMA_HISTORY: Record<number, string> = {
   1: '28e34301',
+  // shop_id on payments, so they can be read without joining orders.
+  2: '9beadae7',
 }

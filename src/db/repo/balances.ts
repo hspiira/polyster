@@ -1,7 +1,7 @@
 import type { PolysterDatabase } from '../dexie/database'
 import type { OrderBalance } from '../balances'
 import { calculateBalance } from '../balances'
-import { alive, liveQuery, listAll, listBy, type Observable } from './base'
+import { alive, liveQuery, listBy, type Observable } from './base'
 
 /** Live balance for one order. Re-emits when the price or any payment changes. */
 export function observeBalance(
@@ -23,7 +23,7 @@ export function observeShopBalances(
 ): Observable<Map<string, OrderBalance>> {
   return liveQuery(async () => {
     const orders = alive(await db.orders.where('shop_id').equals(shopId).toArray())
-    const payments = await listAll(db.payments)
+    const payments = await listBy(db.payments, 'shop_id', shopId)
 
     // One pass to bucket payments by order, rather than filtering the whole
     // payments list once per order.
