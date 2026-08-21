@@ -48,3 +48,29 @@ export const STORES = {
 export type StoreName = keyof typeof STORES
 
 export const STORE_NAMES = Object.keys(STORES) as StoreName[]
+
+/* The version Dexie opens. Bump it in the same commit as any change to STORES,
+   or an installed app cannot open the database it already has. */
+export const SCHEMA_VERSION = 1
+
+/** A store list reduced to one comparable string. */
+export function fingerprint(stores: Record<string, string>): string {
+  const canonical = Object.keys(stores)
+    .sort()
+    .map((name) => `${name}=${stores[name]}`)
+    .join(';')
+
+  // FNV-1a, for something short and stable enough to commit.
+  let hash = 0x811c9dc5
+  for (let i = 0; i < canonical.length; i++) {
+    hash ^= canonical.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+/* Every shipped version, fingerprinted. Append when STORES changes; never edit
+   an entry, and never compute one -- that would agree with any change. */
+export const SCHEMA_HISTORY: Record<number, string> = {
+  1: '28e34301',
+}

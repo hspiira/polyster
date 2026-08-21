@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { EventDoc, Product } from '../schema'
 import { createDatabase, type PolysterDatabase } from './database'
-import { STORE_NAMES, STORES } from './stores'
+import {
+  SCHEMA_HISTORY,
+  SCHEMA_VERSION,
+  STORE_NAMES,
+  STORES,
+  fingerprint,
+} from './stores'
 
 const opened: PolysterDatabase[] = []
 
@@ -206,5 +212,33 @@ describe('reading and writing', () => {
     ).rejects.toThrow('write failed halfway')
 
     expect(await db.order_stage_history.get('h1')).toBeUndefined()
+  })
+})
+
+describe('schema version', () => {
+  /* The failure this guards: a store or an index changes, every other test
+     still passes, and an installed app cannot open the database it has. */
+  it('matches the fingerprint recorded for its version', () => {
+    expect(SCHEMA_HISTORY[SCHEMA_VERSION]).toBe(fingerprint(STORES))
+  })
+
+  it('is the newest version in the history', () => {
+    const versions = Object.keys(SCHEMA_HISTORY).map(Number)
+    expect(SCHEMA_VERSION).toBe(Math.max(...versions))
+  })
+
+  it('has no gaps, so every shipped version is accounted for', () => {
+    const versions = Object.keys(SCHEMA_HISTORY).map(Number).sort((a, b) => a - b)
+    expect(versions).toEqual(Array.from({ length: SCHEMA_VERSION }, (_, i) => i + 1))
+  })
+
+  it('fingerprints the indexes, not just the store names', () => {
+    const withExtraIndex = { ...STORES, payments: 'id, order_id, shop_id' }
+    expect(fingerprint(withExtraIndex)).not.toBe(fingerprint(STORES))
+  })
+
+  it('does not depend on the order stores are declared in', () => {
+    const reversed = Object.fromEntries(Object.entries(STORES).reverse())
+    expect(fingerprint(reversed)).toBe(fingerprint(STORES))
   })
 })

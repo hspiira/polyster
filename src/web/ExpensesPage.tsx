@@ -27,7 +27,6 @@ export function ExpensesPage() {
   const inPeriod = useMemo(
     () =>
       expenseRows
-        
         .filter((expense) => expense.spent_on >= from && expense.spent_on <= now),
     [expenseRows, from, now],
   )

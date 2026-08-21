@@ -54,9 +54,7 @@ export function ReportsPage() {
     () =>
       profitAndLoss({
         sales: saleRows,
-        payments: paymentRows
-          
-          .filter((payment) => orderIds.has(payment.order_id)),
+        payments: paymentRows.filter((payment) => orderIds.has(payment.order_id)),
         expenses: expenseRows,
         from,
         to: now,

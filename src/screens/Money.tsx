@@ -102,7 +102,6 @@ export function Money() {
   const payments = useMemo(
     () =>
       paymentRows
-        
         .filter((payment) => orderIndex.get(payment.order_id)?.currency === currency),
     [paymentRows, orderIndex, currency],
   )

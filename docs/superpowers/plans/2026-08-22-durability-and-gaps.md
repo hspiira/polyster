@@ -133,10 +133,16 @@ My own debris from yesterday's codemod, and one guard that should exist.
    enforcing it. A test that pins the store list against a committed snapshot
    turns a silent break into a failed build. This is the cheapest item here and
    the one with the worst failure mode.
-3. **`STATUS.md` check table** lists `pnpm verify:sync`, which no longer exists.
+3. ~~`STATUS.md` lists `pnpm verify:sync`~~ — checked, it does not. I had that
+   from an older `package.json` and asserted it without looking. Nothing to fix.
 
-*Verified by:* `pnpm verify`; the guard test failing when a store is added
-without a version bump.
+*Verified by:* `pnpm verify`; the guard failing when a store changes without a
+version bump, and again when the version is bumped without a history entry.
+
+**Done 2026-08-22.** The guard is a fingerprint per shipped version in
+`stores.ts`, written out rather than computed — computing it would agree with any
+change and guard nothing. Store names were already pinned; indexes were not, so
+adding `shop_id` to `payments` in Phase 3b would have passed every test.
 
 ### Phase 1 — Backup import (1–2 days)
 

@@ -80,7 +80,6 @@ export function Reports() {
   const payments = useMemo(
     () =>
       paymentRows
-        
         .filter((payment) => orderCurrencies.get(payment.order_id) === currency),
     [paymentRows, orderCurrencies, currency],
   )

@@ -1,6 +1,6 @@
 /* The on-device database. Read and write through src/db/repo, not this. */
 import Dexie, { type EntityTable } from 'dexie'
-import { STORES } from './stores'
+import { SCHEMA_VERSION, STORES } from './stores'
 import type {
   ClientDoc,
   Collection,
@@ -67,7 +67,7 @@ export class PolysterDatabase extends Dexie {
 
   constructor(name: string = DATABASE_NAME) {
     super(name)
-    this.version(1).stores(STORES)
+    this.version(SCHEMA_VERSION).stores(STORES)
   }
 }
 
