@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 
 // ---------------------------------------------------------------- expenses
 
@@ -38,16 +38,16 @@ export const expenseSchema: RxJsonSchema<ExpenseDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    shop_id: uuidField,
+    id: idField,
+    shop_id: idField,
     category: { type: 'string', enum: [...EXPENSE_CATEGORIES] },
     description: { type: 'string' },
     currency: { type: 'string' },
     amount_minor: { type: 'integer', exclusiveMinimum: 0 },
     spent_on: { type: 'string', format: 'date', maxLength: 10 },
-    recorded_by: uuidField,
+    recorded_by: idField,
     notes: { type: 'string' },
-    voided_by: uuidField,
+    voided_by: idField,
     voided_at: { type: 'string', format: 'date-time' },
     void_reason: { type: 'string' },
     created_at: { type: 'string', format: 'date-time' },

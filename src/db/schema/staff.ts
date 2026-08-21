@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 
 export const STAFF_ROLES = ['owner', 'manager', 'staff'] as const
 export type StaffRole = (typeof STAFF_ROLES)[number]
@@ -42,8 +42,8 @@ export const staffSchema: RxJsonSchema<StaffDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    shop_id: uuidField,
+    id: idField,
+    shop_id: idField,
     name: { type: 'string' },
     phone: { type: 'string' },
     pin_hash: { type: 'string' },

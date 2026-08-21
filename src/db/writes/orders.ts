@@ -101,7 +101,7 @@ export async function createOrder(
   })
 
   await db.order_units.insert({
-    id: crypto.randomUUID(),
+    id: newId(),
     order_id: doc.id,
     position: 0,
     item_description: description,

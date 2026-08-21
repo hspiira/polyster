@@ -1,6 +1,7 @@
 /* Products, categories, variants. Online-only: queries Supabase directly rather
    than through RxDB, per supabaseClient.ts. */
 import { getSupabase } from '../lib/supabaseClient'
+import { newId } from '../lib/ids'
 export { PRODUCT_TYPES } from '../db/schema'
 export type { ProductType, ProductCategory, Product, ProductVariant } from '../db/schema'
 import type { ProductType, ProductCategory, Product, ProductVariant } from '../db/schema'
@@ -186,7 +187,7 @@ const PRODUCT_IMAGE_BUCKET = 'product-images'
 /** Uploads to "<shopId>/<uuid>.<ext>" and returns its public URL. */
 export async function uploadProductImage(shopId: string, file: File): Promise<string> {
   const ext = file.name.includes('.') ? file.name.split('.').pop() : undefined
-  const path = `${shopId}/${crypto.randomUUID()}${ext ? `.${ext}` : ''}`
+  const path = `${shopId}/${newId()}${ext ? `.${ext}` : ''}`
 
   const { error } = await getSupabase().storage.from(PRODUCT_IMAGE_BUCKET).upload(path, file, {
     contentType: file.type || undefined,

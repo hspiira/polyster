@@ -1,6 +1,7 @@
 /* Everything the order form decides, as pure functions. Kept out of the
    component so the rules are testable without a DOM -- see docs/CODE_REVIEW.md. */
 import { addDays, today } from '../lib/dates'
+import { newId } from '../lib/ids'
 import { fromMinorUnits, parseToMinor } from '../lib/money'
 import { needsFulfilmentDate, needsReturn } from '../lib/orderTypes'
 import type { OrderHeaderInput, OrderUnitInput } from '../db/writes'
@@ -81,7 +82,7 @@ export function isInvalid(result: ValidatedForm | Invalid): result is Invalid {
 
 export function blankUnit(): UnitDraft {
   return {
-    key: crypto.randomUUID(),
+    key: newId(),
     wearer_name: '',
     item_description: '',
     price: '',

@@ -24,6 +24,7 @@
     "seed:auth": "node scripts/seed-auth-users.mjs"
   },
   "dependencies": {
+    "@paralleldrive/cuid2": "^3.3.0",
     "@supabase/supabase-js": "^2.111.0",
     "dexie": "^4.4.5",
     "lucide-preact": "^1.31.0",

@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 
 export const MEASUREMENT_FIELD_TYPES = ['number', 'text'] as const
 export type MeasurementFieldType = (typeof MEASUREMENT_FIELD_TYPES)[number]
@@ -23,8 +23,8 @@ export const measurementFieldSchema: RxJsonSchema<MeasurementFieldDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    shop_id: uuidField,
+    id: idField,
+    shop_id: idField,
     label: { type: 'string' },
     unit: { type: 'string' },
     display_order: { type: 'number' },
@@ -52,12 +52,12 @@ export const measurementProfileSchema: RxJsonSchema<MeasurementProfileDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    client_id: uuidField,
+    id: idField,
+    client_id: idField,
     values: { type: 'object', additionalProperties: true },
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
-    updated_by: uuidField,
+    updated_by: idField,
   },
   required: ['id', 'client_id', 'values'],
   indexes: ['client_id'],

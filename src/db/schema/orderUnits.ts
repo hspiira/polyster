@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 
 // ------------------------------------------------------------- order units
 
@@ -29,8 +29,8 @@ export const orderUnitSchema: RxJsonSchema<OrderUnitDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    order_id: uuidField,
+    id: idField,
+    order_id: idField,
     position: { type: 'number' },
     wearer_name: { type: 'string' },
     item_description: { type: 'string' },
@@ -38,7 +38,7 @@ export const orderUnitSchema: RxJsonSchema<OrderUnitDoc> = {
     measurements: { type: 'object', additionalProperties: true },
     fabric_source: { type: 'string', enum: [...FABRIC_SOURCES] },
     done: { type: 'boolean' },
-    catalogue_item_id: uuidField,
+    catalogue_item_id: idField,
     photo_url: { type: 'string' },
     notes: { type: 'string' },
     created_at: { type: 'string', format: 'date-time' },

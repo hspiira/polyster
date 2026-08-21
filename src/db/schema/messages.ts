@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 import { ORDER_STAGES, type OrderStage } from './orders'
 
 // ------------------------------------------------------------- message log
@@ -29,14 +29,14 @@ export const messageLogSchema: RxJsonSchema<MessageLogDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    client_id: uuidField,
-    order_id: uuidField,
+    id: idField,
+    client_id: idField,
+    order_id: idField,
     channel: { type: 'string', enum: [...MESSAGE_CHANNELS] },
     template: { type: 'string', enum: [...MESSAGE_TEMPLATES] },
     order_stage: { type: 'string', enum: [...ORDER_STAGES] },
     sent_at: { type: 'string', format: 'date-time' },
-    sent_by: uuidField,
+    sent_by: idField,
   },
   required: ['id', 'client_id', 'channel', 'template', 'sent_at'],
   // order_id is optional, and Dexie rejects an index on a non-required field.

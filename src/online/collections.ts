@@ -1,5 +1,6 @@
 /** Collections. Online-only, see catalogue.ts's header comment for why. */
 import { getSupabase } from '../lib/supabaseClient'
+import { newId } from '../lib/ids'
 export { COLLECTION_STATUSES } from '../db/schema'
 export type { CollectionStatus, Collection } from '../db/schema'
 import type { CollectionStatus, Collection } from '../db/schema'
@@ -71,7 +72,7 @@ const COLLECTION_IMAGE_BUCKET = 'collection-images'
 
 export async function uploadCollectionImage(shopId: string, file: File): Promise<string> {
   const ext = file.name.includes('.') ? file.name.split('.').pop() : undefined
-  const path = `${shopId}/${crypto.randomUUID()}${ext ? `.${ext}` : ''}`
+  const path = `${shopId}/${newId()}${ext ? `.${ext}` : ''}`
   const { error } = await getSupabase().storage.from(COLLECTION_IMAGE_BUCKET).upload(path, file, {
     contentType: file.type || undefined,
   })

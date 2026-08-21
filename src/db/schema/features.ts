@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 
 // -------------------------------------------------------- tenant features
 
@@ -59,8 +59,8 @@ export const tenantFeatureSchema: RxJsonSchema<TenantFeatureDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    shop_id: uuidField,
+    id: idField,
+    shop_id: idField,
     feature_key: { type: 'string', enum: [...FEATURE_KEYS], maxLength: 20 },
     enabled: { type: 'boolean' },
     created_at: { type: 'string', format: 'date-time' },

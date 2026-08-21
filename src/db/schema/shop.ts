@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 
 /** ISO 3166-1 alpha-2. Replaces the hardcoded dialling prefix as the default. */
 export const DEFAULT_COUNTRY = 'UG'
@@ -40,10 +40,10 @@ export const shopSchema: RxJsonSchema<ShopDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
+    id: idField,
     name: { type: 'string' },
     whatsapp_number: { type: 'string' },
-    supabase_auth_user_id: uuidField,
+    supabase_auth_user_id: idField,
     currency: { type: 'string' },
     country: { type: 'string' },
     address: { type: 'string' },

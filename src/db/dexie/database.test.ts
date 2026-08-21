@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { REPLICATED_TABLES } from '../replication'
-import type { Product } from '../schema'
+import type { EventDoc, Product } from '../schema'
 import { createDatabase, type PolysterDatabase } from './database'
 import { STORE_NAMES, STORES } from './stores'
 
@@ -98,6 +98,71 @@ describe('typing', () => {
       { ...base, id: 'p3', name: 'c', shop_id: 's2' },
     ])
     expect(await db.products.where('shop_id').equals('s1').count()).toBe(2)
+  })
+})
+
+describe('audit', () => {
+  const at = (n: number) => `2026-08-2${n}T00:00:00.000Z`
+  const event = (id: string, over: Partial<EventDoc> = {}): EventDoc => ({
+    id, shop_id: 's1', at: at(1), entity: 'orders', entity_id: 'o1',
+    action: 'updated', ...over,
+  })
+
+  it('reads a shop feed in time order', async () => {
+    const db = fresh()
+    await db.events.bulkPut([
+      event('e1', { at: at(3) }),
+      event('e2', { at: at(1) }),
+      event('e3', { at: at(2), shop_id: 's2' }),
+    ])
+    const feed = await db.events
+      .where('[shop_id+at]').between(['s1', ''], ['s1', '\uffff']).toArray()
+    expect(feed.map((e) => e.id)).toEqual(['e2', 'e1'])
+  })
+
+  /* The question a shop actually asks: what happened to this order, and who. */
+  it('reads one record\'s whole history', async () => {
+    const db = fresh()
+    await db.events.bulkPut([
+      event('e1', { action: 'created', actor_staff_id: 'ama' }),
+      event('e2', { action: 'updated', actor_staff_id: 'ben', summary: 'took payment' }),
+      event('e3', { entity_id: 'o2' }),
+    ])
+    const history = await db.events
+      .where('[entity+entity_id]').equals(['orders', 'o1']).toArray()
+    expect(history.map((e) => e.actor_staff_id)).toEqual(['ama', 'ben'])
+  })
+
+  /* Some writes have no person behind them -- a migration, an import, or a
+     write made before the shop had a staff row. */
+  it('records an event with no actor', async () => {
+    const db = fresh()
+    await db.events.put(event('e1'))
+    expect((await db.events.get('e1'))?.actor_staff_id).toBeUndefined()
+  })
+})
+
+describe('shop-defined lists', () => {
+  /* A shop that spends on something the app never thought of should be able to
+     say so, the way it already defines its own measurements. */
+  it('holds categories the app did not ship', async () => {
+    const db = fresh()
+    await db.expense_categories.put({
+      id: 'x1', shop_id: 's1', label: 'Boda for deliveries',
+      active: true, display_order: 0, created_at: 'x', updated_at: 'x',
+    })
+    expect((await db.expense_categories.get('x1'))?.label).toBe('Boda for deliveries')
+  })
+
+  it('retires one without losing it', async () => {
+    const db = fresh()
+    const row = {
+      id: 'x1', shop_id: 's1', label: 'Old', active: true,
+      display_order: 0, created_at: 'x', updated_at: 'x',
+    }
+    await db.material_types.put(row)
+    await db.material_types.update('x1', { active: false })
+    expect(await db.material_types.get('x1')).toMatchObject({ label: 'Old', active: false })
   })
 })
 

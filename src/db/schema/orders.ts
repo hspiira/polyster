@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 
 export const ORDER_TYPES = ['tailor_made', 'rental', 'purchase', 'pre_order', 'repair'] as const
 export type OrderType = (typeof ORDER_TYPES)[number]
@@ -62,9 +62,9 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    shop_id: uuidField,
-    client_id: uuidField,
+    id: idField,
+    shop_id: idField,
+    client_id: idField,
     order_type: { type: 'string', enum: [...ORDER_TYPES] },
     reference: { type: 'string' },
     currency: { type: 'string' },
@@ -87,11 +87,11 @@ export const orderSchema: RxJsonSchema<OrderDoc> = {
     purchase_order_reference: { type: 'string' },
     contact_person: { type: 'string' },
     expected_fulfilment_date: { type: 'string', format: 'date' },
-    product_variant_id: uuidField,
-    collection_id: uuidField,
-    production_batch_id: uuidField,
-    garment_unit_id: uuidField,
-    created_by: uuidField,
+    product_variant_id: idField,
+    collection_id: idField,
+    production_batch_id: idField,
+    garment_unit_id: idField,
+    created_by: idField,
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
   },

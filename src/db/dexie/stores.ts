@@ -27,6 +27,14 @@ export const STORES = {
   // -- messages ---------------------------------------------------------
   message_log: 'id, client_id',
 
+  /* Who did what. [shop_id+at] is the shop's feed, [entity+entity_id] is one
+     record's history. Append-only, so nothing indexes a mutable field. */
+  events: 'id, [shop_id+at], [entity+entity_id]',
+
+  /* Lists a shop defines for itself, like measurement_fields already is. */
+  expense_categories: 'id, shop_id',
+  material_types: 'id, shop_id',
+
   /* Below here was online-only under RxDB's 13-collection cap. Small rows, and
      image fields hold URLs rather than bytes, so all of it comes local. */
 

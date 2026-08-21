@@ -2,9 +2,7 @@
 import type { RxCollection, RxDocument } from 'rxdb'
 import type { AppDatabase, Collections } from '../database'
 
-export function newId(): string {
-  return crypto.randomUUID()
-}
+export { newId } from '../../lib/ids'
 
 export function now(): string {
   return new Date().toISOString()

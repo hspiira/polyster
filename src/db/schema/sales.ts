@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 import { PAYMENT_METHODS, type PaymentMethod } from './payments'
 
 // ------------------------------------------------------------------- sales
@@ -36,9 +36,9 @@ export const saleSchema: RxJsonSchema<SaleDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    shop_id: uuidField,
-    client_id: uuidField,
+    id: idField,
+    shop_id: idField,
+    client_id: idField,
     item_description: { type: 'string' },
     quantity: { type: 'integer', minimum: 1 },
     currency: { type: 'string' },
@@ -48,9 +48,9 @@ export const saleSchema: RxJsonSchema<SaleDoc> = {
     // 35, not 30: timestamptz with microseconds and a numeric offset is 32
     // characters, and a 30 cap took the whole replication down on pull.
     sold_at: { type: 'string', format: 'date-time', maxLength: 35 },
-    recorded_by: uuidField,
+    recorded_by: idField,
     notes: { type: 'string' },
-    voided_by: uuidField,
+    voided_by: idField,
     voided_at: { type: 'string', format: 'date-time' },
     void_reason: { type: 'string' },
     created_at: { type: 'string', format: 'date-time' },

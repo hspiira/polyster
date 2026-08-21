@@ -5,6 +5,7 @@ import { STORES } from './stores'
 import type {
   ClientDoc,
   Collection,
+  EventDoc,
   GarmentUnit,
   InventoryItem,
   InventoryMovement,
@@ -24,6 +25,7 @@ import type {
   ProductionBatchCost,
   SaleDoc,
   ShopDoc,
+  ShopTaxonomyDoc,
   StaffDoc,
   Supplier,
   TenantFeatureDoc,
@@ -47,6 +49,9 @@ export class PolysterDatabase extends Dexie {
   sales!: EntityTable<SaleDoc, 'id'>
   expenses!: EntityTable<ExpenseDoc, 'id'>
   message_log!: EntityTable<MessageLogDoc, 'id'>
+  events!: EntityTable<EventDoc, 'id'>
+  expense_categories!: EntityTable<ShopTaxonomyDoc, 'id'>
+  material_types!: EntityTable<ShopTaxonomyDoc, 'id'>
 
   products!: EntityTable<Product, 'id'>
   product_variants!: EntityTable<ProductVariant, 'id'>

@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 import { ORDER_STAGES, type OrderStage } from './orders'
 
 // ---------------------------------------------------------------- payments
@@ -34,8 +34,8 @@ export const paymentSchema: RxJsonSchema<PaymentDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    order_id: uuidField,
+    id: idField,
+    order_id: idField,
     // Positive only, for both kinds. A mistaken payment is voided via
     // soft-delete, not by entering a negative correcting row.
     amount_minor: { type: 'integer', exclusiveMinimum: 0 },
@@ -43,9 +43,9 @@ export const paymentSchema: RxJsonSchema<PaymentDoc> = {
     payment_date: { type: 'string', format: 'date-time' },
     method: { type: 'string', enum: [...PAYMENT_METHODS] },
     reference: { type: 'string' },
-    recorded_by: uuidField,
+    recorded_by: idField,
     notes: { type: 'string' },
-    voided_by: uuidField,
+    voided_by: idField,
     voided_at: { type: 'string', format: 'date-time' },
     void_reason: { type: 'string' },
     created_at: { type: 'string', format: 'date-time' },
@@ -69,12 +69,12 @@ export const orderStageHistorySchema: RxJsonSchema<OrderStageHistoryDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    order_id: uuidField,
+    id: idField,
+    order_id: idField,
     from_stage: { type: 'string', enum: [...ORDER_STAGES] },
     to_stage: { type: 'string', enum: [...ORDER_STAGES] },
     note: { type: 'string' },
-    changed_by: uuidField,
+    changed_by: idField,
     changed_at: { type: 'string', format: 'date-time' },
   },
   required: ['id', 'order_id', 'to_stage', 'changed_at'],

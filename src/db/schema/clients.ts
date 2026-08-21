@@ -1,5 +1,5 @@
 import type { RxJsonSchema } from 'rxdb'
-import { uuidField } from './shared'
+import { idField } from './shared'
 
 export interface ClientDoc {
   id: string
@@ -16,12 +16,12 @@ export const clientSchema: RxJsonSchema<ClientDoc> = {
   primaryKey: 'id',
   type: 'object',
   properties: {
-    id: uuidField,
-    shop_id: uuidField,
+    id: idField,
+    shop_id: idField,
     name: { type: 'string' },
     phone: { type: 'string' },
     notes: { type: 'string' },
-    created_by: uuidField,
+    created_by: idField,
     created_at: { type: 'string', format: 'date-time' },
     updated_at: { type: 'string', format: 'date-time' },
   },
