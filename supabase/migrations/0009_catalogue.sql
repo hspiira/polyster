@@ -3,8 +3,8 @@
 begin;
 
 create table product_categories (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
   name text not null check (length(trim(name)) > 0),
 
   created_at timestamptz not null default now(),
@@ -23,9 +23,9 @@ create trigger trg_product_categories_modified
 
 
 create table products (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
-  category_id uuid references product_categories(id) on delete set null,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
+  category_id text references product_categories(id) on delete set null,
 
   name text not null check (length(trim(name)) > 0),
   description text,
@@ -50,11 +50,11 @@ create trigger trg_products_modified
 
 
 create table product_variants (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   -- Denormalised from products.shop_id so SKU uniqueness can be scoped to a
   -- tenant without a join (docs/POLYSTER.md section 65).
-  shop_id uuid not null references shops(id) on delete cascade,
-  product_id uuid not null references products(id) on delete cascade,
+  shop_id text not null references shops(id) on delete cascade,
+  product_id text not null references products(id) on delete cascade,
 
   sku text not null check (length(trim(sku)) > 0),
   size text,

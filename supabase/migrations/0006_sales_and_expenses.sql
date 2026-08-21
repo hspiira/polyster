@@ -17,11 +17,11 @@ begin;
 -- ============================================================
 
 create table sales (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
 
   -- Set null, not cascade: archiving a client must not erase the money.
-  client_id uuid references clients(id) on delete set null,
+  client_id text references clients(id) on delete set null,
 
   item_description text not null check (length(trim(item_description)) > 0),
   quantity integer not null default 1 check (quantity > 0),
@@ -38,11 +38,11 @@ create table sales (
   -- When the money moved; offline that is not when it was typed in.
   sold_at timestamptz not null default now(),
 
-  recorded_by uuid references staff(id) on delete set null,
+  recorded_by text references staff(id) on delete set null,
   notes text,
 
   -- Void trail: a void changes a profit figure the shop may already have read.
-  voided_by uuid references staff(id) on delete set null,
+  voided_by text references staff(id) on delete set null,
   voided_at timestamptz,
   void_reason text,
 
@@ -68,8 +68,8 @@ create trigger trg_sales_modified
 -- ============================================================
 
 create table expenses (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
 
   -- A short fixed list, not free text. A shop typing "transport", "Transport"
   -- and "transpt" across one month cannot be grouped into a report afterwards,
@@ -84,10 +84,10 @@ create table expenses (
   -- A date: receipts are often entered the evening after they were paid.
   spent_on date not null default current_date,
 
-  recorded_by uuid references staff(id) on delete set null,
+  recorded_by text references staff(id) on delete set null,
   notes text,
 
-  voided_by uuid references staff(id) on delete set null,
+  voided_by text references staff(id) on delete set null,
   voided_at timestamptz,
   void_reason text,
 

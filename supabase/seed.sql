@@ -84,8 +84,8 @@ begin
 
   -- Explicit feature matrix. Keys omitted by the app fall back to defaults;
   -- writing them all makes this seed useful for feature-toggle tests.
-  insert into tenant_features (shop_id, feature_key, enabled)
-  select '10000000-0000-4000-8000-000000000001', k, v
+  insert into tenant_features (id, shop_id, feature_key, enabled)
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000001', k, v
   from (values
     ('customers',true),('measurements',true),('orders',true),('payments',true),
     ('expenses',true),('sales',true),('rentals',true),('catalogue',true),
@@ -94,8 +94,8 @@ begin
     ('garment_identity',true),('garment_passport',true)
   ) x(k,v);
 
-  insert into tenant_features (shop_id, feature_key, enabled)
-  select '10000000-0000-4000-8000-000000000002', k, v
+  insert into tenant_features (id, shop_id, feature_key, enabled)
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000002', k, v
   from (values
     ('customers',true),('measurements',true),('orders',true),('payments',true),
     ('expenses',true),('sales',true),('rentals',false),('catalogue',false),
@@ -235,12 +235,14 @@ begin
       '20000000-0000-4000-8000-000000000002'
     );
 
-  insert into production_batch_costs (shop_id,batch_id,cost_type,description,amount_minor,currency) values
+  insert into production_batch_costs (id,shop_id,batch_id,cost_type,description,amount_minor,currency)
+  select gen_random_uuid()::text, * from (values
     ('10000000-0000-4000-8000-000000000001','36000000-0000-4000-8000-000000000001','materials','Cotton fabric',240000,'UGX'),
     ('10000000-0000-4000-8000-000000000001','36000000-0000-4000-8000-000000000001','labour','Cutting and sewing',310000,'UGX'),
     ('10000000-0000-4000-8000-000000000001','36000000-0000-4000-8000-000000000001','labels','Woven labels',15200,'UGX'),
     ('10000000-0000-4000-8000-000000000001','36000000-0000-4000-8000-000000000002','materials','Cotton fabric',420000,'UGX'),
-    ('10000000-0000-4000-8000-000000000001','36000000-0000-4000-8000-000000000002','labour','Printing and sewing',360000,'UGX');
+    ('10000000-0000-4000-8000-000000000001','36000000-0000-4000-8000-000000000002','labour','Printing and sewing',360000,'UGX')
+  ) v;
 
   -- Inventory item rows first; movements drive quantities.
   insert into inventory_items (id,shop_id,item_type,product_variant_id,quantity,unit) values
@@ -251,12 +253,14 @@ begin
     ('37000000-0000-4000-8000-000000000003','10000000-0000-4000-8000-000000000001','material','35000000-0000-4000-8000-000000000001',0,'metre');
 
   insert into inventory_movements (
-    shop_id,inventory_item_id,movement_type,quantity,reference_type,reference_id,reason,notes,created_by
-  ) values
+    id,shop_id,inventory_item_id,movement_type,quantity,reference_type,reference_id,reason,notes,created_by
+  )
+  select gen_random_uuid()::text, * from (values
     ('10000000-0000-4000-8000-000000000001','37000000-0000-4000-8000-000000000001','production',19,'production_batch','36000000-0000-4000-8000-000000000001',null,'Accepted overshirts from F002-B01','20000000-0000-4000-8000-000000000002'),
     ('10000000-0000-4000-8000-000000000001','37000000-0000-4000-8000-000000000002','production',27,'production_batch','36000000-0000-4000-8000-000000000002',null,'Accepted tees currently produced','20000000-0000-4000-8000-000000000002'),
     ('10000000-0000-4000-8000-000000000001','37000000-0000-4000-8000-000000000001','sale',-2,'sale',null,null,'Two overshirts sold','20000000-0000-4000-8000-000000000001'),
-    ('10000000-0000-4000-8000-000000000001','37000000-0000-4000-8000-000000000001','adjustment',1,null,null,'Stock count correction','Found one additional completed unit','20000000-0000-4000-8000-000000000001');
+    ('10000000-0000-4000-8000-000000000001','37000000-0000-4000-8000-000000000001','adjustment',1,null,null,'Stock count correction','Found one additional completed unit','20000000-0000-4000-8000-000000000001')
+  ) v;
 
   -- Individual garment identity
   insert into garment_units (
@@ -445,8 +449,8 @@ begin
 
   -- Bulk trading history, so lists, filters and reports have real volume.
 
-  insert into clients (shop_id, name, phone, notes, created_by)
-  select '10000000-0000-4000-8000-000000000001', c.name, c.phone, c.notes, '20000000-0000-4000-8000-000000000001'
+  insert into clients (id, shop_id, name, phone, notes, created_by)
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000001', c.name, c.phone, c.notes, '20000000-0000-4000-8000-000000000001'
   from (values
     ('Aisha Nakalema','+256772418117','Prefers a slim fit through the waist.'),
     ('Brian Ssekandi','+256782604233','Collects on Saturdays.'),
@@ -464,8 +468,8 @@ begin
     ('Winnie Adong','+256703772518',null)
   ) c(name, phone, notes);
 
-  insert into clients (shop_id, name, phone, notes, created_by)
-  select '10000000-0000-4000-8000-000000000002', c.name, c.phone, c.notes, '20000000-0000-4000-8000-000000000004'
+  insert into clients (id, shop_id, name, phone, notes, created_by)
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000002', c.name, c.phone, c.notes, '20000000-0000-4000-8000-000000000004'
   from (values
     ('Emmanuel Kiwanuka','+256772330614','Two suits a year.'),
     ('Faith Nakimuli','+256782115947','Gomesi for functions.'),
@@ -504,12 +508,12 @@ begin
     join cl on cl.rn = (i * 3) % cl.n
     join gm on gm.rn = (i * 5) % gm.n
   )
-  insert into orders (
+  insert into orders (id, 
     shop_id, client_id, order_type, summary, stage, price_total_minor,
     pickup_due_date, return_due_date, rental_deposit_minor, reference, currency,
     created_by, customer_type
   )
-  select '10000000-0000-4000-8000-000000000001', client_id, otype, item,
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000001', client_id, otype, item,
     case
       when due < current_date - 14 then (case when otype = 'rental' then 'returned' else 'picked_up' end)
       when due < current_date - 3 then 'picked_up'
@@ -523,8 +527,8 @@ begin
     'NFB-' || lpad((i + 1)::text, 4, '0'), 'UGX', '20000000-0000-4000-8000-000000000001', 'individual'
   from rows;
 
-  insert into payments (order_id, amount_minor, method, recorded_by, payment_date)
-  select o.id,
+  insert into payments (id, order_id, amount_minor, method, recorded_by, payment_date)
+  select gen_random_uuid()::text, o.id,
     case when o.stage in ('picked_up', 'returned') then o.price_total_minor
          else greatest(1, (o.price_total_minor * 4 / 10))::bigint end,
     case (substring(o.reference from 5)::int % 3)
@@ -557,12 +561,12 @@ begin
     join cl on cl.rn = (i * 3) % cl.n
     join gm on gm.rn = (i * 5) % gm.n
   )
-  insert into orders (
+  insert into orders (id, 
     shop_id, client_id, order_type, summary, stage, price_total_minor,
     pickup_due_date, return_due_date, rental_deposit_minor, reference, currency,
     created_by, customer_type
   )
-  select '10000000-0000-4000-8000-000000000002', client_id, otype, item,
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000002', client_id, otype, item,
     case
       when due < current_date - 14 then (case when otype = 'rental' then 'returned' else 'picked_up' end)
       when due < current_date - 3 then 'picked_up'
@@ -576,8 +580,8 @@ begin
     'MTB-' || lpad((i + 1)::text, 4, '0'), 'UGX', '20000000-0000-4000-8000-000000000004', 'individual'
   from rows;
 
-  insert into payments (order_id, amount_minor, method, recorded_by, payment_date)
-  select o.id,
+  insert into payments (id, order_id, amount_minor, method, recorded_by, payment_date)
+  select gen_random_uuid()::text, o.id,
     case when o.stage in ('picked_up', 'returned') then o.price_total_minor
          else greatest(1, (o.price_total_minor * 4 / 10))::bigint end,
     case (substring(o.reference from 5)::int % 3)
@@ -598,11 +602,11 @@ begin
       ('NF Oxford Shirt',195000)
     ) r(item, price)
   )
-  insert into sales (
+  insert into sales (id, 
     shop_id, item_description, quantity, currency, unit_price_minor, method,
     reference, sold_at, recorded_by
   )
-  select '10000000-0000-4000-8000-000000000001', rt.item, 1 + (i % 3), 'UGX', rt.price,
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000001', rt.item, 1 + (i % 3), 'UGX', rt.price,
     case (i % 3) when 0 then 'cash' when 1 then 'mobile_money' else 'bank' end,
     'SALE-NF-' || lpad((i + 1)::text, 3, '0'),
     now() - (((i * 3) % 45) || ' days')::interval,
@@ -620,11 +624,11 @@ begin
       ('Sewing thread, box',18000)
     ) r(item, price)
   )
-  insert into sales (
+  insert into sales (id, 
     shop_id, item_description, quantity, currency, unit_price_minor, method,
     reference, sold_at, recorded_by
   )
-  select '10000000-0000-4000-8000-000000000002', rt.item, 1 + (i % 3), 'UGX', rt.price,
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000002', rt.item, 1 + (i % 3), 'UGX', rt.price,
     case (i % 3) when 0 then 'cash' when 1 then 'mobile_money' else 'bank' end,
     'SALE-MTH-' || lpad((i + 1)::text, 3, '0'),
     now() - (((i * 3) % 45) || ' days')::interval,
@@ -645,8 +649,8 @@ begin
       ('utilities','Airtime and data',60000)
     ) e(cat, descr, amount)
   )
-  insert into expenses (shop_id, category, description, currency, amount_minor, spent_on, recorded_by)
-  select '10000000-0000-4000-8000-000000000001', ex.cat, ex.descr, 'UGX', ex.amount,
+  insert into expenses (id, shop_id, category, description, currency, amount_minor, spent_on, recorded_by)
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000001', ex.cat, ex.descr, 'UGX', ex.amount,
     current_date - ((i * 5) % 50), '20000000-0000-4000-8000-000000000001'
   from generate_series(0, 15) i
   join ex on ex.rn = i % ex.n;
@@ -663,8 +667,8 @@ begin
       ('other','Machine needles and oil',40000)
     ) e(cat, descr, amount)
   )
-  insert into expenses (shop_id, category, description, currency, amount_minor, spent_on, recorded_by)
-  select '10000000-0000-4000-8000-000000000002', ex.cat, ex.descr, 'UGX', ex.amount,
+  insert into expenses (id, shop_id, category, description, currency, amount_minor, spent_on, recorded_by)
+  select gen_random_uuid()::text, '10000000-0000-4000-8000-000000000002', ex.cat, ex.descr, 'UGX', ex.amount,
     current_date - ((i * 5) % 50), '20000000-0000-4000-8000-000000000004'
   from generate_series(0, 13) i
   join ex on ex.rn = i % ex.n;

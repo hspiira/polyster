@@ -1,7 +1,7 @@
 # Durability, and the gaps left after the storage switch
 
 Date: 2026-08-22
-Status: **in progress** — Phases 0, 1 and 2 done; Decision 1 is the gate
+Status: **in progress** — Phases 0, 1, 2 and Decision 1 done; Phase 3 is next
 Decision owner: Piira
 
 ## Why
@@ -58,34 +58,34 @@ Two things ruled out rather than assumed:
 
 ## Decisions needed before Phase 3
 
-### Decision 1 — what ids are, and it blocks sync
+### Decision 1 — ids stay cuid2, the server takes text — **settled 2026-08-22**
 
-Ids are cuid2. There are **113 `uuid` references** across the 20 files in
-`supabase/migrations`, and Postgres rejects a non-uuid in a `uuid` column. Sync
-cannot be rebuilt until this is settled.
+Taken: **keep cuid2**, and change our own id columns to `text`. Applied and
+verified; `pnpm verify:schema` now enforces it.
 
-| Option | Cost | Consequence |
-|---|---|---|
-| **A** — `uuid` columns become `text` | One migration altering column types and every foreign key that references them | Keeps cuid2. Loses uuid validation at the database. Touches every table and the RLS policies that join on these columns. |
-| **B** — ids go back to uuid v4 | `newId()` returns `crypto.randomUUID()`; existing local rows need their ids rewritten, or those shops never sync | Server schema, RLS policies and `garment_passport()` are untouched. |
+What I had wrong when I recommended reverting to uuid:
 
-**I recommend B, and I want to correct the record on why.** `ARCHITECTURE.md`
-D8 justifies cuid2 as "24 url-safe characters against 36, no timestamp leaked,
-and no central authority for a device offline for days." Two of those three are
-not advantages over **uuid v4** specifically: v4 is fully random, so it leaks no
-timestamp either, and it needs no central authority either. Those arguments hold
-against uuid v1/v7, not against what this project would actually revert to. What
-genuinely remains is that cuid2 ids are shorter.
+- **Only one of the 113 `uuid` references is Supabase's** — `supabase_auth_user_id`,
+  which references `auth.users(id)`. That stays `uuid` because `auth.uid()` returns
+  one. The other 83 columns were ours.
+- I said "113 references" as though all of them needed changing, which made the
+  option look about six times more expensive than it was.
+- With no data to preserve, editing the migrations so they declare `text` from
+  the start beats an `ALTER` migration. Postgres refuses to alter a column a
+  policy depends on, so the in-place route would have meant dropping and
+  recreating 56 foreign keys *and* every RLS policy — roughly 350 lines of
+  generated SQL nobody could review. Declaring `text` up front is 89 edits in 13
+  files and reads correctly afterwards.
 
-Twelve characters per id is not worth a schema-wide column-type migration and
-losing database-level validation. B is the cheaper and more conservative option,
-and it was chosen on a rationale that does not survive being written out.
+The cost that is real, and was paid: **24 `default gen_random_uuid()` defaults are
+gone.** The server can no longer mint an id, so every insert supplies one. Twelve
+inserts in `seed.sql` relied on it and now pass `gen_random_uuid()::text`
+explicitly. No default was reintroduced on purpose — an insert that forgets an id
+should fail at the database rather than quietly get a wrong-shaped one.
 
-**The question I cannot answer from the repo:** are there shops with real data
-on the live deployment? Deployed since 2026-08-15, and cuid2 landed 2026-08-21.
-If nobody has data worth keeping, B is a one-line change. If someone does, B
-needs a local id-rewrite pass (Phase 3a below), which is real work but bounded —
-rewrite every primary key and every reference in one Dexie transaction.
+One honest trade, neither way decisive: `uuid` is 16 bytes in a Postgres index
+where cuid2-as-text is 24 plus overhead, so the server pays slightly more and a
+sync payload pays slightly less.
 
 ### Decision 2 — what the audit log keeps
 
@@ -225,9 +225,9 @@ unusable, so a partial transfer is retried rather than stranded.
 Blocked on Decision 1. Should not start until Phases 1 and 2 have shipped,
 because a backup importer is the fallback for sync going wrong.
 
-- **3a — id migration**, per Decision 1. If live data exists, a one-time local
-  rewrite of every primary key and reference inside one transaction, with a
-  property test proving no reference is orphaned.
+- ~~**3a — id migration**~~ — done 2026-08-22. No local rewrite was needed:
+  there was no data worth keeping, so the schema changed and the device kept
+  generating what it already generated.
 - **3b — `shop_id` on `payments`.** Needed to scope a sync payload per shop, and
   it removes the join-through-orders workaround Reports carries today.
 - **3c — the push/pull loop.** Design not settled and deliberately not sketched

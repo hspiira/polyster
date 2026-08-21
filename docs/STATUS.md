@@ -45,11 +45,13 @@ adding scope, so there is no remaining feature phase.
 | Accessibility and hook rules | `eslint.config.js`, inside `pnpm verify` |
 | Model-to-screen wiring, in a real browser | `pnpm test:e2e` |
 | RLS structural preconditions | `pnpm verify:rls` |
+| Migrations and seed, against a real Postgres | `pnpm verify:schema` |
 | A write and a read with the network off | `run-polyster` skill, by hand |
 | Design-system rules | `scripts/check-standards.mjs` |
 
 47 test files, 697 tests, `pnpm verify` green. 20 migrations under
-`supabase/migrations`, none of which the app reads for shop data any more.
+`supabase/migrations`, none of which the app reads for shop data any more, but
+all of which now apply to a throwaway database on demand.
 
 `check-standards.mjs` is a guard script, not a linter: it enforces the
 `DESIGN_SYSTEM.md` colour rules and the two-line comment ceiling lexically.
@@ -79,10 +81,10 @@ cannot share a shop.
 This is the largest open item in the project, and it makes item 2 urgent rather
 than tidy.
 
-Rebuilding it needs the id question settled first: ids are cuid2 (`ARCHITECTURE.md`
-D8) and Postgres rejects a non-uuid in a `uuid` column, so either those columns
-become `text` or ids go back to uuid. The offline-conflict question returns with
-sync; it is deferred, not answered.
+The id question is settled (2026-08-22): ids stay cuid2 and our own id columns
+are `text`, verified by `pnpm verify:schema`. Only `shops.supabase_auth_user_id`
+is still `uuid`, because Supabase owns it. The offline-conflict question returns
+with sync; it is deferred, not answered.
 
 ### ~~2. Backup exports but cannot import~~ — done 2026-08-22
 

@@ -20,7 +20,8 @@
     "check:design": "node scripts/check-standards.mjs",
     "verify:rls": "node scripts/verify-rls.mjs",
     "shop:credentials": "node scripts/set-shop-credentials.mjs",
-    "seed:auth": "node scripts/seed-auth-users.mjs"
+    "seed:auth": "node scripts/seed-auth-users.mjs",
+    "verify:schema": "node scripts/verify-schema.mjs"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^3.3.0",

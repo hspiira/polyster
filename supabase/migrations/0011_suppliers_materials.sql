@@ -18,8 +18,8 @@ end;
 $$;
 
 create table suppliers (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
   name text not null check (length(trim(name)) > 0),
   phone text,
   email text,
@@ -38,9 +38,9 @@ create trigger trg_suppliers_modified
 
 
 create table materials (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
-  supplier_id uuid references suppliers(id) on delete set null,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
+  supplier_id text references suppliers(id) on delete set null,
 
   name text not null check (length(trim(name)) > 0),
   description text,

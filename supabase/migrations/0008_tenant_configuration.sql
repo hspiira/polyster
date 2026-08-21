@@ -16,8 +16,8 @@ alter table shops
 -- ============================================================
 
 create table tenant_features (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
   feature_key text not null,
   enabled boolean not null default true,
 
