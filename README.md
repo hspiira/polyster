@@ -5,9 +5,10 @@ Offline-first PWA for cloth tailoring and rental shops. Read the docs in [`docs/
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) -- system overview and the current record of what exists. **Read this first.**
 - [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) -- colour roles, responsiveness rules, and how to convert a screen. **Read before touching any UI.**
 - [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) -- phase-by-phase build plan and verification checklists
-- [`docs/pwa-research-notes.md`](docs/pwa-research-notes.md), [`docs/pwa-schema-and-screens.md`](docs/pwa-schema-and-screens.md), [`docs/pwa-stack-options.md`](docs/pwa-stack-options.md) -- the research and design detail behind each decision, with build-time corrections marked inline
+- [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) -- colour, type, and the rules `pnpm check:design` enforces
+- [`docs/CODE_REVIEW.md`](docs/CODE_REVIEW.md) -- standing quality findings and what is still open
 
-Stack: Preact + Vite + Tailwind CSS + `vite-plugin-pwa`, RxDB (Dexie storage adapter) for local-first data, Supabase (Postgres + Auth + Realtime) as the sync backend.
+Stack: Preact + Vite + Tailwind CSS + `vite-plugin-pwa`, Dexie on IndexedDB for local data, Supabase for auth, image storage and the public garment passport. Everything else runs on the device.
 
 ## Where this is
 
@@ -25,17 +26,15 @@ have been driven end to end in a desktop browser at phone dimensions.
 
 ## Seeded data, and how to get in
 
-There are two seeds and they are not interchangeable.
-
-**Local, no Supabase.** `pnpm dev`, then in the console:
+Seeding is local. `pnpm dev`, then in the console:
 
 ```js
-__polyster.getDatabase().then(db => __polyster.seedAll(db))
+__polyster.seedAll(__polyster.getDatabase())
 ```
 
-Reload. No sign-in happens at all — the shops are local and unclaimed, so the app opens straight into the PIN gate. It refuses to run when Supabase is configured, because replication would push the fixtures upstream and duplicate what `supabase/seed.sql` already seeds.
+Reload. No sign-in happens at all — the shops are local and unclaimed, so the app opens straight into the PIN gate. Nothing is pushed anywhere; there is no sync.
 
-**Against Supabase.** Two steps, in this order:
+**The Supabase seed is separate**, and only matters for auth and the passport. Two steps, in this order:
 
 ```bash
 pnpm seed:auth      # creates the two accounts, needs SUPABASE_SERVICE_ROLE_KEY
@@ -50,7 +49,7 @@ then run [`supabase/seed.sql`](supabase/seed.sql) in the SQL Editor. It matches 
 
 Password for both: `polyster-dev` (override with `SEED_PASSWORD`). **Every seeded staff PIN is `123456`.**
 
-Signing in pulls the shop down over replication; you land on the PIN gate once it arrives.
+Signing in only establishes the session — the shop itself has to exist on the device already, from the local seed or from setting one up. There is no pull.
 
 ## Setup
 
@@ -137,14 +136,14 @@ Passwords are generated unless the map supplies one, and printed **once** — th
 pnpm dev
 ```
 
-Sign in with a shop account. You should reach the status screen showing the database open, the session live, and replication synced.
+The app opens straight into setting up a shop, or the PIN gate if one already exists on this device.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `pnpm dev` | Dev server. No service worker (see below). |
-| `pnpm test` | Vitest. Creates every RxDB collection under `fake-indexeddb` with dev-mode validation on. |
+| `pnpm test` | Vitest. Opens real Dexie databases under `fake-indexeddb`, one per test case. |
 | `pnpm test:watch` | Same, watching. |
 | `pnpm typecheck` | `tsc -b`. Strict mode is on. |
 | `pnpm build` | Typecheck, then production build. |
@@ -159,42 +158,45 @@ The service worker is off in development on purpose. It caches aggressively and 
 
 ## Two things worth knowing before you change anything
 
-**Dev and production do not run the same code.** RxDB's dev-mode and ajv-validation plugins are roughly 240 KB and are loaded behind `import.meta.env.DEV` so Rollup can prove them unreachable and drop them from the bundle. The consequence is that a schema mistake can fail loudly in `pnpm dev` and pass `vite build` in silence. That is not hypothetical -- the first scaffold shipped exactly that bug, declaring a `_modified` field RxDB rejects. `src/db/database.test.ts` exists to catch its return, and `pnpm verify` runs the tests before the build for the same reason.
+**Screens never touch the database directly.** Reads and writes both go through [`src/db/repo/`](src/db/repo/). That layer is the only thing that knows a row can be soft-deleted and the only thing that writes the audit log, so a query built anywhere else will quietly show deleted rows and record nothing.
 
-**`_modified` and `_deleted` are Postgres columns only, never RxDB schema fields.** The full reasoning is in the header of [`src/db/schema.ts`](src/db/schema.ts). If you are adding a synced table, copy an existing collection rather than the Postgres DDL.
+**Adding a store or an index needs a schema version bump in the same commit.** [`src/db/dexie/stores.ts`](src/db/dexie/stores.ts) is the whole schema, applied at `version(1)`. Change the shape without adding `version(2).stores(...)` and an installed app cannot open its own database.
+
+**There is no sync.** A shop's data is on one device, and the backup export is the only way off it. Do not write code that assumes a second copy exists.
 
 ## Project layout
 
 ```
 src/
-  app.tsx                Root: open database -> establish session -> replication -> staff gate
+  app.tsx                Root: open database -> establish session -> staff gate
   components/
-    ui.tsx               Shared primitives, sized for one-handed phone use
     TabBar.tsx           Bottom navigation
     SyncBadge.tsx        Sync state, always visible
   db/
-    schema.ts            RxDB collection schemas, mirroring the Postgres tables
-    database.ts          RxDB singleton, dev-mode wiring, migration strategies
-    replication.ts       Supabase sync (starts once a shop is logged in)
+    schema/              Row types and the closed sets they use
+    dexie/
+      stores.ts          Every store and its indexes -- the whole schema
+      database.ts        The Dexie instance, typed table by table
+      import.ts          Brings a shop off the older RxDB databases
+    repo/
+      base.ts            Live queries, audited writes, soft delete
+      <aggregate>.ts     One module per aggregate: orders, clients, stock, ...
     balances.ts          Order balances, computed locally -- not from the view
-    writes.ts            Every mutation the app makes, in one place
-  dev/
-    seed.ts              Fixture shop. Dev-only, refuses when Supabase is set
-    DevTools.tsx         Seed button. Compiled out of production
-  hooks/                 useAuth, useDatabase, useReplication, useRxQuery, useOnline
+  dev/fixtures/          Three fixture tenants. Dev-only console tools
+  hooks/                 useAuth, useDatabase, useQuery, useOnline
   lib/
     auth.ts              Shop-level session state machine
     supabaseClient.ts    Lazily constructed Supabase client
+    syncState.ts         What the sync badge reports
     pin.ts               PBKDF2 staff PIN hashing
     money.ts, dates.ts   Formatting and due-date arithmetic
     whatsapp.ts          wa.me link and message building
     backup.ts            JSON export
-  screens/
-    Shell.tsx            Routed shell
-    Dashboard, Clients, ClientDetail, Orders, OrderForm, OrderDetail,
-    Reports, Settings, StaffGate, Login, NotFound
-    settings/            Shop, measurements, staff, backup
+  online/                The only two things that need the network
+    images.ts            Product and collection photo upload
+    garmentPassport.ts   The public passport, read by anonymous visitors
+  screens/               Phone shell and its routes
+  web/                   Desktop shell and its routes
 supabase/
-  migrations/
-    0001_init.sql        Schema, constraints, RLS policies, Realtime
+  migrations/            Schema, constraints, RLS policies
 ```

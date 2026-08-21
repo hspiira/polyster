@@ -1,7 +1,7 @@
 # Switch storage from RxDB to Dexie
 
 Date: 2026-08-21
-Status: approved, not started
+Status: **done** (all six phases; see Outcome)
 Decision owner: Piira
 
 ## Why
@@ -159,3 +159,60 @@ Today, which holds the most live queries, before assuming it is fine.
 - A dedicated check that the app opens, registers a shop and takes an order with
   the network switched off, which is the claim the whole switch exists to make
   true.
+
+## Outcome
+
+All six phases shipped on 2026-08-21. `pnpm verify` green: 697 tests, standards
+clean, production build passing. `rxdb` and `rxjs` are out of `package.json`.
+
+| Phase | What landed |
+|---|---|
+| 1 | 27 stores, typed table by table, `deleted_at` as the soft delete |
+| 2 | Import off the old RxDB databases, property-tested |
+| 3 | `src/db/repo/` — audited writes, live reads, one module per aggregate |
+| 4 | 148 call sites swapped; `useRxQuery` became `useQuery` |
+| 5 | `writes/`, `database.ts`, `replication.ts`, `features.ts` and the RxDB JSON schemas deleted |
+| 6 | All eleven online-only areas local; `useOnlineFeature` deleted |
+
+Net effect on the tree: the switch itself added code, Phase 6 removed 1,546
+lines more than it added.
+
+### What the risks turned out to be
+
+**`liveQuery` re-render cost — measured, not a problem.** The worry was that
+`liveQuery` re-runs a whole query where RxDB re-emitted per document. On Today,
+which holds the most live queries, against a seeded shop of 60 orders, 74
+payments, 45 sales, 35 expenses and 652 events:
+
+- figures on screen 133 ms after navigation, three runs within 1 ms of each other
+- an order written in 18 ms
+- visible in the DOM within the same frame
+
+Coarser than RxDB, and it does not matter at a shop's data volume.
+
+**The offline claim, verified.** Production build, service worker installed,
+then the network made genuinely unreachable — proven with a cross-origin fetch
+at every step, because `navigator.onLine` goes stale after a navigation under
+Playwright's offline emulation and a same-origin probe is answered by the
+service worker. With no network the app set up a shop, added a client, created
+an order and recorded a payment: 8 rows plus 8 audit events on disk, no
+application errors.
+
+**Replication is gone and that is the open wound.** D4 accepted it; the cuid2
+commit made it immediate. A shop's data now lives on one device with a backup
+file as the only way off. This is recorded in ARCHITECTURE.md section 11 as the
+largest open item, together with what rebuilding it needs first: either the
+Postgres id columns become `text`, or ids go back to uuid.
+
+**Two things the server used to do moved into the client, and are better for
+it.** A stock movement and the balance it moves are now one Dexie transaction
+rather than an insert plus a trigger; SKU uniqueness is an explicit check rather
+than a constraint violation translated after the fact. Both are covered by
+tests that fail when the guard is removed.
+
+### What stayed remote, deliberately
+
+`src/online/` is down to two modules. Image upload, because a photo is a URL the
+shop shares rather than megabytes on a phone (D3), now bounded by a 30-second
+timeout. And the garment passport, because it is read by anonymous visitors and
+that Postgres function is the whole security boundary.

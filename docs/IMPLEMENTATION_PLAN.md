@@ -3,11 +3,8 @@
 Companion to `ARCHITECTURE.md` and `POLYSTER.md`. This is the build sequence: what
 gets built in what order, and how each phase gets verified before moving on.
 
-**Last revised:** 2026-08-14, rewritten. The previous revision was dated
-2026-07-30 and had gone badly stale: it recorded the catalogue as "not started"
-when Phases 2 through 12 had all shipped, and listed currency as hardcoded when
-it had been parameterised. Treat anything in git history before this date as
-superseded.
+**Last revised:** 2026-08-21, for the storage switch. Treat anything in git
+history before 2026-08-14 as superseded.
 
 ## Two numbering schemes, and which one is live
 
@@ -30,8 +27,8 @@ POLYSTER.md numbering.
 |---|---|---|
 | Phase 0 - Foundation Verification | §71 | Done, verified live |
 | Phase 1 - Tenant Configuration | §72 | Done |
-| Phase 2 - Catalogue | §73 | Done, online-only |
-| Phase 3 - Suppliers & Materials | §74 | Done, online-only |
+| Phase 2 - Catalogue | §73 | Done |
+| Phase 3 - Suppliers & Materials | §74 | Done |
 | Phase 4 - Inventory | §75 | Done |
 | Phase 5 - Production | §76 | Done |
 | Phase 6 - Collections | §77 | Done |
@@ -65,16 +62,14 @@ exercised the flow end to end instead of reading the code and assuming.
 
 That is the lesson worth keeping: reading the code does not verify the code.
 
-**Replication is now evidenced too, and repeatably.** `pnpm verify:sync` signs a
-real account into the running app, writes a client locally, and confirms through
-PostgREST that the row reached Postgres under the right `shop_id`; then it edits
-that row server-side and waits for it to appear in the page with no reload. It
-deletes what it made, in a `finally`, and names its rows `zz-sync-check-*` so a
-failed cleanup is obvious rather than looking like a customer. First green run
-2026-08-14 against NORTH//FOUND, 4/4.
-
-It is deliberately not part of `pnpm verify` or `pnpm test:e2e`: it writes to a
-live project, and those two must stay safe to run on any branch at any time.
+**Replication was evidenced, and then removed.** `pnpm verify:sync` proved rows
+moved both ways against a live project, green 4/4 on 2026-08-14. The storage
+switch on 2026-08-21 dropped replication, so that script could only ever fail
+from then on and has been deleted rather than left to rot. What replaced it as
+the load-bearing check is the offline pass recorded in
+`superpowers/plans/2026-08-21-dexie-switch.md`: production build, service worker
+installed, network genuinely unreachable, and a shop set up, an order taken and
+a payment recorded anyway.
 
 One caveat remains, recorded rather than smoothed over. The device-install items
 from the original Phase 0 checklist (home-screen install on Android and iPhone,
@@ -90,11 +85,12 @@ Those need a physical handset; nothing in a headless browser substitutes.
 | Accessibility and hook rules | `eslint.config.js`, in `pnpm verify` |
 | Model-to-screen wiring, in a real browser | `pnpm test:e2e` |
 | RLS structural preconditions | `pnpm verify:rls` |
-| Replication, both directions, live project | `pnpm verify:sync` (opt-in, writes) |
+| A write and a read with the network off | `run-polyster` skill, by hand |
 | Design-system rules | `scripts/check-standards.mjs` |
 
-Current state as of 2026-08-14: 46 test files, 558 tests, `pnpm verify` green.
-20 migrations under `supabase/migrations`.
+Current state as of 2026-08-21: 47 test files, 697 tests, `pnpm verify` green.
+20 migrations under `supabase/migrations`, none of which the app now reads for
+shop data.
 
 `check-standards.mjs` is a guard script, not a linter. It enforces the two
 `DESIGN_SYSTEM.md` colour rules and the two-line comment ceiling lexically.
@@ -129,13 +125,12 @@ That is now a choice rather than a gap.
 the lexical colour and comment rules; the linter carries what needs an AST. A
 lint directive does not spend the two-line comment budget.
 
-**L4. Backup restore. Resolved by making Supabase true rather than building a
-second mechanism, 2026-08-14.** The recovery path is Supabase, and the work was
-to stop the UI implying otherwise. The dismiss button said "Not now" while the
-code meant never; dismissals are now stamped and lapse after a week
-(`lib/prompts.ts`). `SyncBadge` already said "Only on this phone" permanently and
-linked to the backup screen, so no further UI was added. **No JSON import was
-built, deliberately.**
+**L4. Backup restore. Reopened 2026-08-21, and now the most important item here.**
+The 2026-08-14 resolution was that the recovery path is Supabase, so no JSON
+import was needed. The storage switch removed replication, which removed that
+recovery path. The backup file is now the *only* copy off a device and it still
+cannot be imported. Either sync comes back or restore gets built; leaving both
+undone means a lost phone is a lost shop.
 
 **L5. PIN cost. Made measurable 2026-08-14; the number itself is still yours.**
 `measureHashMs` times a real hash and `recommendIterations` scales the count to
@@ -152,13 +147,10 @@ four-stage wizard reworked rather than a component swapped.
 
 ## Architecture notes this plan depends on
 
-**Not everything is local-first.** The original design was offline-first
-throughout. Phase 2 pivoted the catalogue to an online-only architecture, and
-Phases 3 through 11 followed. `src/online/` holds those modules and
-`src/hooks/useOnlineFeature.ts` gates them. The local-first RxDB core is
-customers, orders, payments, and their derivations.
-
-This is load-bearing and `ARCHITECTURE.md` does not mention it. See D1 below.
+**Everything is local-first again, as of 2026-08-21.** Phase 2 had pivoted the
+catalogue online-only and Phases 3 through 11 followed; the storage switch
+reversed all of it. `src/online/` is down to image upload and the public
+garment passport, and `useOnlineFeature` is gone. See `ARCHITECTURE.md` §1a.
 
 **Chunk size.** `CODE_REVIEW.md` records 536 kB as flagged by the build. That
 figure predates the route-splitting work. The largest chunk is now
@@ -175,20 +167,21 @@ totalling roughly 1,036 KiB.
   self-describing hash format (D11). The cost itself is still unmeasured; see L5.
 - **Routing.** `preact-iso` with history URLs, relying on the service worker's
   `navigateFallback` (D12).
-- **Stage/history atomicity.** Not achievable in RxDB. History is written first
-  so a failure is visible rather than silent (D13).
+- **Stage/history atomicity.** Achieved 2026-08-21. Dexie has a multi-store
+  transaction, so a row and its audit event land together (D13).
 - **Currency.** Parameterised. `src/lib/money.ts` takes a currency throughout and
   derives decimal places from ICU rather than a hand-maintained table; `shops`
   carries a currency column. Closes the old X5.
-- **Offline double-booking.** Dissolved rather than decided. The catalogue went
-  online-only, so the two-offline-devices case the old plan worried about cannot
-  arise for it.
+- **Offline double-booking.** Still not decided, and no longer dissolved. It was
+  dissolved by the catalogue going online-only; the catalogue is local again. It
+  cannot arise today only because there is no sync, so it returns with sync.
+- **Local storage engine.** Dexie on IndexedDB (D1), replacing RxDB.
 
 ## Decisions still open
 
 | Decision | Blocks | Task |
 |---|---|---|
-| Whether the online-only split is the intended end state or a staging post | Any future offline work on those modules | Section 1a of `ARCHITECTURE.md` documents the split as it stands; whether it is permanent is unanswered |
+| Whether sync gets rebuilt, and on what | Multi-device shops, and any real backup story | Needs the id question settled first: cuid2 ids cannot go in a Postgres `uuid` column, so either those columns become `text` or ids go back to uuid |
 | Whether `DEFAULT_ITERATIONS` should change | Nothing, until someone times it on the shop's phone | L5 |
 
 Neither should be resolved by whoever happens to reach it mid-screen. Both are
@@ -198,8 +191,16 @@ remembers choosing.
 ## Documentation debt
 
 **D1. ~~`ARCHITECTURE.md` does not describe the online-only split.~~ Closed
-2026-08-14.** Section 1a now names both data paths, which modules take which, and
-states plainly that the online-only screens are blank without a connection.
+2026-08-14, then made moot 2026-08-21.** Section 1a named both data paths; there
+is only one path now, and it says so.
+
+**D3. The pre-build research documents were absorbed and deleted, 2026-08-21.**
+`pwa-research-notes.md`, `pwa-stack-options.md` and `pwa-schema-and-screens.md`
+described an RxDB architecture that no longer exists, and every open question in
+them had closed. What survived -- the decision rationales, the corrections, and
+the three installability traps -- is in `ARCHITECTURE.md`. The
+implementation-agent master prompt went too: `POLYSTER.md` is a superset of it
+and is the one being maintained.
 
 **D2. This file drifted for two weeks and misreported the state of the
 project.** The cause was that shipping updated `POLYSTER.md` and `CODE_REVIEW.md`

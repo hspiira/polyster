@@ -67,7 +67,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // Registering at the root with scope '/' avoids the classic bug where
       // a service worker only controls the folder it was served from.
-      // See ARCHITECTURE.md section 8 / pwa-research-notes.md section 1.
+      // See ARCHITECTURE.md section 8.
       scope: '/',
       manifest: {
         name: 'Polyster',

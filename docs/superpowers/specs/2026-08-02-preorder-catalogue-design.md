@@ -9,7 +9,7 @@ Scope: a size/SKU dimension for fixed-run pre-order campaigns (e.g. a 50-unit ap
 
 A conversation about whether the NORTH//FOUND brand concept could run its first pre-order campaign through Polyster surfaced a real gap. Polyster's order model was built for a tailoring shop's walk-in, made-to-measure clients — one client, one bespoke garment, no notion of "which size" or "how many of this variant are left." A pre-order campaign is the opposite shape: many buyers, a small fixed set of size/colour variants, one production run, and a hard question the current schema cannot answer — *how many of each size have sold against the 50 committed*.
 
-This is not the full Phase 2 catalogue module (`docs/pwa-schema-and-screens.md` §4, `docs/IMPLEMENTATION_PLAN.md` Phase 2). That module includes rental date-range availability and item photos — both genuinely deferred, both unneeded for a fixed-run drop.
+This is not the full Phase 2 catalogue module (`docs/IMPLEMENTATION_PLAN.md` Phase 2). That module includes rental date-range availability and item photos — both genuinely deferred, both unneeded for a fixed-run drop.
 
 ## What the first draft got wrong
 

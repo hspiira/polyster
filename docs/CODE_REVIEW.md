@@ -34,7 +34,7 @@ below. Every count not marked "Now" is as it stood on 08-13.
 > at all**, so "publish the rules as lint rules" meant introducing one; and
 > `components.css` was naming `white`/`black` inside `color-mix()`, a rule-1
 > breach the original count did not catch.
-Scope: the whole of `src/` (29,263 non-test lines across 13 RxDB collections and
+Scope: the whole of `src/` (29,263 non-test lines across 13 collections and
 two shells), reviewed against SOLID, DRY, KISS, and the project's own written
 rules in `docs/DESIGN_SYSTEM.md` and `docs/ARCHITECTURE.md`.
 
