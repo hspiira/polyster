@@ -1,5 +1,4 @@
-/* Append-only record of who did what. Written by the repository layer, never by
-   a screen, so coverage does not depend on remembering at each call site. */
+/* Append-only record of who did what. Written by src/db/repo. */
 import type { RxJsonSchema } from 'rxdb'
 import { idField } from './shared'
 
@@ -10,17 +9,12 @@ export interface EventDoc {
   id: string
   shop_id: string
   at: string
-  /* Absent for anything the app did on nobody's behalf: a migration, an import,
-     a write made before a staff row existed. */
   actor_staff_id?: string
   entity: string
   entity_id: string
   action: EventAction
-  /** Only the fields that changed, so the row stays small. */
   before?: Record<string, unknown>
   after?: Record<string, unknown>
-  /* What the shop would call it, when "updated" is too thin -- "took payment",
-     "refunded deposit", "marked ready". */
   summary?: string
 }
 

@@ -1,5 +1,4 @@
-/* Lists a shop defines for itself, like measurement_fields. The constants in
-   expenses.ts and materials.ts seed a new shop, they are not its ceiling. */
+/* Lists a shop defines for itself, like measurement_fields. */
 import type { RxJsonSchema } from 'rxdb'
 import { idField } from './shared'
 
@@ -7,7 +6,6 @@ export interface ShopTaxonomyDoc {
   id: string
   shop_id: string
   label: string
-  /** Retiring one keeps old rows readable; `_deleted` would not. */
   active: boolean
   display_order: number
   created_at: string

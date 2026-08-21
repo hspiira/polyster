@@ -26,8 +26,6 @@ describe('stores', () => {
     expect(db.tables.map((t) => t.name).sort()).toEqual([...STORE_NAMES].sort())
   })
 
-  /* The thirteen that were already local must all survive the move, or a shop
-     loses whatever the missing one held. */
   it('keeps every collection RxDB replicated', () => {
     for (const table of REPLICATED_TABLES) {
       expect(STORE_NAMES).toContain(table)
@@ -48,8 +46,6 @@ describe('stores', () => {
     expect(new Set(STORE_NAMES).size).toBe(STORE_NAMES.length)
   })
 
-  /* Dexie's first index entry is the primary key. Every row in this app is
-     keyed by `id`, and a store keyed by anything else would break the repos. */
   it('keys every store by id', () => {
     for (const [name, spec] of Object.entries(STORES)) {
       expect(spec.split(',')[0]?.trim(), name).toBe('id')
@@ -62,8 +58,6 @@ describe('stores', () => {
 })
 
 describe('typing', () => {
-  /* Every declared store must have a typed table on the class. A store with no
-     property is unreachable; a property with no store throws on open. */
   it('exposes a table for every store', async () => {
     const db = fresh()
     await db.open()
@@ -72,8 +66,6 @@ describe('typing', () => {
     }
   })
 
-  /* The eleven formerly-online areas are typed from db/schema, the same
-     declaration src/online re-exports, so the two cannot drift apart. */
   it('round trips a fully typed product', async () => {
     const db = fresh()
     const product: Product = {
@@ -120,7 +112,6 @@ describe('audit', () => {
     expect(feed.map((e) => e.id)).toEqual(['e2', 'e1'])
   })
 
-  /* The question a shop actually asks: what happened to this order, and who. */
   it('reads one record\'s whole history', async () => {
     const db = fresh()
     await db.events.bulkPut([
@@ -133,8 +124,6 @@ describe('audit', () => {
     expect(history.map((e) => e.actor_staff_id)).toEqual(['ama', 'ben'])
   })
 
-  /* Some writes have no person behind them -- a migration, an import, or a
-     write made before the shop had a staff row. */
   it('records an event with no actor', async () => {
     const db = fresh()
     await db.events.put(event('e1'))
@@ -143,8 +132,6 @@ describe('audit', () => {
 })
 
 describe('shop-defined lists', () => {
-  /* A shop that spends on something the app never thought of should be able to
-     say so, the way it already defines its own measurements. */
   it('holds categories the app did not ship', async () => {
     const db = fresh()
     await db.expense_categories.put({
@@ -185,8 +172,6 @@ describe('reading and writing', () => {
     expect(await db.clients.where('shop_id').equals('s1').count()).toBe(2)
   })
 
-  /* A compound index is what makes "this shop's orders, by due date" one lookup
-     rather than a scan of every shop's orders. */
   it('queries a compound index as a range', async () => {
     const db = fresh()
     const base = {
@@ -208,8 +193,6 @@ describe('reading and writing', () => {
     expect(rows.map((r) => r.id)).toEqual(['o1'])
   })
 
-  /* RxDB has no cross-collection transaction, so writes.ts orders its writes to
-     leave a correctable orphan instead. Here the two either both land or neither. */
   it('writes across stores atomically', async () => {
     const db = fresh()
     await expect(

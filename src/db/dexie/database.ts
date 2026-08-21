@@ -1,5 +1,4 @@
-/* The on-device database. Opened once and reused; every read and write goes
-   through src/db/repo, never through this module directly. */
+/* The on-device database. Read and write through src/db/repo, not this. */
 import Dexie, { type EntityTable } from 'dexie'
 import { STORES } from './stores'
 import type {
@@ -31,44 +30,43 @@ import type {
   TenantFeatureDoc,
 } from '../schema'
 
-/* Named separately from RxDB's `tailor_tracker` databases so both can exist
-   during the import, and a bad release is a code revert rather than a restore. */
 export const DATABASE_NAME = 'polyster'
 
-export class PolysterDatabase extends Dexie {
-  shops!: EntityTable<ShopDoc, 'id'>
-  staff!: EntityTable<StaffDoc, 'id'>
-  tenant_features!: EntityTable<TenantFeatureDoc, 'id'>
-  clients!: EntityTable<ClientDoc, 'id'>
-  measurement_fields!: EntityTable<MeasurementFieldDoc, 'id'>
-  measurement_profiles!: EntityTable<MeasurementProfileDoc, 'id'>
-  orders!: EntityTable<OrderDoc, 'id'>
-  order_units!: EntityTable<OrderUnitDoc, 'id'>
-  order_stage_history!: EntityTable<OrderStageHistoryDoc, 'id'>
-  payments!: EntityTable<PaymentDoc, 'id'>
-  sales!: EntityTable<SaleDoc, 'id'>
-  expenses!: EntityTable<ExpenseDoc, 'id'>
-  message_log!: EntityTable<MessageLogDoc, 'id'>
-  events!: EntityTable<EventDoc, 'id'>
-  expense_categories!: EntityTable<ShopTaxonomyDoc, 'id'>
-  material_types!: EntityTable<ShopTaxonomyDoc, 'id'>
+/** A stored row, which may be soft-deleted. */
+export type Stored<T> = T & { deleted_at?: string }
 
-  products!: EntityTable<Product, 'id'>
-  product_variants!: EntityTable<ProductVariant, 'id'>
-  product_categories!: EntityTable<ProductCategory, 'id'>
-  collections!: EntityTable<Collection, 'id'>
-  materials!: EntityTable<Material, 'id'>
-  suppliers!: EntityTable<Supplier, 'id'>
-  inventory_items!: EntityTable<InventoryItem, 'id'>
-  inventory_movements!: EntityTable<InventoryMovement, 'id'>
-  production_batches!: EntityTable<ProductionBatch, 'id'>
-  production_batch_costs!: EntityTable<ProductionBatchCost, 'id'>
-  garment_units!: EntityTable<GarmentUnit, 'id'>
+export class PolysterDatabase extends Dexie {
+  shops!: EntityTable<Stored<ShopDoc>, 'id'>
+  staff!: EntityTable<Stored<StaffDoc>, 'id'>
+  tenant_features!: EntityTable<Stored<TenantFeatureDoc>, 'id'>
+  clients!: EntityTable<Stored<ClientDoc>, 'id'>
+  measurement_fields!: EntityTable<Stored<MeasurementFieldDoc>, 'id'>
+  measurement_profiles!: EntityTable<Stored<MeasurementProfileDoc>, 'id'>
+  orders!: EntityTable<Stored<OrderDoc>, 'id'>
+  order_units!: EntityTable<Stored<OrderUnitDoc>, 'id'>
+  order_stage_history!: EntityTable<Stored<OrderStageHistoryDoc>, 'id'>
+  payments!: EntityTable<Stored<PaymentDoc>, 'id'>
+  sales!: EntityTable<Stored<SaleDoc>, 'id'>
+  expenses!: EntityTable<Stored<ExpenseDoc>, 'id'>
+  message_log!: EntityTable<Stored<MessageLogDoc>, 'id'>
+  events!: EntityTable<Stored<EventDoc>, 'id'>
+  expense_categories!: EntityTable<Stored<ShopTaxonomyDoc>, 'id'>
+  material_types!: EntityTable<Stored<ShopTaxonomyDoc>, 'id'>
+
+  products!: EntityTable<Stored<Product>, 'id'>
+  product_variants!: EntityTable<Stored<ProductVariant>, 'id'>
+  product_categories!: EntityTable<Stored<ProductCategory>, 'id'>
+  collections!: EntityTable<Stored<Collection>, 'id'>
+  materials!: EntityTable<Stored<Material>, 'id'>
+  suppliers!: EntityTable<Stored<Supplier>, 'id'>
+  inventory_items!: EntityTable<Stored<InventoryItem>, 'id'>
+  inventory_movements!: EntityTable<Stored<InventoryMovement>, 'id'>
+  production_batches!: EntityTable<Stored<ProductionBatch>, 'id'>
+  production_batch_costs!: EntityTable<Stored<ProductionBatchCost>, 'id'>
+  garment_units!: EntityTable<Stored<GarmentUnit>, 'id'>
 
   constructor(name: string = DATABASE_NAME) {
     super(name)
-    /* One version, one schema. A later change bumps to version(2) and adds an
-       .upgrade() beside it -- there is no per-store version to keep in step. */
     this.version(1).stores(STORES)
   }
 }
@@ -80,7 +78,7 @@ export function getDatabase(): PolysterDatabase {
   return instance
 }
 
-/** For tests, which need a fresh database per case rather than the singleton. */
+/** A named database, for tests that need one per case. */
 export function createDatabase(name: string): PolysterDatabase {
   return new PolysterDatabase(name)
 }
