@@ -49,7 +49,7 @@ adding scope, so there is no remaining feature phase.
 | A write and a read with the network off | `run-polyster` skill, by hand |
 | Design-system rules | `scripts/check-standards.mjs` |
 
-49 test files, 759 tests, `pnpm verify` green. 20 migrations under
+49 test files, 759 tests, `pnpm verify` green. 21 migrations under
 `supabase/migrations`, none of which the app reads for shop data any more, but
 all of which now apply to a throwaway database on demand.
 
