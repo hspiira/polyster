@@ -27,6 +27,7 @@ export interface PaymentDoc {
   void_reason?: string
   /** When it was typed in, which offline is not when it moved. */
   created_at: string
+  updated_at: string
 }
 
 export interface OrderStageHistoryDoc {
@@ -38,4 +39,6 @@ export interface OrderStageHistoryDoc {
   note?: string
   changed_by?: string
   changed_at: string
+  created_at: string
+  updated_at: string
 }

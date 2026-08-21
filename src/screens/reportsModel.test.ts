@@ -27,6 +27,7 @@ function payment(date: string, amountMinor: number, kind: PaymentDoc['kind'] = '
     payment_date: date,
     method: 'cash',
     created_at: date,
+    updated_at: date,
   }
 }
 

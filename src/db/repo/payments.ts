@@ -78,6 +78,7 @@ export async function recordPayment(
     kind,
     payment_date: toPaymentTimestamp(input.payment_date, timestamp),
     created_at: timestamp,
+    updated_at: timestamp,
     method: input.method,
     ...(input.notes?.trim() ? { notes: input.notes.trim() } : {}),
     ...(staffId ? { recorded_by: staffId } : {}),

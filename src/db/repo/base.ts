@@ -59,9 +59,11 @@ export interface EventInput {
 /** Builds an event row without writing it. */
 export function buildEvent(input: EventInput): EventDoc {
   const actor = getActor()
+  const at = now()
   return {
     id: newId(),
-    at: now(),
+    at,
+    updated_at: at,
     ...(actor ? { actor_staff_id: actor } : {}),
     ...input,
   }

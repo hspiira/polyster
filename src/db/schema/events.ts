@@ -14,5 +14,7 @@ export interface EventDoc {
   before?: Record<string, unknown>
   after?: Record<string, unknown>
   summary?: string
+  /** Carried for sync uniformity; an event is never edited. */
+  updated_at: string
 }
 

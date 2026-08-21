@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createDatabase, type PolysterDatabase } from '../db/dexie/database'
-import { STORE_NAMES } from '../db/dexie/stores'
+import { LOCAL_ONLY_STORES, STORE_NAMES, SYNCED_STORES } from '../db/dexie/stores'
 import { createClient, createShop } from '../db/repo'
 import { parseBackup, BACKUP_FORMAT } from './backupFile'
 import {
@@ -53,7 +53,7 @@ describe('buildBackup', () => {
   /* Guards a silent failure: a store added to the app but not to the dump.
      `events` is the one deliberate omission, so it is named rather than filtered. */
   it('covers every store but the audit log', async () => {
-    const expected = STORE_NAMES.filter((store) => store !== 'events').sort()
+    const expected = SYNCED_STORES.filter((store) => store !== 'events').sort()
     const backup = await buildBackup(freshDatabase())
     expect(Object.keys(backup.data).sort()).toEqual(expected)
     expect(Object.keys(backup.counts).sort()).toEqual(expected)
@@ -61,7 +61,16 @@ describe('buildBackup', () => {
 
   it('covers every store when history is asked for', async () => {
     const backup = await buildBackup(freshDatabase(), { includeHistory: true })
-    expect(Object.keys(backup.data).sort()).toEqual([...STORE_NAMES].sort())
+    expect(Object.keys(backup.data).sort()).toEqual([...SYNCED_STORES].sort())
+  })
+
+  /* The outbox is this device's pending pushes and the cursors are its place in
+     the server's history. Restoring either onto another device is wrong. */
+  it('never carries the sync bookkeeping this device keeps', async () => {
+    const backup = await buildBackup(freshDatabase(), { includeHistory: true })
+    for (const store of LOCAL_ONLY_STORES) {
+      expect(Object.keys(backup.data)).not.toContain(store)
+    }
   })
 
   it('is an empty but complete dump for a shop with nothing in it', async () => {

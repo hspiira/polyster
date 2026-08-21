@@ -107,7 +107,7 @@ describe('audit', () => {
   const at = (n: number) => `2026-08-2${n}T00:00:00.000Z`
   const event = (id: string, over: Partial<EventDoc> = {}): EventDoc => ({
     id, shop_id: 's1', at: at(1), entity: 'orders', entity_id: 'o1',
-    action: 'updated', ...over,
+    action: 'updated', updated_at: at(1), ...over,
   })
 
   it('reads a shop feed in time order', async () => {

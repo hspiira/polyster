@@ -28,6 +28,7 @@ const payment = (over: Partial<PaymentDoc> = {}): PaymentDoc => ({
   kind: 'payment',
   payment_date: '2026-08-10T10:00:00.000Z',
   created_at: '2026-08-10T10:00:00.000Z',
+  updated_at: '2026-08-10T10:00:00.000Z',
   method: 'cash',
   ...over,
 })
@@ -75,11 +76,13 @@ describe('repairMetrics', () => {
     const orders = [
       order({
         created_at: '2026-08-01T00:00:00.000Z',
+        updated_at: '2026-08-01T00:00:00.000Z',
         stage: 'picked_up',
         picked_up_at: '2026-08-04T00:00:00.000Z',
       }),
       order({
         created_at: '2026-08-01T00:00:00.000Z',
+        updated_at: '2026-08-01T00:00:00.000Z',
         stage: 'picked_up',
         picked_up_at: '2026-08-08T00:00:00.000Z',
       }),

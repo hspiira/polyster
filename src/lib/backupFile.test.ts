@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STORE_NAMES } from '../db/dexie/stores'
+import { LOCAL_ONLY_STORES, SYNCED_STORES } from '../db/dexie/stores'
 import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
@@ -44,10 +44,20 @@ describe('parseBackup', () => {
     expect(ok(file({ data: { clients: [] }, counts: { clients: 0 } })).rows).toBe(0)
   })
 
-  it('takes every store the app declares', () => {
-    const data = Object.fromEntries(STORE_NAMES.map((store) => [store, [{ id: `${store}-1` }]]))
+  it('takes every store that holds shop data', () => {
+    const data = Object.fromEntries(SYNCED_STORES.map((store) => [store, [{ id: `${store}-1` }]]))
     const backup = ok(file({ data, counts: undefined }))
-    expect(backup.rows).toBe(STORE_NAMES.length)
+    expect(backup.rows).toBe(SYNCED_STORES.length)
+  })
+
+  /* A file naming the outbox is hand-edited or from a version that backed it up
+     by mistake. Either way applying it would replay another device's pushes. */
+  it('refuses a file carrying sync bookkeeping', () => {
+    for (const store of LOCAL_ONLY_STORES) {
+      expect(why(file({ data: { [store]: [{ id: 'x' }] }, counts: undefined }))).toMatch(
+        /does not know about/,
+      )
+    }
   })
 })
 

@@ -1,7 +1,7 @@
 /* Backup, in both directions (ARCHITECTURE.md D7). Browser storage is not
    permanent, and this file is the only copy off the device. */
 import type { PolysterDatabase } from '../db/dexie/database'
-import { STORE_NAMES, type StoreName } from '../db/dexie/stores'
+import { LOCAL_ONLY_STORES, SYNCED_STORES, type StoreName } from '../db/dexie/stores'
 import {
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
@@ -33,8 +33,8 @@ export async function buildBackup(
   const counts: Record<string, number> = {}
 
   const stores = options.includeHistory
-    ? STORE_NAMES
-    : STORE_NAMES.filter((store) => store !== 'events')
+    ? SYNCED_STORES
+    : SYNCED_STORES.filter((store) => store !== 'events')
 
   for (const store of stores) {
     const rows = await db.table(store).toArray()
@@ -111,16 +111,20 @@ export async function restoreBackup(
   db: PolysterDatabase,
   backup: ParsedBackup,
 ): Promise<RestoreReport> {
-  const tables = STORE_NAMES.map((store) => db.table(store))
+  const tables = [...SYNCED_STORES, ...LOCAL_ONLY_STORES].map((store) => db.table(store))
   const written: { store: StoreName; rows: number }[] = []
 
   await db.transaction('rw', tables, async () => {
-    for (const store of STORE_NAMES) {
+    for (const store of SYNCED_STORES) {
       const rows = backup.stores[store] ?? []
       await db.table(store).clear()
       if (rows.length > 0) await db.table(store).bulkAdd(rows)
       if (rows.length > 0) written.push({ store, rows: rows.length })
     }
+
+    /* Sync state describes a conversation this data was not part of. Cleared,
+       so the next sync pushes nothing stale and pulls everything. */
+    for (const store of LOCAL_ONLY_STORES) await db.table(store).clear()
   })
 
   return { stores: written, rows: written.reduce((sum, entry) => sum + entry.rows, 0) }

@@ -49,4 +49,5 @@ export interface ProductionBatchCost {
   amount_minor: number
   currency: string
   created_at: string
+  updated_at: string
 }

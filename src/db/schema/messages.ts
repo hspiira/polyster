@@ -19,5 +19,7 @@ export interface MessageLogDoc {
   /** Recorded alongside the template rather than duplicating the stage enum. */
   order_stage?: OrderStage
   sent_at: string
+  created_at: string
+  updated_at: string
   sent_by?: string
 }

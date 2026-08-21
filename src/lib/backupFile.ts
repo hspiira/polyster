@@ -1,6 +1,6 @@
 /* Reading a backup file. Pure and total: every rejection is a sentence the
    person holding the file can act on. Writing one is in ./backup.ts. */
-import { STORE_NAMES, type StoreName } from '../db/dexie/stores'
+import { SYNCED_STORES, type StoreName } from '../db/dexie/stores'
 
 export const BACKUP_FORMAT = 'tailor-tracker-backup'
 export const BACKUP_FORMAT_VERSION = 1
@@ -28,7 +28,9 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-const KNOWN = new Set<string>(STORE_NAMES)
+/* Only shop data. A file naming sync_outbox is either hand-edited or from a
+   version that backed it up by mistake; either way it must not be applied. */
+const KNOWN = new Set<string>(SYNCED_STORES)
 
 /** Parses text straight from a file, so a malformed file reads as a rejection. */
 export function parseBackupText(text: string): ParseResult {
@@ -121,7 +123,7 @@ export function parseBackup(raw: unknown): ParseResult {
 
 /** What a restore would do, for the confirmation the UI has to show first. */
 export function describeBackup(backup: ParsedBackup): { store: StoreName; rows: number }[] {
-  return STORE_NAMES.filter((store) => (backup.stores[store]?.length ?? 0) > 0).map((store) => ({
+  return SYNCED_STORES.filter((store) => (backup.stores[store]?.length ?? 0) > 0).map((store) => ({
     store,
     rows: backup.stores[store]?.length ?? 0,
   }))

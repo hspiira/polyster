@@ -30,6 +30,7 @@ function payment(over: Partial<PaymentDoc> = {}): PaymentDoc {
     payment_date: '2026-08-13T09:00:00.000Z',
     method: 'mobile_money',
     created_at: '2026-08-13T09:00:00.000Z',
+    updated_at: '2026-08-13T09:00:00.000Z',
     ...over,
   }
 }

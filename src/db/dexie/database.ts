@@ -13,6 +13,7 @@ import type {
   MeasurementFieldDoc,
   MeasurementProfileDoc,
   MessageLogDoc,
+  OutboxEntry,
   OrderDoc,
   OrderStageHistoryDoc,
   OrderUnitDoc,
@@ -27,6 +28,7 @@ import type {
   ShopTaxonomyDoc,
   StaffDoc,
   Supplier,
+  SyncCursor,
   TenantFeatureDoc,
 } from '../schema'
 
@@ -80,6 +82,9 @@ export class PolysterDatabase extends Dexie {
   production_batches!: EntityTable<Stored<ProductionBatch>, 'id'>
   production_batch_costs!: EntityTable<Stored<ProductionBatchCost>, 'id'>
   garment_units!: EntityTable<Stored<GarmentUnit>, 'id'>
+
+  sync_outbox!: EntityTable<OutboxEntry, 'id'>
+  sync_cursors!: EntityTable<SyncCursor, 'id'>
 
   constructor(name: string = DATABASE_NAME) {
     super(name)

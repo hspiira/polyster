@@ -24,6 +24,7 @@ const payment = (over: Partial<PaymentDoc> = {}): PaymentDoc => ({
   kind: 'payment',
   payment_date: '2026-08-10T10:00:00.000Z',
   created_at: '2026-08-10T10:00:00.000Z',
+  updated_at: '2026-08-10T10:00:00.000Z',
   method: 'cash',
   ...over,
 })
