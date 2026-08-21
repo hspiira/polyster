@@ -37,7 +37,7 @@ export function Button(props: ButtonProps | ButtonLinkProps) {
   const { variant = 'primary', size = 'md', block = false, class: className } = props
 
   const classes = cn(
-    'inline-flex items-center justify-center gap-2 rounded-control font-medium',
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-control font-medium',
     'transition-[background-color,color,transform] duration-100',
     'active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40',
     SIZES[size],

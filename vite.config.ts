@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import preact from '@preact/preset-vite'
 import tailwindcss from '@tailwindcss/vite'
@@ -57,6 +58,16 @@ export default defineConfig({
      * on disk is real and a future plugin or resolver could pick differently.
      */
     dedupe: ['preact', 'preact/hooks', 'preact/jsx-runtime', 'preact/compat'],
+    /* The geist package exports only its Next.js font wrappers, not the woff2
+       it ships, so the file is aliased rather than copied into the repo. */
+    alias: {
+      'geist-sans-variable': fileURLToPath(
+        new URL(
+          './node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2',
+          import.meta.url,
+        ),
+      ),
+    },
   },
   plugins: [
     preact(),
@@ -103,7 +114,9 @@ export default defineConfig({
       workbox: {
         // Precache the built app shell; runtime data (Supabase calls) is
         // handled by RxDB's local-first layer, not by the service worker.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // woff2 included: without it the one typeface is a network request the
+        // first offline load cannot make, and the app renders in system-ui.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
       },
       // Off by default. A live service worker in dev caches aggressively and
       // produces stale-asset confusion that looks like a code bug. Turn it on

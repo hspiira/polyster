@@ -366,11 +366,13 @@
 
   --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
 
-  /* @font-face is in index.css. The stack behind Inter is what renders while
-     it loads, and if it never arrives. */
+  /* @font-face is in index.css. One face for everything -- headings, body and
+     figures; tabular-nums does the job a second, monospace face would. */
   --font-sans:
-    'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Roboto, 'Helvetica Neue', Arial, sans-serif;
+    'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: var(--font-sans);
 
   /* Remapped rather than rewriting every call site. 300 is body, 400 is the
      emphasis step, 200 is display text. */
