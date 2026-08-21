@@ -1,7 +1,7 @@
 # Durability, and the gaps left after the storage switch
 
 Date: 2026-08-22
-Status: **proposed** — no phase started
+Status: **in progress** — Phases 0 and 1 done
 Decision owner: Piira
 
 ## Why
@@ -159,9 +159,22 @@ comes before sync rather than after.
 - Round-trip property test: seed → export → wipe → import → the database is
   equal by store counts and row contents.
 
-*Verified by:* property tests over generated shops; mutation checks on the
-version and unknown-store guards; a real browser walk — seed, export, wipe,
-restore, and the same orders on screen.
+*Verified by:* 21 parse tests and 5 restore tests; six mutation checks; a real
+browser walk — seed three tenants, export through the button, clear every store,
+restore, and every count matches.
+
+**Done 2026-08-22.** Two things the plan did not anticipate:
+
+- **The restore screen was unreachable in the only case it exists for.** A wiped
+  device has no shop, so the app renders the entry flow and Settings cannot be
+  reached. Restore is now on the landing screen too, sharing one component.
+- **The atomicity test passed against a broken implementation.** It exported the
+  device, restored it unchanged, and so could not tell a partial restore from a
+  whole one. Removing the transaction did not fail it. Rewritten so the file
+  differs from the device; the mutation now fails.
+
+The confirmation dialog lists `events: 652` as the largest single number in a
+60-order shop, which is Phase 2 arguing for itself.
 
 ### Phase 2 — Audit log and importer footprint (1 day)
 

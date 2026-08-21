@@ -2,12 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createDatabase, type PolysterDatabase } from '../db/dexie/database'
 import { STORE_NAMES } from '../db/dexie/stores'
 import { createClient, createShop } from '../db/repo'
+import { parseBackup, BACKUP_FORMAT } from './backupFile'
 import {
   BACKUP_FORMAT_VERSION,
   backupFilename,
   buildBackup,
   daysSinceBackup,
   downloadBackup,
+  restoreBackup,
   lastBackupAt,
   recordBackupTaken,
   type Backup,
@@ -31,6 +33,21 @@ afterEach(async () => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
 })
+
+async function snapshot(db: PolysterDatabase): Promise<Record<string, unknown[]>> {
+  const out: Record<string, unknown[]> = {}
+  for (const store of STORE_NAMES) out[store] = await db.table(store).toArray()
+  return out
+}
+
+function file() {
+  return {
+    format: BACKUP_FORMAT,
+    version: BACKUP_FORMAT_VERSION,
+    exported_at: '2026-08-22T09:00:00.000Z',
+    data: { clients: [{ id: 'c1', shop_id: 's1', name: 'From the file' }] },
+  }
+}
 
 describe('buildBackup', () => {
   /* The failure this guards is silent: a store added to the app but not to the
@@ -213,5 +230,80 @@ describe('downloadBackup', () => {
 
     vi.advanceTimersByTime(1000)
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:fake')
+  })
+})
+
+describe('restoreBackup', () => {
+  it('puts back exactly what the export took, store for store', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    for (const name of ['Ama', 'Ben', 'Cara']) await createClient(db, shop.id, { name })
+
+    const exported = await buildBackup(db)
+    const before = await snapshot(db)
+
+    // A different device: everything gone, then the file applied.
+    for (const store of STORE_NAMES) await db.table(store).clear()
+    expect((await snapshot(db)).clients).toEqual([])
+
+    const parsed = parseBackup(JSON.parse(JSON.stringify(exported)))
+    if (!parsed.ok) throw new Error(parsed.error)
+    const report = await restoreBackup(db, parsed.backup)
+
+    expect(await snapshot(db)).toEqual(before)
+    expect(report.rows).toBe(parsed.backup.rows)
+  })
+
+  it('replaces what is there rather than merging into it', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    await createClient(db, shop.id, { name: 'Ama' })
+    const exported = await buildBackup(db)
+
+    await createClient(db, shop.id, { name: 'Should not survive' })
+    expect(await db.clients.count()).toBe(2)
+
+    const parsed = parseBackup(exported)
+    if (!parsed.ok) throw new Error(parsed.error)
+    await restoreBackup(db, parsed.backup)
+
+    const names = (await db.clients.toArray()).map((row) => row.name)
+    expect(names).toEqual(['Ama'])
+  })
+
+  /* A failure part way through must leave the device as it was. The file has to
+     differ from the device, or a partial restore looks like a whole one. */
+  it('leaves the device untouched when a row cannot be written', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    await createClient(db, shop.id, { name: 'Ama' })
+
+    const parsed = parseBackup(await buildBackup(db))
+    if (!parsed.ok) throw new Error(parsed.error)
+
+    // Written after the export, so the file no longer matches the device.
+    await createClient(db, shop.id, { name: 'Added after the export' })
+    const before = await snapshot(db)
+    expect(await db.clients.count()).toBe(2)
+
+    // A key IndexedDB refuses, in a store reached after clients was replaced.
+    parsed.backup.stores.payments = [{ id: { bad: true } as unknown as string }]
+
+    await expect(restoreBackup(db, parsed.backup)).rejects.toThrow()
+    expect(await db.clients.count()).toBe(2)
+    expect(await snapshot(db)).toEqual(before)
+  })
+
+  it('restores an empty backup as an empty device', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    await createClient(db, shop.id, { name: 'Ama' })
+
+    const parsed = parseBackup(file())
+    if (!parsed.ok) throw new Error(parsed.error)
+    await restoreBackup(db, parsed.backup)
+
+    expect(await db.clients.count()).toBe(1)
+    expect(await db.shops.count()).toBe(0)
   })
 })

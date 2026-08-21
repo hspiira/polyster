@@ -10,6 +10,7 @@ import {
   recordBackupTaken,
   type Backup,
 } from '../../lib/backup'
+import { RestoreBackup } from '../../components/RestoreBackup'
 import { useBack } from '../../hooks/useBack'
 
 export function BackupSettings() {
@@ -57,8 +58,8 @@ export function BackupSettings() {
           </div>
           <p class="mt-1.5 text-sm opacity-90">
             A phone's stored data is not guaranteed to last. Clearing site data, or the phone
-            reclaiming space, can take it -- and work done offline exists nowhere else until it
-            syncs.
+            reclaiming space, can take it. This file is the only copy of your work that is not on
+            this phone, so keep it somewhere else.
           </p>
         </div>
 
@@ -85,13 +86,24 @@ export function BackupSettings() {
         )}
 
         <section>
-          <SectionTitle>Restoring</SectionTitle>
+          <SectionTitle>Restore</SectionTitle>
           <Card>
             <p class="text-sm text-content-muted">
-              There is no restore button yet. The file is plain JSON, so the data is recoverable by
-              hand, but bringing it back into the app is not built. If you are relying on this, say
-              so -- it changes what gets built next.
+              Bringing a backup file back onto this phone replaces everything already here. Use it
+              on a new phone, or after clearing site data -- not to merge two phones together.
             </p>
+            <RestoreBackup onError={setError}>
+              {(open, restoring) => (
+                <Button
+                  variant="secondary"
+                  class="mt-3"
+                  disabled={busy || restoring}
+                  onClick={open}
+                >
+                  Choose a backup file
+                </Button>
+              )}
+            </RestoreBackup>
           </Card>
         </section>
       </div>

@@ -9,7 +9,7 @@ what happened in August.
 If you ship work and do not update this file in the same commit, it becomes
 actively misleading rather than merely incomplete. That has happened once.
 
-**Last revised:** 2026-08-22. Open items are now planned in
+**Last revised:** 2026-08-22, after backup import. Open items are planned in
 `superpowers/plans/2026-08-22-durability-and-gaps.md`; this file stays the index
 of what is open, that file carries the sequencing and the decisions.
 
@@ -84,11 +84,14 @@ D8) and Postgres rejects a non-uuid in a `uuid` column, so either those columns
 become `text` or ids go back to uuid. The offline-conflict question returns with
 sync; it is deferred, not answered.
 
-### 2. Backup exports but cannot import
+### ~~2. Backup exports but cannot import~~ — done 2026-08-22
 
-Reopened by item 1. The 2026-08-14 position was that the recovery path is
-Supabase, so no JSON import was needed — true until replication went. Leaving
-both undone means a lost phone is a lost shop.
+`parseBackupText` reads a file, `restoreBackup` applies it as one transaction,
+and the entry point is on the **landing screen** as well as in Settings: a
+replacement phone has no shop, so it can never reach Settings. Found by wiping a
+device and discovering the restore screen was unreachable.
+
+Replace only. Merge needs a conflict rule and waits for sync.
 
 ### 3. Nothing has run on real hardware
 
