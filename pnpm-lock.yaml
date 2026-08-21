@@ -11,6 +11,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.111.0
         version: 2.111.0
+      dexie:
+        specifier: ^4.4.5
+        version: 4.4.5
       lucide-preact:
         specifier: ^1.31.0
         version: 1.31.0(preact@10.29.7)
@@ -1538,6 +1541,9 @@ packages:
 
   dexie@4.4.2:
     resolution: {integrity: sha512-zMtV8q79EFE5U8FKZvt0Y/77PCU/Hr/RDxv1EDeo228L+m/HTbeN2AjoQm674rhQCX8n3ljK87lajt7UQuZfvw==}
+
+  dexie@4.4.5:
+    resolution: {integrity: sha512-wWCHdihT3dmlUSuNhn5mMZDWSpG0suxjAni7YjjiZdzabZcKmy3uNZGZ7AeYYXBoLbpSXX35fikPLkPC44Osiw==}
 
   dom-serializer@2.0.0:
     resolution: {integrity: sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==}
@@ -4627,6 +4633,8 @@ snapshots:
   detect-libc@2.1.2: {}
 
   dexie@4.4.2: {}
+
+  dexie@4.4.5: {}
 
   dom-serializer@2.0.0:
     dependencies:
