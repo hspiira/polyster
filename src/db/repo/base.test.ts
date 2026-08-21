@@ -271,3 +271,167 @@ describe('missing', () => {
     expect(missing('payment').message).toBe('That payment no longer exists on this device.')
   })
 })
+
+import type { Observable } from 'dexie'
+import { getRow, listAll, listBy, observeAll, observeBy, observeRow, sortRows } from './base'
+
+function first<T>(source: Observable<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const sub = source.subscribe({
+      next: (value) => {
+        sub.unsubscribe()
+        resolve(value)
+      },
+      error: reject,
+    })
+  })
+}
+
+/* Subscribes, waits for the first emission, runs `action`, then resolves with
+   both emissions. Writing before the first emission registers no observation. */
+async function nextAfter<T>(source: Observable<T>, action: () => Promise<void>): Promise<[T, T]> {
+  const seen: T[] = []
+  let settle: (pair: [T, T]) => void = () => {}
+  const both = new Promise<[T, T]>((resolve) => (settle = resolve))
+
+  const sub = source.subscribe({
+    next: (value) => {
+      seen.push(value)
+      if (seen.length === 2) {
+        sub.unsubscribe()
+        settle([seen[0] as T, seen[1] as T])
+      }
+    },
+  })
+
+  while (seen.length === 0) await new Promise((resolve) => setTimeout(resolve, 5))
+  await action()
+  return both
+}
+
+describe('sortRows', () => {
+  it('leaves the list alone with no sort', () => {
+    const rows = [client('b'), client('a')]
+    expect(sortRows(rows).map((row) => row.id)).toEqual(['b', 'a'])
+  })
+
+  it('sorts strings both ways', () => {
+    const rows = [client('b', 'Zainab'), client('a', 'Amina')]
+    expect(sortRows(rows, { key: 'name' }).map((row) => row.id)).toEqual(['a', 'b'])
+    expect(sortRows(rows, { key: 'name', dir: 'desc' }).map((row) => row.id)).toEqual(['b', 'a'])
+  })
+
+  it('sorts numbers by value, not by their text', () => {
+    const rows = [
+      { id: 'a', position: 10 },
+      { id: 'b', position: 9 },
+    ]
+    expect(sortRows(rows, { key: 'position' }).map((row) => row.id)).toEqual(['b', 'a'])
+  })
+
+  it('puts a row missing the field last either way', () => {
+    const rows = [client('a'), { ...client('b'), phone: '0700' }]
+    expect(sortRows(rows, { key: 'phone' }).map((row) => row.id)).toEqual(['b', 'a'])
+    expect(sortRows(rows, { key: 'phone', dir: 'desc' }).map((row) => row.id)).toEqual(['b', 'a'])
+  })
+
+  it('does not disturb the list it was given', () => {
+    const rows = [client('b', 'Z'), client('a', 'A')]
+    sortRows(rows, { key: 'name' })
+    expect(rows.map((row) => row.id)).toEqual(['b', 'a'])
+  })
+})
+
+describe('observeAll', () => {
+  it('emits the rows now on disk', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1', 'Zainab'), 'shop-1')
+    await insertRow(db.clients, client('c2', 'Amina'), 'shop-1')
+
+    const seen = await first(observeAll(db.clients, { key: 'name' }))
+    expect(seen.map((row) => row.name)).toEqual(['Amina', 'Zainab'])
+  })
+
+  it('hides a soft-deleted row', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await softDeleteRow(db.clients, 'c1')
+    expect(await first(observeAll(db.clients))).toEqual([])
+  })
+
+  it('emits again when a row is written', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    const [before, after] = await nextAfter(observeAll(db.clients), async () => {
+      await insertRow(db.clients, client('c2'), 'shop-1')
+    })
+    expect(before).toHaveLength(1)
+    expect(after).toHaveLength(2)
+  })
+
+  it('emits again when a row is soft-deleted', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    const [, after] = await nextAfter(observeAll(db.clients), async () => {
+      await softDeleteRow(db.clients, 'c1')
+    })
+    expect(after).toEqual([])
+  })
+})
+
+describe('observeBy', () => {
+  it('returns only the matching rows', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await insertRow(db.clients, { ...client('c2'), shop_id: 'shop-2' }, 'shop-2')
+
+    const seen = await first(observeBy(db.clients, 'shop_id', 'shop-1'))
+    expect(seen.map((row) => row.id)).toEqual(['c1'])
+  })
+
+  it('drops soft-deleted matches', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await insertRow(db.clients, client('c2'), 'shop-1')
+    await softDeleteRow(db.clients, 'c1')
+
+    const seen = await first(observeBy(db.clients, 'shop_id', 'shop-1'))
+    expect(seen.map((row) => row.id)).toEqual(['c2'])
+  })
+})
+
+describe('observeRow', () => {
+  it('emits the row then null once it is deleted', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    const [before, after] = await nextAfter(observeRow(db.clients, 'c1'), async () => {
+      await softDeleteRow(db.clients, 'c1')
+    })
+    expect(before?.id).toBe('c1')
+    expect(after).toBeNull()
+  })
+
+  it('emits null for an id that was never here', async () => {
+    const db = fresh()
+    expect(await first(observeRow(db.clients, 'nope'))).toBeNull()
+  })
+})
+
+describe('the one-shot reads', () => {
+  it('listBy and listAll drop deleted rows', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await insertRow(db.clients, client('c2'), 'shop-1')
+    await softDeleteRow(db.clients, 'c2')
+
+    expect(await listAll(db.clients)).toHaveLength(1)
+    expect(await listBy(db.clients, 'shop_id', 'shop-1')).toHaveLength(1)
+  })
+
+  it('getRow returns null for a deleted row', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await softDeleteRow(db.clients, 'c1')
+    expect(await getRow(db.clients, 'c1')).toBeNull()
+  })
+})

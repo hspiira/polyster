@@ -229,3 +229,98 @@ export async function loadOrThrow<T extends { id: string }>(
   if (gone(row)) throw missing(label)
   return row as Stored<T>
 }
+
+export interface Sort<T> {
+  key: keyof T & string
+  dir?: 'asc' | 'desc'
+}
+
+function compare(a: unknown, b: unknown): number {
+  if (a === b) return 0
+  if (a === undefined || a === null) return 1
+  if (b === undefined || b === null) return -1
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return String(a).localeCompare(String(b))
+}
+
+/* Sorts a copy. Absent values go last whichever way round, so a row missing
+   the field never leads a list. */
+export function sortRows<T>(rows: Stored<T>[], sort?: Sort<T>): Stored<T>[] {
+  if (!sort) return rows
+  const factor = sort.dir === 'desc' ? -1 : 1
+  return [...rows].sort((a, b) => {
+    const left = (a as Record<string, unknown>)[sort.key]
+    const right = (b as Record<string, unknown>)[sort.key]
+    if (left === undefined || left === null) return 1
+    if (right === undefined || right === null) return -1
+    return factor * compare(left, right)
+  })
+}
+
+/** Live list of every row in a table. */
+export function observeAll<T extends { id: string }>(
+  table: Rows<T>,
+  sort?: Sort<T>,
+): Observable<Stored<T>[]> {
+  return liveQuery(async () => sortRows(alive(await rows(table).toArray()), sort))
+}
+
+/** Live list of the rows an index points at. */
+export function observeBy<T extends { id: string }>(
+  table: Rows<T>,
+  index: keyof T & string,
+  value: string,
+  sort?: Sort<T>,
+): Observable<Stored<T>[]> {
+  return liveQuery(async () => {
+    const found = await rows(table).where(index).equals(value).toArray()
+    return sortRows(alive(found), sort)
+  })
+}
+
+/** Live single row by primary key, null while absent or once deleted. */
+export function observeRow<T extends { id: string }>(
+  table: Rows<T>,
+  id: string,
+): Observable<Stored<T> | null> {
+  return liveQuery(async () => present(await rows(table).get(id)))
+}
+
+/** Live first row an index points at. */
+export function observeOneBy<T extends { id: string }>(
+  table: Rows<T>,
+  index: keyof T & string,
+  value: string,
+): Observable<Stored<T> | null> {
+  return liveQuery(async () => {
+    const found = await rows(table).where(index).equals(value).toArray()
+    return alive(found)[0] ?? null
+  })
+}
+
+/** The rows an index points at, once. */
+export async function listBy<T extends { id: string }>(
+  table: Rows<T>,
+  index: keyof T & string,
+  value: string,
+  sort?: Sort<T>,
+): Promise<Stored<T>[]> {
+  const found = await rows(table).where(index).equals(value).toArray()
+  return sortRows(alive(found), sort)
+}
+
+/** Every row in a table, once. */
+export async function listAll<T extends { id: string }>(
+  table: Rows<T>,
+  sort?: Sort<T>,
+): Promise<Stored<T>[]> {
+  return sortRows(alive(await rows(table).toArray()), sort)
+}
+
+/** One row by primary key, once. Null when absent or deleted. */
+export async function getRow<T extends { id: string }>(
+  table: Rows<T>,
+  id: string,
+): Promise<Stored<T> | null> {
+  return present(await rows(table).get(id))
+}

@@ -4,7 +4,7 @@ export const STORES = {
   // -- the shop and its people ------------------------------------------
   shops: 'id',
   staff: 'id, shop_id',
-  tenant_features: 'id, [shop_id+feature_key]',
+  tenant_features: 'id, shop_id, [shop_id+feature_key]',
 
   // -- clients and what they measure ------------------------------------
   clients: 'id, shop_id',
@@ -12,17 +12,17 @@ export const STORES = {
   measurement_profiles: 'id, client_id',
 
   // -- orders -----------------------------------------------------------
-  orders: 'id, client_id, [shop_id+pickup_due_date], [shop_id+stage]',
+  orders: 'id, shop_id, client_id, created_at, [shop_id+pickup_due_date], [shop_id+stage]',
   order_units: 'id, order_id',
   order_stage_history: 'id, order_id',
   payments: 'id, order_id',
 
   // -- money ------------------------------------------------------------
-  sales: 'id, [shop_id+sold_at]',
-  expenses: 'id, [shop_id+spent_on]',
+  sales: 'id, shop_id, [shop_id+sold_at]',
+  expenses: 'id, shop_id, [shop_id+spent_on]',
 
   // -- messages ---------------------------------------------------------
-  message_log: 'id, client_id',
+  message_log: 'id, client_id, order_id',
 
   events: 'id, [shop_id+at], [entity+entity_id]',
 
