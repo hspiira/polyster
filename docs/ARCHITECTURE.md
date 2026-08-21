@@ -288,28 +288,17 @@ Recorded so the earlier documents can still be read without being misleading.
 | C5 | Original `supabaseClient.ts`: "the app will still run offline-only without" the env vars | It threw on import. `createClient('')` raises `supabaseUrl is required.` The client is now built lazily. |
 
 
-## 11. Known limitations (carried forward deliberately, not oversights)
+## 11. Known limitations
 
-- PIN-based staff attribution is not real per-person security (section 4).
-- Self-service shop creation (D14) has no reconciliation if a device creates a shop locally while its account also has an admin-provisioned one -- not handled, accepted as a real edge case.
-- **There is no sync.** It was dropped with RxDB and has not been rebuilt, so a shop's data lives on one device and a backup file is the only way off it. Two devices cannot share a shop, and the conflict question is deferred rather than answered. This is the largest open item in the project.
-- Rebuilding sync needs the id question settled first: ids are cuid2 (D8) and Postgres rejects a non-uuid in a `uuid` column, so either the columns become `text` or ids go back to uuid.
-- The balance calculation exists twice: the Postgres view and `src/db/balances.ts`. Unit-tested, but a change to one must be made to the other.
-- No automated WhatsApp reminders in v1 -- manual-tap only, by design.
-- No rental inventory availability tracking.
-- The Dexie schema is at `version(1)` with no upgrade path written yet. Adding a store or an index needs a `version(2).stores(...)` in the same commit, or an installed app cannot open its own database.
-- The PIN iteration count (D11) was measured on a desktop and extrapolated to a phone. That extrapolation is not a measurement -- time it on the shop's actual handset.
-- Backup exports but does not import. The UI says so plainly, but a backup with no restore path is a promise half-kept.
-- The currency is hardcoded to UGX in `src/lib/money.ts`, in a product that is explicitly install-anywhere. One constant in one module, so the fix stays small.
-- The Phase 1 screens have been driven in a desktop browser at phone dimensions, which is a simulation of a phone. Nothing has been used on real hardware.
-- Screen-level behaviour has no automated coverage. The units are tested; the screens were verified by driving a browser once, which does not survive a refactor.
+Moved to `STATUS.md`, so that open items live in one place rather than three.
+The architectural ones worth knowing before reading further: there is no sync,
+the balance rule exists both in Postgres and in `src/db/balances.ts`, and the
+Dexie schema has no upgrade path written yet.
 
 
 ## Companion documents
 
+- `STATUS.md` -- where the project is, what evidences it, and what is open. The entry point for "what is next"
 - `POLYSTER.md` -- the product spec: every feature phase, and the rules a new module has to meet
-- `IMPLEMENTATION_PLAN.md` -- build sequence, phase status, and what evidences each one
-- `CODE_REVIEW.md` -- standing quality findings and what is still open
-- `DESIGN_SYSTEM.md` -- colour, type and the rules the design linter enforces
-- `superpowers/plans/` and `superpowers/specs/` -- the dated design record for
-  each piece of work, kept as history rather than maintained
+- `DESIGN_SYSTEM.md` -- colour, type and the rules `pnpm check:design` enforces. Read before touching any UI
+- `superpowers/` -- the dated design record: plans, specs and reviews, kept as history rather than maintained

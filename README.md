@@ -4,9 +4,7 @@ Offline-first PWA for cloth tailoring and rental shops. Read the docs in [`docs/
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) -- system overview and the current record of what exists. **Read this first.**
 - [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) -- colour roles, responsiveness rules, and how to convert a screen. **Read before touching any UI.**
-- [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) -- phase-by-phase build plan and verification checklists
-- [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) -- colour, type, and the rules `pnpm check:design` enforces
-- [`docs/CODE_REVIEW.md`](docs/CODE_REVIEW.md) -- standing quality findings and what is still open
+- [`docs/STATUS.md`](docs/STATUS.md) -- where this is, what is checked, and what is open. **Start here for what is next.**
 
 Stack: Preact + Vite + Tailwind CSS + `vite-plugin-pwa`, Dexie on IndexedDB for local data, Supabase for auth, image storage and the public garment passport. Everything else runs on the device.
 
@@ -106,7 +104,7 @@ values ('Your Shop Name', '+256700000000', '<an auth user id>');
 
 `pnpm verify:rls` checks the structural half of tenant isolation: that `anon`/`authenticated` don't have `BYPASSRLS`, that every table in `public` has RLS enabled with at least one policy, and that `order_balances` has `security_invoker` on. It needs `SUPABASE_DB_URL` in `.env` -- the *direct* Postgres connection string from **Project Settings -> Database -> Connection string**, not the anon key (see the comment in `.env.example`; this connects as the `postgres` role, which bypasses RLS itself, so it must never be used anywhere else).
 
-This does not replace the two-shop-account login test in the Phase 0 exit checklist (`docs/IMPLEMENTATION_PLAN.md`) -- it can't verify that shop A's session actually can't read shop B's rows, only that the policies are in place for that test to be meaningful.
+This does not replace the two-shop-account login test in the Phase 0 exit checklist (`docs/STATUS.md`) -- it can't verify that shop A's session actually can't read shop B's rows, only that the policies are in place for that test to be meaningful.
 
 ### 3b. Give existing shops credentials
 

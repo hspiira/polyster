@@ -1,6 +1,11 @@
-# Code review: standards violations
+# Standards review
 
 Date: 2026-08-13
+**Archived 2026-08-21.** Every finding here is closed except the screen-reader
+walk of the back-office screens, which moved to `STATUS.md`. Kept because it
+records *why* several things look the way they do -- including the three
+`order_type` comparisons that should stay, and the "Handover date" versus
+"Pickup" wording left deliberately unreconciled.
 **Updated 2026-08-14** — all six items of "What to do, in order" are done, and
 the comment finding under "Known debt" was overruled. See the status box
 below. Every count not marked "Now" is as it stood on 08-13.

@@ -1,5 +1,5 @@
 /* Everything the order form decides, as pure functions. Kept out of the
-   component so the rules are testable without a DOM -- see docs/CODE_REVIEW.md. */
+   component so the rules are testable without a DOM -- see the 2026-08-13 standards review. */
 import { addDays, today } from '../lib/dates'
 import { newId } from '../lib/ids'
 import { fromMinorUnits, parseToMinor } from '../lib/money'

@@ -52,6 +52,11 @@ guaranteed contrast)
 
 ## Responsiveness
 
+**Amended by `superpowers/specs/2026-08-11-web-and-phone-split-design.md`.** The
+shell is chosen by pointer type, not viewport width: `(pointer: fine)` gets the
+desktop shell, coarse gets the phone one. Resizing a window never switches
+shells. What follows still governs layout *within* a shell.
+
 Adapt to available space, not window size:
 
 - **Fluid before stepped.** `--gutter` and the display type scale are `clamp()`,

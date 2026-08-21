@@ -1,6 +1,6 @@
 # Design record
 
-One entry per piece of work, dated, written before the work and left as written
+One entry per piece of work -- plans, specs and reviews -- dated, written before the work and left as written
 after it. This is history, not documentation: it is the record of *why* something
 is shaped the way it is, including the options that lost.
 
@@ -17,6 +17,7 @@ the top rather than being edited into agreement.
 | 2026-08-02 | Pre-order catalogue | `specs/2026-08-02-preorder-catalogue-design.md` |
 | 2026-08-11 | Web and phone shell split | `specs/2026-08-11-web-and-phone-split-design.md` |
 | 2026-08-11 | Registration redesign | `specs/2026-08-11-registration-redesign.md` |
+| 2026-08-13 | Standards review (SOLID, DRY, KISS) | `reviews/2026-08-13-standards-review.md` |
 | 2026-08-21 | **Storage switched from RxDB to Dexie** | `plans/2026-08-21-dexie-switch.md` |
 
 The Dexie switch is the one to read first if you are new to the data layer: it

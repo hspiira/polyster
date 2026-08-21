@@ -3509,7 +3509,7 @@ Read:
 README.md
 docs/ARCHITECTURE.md
 docs/DESIGN_SYSTEM.md
-docs/IMPLEMENTATION_PLAN.md
+docs/STATUS.md
 ```
 
 before modifying architecture.
