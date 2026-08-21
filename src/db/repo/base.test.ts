@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDatabase, type PolysterDatabase } from '../dexie/database'
 import type { ClientDoc } from '../schema'
 import {
@@ -531,5 +531,122 @@ describe('nothingToRecord', () => {
     expect(
       nothingToRecord({ before: { name: 'a', updated_at: 'x' }, after: { name: 'b', updated_at: 'y' } }),
     ).toBe(false)
+  })
+})
+
+describe('the outbox', () => {
+  it('records a created row as owing the whole row', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+
+    const entries = await db.sync_outbox.toArray()
+    const forClient = entries.find((entry) => entry.store === 'clients')
+    expect(forClient).toMatchObject({
+      id: 'clients:c1',
+      store: 'clients',
+      row_id: 'c1',
+      operation: 'created',
+      fields: [],
+      attempts: 0,
+    })
+  })
+
+  it('records an update as owing only the fields that changed', async () => {
+    const db = fresh()
+    await insertRow(db.clients, { ...client('c1'), phone: '0700' }, 'shop-1')
+    await db.sync_outbox.clear()
+
+    await patchRow(db.clients, 'c1', { name: 'Grace' })
+
+    expect((await db.sync_outbox.get('clients:c1'))?.fields).toEqual(['name'])
+  })
+
+  /* Ten edits must not become ten pushes: the push reads the row as it stands,
+     so one entry carrying the union of fields is enough. */
+  it('collapses repeated edits into one entry, accumulating fields', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await db.sync_outbox.clear()
+
+    await patchRow(db.clients, 'c1', { name: 'Grace' })
+    await patchRow(db.clients, 'c1', { phone: '0700000123' })
+
+    const entries = (await db.sync_outbox.toArray()).filter((e) => e.store === 'clients')
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.fields).toEqual(expect.arrayContaining(['name', 'phone']))
+  })
+
+  // The push sends the whole row for a creation, so an edit before the first
+  // push has nothing to add.
+  it('keeps a row the server has never seen as created', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await patchRow(db.clients, 'c1', { name: 'Grace' })
+
+    expect((await db.sync_outbox.get('clients:c1'))?.operation).toBe('created')
+  })
+
+  it('lets a delete outrank a pending create or update', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await softDeleteRow(db.clients, 'c1')
+
+    expect((await db.sync_outbox.get('clients:c1'))?.operation).toBe('deleted')
+  })
+
+  it('queues nothing when a write changed nothing', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await db.sync_outbox.clear()
+
+    await patchRow(db.clients, 'c1', { name: 'Amina' })
+
+    expect(await db.sync_outbox.count()).toBe(0)
+  })
+
+  /* If recording the debt fails, the row must not exist either. Work recorded
+     without the debt would be lost silently, and nobody would know. */
+  it('does not keep the row when recording the debt fails', async () => {
+    const db = fresh()
+    await db.open()
+
+    // db.table(name) and db.<name> are different Table objects in Dexie, and the
+    // repository reaches the outbox through the first.
+    const spy = vi
+      .spyOn(db.table('sync_outbox'), 'put')
+      .mockImplementation(() => Promise.reject(new Error('outbox full')) as never)
+
+    await expect(insertRow(db.clients, client('c1'), 'shop-1')).rejects.toThrow(/outbox full/)
+    spy.mockRestore()
+
+    expect(await db.clients.get('c1')).toBeUndefined()
+    expect(await db.events.count()).toBe(0)
+  })
+
+  it('queues nothing when the write itself fails', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await db.sync_outbox.clear()
+
+    await expect(insertRow(db.clients, client('c1'), 'shop-1')).rejects.toThrow()
+    expect(await db.sync_outbox.count()).toBe(0)
+  })
+
+  /* Events are immutable, so the push finds them with a high-water mark on `at`.
+     Queueing them would double every outbox write for nothing. */
+  it('does not queue audit events, which push by high-water mark', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+
+    expect(await db.events.count()).toBeGreaterThan(0)
+    expect((await db.sync_outbox.toArray()).some((entry) => entry.store === 'events')).toBe(false)
+  })
+
+  it('carries the updated_at on the row, which is what orders competing edits', async () => {
+    const db = fresh()
+    const row = client('c1')
+    await insertRow(db.clients, row, 'shop-1')
+
+    expect((await db.sync_outbox.get('clients:c1'))?.updated_at).toBe(row.updated_at)
   })
 })

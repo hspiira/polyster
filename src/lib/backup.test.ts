@@ -34,9 +34,10 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
+/** Shop data only: sync bookkeeping is deliberately not restored. */
 async function snapshot(db: PolysterDatabase): Promise<Record<string, unknown[]>> {
   const out: Record<string, unknown[]> = {}
-  for (const store of STORE_NAMES) out[store] = await db.table(store).toArray()
+  for (const store of SYNCED_STORES) out[store] = await db.table(store).toArray()
   return out
 }
 
@@ -267,6 +268,23 @@ describe('restoreBackup', () => {
 
     expect(await snapshot(db)).toEqual(before)
     expect(report.rows).toBe(parsed.backup.rows)
+  })
+
+  /* A restored device has no standing with the server: the rows came from a
+     file, not from a sync. It has to push everything and pull everything. */
+  it('clears the sync bookkeeping, so the device starts over with the server', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    await createClient(db, shop.id, { name: 'Ama' })
+    await db.sync_cursors.put({ id: 'clients', pulled_through: 'x', at: 'x' })
+    expect(await db.sync_outbox.count()).toBeGreaterThan(0)
+
+    const parsed = parseBackup(await buildBackup(db))
+    if (!parsed.ok) throw new Error(parsed.error)
+    await restoreBackup(db, parsed.backup)
+
+    expect(await db.sync_outbox.count()).toBe(0)
+    expect(await db.sync_cursors.count()).toBe(0)
   })
 
   it('replaces what is there rather than merging into it', async () => {
