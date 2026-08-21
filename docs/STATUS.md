@@ -9,7 +9,9 @@ what happened in August.
 If you ship work and do not update this file in the same commit, it becomes
 actively misleading rather than merely incomplete. That has happened once.
 
-**Last revised:** 2026-08-21, after the storage switch.
+**Last revised:** 2026-08-22. Open items are now planned in
+`superpowers/plans/2026-08-22-durability-and-gaps.md`; this file stays the index
+of what is open, that file carries the sequencing and the decisions.
 
 ## Feature phases
 
