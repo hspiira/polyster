@@ -1,45 +1,10 @@
 /* Garment identity (§29), online-only. Generic: any tenant may track
    individual garments. */
 import { getSupabase } from '../lib/supabaseClient'
+export { GARMENT_UNIT_STATUSES } from '../db/schema'
+export type { GarmentUnitStatus, GarmentUnit } from '../db/schema'
+import type { GarmentUnitStatus, GarmentUnit } from '../db/schema'
 import { friendlyError } from './friendlyError'
-
-export type GarmentUnitStatus =
-  | 'produced'
-  | 'available'
-  | 'reserved'
-  | 'sold'
-  | 'returned'
-  | 'repair'
-  | 'retired'
-  | 'lost'
-  | 'damaged'
-
-export const GARMENT_UNIT_STATUSES: readonly GarmentUnitStatus[] = [
-  'produced',
-  'available',
-  'reserved',
-  'sold',
-  'returned',
-  'repair',
-  'retired',
-  'lost',
-  'damaged',
-]
-
-export interface GarmentUnit {
-  id: string
-  shop_id: string
-  product_variant_id: string
-  production_batch_id: string | null
-  serial_number: string
-  status: GarmentUnitStatus
-  customer_id: string | null
-  sold_at: string | null
-  /** Bearer of access to this unit's public passport page (section 34) -- never the id above. */
-  public_token: string
-  created_at: string
-  updated_at: string
-}
 
 export interface GarmentUnitInput {
   product_variant_id: string

@@ -3,22 +3,15 @@ import { uuidField } from './shared'
 
 // ---------------------------------------------------------------- expenses
 
-export type ExpenseCategory =
-  | 'materials'
-  | 'rent'
-  | 'wages'
-  | 'transport'
-  | 'utilities'
-  | 'other'
-
-export const EXPENSE_CATEGORIES: readonly ExpenseCategory[] = [
+export const EXPENSE_CATEGORIES = [
   'materials',
   'rent',
   'wages',
   'transport',
   'utilities',
   'other',
-]
+] as const
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number]
 
 /** Money out. Without it there is no profit, only revenue. */
 export interface ExpenseDoc {

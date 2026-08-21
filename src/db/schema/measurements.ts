@@ -1,8 +1,8 @@
 import type { RxJsonSchema } from 'rxdb'
 import { uuidField } from './shared'
 
-export type MeasurementFieldType = 'number' | 'text'
-export const MEASUREMENT_FIELD_TYPES: readonly MeasurementFieldType[] = ['number', 'text']
+export const MEASUREMENT_FIELD_TYPES = ['number', 'text'] as const
+export type MeasurementFieldType = (typeof MEASUREMENT_FIELD_TYPES)[number]
 
 export interface MeasurementFieldDoc {
   id: string

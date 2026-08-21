@@ -1,34 +1,9 @@
 /** Collections. Online-only, see catalogue.ts's header comment for why. */
 import { getSupabase } from '../lib/supabaseClient'
+export { COLLECTION_STATUSES } from '../db/schema'
+export type { CollectionStatus, Collection } from '../db/schema'
+import type { CollectionStatus, Collection } from '../db/schema'
 import { friendlyError } from './friendlyError'
-
-export type CollectionStatus = 'draft' | 'planned' | 'active' | 'sold_out' | 'archived'
-export const COLLECTION_STATUSES: readonly CollectionStatus[] = [
-  'draft',
-  'planned',
-  'active',
-  'sold_out',
-  'archived',
-]
-
-export interface Collection {
-  id: string
-  shop_id: string
-  name: string
-  code: string | null
-  description: string | null
-  status: CollectionStatus
-  release_date: string | null
-  cover_image_url: string | null
-  latitude: number | null
-  longitude: number | null
-  coordinate_label: string | null
-  story: string | null
-  tagline: string | null
-  production_limit: number | null
-  created_at: string
-  updated_at: string
-}
 
 export interface CollectionInput {
   name: string

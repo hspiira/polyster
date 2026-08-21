@@ -4,15 +4,11 @@ import { ORDER_STAGES, type OrderStage } from './orders'
 
 // ------------------------------------------------------------- message log
 
-export type MessageChannel = 'whatsapp' | 'sms' | 'call'
-export const MESSAGE_CHANNELS: readonly MessageChannel[] = ['whatsapp', 'sms', 'call']
+export const MESSAGE_CHANNELS = ['whatsapp', 'sms', 'call'] as const
+export type MessageChannel = (typeof MESSAGE_CHANNELS)[number]
 
-export type MessageTemplate = 'stage_update' | 'balance_reminder' | 'custom'
-export const MESSAGE_TEMPLATES: readonly MessageTemplate[] = [
-  'stage_update',
-  'balance_reminder',
-  'custom',
-]
+export const MESSAGE_TEMPLATES = ['stage_update', 'balance_reminder', 'custom'] as const
+export type MessageTemplate = (typeof MESSAGE_TEMPLATES)[number]
 
 /* Records intent to send, not delivery: a wa.me link hands off to WhatsApp and
    the app never learns what happened next. */

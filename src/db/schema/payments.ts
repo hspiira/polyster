@@ -4,11 +4,11 @@ import { ORDER_STAGES, type OrderStage } from './orders'
 
 // ---------------------------------------------------------------- payments
 
-export type PaymentMethod = 'cash' | 'mobile_money' | 'bank' | 'other'
-export const PAYMENT_METHODS: readonly PaymentMethod[] = ['cash', 'mobile_money', 'bank', 'other']
+export const PAYMENT_METHODS = ['cash', 'mobile_money', 'bank', 'other'] as const
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
 
-export type PaymentKind = 'payment' | 'refund'
-export const PAYMENT_KINDS: readonly PaymentKind[] = ['payment', 'refund']
+export const PAYMENT_KINDS = ['payment', 'refund'] as const
+export type PaymentKind = (typeof PAYMENT_KINDS)[number]
 
 export interface PaymentDoc {
   id: string

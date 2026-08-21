@@ -1,52 +1,9 @@
 /* Products, categories, variants. Online-only: queries Supabase directly rather
    than through RxDB, per supabaseClient.ts. */
 import { getSupabase } from '../lib/supabaseClient'
-
-export type ProductType = 'garment' | 'accessory' | 'service' | 'rental' | 'custom'
-export const PRODUCT_TYPES: readonly ProductType[] = [
-  'garment',
-  'accessory',
-  'service',
-  'rental',
-  'custom',
-]
-
-export interface ProductCategory {
-  id: string
-  shop_id: string
-  name: string
-  created_at: string
-  updated_at: string
-}
-
-export interface Product {
-  id: string
-  shop_id: string
-  category_id: string | null
-  collection_id: string | null
-  name: string
-  description: string | null
-  brand: string | null
-  product_type: ProductType
-  image_url: string | null
-  active: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface ProductVariant {
-  id: string
-  shop_id: string
-  product_id: string
-  sku: string
-  size: string | null
-  colour: string | null
-  price_minor: number
-  cost_minor: number
-  active: boolean
-  created_at: string
-  updated_at: string
-}
+export { PRODUCT_TYPES } from '../db/schema'
+export type { ProductType, ProductCategory, Product, ProductVariant } from '../db/schema'
+import type { ProductType, ProductCategory, Product, ProductVariant } from '../db/schema'
 
 function friendlyError(error: { code?: string; message: string }): Error {
   if (error.code === '23505') {

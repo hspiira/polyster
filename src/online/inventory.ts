@@ -1,62 +1,10 @@
 /* Inventory ledger, online-only. quantity is never written directly -- there is
    no UPDATE policy; recordMovement() inserts and a trigger applies it. */
 import { getSupabase } from '../lib/supabaseClient'
+export { MOVEMENT_TYPES } from '../db/schema'
+export type { ItemType, MovementType, InventoryItem, InventoryMovement } from '../db/schema'
+import type { ItemType, MovementType, InventoryItem, InventoryMovement } from '../db/schema'
 import { friendlyError } from './friendlyError'
-
-export type ItemType = 'product_variant' | 'material'
-
-export type MovementType =
-  | 'purchase'
-  | 'production'
-  | 'sale'
-  | 'order_reservation'
-  | 'order_fulfilment'
-  | 'return'
-  | 'damage'
-  | 'loss'
-  | 'adjustment'
-  | 'sample'
-  | 'repair'
-
-export const MOVEMENT_TYPES: readonly MovementType[] = [
-  'purchase',
-  'production',
-  'sale',
-  'order_reservation',
-  'order_fulfilment',
-  'return',
-  'damage',
-  'loss',
-  'adjustment',
-  'sample',
-  'repair',
-]
-
-export interface InventoryItem {
-  id: string
-  shop_id: string
-  item_type: ItemType
-  product_variant_id: string | null
-  material_id: string | null
-  quantity: number
-  unit: string
-  created_at: string
-  updated_at: string
-}
-
-export interface InventoryMovement {
-  id: string
-  shop_id: string
-  inventory_item_id: string
-  movement_type: MovementType
-  quantity: number
-  reference_type: string | null
-  reference_id: string | null
-  reason: string | null
-  notes: string | null
-  created_by: string | null
-  created_at: string
-}
 
 export async function listInventoryItems(shopId: string): Promise<InventoryItem[]> {
   const { data, error } = await getSupabase().from('inventory_items').select().eq('shop_id', shopId)

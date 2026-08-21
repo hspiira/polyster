@@ -1,43 +1,27 @@
 import type { RxJsonSchema } from 'rxdb'
 import { uuidField } from './shared'
 
-export type OrderType = 'tailor_made' | 'rental' | 'purchase' | 'pre_order' | 'repair'
-export type OrderStage =
-  | 'measured'
-  | 'in_progress'
-  | 'ready'
-  | 'picked_up'
-  | 'returned'
-  | 'cancelled'
-  /** Phase 9 (section 33), repair-only -- see orderStage.ts's FLOWS. */
-  | 'assessing'
-  | 'approved'
-  | 'repairing'
-
-export const ORDER_TYPES: readonly OrderType[] = [
-  'tailor_made',
-  'rental',
-  'purchase',
-  'pre_order',
-  'repair',
-]
-export const ORDER_STAGES: readonly OrderStage[] = [
+export const ORDER_TYPES = ['tailor_made', 'rental', 'purchase', 'pre_order', 'repair'] as const
+export type OrderType = (typeof ORDER_TYPES)[number]
+export const ORDER_STAGES = [
   'measured',
   'in_progress',
   'ready',
   'picked_up',
   'returned',
   'cancelled',
+  /** Repair-only -- see orderStage.ts's FLOWS. */
   'assessing',
   'approved',
   'repairing',
-]
+] as const
+export type OrderStage = (typeof ORDER_STAGES)[number]
 
 export const OPEN_STAGES: readonly OrderStage[] = ['measured', 'in_progress', 'ready']
 
 /** Phase 7 (section 32): who the order is for, orthogonal to order_type. */
-export type CustomerType = 'individual' | 'corporate'
-export const CUSTOMER_TYPES: readonly CustomerType[] = ['individual', 'corporate']
+export const CUSTOMER_TYPES = ['individual', 'corporate'] as const
+export type CustomerType = (typeof CUSTOMER_TYPES)[number]
 
 export interface OrderDoc {
   id: string

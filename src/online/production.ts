@@ -1,57 +1,9 @@
 /** Production batches and costing. Online-only, see catalogue.ts's header comment for why. */
 import { getSupabase } from '../lib/supabaseClient'
+export { BATCH_STATUSES, COST_TYPES } from '../db/schema'
+export type { BatchStatus, CostType, ProductionBatch, ProductionBatchCost } from '../db/schema'
+import type { BatchStatus, CostType, ProductionBatch, ProductionBatchCost } from '../db/schema'
 import { friendlyError } from './friendlyError'
-
-export type BatchStatus = 'planned' | 'materials_ready' | 'in_production' | 'quality_control' | 'completed' | 'cancelled'
-export const BATCH_STATUSES: readonly BatchStatus[] = [
-  'planned',
-  'materials_ready',
-  'in_production',
-  'quality_control',
-  'completed',
-  'cancelled',
-]
-
-export type CostType = 'materials' | 'labour' | 'transport' | 'packaging' | 'labels' | 'quality_control' | 'other'
-export const COST_TYPES: readonly CostType[] = [
-  'materials',
-  'labour',
-  'transport',
-  'packaging',
-  'labels',
-  'quality_control',
-  'other',
-]
-
-export interface ProductionBatch {
-  id: string
-  shop_id: string
-  product_id: string
-  batch_number: string
-  planned_quantity: number
-  produced_quantity: number
-  accepted_quantity: number
-  rejected_quantity: number
-  status: BatchStatus
-  started_at: string | null
-  completed_at: string | null
-  notes: string | null
-  rejected_reason: string | null
-  created_by: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface ProductionBatchCost {
-  id: string
-  shop_id: string
-  batch_id: string
-  cost_type: CostType
-  description: string | null
-  amount_minor: number
-  currency: string
-  created_at: string
-}
 
 export interface NewBatchInput {
   product_id: string

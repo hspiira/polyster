@@ -5,14 +5,14 @@ import { uuidField } from './shared'
 export const DEFAULT_COUNTRY = 'UG'
 
 /** Affects defaults and navigation only, never a permission boundary. */
-export type BusinessType = 'tailor' | 'rental' | 'apparel_brand' | 'corporate_supplier' | 'hybrid'
-export const BUSINESS_TYPES: readonly BusinessType[] = [
+export const BUSINESS_TYPES = [
   'tailor',
   'rental',
   'apparel_brand',
   'corporate_supplier',
   'hybrid',
-]
+] as const
+export type BusinessType = (typeof BUSINESS_TYPES)[number]
 
 export interface ShopDoc {
   id: string

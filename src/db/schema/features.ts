@@ -4,26 +4,7 @@ import { uuidField } from './shared'
 // -------------------------------------------------------- tenant features
 
 /** Gates navigation and optional workflows -- never the sole security mechanism. */
-export type FeatureKey =
-  | 'customers'
-  | 'measurements'
-  | 'orders'
-  | 'payments'
-  | 'expenses'
-  | 'sales'
-  | 'rentals'
-  | 'catalogue'
-  | 'inventory'
-  | 'suppliers'
-  | 'production'
-  | 'pre_orders'
-  | 'corporate_orders'
-  | 'collections'
-  | 'repairs'
-  | 'garment_identity'
-  | 'garment_passport'
-
-export const FEATURE_KEYS: readonly FeatureKey[] = [
+export const FEATURE_KEYS = [
   'customers',
   'measurements',
   'orders',
@@ -41,7 +22,8 @@ export const FEATURE_KEYS: readonly FeatureKey[] = [
   'repairs',
   'garment_identity',
   'garment_passport',
-]
+] as const
+export type FeatureKey = (typeof FEATURE_KEYS)[number]
 
 /** Used when a tenant has no override row for a key. */
 export const DEFAULT_FEATURE_FLAGS: Record<FeatureKey, boolean> = {

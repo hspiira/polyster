@@ -3,8 +3,8 @@ import { uuidField } from './shared'
 
 // ------------------------------------------------------------- order units
 
-export type FabricSource = 'client' | 'shop'
-export const FABRIC_SOURCES: readonly FabricSource[] = ['client', 'shop']
+export const FABRIC_SOURCES = ['client', 'shop'] as const
+export type FabricSource = (typeof FABRIC_SOURCES)[number]
 
 export interface OrderUnitDoc {
   id: string

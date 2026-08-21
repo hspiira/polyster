@@ -1,23 +1,11 @@
 import type { RxJsonSchema } from 'rxdb'
 import { uuidField } from './shared'
 
-export type StaffRole = 'owner' | 'manager' | 'staff'
-export const STAFF_ROLES: readonly StaffRole[] = ['owner', 'manager', 'staff']
+export const STAFF_ROLES = ['owner', 'manager', 'staff'] as const
+export type StaffRole = (typeof STAFF_ROLES)[number]
 
 /** Phase 12's own list (section 11) -- the "future permissions" it names explicitly. */
-export type PermissionKey =
-  | 'orders.create'
-  | 'orders.edit'
-  | 'orders.cancel'
-  | 'payments.create'
-  | 'payments.refund'
-  | 'inventory.view'
-  | 'inventory.adjust'
-  | 'production.manage'
-  | 'expenses.create'
-  | 'reports.view'
-
-export const PERMISSION_KEYS: readonly PermissionKey[] = [
+export const PERMISSION_KEYS = [
   'orders.create',
   'orders.edit',
   'orders.cancel',
@@ -28,7 +16,8 @@ export const PERMISSION_KEYS: readonly PermissionKey[] = [
   'production.manage',
   'expenses.create',
   'reports.view',
-]
+] as const
+export type PermissionKey = (typeof PERMISSION_KEYS)[number]
 
 export interface StaffDoc {
   id: string
