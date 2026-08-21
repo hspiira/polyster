@@ -109,6 +109,36 @@ try {
   ]).trim()
   if (stray) problems.push(`uuid columns that should be text: ${stray.split('\n').join(', ')}`)
 
+  /* Every synced table carries the same three columns. The sync engine has one
+     code path, so a table missing one would be silently skipped or crash it. */
+  const SYNC_COLUMNS = ['updated_at', 'deleted_at', '_modified']
+  for (const column of SYNC_COLUMNS) {
+    const without = psql([
+      '-t',
+      '-A',
+      '-c',
+      `select t.tablename from pg_tables t
+        where t.schemaname='public'
+          and not exists (
+            select 1 from information_schema.columns c
+             where c.table_schema='public' and c.table_name=t.tablename
+               and c.column_name='${column}')
+        order by 1`,
+    ]).trim()
+    if (without) problems.push(`tables with no ${column}: ${without.split('\n').join(', ')}`)
+  }
+
+  const leftoverDeleted = psql([
+    '-t',
+    '-A',
+    '-c',
+    `select table_name from information_schema.columns
+      where table_schema='public' and column_name='_deleted' order by 1`,
+  ]).trim()
+  if (leftoverDeleted) {
+    problems.push(`_deleted should be deleted_at: ${leftoverDeleted.split('\n').join(', ')}`)
+  }
+
   const counts = psql([
     '-t',
     '-A',
