@@ -31,6 +31,9 @@ adapter, and ships `liveQuery`.
 | D2 | Every collection local | Keep the eleven feature areas online-only | The premise is offline-first. Nothing here is big: rows are small and images are URLs, not bytes. |
 | D3 | Images stay remote | Cache image bytes locally | `image_url` is a URL. The record is local and useful offline; the picture is not. Caching bytes is a separate decision with a real size cost. |
 | D4 | Replication is not ported | Rebuild it as part of the switch | It is deterministically broken today for object-typed columns (below), and a real design needs an account model first. Backup/restore covers the gap. |
+| D6 | One append-only `events` store | Per-table `updated_by` columns | There is no general audit today: `order_stage_history` covers one event type, nine of eighteen schema modules carry no attribution, and twenty of forty-one writes never take a staffId. Roles shipped in Phase 12 without a log. |
+| D7 | `expense_categories` and `material_types` become tables | Keep them as closed enums | `measurement_fields` and `product_categories` already work this way. The constants seed a new shop rather than capping it. |
+| D8 | Ids are cuid2 | Keep uuid v4 | 24 url-safe characters against 36, no timestamp leaked, and no central authority for a device offline for days. |
 | D5 | Soft delete becomes explicit | Keep an RxDB-shaped `_deleted` | Dexie has no soft-delete semantics. `deleted_at` on the row, filtered in the repository layer, not at 98 call sites. |
 
 ## What is actually being replaced
@@ -48,9 +51,12 @@ Measured, not estimated.
 | Schema validation | dev-mode ajv | Zod at the write boundary. `src/db/writes/` is already the only way in. |
 | Cross-collection transaction | **does not exist** — `writes.ts` orders writes to work around it | Gained: `db.transaction('rw', ...)` across stores. |
 
-## The 24 collections after the switch
+## The 27 stores after the switch
 
-The 13 already local, plus the 11 tables `src/online/` reads:
+The 13 already local, the 11 tables `src/online/` reads, and 3 new (D6, D7):
+
+`events` · `expense_categories` · `material_types`
+
 
 `products` · `product_variants` · `product_categories` · `collections` ·
 `garment_units` · `inventory_items` · `inventory_movements` · `materials` ·
@@ -60,8 +66,10 @@ The 13 already local, plus the 11 tables `src/online/` reads:
 working offline the moment they are local.
 
 **Size review, per D2.** Every one of these is small rows with no blobs.
-`inventory_movements` is the only unbounded ledger and a movement is one short
-row. Nothing here justifies staying remote.
+`inventory_movements` and `events` are the two unbounded ledgers, and a row of
+either is a couple of hundred bytes -- a hundred events a day is roughly 7MB a
+year against an IndexedDB quota in the hundreds of MB. Local, and a prune path
+is a later decision rather than a blocker.
 
 ## Phases
 
@@ -120,6 +128,12 @@ the screen. Independent of each other, so they can land in any order.
 **A big-bang cutover has no A/B.** That is the accepted cost of D1. Phase 2's
 import is the mitigation that matters: while the old RxDB databases still exist,
 a bad release is recoverable by reverting the code.
+
+**cuid2 finishes what D4 started, sooner than D4 did.** Postgres rejects a
+non-uuid string in a `uuid` column, so from the cuid2 commit onward no new row
+can push at all -- where before it was only rows carrying an object-typed field.
+D4 already accepted losing replication; this makes the loss immediate rather
+than at Phase 5, and it means Phase 5 must not be left half-finished.
 
 **Replication is not being ported (D4).** Today it is already broken for
 `order_units.measurements`, `measurement_profiles.values` and
