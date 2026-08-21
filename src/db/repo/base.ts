@@ -324,3 +324,40 @@ export async function getRow<T extends { id: string }>(
 ): Promise<Stored<T> | null> {
   return present(await rows(table).get(id))
 }
+
+/* Retracts a row that cannot be cancelled by a negative one: stamps who voided
+   it and why, and soft-deletes it, as one change with one event. */
+export async function voidRow<T extends { id: string }>(
+  table: Rows<T>,
+  id: string,
+  input: { reason?: string; staffId?: string } = {},
+): Promise<void> {
+  const events = eventsOf(table)
+
+  await table.db.transaction('rw', [table, events], async () => {
+    const before = await rows(table).get(id)
+    if (gone(before)) return
+
+    const timestamp = now()
+    const next = {
+      ...(before as Stored<T>),
+      voided_at: timestamp,
+      deleted_at: timestamp,
+      ...(input.staffId ? { voided_by: input.staffId } : {}),
+      ...(input.reason?.trim() ? { void_reason: input.reason.trim() } : {}),
+    } as Stored<T>
+    await rows(table).put(next)
+
+    await events.add(
+      buildEvent({
+        shop_id: shopIdOf(next) ?? '',
+        entity: table.name,
+        entity_id: id,
+        action: 'deleted',
+        before: asRecord(before),
+        after: asRecord(next),
+        ...(input.reason?.trim() ? { summary: input.reason.trim() } : {}),
+      }),
+    )
+  })
+}
