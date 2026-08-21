@@ -12,8 +12,7 @@ import {
 } from '../ui'
 import { IllustrationOrders } from '../components/illustrations'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { useQuery } from '../hooks/useQuery'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDueDate, today } from '../lib/dates'
 import { ORDER_TYPE_ICONS, ORDER_TYPE_LABELS, STAGE_LABELS, STAGE_TONES } from './orderStage'
@@ -26,6 +25,7 @@ import {
   rowsDueOn,
   type DueRow,
 } from './today/todayModel'
+import { observeClients, observeOrders, observeShopBalances } from '../db/repo'
 
 /** Scopes the tab row offers. */
 type Segment = 'open' | 'overdue' | 'ready' | 'owing' | 'all'
@@ -165,22 +165,13 @@ export function Orders() {
 
   const scope = readScope(location.query as Record<string, string>)
 
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id }, sort: [{ pickup_due_date: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const orders = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
-  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
   const clientNames = useMemo(
-    () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
-    [clientDocs],
+    () => new Map(clientRows.map((doc) => [doc.id, doc.name])),
+    [clientRows],
   )
 
   // Shared by the list and the tab counts, computed once: two derivations of

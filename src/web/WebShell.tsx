@@ -7,7 +7,7 @@ import { CommandPalette } from './CommandPalette'
 import { Sidebar } from './Sidebar'
 import { useShortcuts } from './useShortcuts'
 import type { AuthState } from '../lib/auth'
-import type { ReplicationStatus } from '../hooks/useReplication'
+import type { ReplicationStatus } from '../lib/syncState'
 
 const TodayPage = lazy(() => import('./TodayPage').then((m) => m.TodayPage))
 const OrdersPage = lazy(() => import('./OrdersPage').then((m) => m.OrdersPage))

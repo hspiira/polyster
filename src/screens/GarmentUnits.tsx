@@ -1,6 +1,6 @@
-/* Garment identity (§29), online-only. Any tenant may track individual
-   garments, gated behind the garment_identity flag. */
-import { useEffect, useMemo, useState } from 'preact/hooks'
+/* Garment identity (§29). Any tenant may track individual garments, gated
+   behind the garment_identity flag. */
+import { useMemo, useState } from 'preact/hooks'
 import {
   Button,
   Card,
@@ -13,28 +13,31 @@ import {
   Screen,
   Select,
   Sheet,
-  Skeleton,
 } from '../ui'
 import { IconChevronRight, IconFingerprint, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
+import { useQuery } from '../hooks/useQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
-import { withTimeout } from '../lib/withTimeout'
-import { listAllProductVariants, listProducts, type Product, type ProductVariant } from '../online/catalogue'
-import { listProductionBatches, type ProductionBatch } from '../online/production'
 import { garmentPassportUrl } from '../online/garmentPassport'
 import {
   GARMENT_UNIT_STATUSES,
-  createGarmentUnit,
-  listGarmentUnits,
-  updateGarmentUnit,
   type GarmentUnit,
-  type GarmentUnitInput,
   type GarmentUnitStatus,
-} from '../online/garmentUnits'
+  type ProductVariant,
+  type ProductionBatch,
+} from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
+import {
+  createGarmentUnit,
+  observeAllProductVariants,
+  observeClients,
+  observeGarmentUnits,
+  observeProductionBatches,
+  observeProducts,
+  updateGarmentUnit,
+  type GarmentUnitInput,
+} from '../db/repo'
 
 const STATUS_LABELS: Record<GarmentUnitStatus, string> = {
   produced: 'Produced',
@@ -60,49 +63,15 @@ interface GarmentUnitDraft {
 export function GarmentUnits() {
   const back = useBack()
   const { db, shop } = useCurrentShop()
-  const online = useOnlineFeature()
   const flags = useFeatureFlags(db, shop.id)
-  const [units, setUnits] = useState<GarmentUnit[] | null>(null)
-  const [variants, setVariants] = useState<ProductVariant[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [batches, setBatches] = useState<ProductionBatch[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<GarmentUnit | null>(null)
 
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id }, sort: [{ name: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clients = useMemo(() => clientDocs.map((doc) => doc.toJSON()), [clientDocs])
-
-  async function reload() {
-    try {
-      const [unitList, variantList, productList, batchList] = await withTimeout(
-        Promise.all([
-          listGarmentUnits(shop.id),
-          listAllProductVariants(shop.id),
-          listProducts(shop.id),
-          listProductionBatches(shop.id),
-        ]),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      setUnits(unitList)
-      setVariants(variantList)
-      setProducts(productList)
-      setBatches(batchList)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load garment units.')
-    }
-  }
-
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, shop.id])
+  const clients = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const units = useQuery(() => observeGarmentUnits(db, shop.id), [db, shop.id], [])
+  const variants = useQuery(() => observeAllProductVariants(db, shop.id), [db, shop.id], [])
+  const products = useQuery(() => observeProducts(db, shop.id), [db, shop.id], [])
+  const batches = useQuery(() => observeProductionBatches(db, shop.id), [db, shop.id], [])
 
   const variantLabel = useMemo(() => {
     const productName = new Map(products.map((p) => [p.id, p.name]))
@@ -121,41 +90,19 @@ export function GarmentUnits() {
     return (id: string | null) => (id ? (byId.get(id) ?? 'Unknown client') : null)
   }, [clients])
 
-  if (!online) {
-    return (
-      <Screen title="Garment identity" back={back}>
-        <EmptyState
-          spacious
-          illustration={<IconFingerprint size={48} />}
-          title="No connection"
-          description="Garment identity lives on the server, so this needs a connection to load."
-        />
-      </Screen>
-    )
-  }
-
   return (
     <>
       <Screen
         title="Garment identity"
         back={back}
         action={
-          units && units.length > 0 && variants.length > 0 ? (
+          units.length > 0 && variants.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />
           ) : undefined
         }
       >
         <div class="space-y-4">
-          {loadError && <ErrorNote>{loadError}</ErrorNote>}
-
-          {units === null && !loadError && (
-            <div class="space-y-2">
-              <Skeleton class="h-14" />
-              <Skeleton class="h-14" />
-            </div>
-          )}
-
-          {units && variants.length === 0 && (
+          {variants.length === 0 && (
             <EmptyState
               spacious
               illustration={<IconFingerprint size={48} />}
@@ -164,7 +111,7 @@ export function GarmentUnits() {
             />
           )}
 
-          {units && variants.length > 0 && units.length === 0 && (
+          {variants.length > 0 && units.length === 0 && (
             <EmptyState
               spacious
               illustration={<IconFingerprint size={48} />}
@@ -214,7 +161,6 @@ export function GarmentUnits() {
         clients={clients}
         variantLabel={variantLabel}
         onClose={() => setAdding(false)}
-        onSaved={reload}
       />
       {editing && (
         <GarmentUnitSheet
@@ -226,8 +172,7 @@ export function GarmentUnits() {
           variantLabel={variantLabel}
           passportEnabled={flags.garment_passport}
           onClose={() => setEditing(null)}
-          onSaved={reload}
-        />
+          />
       )}
     </>
   )
@@ -242,7 +187,6 @@ function GarmentUnitSheet({
   variantLabel,
   passportEnabled,
   onClose,
-  onSaved,
 }: {
   open: boolean
   unit?: GarmentUnit
@@ -252,9 +196,8 @@ function GarmentUnitSheet({
   variantLabel: (variantId: string) => string
   passportEnabled?: boolean
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const [copied, setCopied] = useState(false)
   const { draft, set } = useDraft<GarmentUnitDraft>(() => ({
     variantId: unit?.product_variant_id ?? variants[0]?.id ?? '',
@@ -289,12 +232,11 @@ function GarmentUnitSheet({
     }
     try {
       if (unit) {
-        await updateGarmentUnit(unit.id, input)
+        await updateGarmentUnit(db, unit.id, input)
       } else {
-        await createGarmentUnit(shop.id, input)
+        await createGarmentUnit(db, shop.id, input)
       }
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this garment unit.')
     } finally {

@@ -1,6 +1,5 @@
-/* Collections, online-only. Generic: the optional story fields are for any
-   tenant (§21). */
-import { useEffect, useState } from 'preact/hooks'
+/* Collections, on the device. The optional story fields are for any tenant. */
+import { useState } from 'preact/hooks'
 import {
   Button,
   Card,
@@ -13,25 +12,20 @@ import {
   Screen,
   Select,
   Sheet,
-  Skeleton,
   Textarea,
 } from '../ui'
 import { IconChevronRight, IconPlus, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
+import { useQuery } from '../hooks/useQuery'
 import { ImageUploadField } from './ImageUploadField'
 import {
-  COLLECTION_STATUSES,
   createCollection,
-  deleteCollectionImage,
-  listCollections,
+  observeCollections,
   updateCollection,
-  uploadCollectionImage,
-  type Collection,
   type CollectionInput,
-  type CollectionStatus,
-} from '../online/collections'
+} from '../db/repo'
+import { deleteCollectionImage, uploadCollectionImage } from '../online/images'
+import { COLLECTION_STATUSES, type Collection, type CollectionStatus } from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
 
@@ -60,39 +54,11 @@ interface CollectionDraft {
 
 export function Collections() {
   const back = useBack()
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-  const [collections, setCollections] = useState<Collection[] | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Collection | null>(null)
 
-  async function reload() {
-    try {
-      const list = await withTimeout(
-        listCollections(shop.id),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      setCollections(list)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load collections.')
-    }
-  }
-
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, shop.id])
-
-  if (!online) {
-    return (
-      <Screen title="Collections" back={back}>
-        <EmptyState spacious illustration={<IconTag size={48} />} title="No connection" description="Collections live on the server, so this needs a connection to load." />
-      </Screen>
-    )
-  }
+  const collections = useQuery(() => observeCollections(db, shop.id), [db, shop.id], [])
 
   return (
     <>
@@ -100,22 +66,13 @@ export function Collections() {
         title="Collections"
         back={back}
         action={
-          collections && collections.length > 0 ? (
+          collections.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />
           ) : undefined
         }
       >
         <div class="space-y-4">
-          {loadError && <ErrorNote>{loadError}</ErrorNote>}
-
-          {collections === null && !loadError && (
-            <div class="space-y-2">
-              <Skeleton class="h-14" />
-              <Skeleton class="h-14" />
-            </div>
-          )}
-
-          {collections && collections.length === 0 && (
+          {collections.length === 0 && (
             <EmptyState
               spacious
               illustration={<IconTag size={48} />}
@@ -163,13 +120,13 @@ export function Collections() {
         </div>
       </Screen>
 
-      <CollectionSheet open={adding} onClose={() => setAdding(false)} onSaved={reload} />
+      <CollectionSheet open={adding} onClose={() => setAdding(false)} />
       {editing && (
         <CollectionSheet
           open={Boolean(editing)}
           collection={editing}
           onClose={() => setEditing(null)}
-          onSaved={reload}
+         
         />
       )}
     </>
@@ -180,14 +137,12 @@ function CollectionSheet({
   open,
   collection,
   onClose,
-  onSaved,
 }: {
   open: boolean
   collection?: Collection
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const { draft, set } = useDraft<CollectionDraft>(() => ({
     name: collection?.name ?? '',
     code: collection?.code ?? '',
@@ -229,12 +184,11 @@ function CollectionSheet({
     }
     try {
       if (collection) {
-        await updateCollection(collection.id, input)
+        await updateCollection(db, collection.id, input)
       } else {
-        await createCollection(shop.id, input)
+        await createCollection(db, shop.id, input)
       }
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this collection.')
     } finally {

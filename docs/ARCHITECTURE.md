@@ -5,7 +5,11 @@
 **Last revised:** 2026-07-30 (Phase 1 steps 1-10; corrections in section 10)
 **Deciders:** Ahum
 
-This is the consolidated architecture reference and the current record of *what* the system is. It draws together decisions made across three earlier working documents -- `pwa-research-notes.md`, `pwa-schema-and-screens.md`, and `pwa-stack-options.md` -- which remain the record of *why*, with full source citations. Where any of those disagrees with this document, this document wins; the disagreements are listed in section 10.
+This is the architecture reference and the record of both *what* the system is
+and *why*. It absorbed three pre-build working documents (research notes, stack
+options, schema and screens) when the last of their open questions closed; where
+they had been contradicted by the build, the contradictions are kept in section
+10 rather than quietly dropped.
 
 
 ## 1. System overview
@@ -15,68 +19,74 @@ This is one product, not two custom builds. Any number of independent cloth tail
 The core design constraint is that the app must keep working with no internet connection, because it's used shop-floor, day-to-day, in conditions where connectivity can't be assumed. Everything else -- the choice of local database, the sync mechanism, the choice not to depend on push notifications, and the decision to compute balances client-side rather than read a server view -- follows from that constraint.
 
 ```
-                        ┌──────────────────────────────┐
-                        │   Browser / installed PWA     │
-                        │                               │
-                        │  Preact UI  <-->  RxDB (local)│
-                        │                     │         │
-                        └─────────────────────┼─────────┘
-                                              │  replication
-                                              │  (online + authenticated only)
-                                              ▼
-                        ┌──────────────────────────────┐
+                        ┌───────────────────────────────┐
+                        │   Browser / installed PWA      │
+                        │                                │
+                        │  Preact UI  <-->  Dexie        │
+                        │                   (IndexedDB)  │
+                        └────────────────────┼───────────┘
+                                             │  image upload and the
+                                             │  public passport only
+                                             ▼
+                        ┌───────────────────────────────┐
                         │           Supabase            │
-                        │  Postgres + Auth + Realtime   │
-                        │  + Storage (catalogue photos) │
-                        └──────────────────────────────┘
+                        │  Postgres + Auth + Storage    │
+                        └───────────────────────────────┘
 
               Static assets (HTML/JS/CSS, service worker)
               served from:  Cloudflare Pages
 ```
 
-The app always reads and writes to the local RxDB store first. Supabase is a sync partner, not the primary source of truth from the app's point of view -- this is the "local-first" pattern documented in `pwa-research-notes.md` section 8, and it's what makes offline use a first-class case rather than a fallback state.
+Every screen reads and writes the device. There is no code path where rendering
+a screen waits on the network.
 
-**That applies to the core, not to everything.** See section 1a: the modules added from Phase 2 onward talk to Supabase directly and do not work offline at all.
 
+## 1a. One data path
 
-## 1a. Two data paths: local-first core, online-only modules
+The app was two paths until the Dexie switch: an offline core, and eleven
+back-office areas that queried Supabase directly and were blank without a
+connection. Both are now one. Every table lives on the device, and
+`src/db/dexie/stores.ts` is the authoritative list.
 
-This document described a wholly offline-first app, and that stopped being true at Phase 2. Anyone reading section 1 alone and building a new module the way it describes will build the wrong thing.
+What still needs the network, and why each earns it:
 
-**Local-first (RxDB, replicated, works offline).** Customers, orders, order units, payments, staff, measurements, message log, sales, expenses, and their derivations. This is the shop-floor path: it is what a tailor uses with no signal, and it is the only data that a device holds a copy of. `REPLICATED_TABLES` in `src/db/replication.ts` is the authoritative list.
+- **Image upload** (`src/online/images.ts`). A product or collection photo is a
+  URL the shop shares; holding megabytes of it on a phone buys nothing.
+- **The garment passport** (`src/online/garmentPassport.ts`). Read by anonymous
+  visitors, so it is a server function -- that function is the whole security
+  boundary, and it cannot live on the device that is being read *about*.
 
-**Online-only (`src/online/`, no local copy).** Catalogue and product variants, suppliers, materials, inventory, production batches and costing, collections, garment units and the passport, and advanced reporting analytics. These call PostgREST directly and are gated by `useOnlineFeature()` (`src/hooks/useOnlineFeature.ts`), which is simply online *and* Supabase configured.
-
-Why the split: these modules are back-office work done sitting down, on a connection, by an apparel brand rather than a counter tailor. Giving each one an RxDB schema, a migration strategy, replication config and a conflict story would have cost that for a case nobody has. The tradeoff is real and worth stating plainly: **these screens are blank without a connection**, and no amount of service worker caching changes that.
-
-Two consequences that matter when extending the app:
-
-- A new module has to pick a path deliberately. The wrong default is expensive either way: an offline-first module that did not need to be carries a migration burden forever, and an online-only module that shop staff need on the floor is useless the first time the signal drops.
-- The offline conflict question in section 3 does not arise for the online-only path, because there is no second copy to diverge. That is why the Phase 2 double-booking problem in `IMPLEMENTATION_PLAN.md` was dissolved rather than decided.
+Neither is on the shop-floor path. A tailor with no signal can take an order,
+record a payment, move stock and close a batch.
 
 
 ## 2. Components
 
 **Frontend (Preact + Vite).** A single-page app, no server-side rendering. Chosen specifically because this app has no SEO surface (it sits behind a login, nothing here is ever meant to be indexed) and no server-rendering need -- see decision D2 below. `vite-plugin-pwa` (Workbox-based) generates the manifest and service worker that make the app installable and cache the app shell.
 
-**Local data layer (RxDB + Dexie.js storage).** Runs entirely in the browser on top of IndexedDB. Holds the working copy of every table the current shop can see. All UI reads and writes go through RxDB, never directly to Supabase -- this is what makes the UI stay responsive and functional offline.
+**Local data layer (Dexie on IndexedDB).** Runs entirely in the browser. Holds every table the current shop can see. Screens go through `src/db/repo/`, never `src/db/dexie/` and never Supabase; the repository layer is the only thing that knows a row can be soft-deleted, and the only thing that writes the audit log.
 
-**Backend (Supabase).** Postgres database (source of truth once synced), Auth (one account per shop, used for Row Level Security), Realtime (pushes changes to other devices on the same shop live), and Storage (catalogue item photos, Phase 2 only). No custom server is written or run for this app.
+**Backend (Supabase).** Auth (one account per shop), Storage (catalogue and collection photos), and one Postgres function behind the public garment passport. The schema and its Row Level Security policies are still maintained -- see section 11 for what that leaves unresolved. No custom server is written or run for this app.
 
 **Hosting (Cloudflare Pages).** Serves the built static assets. Chosen for unlimited free-tier bandwidth and CDN reach, both of which matter for a public, install-anywhere PWA with usage patterns that are hard to predict in advance.
 
-**Sync layer (RxDB Supabase replication plugin).** Bidirectional: pulls remote changes via PostgREST and Supabase Realtime, pushes local changes the same way, and reconciles using a `_modified` timestamp per row. Runs whenever the device has connectivity *and* a live session; does nothing otherwise, and the app never waits on it.
+**Sync layer.** None. Replication was dropped with RxDB and has not been rebuilt; `src/lib/syncState.ts` reports `idle` so the badge tells the truth rather than implying a sync that cannot happen. A backup file (D7) is the only way data leaves a device. Section 11 states what that costs.
 
 
 ## 3. Data flow
 
-**Normal write (online):** Staff action → written to local RxDB → UI updates immediately from the local write → replication plugin pushes the change to Supabase in the background → Supabase Realtime notifies any other device currently open on that shop → their RxDB updates → their UI updates. The person who made the change never waits for this round trip; everyone else sees it arrive live.
+**Write:** Staff action → a repository function writes the row and its audit
+event in one Dexie transaction → every live query touching those tables
+re-emits → the UI updates. Connectivity does not enter into it, so there is no
+second path to get wrong.
 
-**Write while offline:** Staff action → written to local RxDB → UI updates immediately, exactly as above. The change sits unsynced until connectivity returns, at which point the replication plugin pushes it automatically. Nothing in the UI needs to know or care whether the device is currently online -- but the UI does *show* it (see section 9).
+**Read:** always a `liveQuery` over the local stores, built in `src/db/repo/`
+and subscribed with `useQuery`. A screen never blocks on a network call to
+render.
 
-**Conflict case:** two staff members edit the same order while both offline, then both reconnect. Rare in practice but not impossible. The Supabase replication plugin's conflict handling applies here -- still an untested assumption, and still a Phase 0 verification item.
-
-**Read (dashboard, lists, balances):** always served from local RxDB via reactive queries. A screen never blocks on a network call to render.
+**Conflict case:** does not arise while there is one device and no
+replication. It returns the day sync does, and section 11 records that it is
+unresolved rather than solved.
 
 
 ## 4. Multi-tenancy and security model
@@ -101,7 +111,7 @@ If an SMS or WhatsApp provider is bought later, OTP returns as one more method o
 
 ## 5. Data model summary
 
-Full field-level definitions live in `pwa-schema-and-screens.md`. Summary for orientation:
+Field-level definitions are the row types in `src/db/schema/` and the DDL in `supabase/migrations/`. Summary for orientation:
 
 | Table | Purpose |
 |---|---|
@@ -118,27 +128,27 @@ Full field-level definitions live in `pwa-schema-and-screens.md`. Summary for or
 
 ### Balances are computed on the client
 
-`order_balances` exists in Postgres and the app does not read it. RxDB replicates tables, not views, so a balance read from the view is a live network call on the order detail screen -- the screen most likely to be open with no connectivity. `src/db/balances.ts` derives the same figure from the already-replicated `payments` collection, applying the same two rules the view applies (soft-deleted payments excluded; no payments means zero, not null) and summing in integer minor units so floating-point error cannot make a fully-paid order show a balance of 0.0000000001.
+`order_balances` exists in Postgres and the app does not read it. A balance read from a view is a live network call on the order detail screen -- the screen most likely to be open with no connectivity. `src/db/balances.ts` derives the same figure from the local `payments` store, applying the same two rules the view applies (soft-deleted payments excluded; no payments means zero, not null) and summing in integer minor units so floating-point error cannot make a fully-paid order show a balance of 0.0000000001. The live versions are in `src/db/repo/balances.ts`.
 
 Keeping two implementations of one calculation is a real cost. It is accepted because the alternative is a screen that stops working offline, and the calculation is small enough to unit-test exhaustively (`src/db/balances.test.ts`).
 
 ### `_modified` and `_deleted` are Postgres columns only
 
-Every synced table carries `_modified` (timestamp) and `_deleted` (boolean, soft delete). These are a requirement of the RxDB-Supabase replication protocol.
+Postgres keeps `_modified` and `_deleted` for whenever sync is rebuilt. On the device neither exists: a removed row carries `deleted_at`, an ordinary nullable column with no special meaning to the storage engine, and `src/db/repo/base.ts` is the only place that reads it. Every query goes through that layer, so no screen has to remember to filter.
 
-**Neither is declared in the RxDB collection schemas.** RxDB rejects top-level fields beginning with `_` other than `_id` and `_deleted`, and it does so only when the dev-mode plugin is loaded -- which is development and tests, but not a production build. Getting this wrong therefore breaks `pnpm dev` while `vite build` passes clean. The first scaffold shipped exactly that bug. See `src/db/schema.ts` for the full reasoning and `src/db/database.test.ts` for the test that now prevents its return.
+The importer that brings a shop off the old RxDB databases is the one thing that still knows the old shape -- including that RxDB stored `_deleted` as the string `"1"`, not a boolean. `src/db/dexie/importRow.ts` has the property tests for it.
 
 `_modified` is server-owned in any case: a BEFORE trigger sets it, and the replication plugin strips it from every pushed row.
 
 
 ## 6. Key decisions (summary)
 
-Full trade-off writeups and sources are in `pwa-research-notes.md` and `pwa-stack-options.md`.
+
 
 | # | Decision | Chosen | Rejected alternatives | Why |
 |---|---|---|---|---|
-| D1 | Local data layer + sync | RxDB + Supabase (Postgres) | Plain Dexie (no sync), Firebase Firestore, PouchDB/CouchDB | Needed real multi-device sync once multi-staff shops entered scope; Supabase avoids both a self-hosted server (CouchDB) and vendor lock to a proprietary format (Firestore). |
-| D2 | Frontend framework | **Preact (settled 2026-07-30)** | Svelte, plain React, Next.js, vanilla JS | React-shaped API keeps ecosystem and maintainability high while staying small. Svelte was the leaner alternative; the bundle difference is smaller in practice than the isolated benchmark suggests once RxDB is in the build. Next.js rejected: no SSR/SEO need behind auth, and its server-oriented model fights an offline-first design. |
+| D1 | Local data layer | **Dexie on IndexedDB (settled 2026-08-21)** | RxDB (what this replaced), Firebase Firestore, PouchDB/CouchDB | RxDB's free tier caps a database at 13 collections, counted across every open instance. The app sat exactly at the cap, which is why eleven feature areas were pushed online-only in an app whose whole point is working offline. IndexedDB has no such limit and gives atomic multi-store transactions, which RxDB never had. The cost is that replication went with it -- see the sync layer in section 2. |
+| D2 | Frontend framework | **Preact (settled 2026-07-30)** | Svelte, plain React, Next.js, vanilla JS | React-shaped API keeps ecosystem and maintainability high while staying small. Next.js rejected: no SSR/SEO need behind auth, and its server-oriented model fights an offline-first design. |
 | D3 | Hosting | Cloudflare Pages | Vercel, Netlify | Unlimited free-tier bandwidth removes surprise-bill risk; strongest CDN reach helps first-load speed on weak connections. |
 | D4 | Auth model | One Supabase account per shop + app-level staff PIN | Individual Supabase accounts per staff member | PIN is far lower friction for a 1-3 person shop opening the app dozens of times a day; explicitly not a hard security boundary (section 4). |
 | D5 | Reminders | In-app "due today" dashboard | OS push notifications | Push reliability on iOS is conditional and fundamentally can't be guaranteed for an offline-first app anyway. |
@@ -149,7 +159,7 @@ Full trade-off writeups and sources are in `pwa-research-notes.md` and `pwa-stac
 | D10 | Expired session while offline | Keep the app fully usable, disable sync, say so in the UI | Force re-login | An app whose premise is "works with no internet" cannot lock the till because a JWT aged out overnight. Section 7. |
 | D11 | Staff PIN hashing (new) | PBKDF2-HMAC-SHA256, per-staff 16-byte salt, 210,000 iterations, self-describing hash string | Plain digest; Argon2id | The PIN is not a security boundary, but the hash replicates to every device and people reuse four-digit numbers. A slow KDF costs the shop nothing (verified once per session) and turns an instant sweep of 10,000 candidates into one with a price. Argon2id means shipping WASM to a low-bandwidth device, which is not worth it here. See `src/lib/pin.ts`. |
 | D12 | Routing (new) | `preact-iso`, real history URLs | Hash routing; hand-rolled router | The usual objection to history routing in a PWA is that deep links 404 on refresh. vite-plugin-pwa's generateSW mode defaults `navigateFallback` to `index.html`, so the service worker answers every navigation from the precached shell, offline included. Verified against the plugin's defaults. |
-| D13 | Stage change and audit row (new) | Write the history row first, accept non-atomicity | A transaction | RxDB has no cross-collection transaction. Writing history first means a failure leaves a visible spurious entry; the other order silently drops the audit record, which is the only thing that table exists for. See `src/db/writes.ts`. |
+| D13 | Stage change and audit row | One Dexie transaction | Write the history row first and accept non-atomicity | Superseded by D1: RxDB had no cross-collection transaction, so the old rule was to write history first and accept a possible spurious entry. Dexie has one, so a row and its audit event now land together or not at all. See `src/db/repo/base.ts`. |
 | D14 | Shop creation (new) | Self-service, from the app, online or offline | Out-of-band provisioning only (original D4/section 4 rule 4) | An owner can now create their own shop locally at any time; `supabase_auth_user_id` is left unset until a live session exists, and the shop syncs once one does (`src/db/writes.ts`'s `createShop`, `supabase/migrations/0004_shop_self_signup.sql`). Reversed the original "no self-provisioning" reasoning deliberately: the alternative was a dead-end screen with no path forward for anyone without an already-provisioned account. Known gap: a device that creates a shop locally while offline, whose account also has (or later gets) an admin-provisioned shop row, will conflict once both try to sync -- not reconciled, accepted as a real edge case. Staff beyond the owner are gated on sync being available precisely to avoid a parallel version of this problem (`StaffSettings.tsx`). |
 
 
@@ -170,7 +180,7 @@ Auth has four resting states (`src/lib/auth.ts`):
 | `signed_out` | No session, no remembered login | Login screen | Off |
 | `local_only` | No Supabase credentials in this build | Read/write | Off, permanently |
 
-`offline_stale` is decision D10. Access tokens expire and refreshing one needs connectivity, so without this state the app would lock itself out overnight. It is not a security weakening: RLS is enforced server-side on every synced byte, an expired token syncs nothing at all, and the local copy is data the device already legitimately pulled. Writes queue in RxDB and push when the session comes back.
+`offline_stale` is decision D10. Access tokens expire and refreshing one needs connectivity, so without this state the app would lock itself out overnight. It is not a security weakening: an expired token reaches nothing, and the local copy is data the device already legitimately holds. Nothing is waiting to be pushed, because nothing pushes.
 
 
 ## 8. Deployment topology
@@ -184,14 +194,32 @@ Runtime: browser <-> Cloudflare Pages (assets, cached by service worker)
          browser <-> Supabase (data, direct from client, governed by RLS)
 ```
 
-**Bundle size is a design constraint, not a metric.** The users are on metered, low-bandwidth connections. RxDB's dev-mode and ajv-validation plugins are roughly 240 KB together and are loaded behind `import.meta.env.DEV` so Rollup can prove them unreachable and drop them. That guard has to be the statically-known constant, not a runtime flag -- passing a variable keeps both chunks in the build and in the service worker's precache manifest, where every install pays for them. See the comment in `src/db/database.ts`.
+**Bundle size is a design constraint, not a metric.** The users are on metered, low-bandwidth connections. Dropping RxDB took its runtime, its dev-mode plugin and its ajv validator out of the build; Dexie is a fraction of the size and needs no schema validator, because the row types are checked at compile time instead.
+
+### Installability, and the three things that quietly break it
+
+Carried over from the pre-build research because each is a real bug that has
+been shipped by someone, not a hypothetical.
+
+- **Service worker scope.** A worker registered at `/js/sw.js` controls only
+  pages under `/js/`. It has to be served from the root, or install succeeds and
+  intercepts nothing. `vite-plugin-pwa` emits `dist/sw.js` for this reason.
+- **Manifest minimum** (per MDN): `name` or `short_name`, a 192px *and* a 512px
+  icon, `start_url`, a display mode, over HTTPS or localhost. Chromium browsers
+  drive the install prompt straight off it.
+- **iOS Safari ignores most of the manifest** for name and icon. Without
+  `apple-touch-icon` and `apple-mobile-web-app-title` it installs as a generic
+  screenshot thumbnail labelled with the bare domain, and since iOS 16.4 install
+  is Share → Add to Home Screen with no prompt at all. Both platforms are
+  expected among shop owners, so both need testing on hardware -- see section 11,
+  where that is still outstanding.
 
 
 ## 9. Making sync state visible
 
 Unsynced work that nobody knows about is the worst failure this design can produce: a week of orders on one phone, and no signal that anything is wrong. So sync state is shown, not hidden, on every screen (`src/components/SyncBadge.tsx`) -- including when everything is fine, so that staff learn what "fine" looks like and notice when it changes.
 
-A replication error is surfaced and never thrown. Sync failing is a normal condition for this app, not an exception.
+There is nothing to sync at present, so the badge reads "Only on this phone" for an unclaimed shop and "Not syncing" otherwise. That is deliberately blunt: a badge that implied a backup existed would be worse than no badge.
 
 
 ## 9a. The visual system: fills, not lines
@@ -253,32 +281,24 @@ Recorded so the earlier documents can still be read without being misleading.
 
 | # | Earlier document said | Actually |
 |---|---|---|
-| C1 | `pwa-stack-options.md` s3: every synced table needs `_modified`/`_deleted`, implying in the RxDB schema too | Postgres columns only. RxDB rejects `_modified`, and only in dev mode -- so it broke `pnpm dev` while the production build passed. Section 5. |
-| C2 | `pwa-schema-and-screens.md` s2: `order_balances` "joined for convenience wherever a balance needs to be displayed" | Server-side reporting only. The UI computes balances locally. Section 5, D9. |
+| C1 | Stack options s3: every synced table needs `_modified`/`_deleted`, implying in the local schema too | Postgres columns only. On the device a removed row carries `deleted_at`. Section 5. |
+| C2 | Schema and screens s2: `order_balances` "joined for convenience wherever a balance needs to be displayed" | Server-side reporting only. The UI computes balances locally. Section 5, D9. |
 | C3 | Original migration comment: a view inherits the underlying tables' RLS automatically | It does not. It needs `security_invoker = on`, or every shop can read every other shop's balances. Section 4. |
-| C4 | `pwa-stack-options.md` s1 and D2: Preact vs Svelte left open | Settled on Preact and built on. |
+| C4 | Stack options s1 and D2: Preact vs Svelte left open | Settled on Preact and built on. |
 | C5 | Original `supabaseClient.ts`: "the app will still run offline-only without" the env vars | It threw on import. `createClient('')` raises `supabaseUrl is required.` The client is now built lazily. |
 
 
-## 11. Known limitations (carried forward deliberately, not oversights)
+## 11. Known limitations
 
-- PIN-based staff attribution is not real per-person security (section 4).
-- Self-service shop creation (D14) has no reconciliation if a device creates a shop locally while its account also has an admin-provisioned one -- not handled, accepted as a real edge case.
-- Conflict resolution for simultaneous offline edits to the same record has a defined mechanism but **has not been tested end-to-end**. Phase 0 verification item.
-- The balance calculation exists twice: the Postgres view and `src/db/balances.ts`. Unit-tested, but a change to one must be made to the other.
-- No automated WhatsApp reminders in v1 -- manual-tap only, by design.
-- No rental inventory availability tracking until Phase 2.
-- No RxDB schema migration strategy yet. Every collection is `version: 0` with no `migrationStrategies`. This is fine only while there is no installed data; the first schema change after Phase 1 ships will fail to open the database without one. See IMPLEMENTATION_PLAN.md.
-- The PIN iteration count (D11) was measured on a desktop and extrapolated to a phone. That extrapolation is not a measurement -- time it on the shop's actual handset.
-- Backup exports but does not import. The UI says so plainly, but a backup with no restore path is a promise half-kept.
-- The currency is hardcoded to UGX in `src/lib/money.ts`, in a product that is explicitly install-anywhere. One constant in one module, so the fix stays small.
-- The Phase 1 screens have been driven in a desktop browser at phone dimensions, which is a simulation of a phone. Nothing has been used on real hardware.
-- Screen-level behaviour has no automated coverage. The units are tested; the screens were verified by driving a browser once, which does not survive a refactor.
+Moved to `STATUS.md`, so that open items live in one place rather than three.
+The architectural ones worth knowing before reading further: there is no sync,
+the balance rule exists both in Postgres and in `src/db/balances.ts`, and the
+Dexie schema has no upgrade path written yet.
 
 
 ## Companion documents
 
-- `pwa-research-notes.md` -- full research, sources, and reasoning behind each architectural choice
-- `pwa-schema-and-screens.md` -- original field-level schema and screen-by-screen UI design, with build-time corrections marked
-- `pwa-stack-options.md` -- concrete tool/library choices and why, with build-time corrections marked
-- `IMPLEMENTATION_PLAN.md` -- phased build plan and verification checklist
+- `STATUS.md` -- where the project is, what evidences it, and what is open. The entry point for "what is next"
+- `POLYSTER.md` -- the product spec: every feature phase, and the rules a new module has to meet
+- `DESIGN_SYSTEM.md` -- colour, type and the rules `pnpm check:design` enforces. Read before touching any UI
+- `superpowers/` -- the dated design record: plans, specs and reviews, kept as history rather than maintained

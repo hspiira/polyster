@@ -2,8 +2,7 @@
    question in columns. Every figure comes from todayModel, as the phone's does. */
 import { useMemo } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { observeShopBalances } from '../db/balances'
+import { useQuery } from '../hooks/useQuery'
 import { formatMinor } from '../lib/money'
 import { formatDueDate, today } from '../lib/dates'
 import { STAGE_LABELS, STAGE_TONES } from '../screens/orderStage'
@@ -13,27 +12,19 @@ import { Chip } from '../ui'
 import { cn } from '../lib/cn'
 import { Page } from './Page'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
+import { observeClients, observeOrders, observeShopBalances } from '../db/repo'
 
 export function TodayPage() {
   const { db, shop } = useCurrentShop()
   const now = today()
 
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id }, sort: [{ pickup_due_date: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const orders = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
-  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
   const clientNames = useMemo(
-    () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
-    [clientDocs],
+    () => new Map(clientRows.map((doc) => [doc.id, doc.name])),
+    [clientRows],
   )
 
   const buckets = useMemo(

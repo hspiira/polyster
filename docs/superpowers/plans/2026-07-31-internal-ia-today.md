@@ -2057,7 +2057,7 @@ into its header, since the centre tab routes to /orders/new."
 - [ ] Confirm the rental fix against seeded data by setting a rental order to
   `picked_up` with a past `return_due_date`, then checking it appears in
   Overdue, marked as a return.
-- [ ] Update `docs/ARCHITECTURE.md` §11 and `docs/IMPLEMENTATION_PLAN.md` if
+- [ ] Update `docs/ARCHITECTURE.md` and `docs/STATUS.md` if
   either states something this plan has changed.
 
 ## Known limitations of this plan

@@ -1,25 +1,17 @@
 import { useMemo } from 'preact/hooks'
 import { Card, SectionTitle } from '../../ui'
 import { useCurrentShop } from '../../state/ShopProvider'
-import { useRxQuery } from '../../hooks/useRxQuery'
+import { useQuery } from '../../hooks/useQuery'
+import { observeStageHistory } from '../../db/repo'
 import { formatDateTime } from '../../lib/dates'
 import { STAGE_LABELS } from '../orderStage'
 
 export function StageHistory({ orderId }: { orderId: string }) {
   const { db, staff } = useCurrentShop()
 
-  const historyDocs = useRxQuery(
-    () =>
-      db.order_stage_history.find({
-        selector: { order_id: orderId },
-        sort: [{ changed_at: 'desc' }],
-      }).$,
-    [db, orderId],
-    [],
-  )
+  const history = useQuery(() => observeStageHistory(db, orderId), [db, orderId], [])
 
   const names = useMemo(() => new Map(staff.map((member) => [member.id, member.name])), [staff])
-  const history = useMemo(() => historyDocs.map((doc) => doc.toJSON()), [historyDocs])
 
   if (history.length === 0) return null
 

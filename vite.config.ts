@@ -67,7 +67,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // Registering at the root with scope '/' avoids the classic bug where
       // a service worker only controls the folder it was served from.
-      // See ARCHITECTURE.md section 8 / pwa-research-notes.md section 1.
+      // See ARCHITECTURE.md section 8.
       scope: '/',
       manifest: {
         name: 'Polyster',
@@ -103,7 +103,9 @@ export default defineConfig({
       workbox: {
         // Precache the built app shell; runtime data (Supabase calls) is
         // handled by RxDB's local-first layer, not by the service worker.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // woff2 included: without it the one typeface is a network request the
+        // first offline load cannot make, and the app renders in system-ui.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
       },
       // Off by default. A live service worker in dev caches aggressively and
       // produces stale-asset confusion that looks like a code bug. Turn it on

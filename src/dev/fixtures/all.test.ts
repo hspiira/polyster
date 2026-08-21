@@ -1,88 +1,61 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createDatabase, type AppDatabase } from '../../db/database'
-import { REPLICATED_TABLES } from '../../db/replication'
+import { afterEach, describe, expect, it } from 'vitest'
+import { createDatabase, type PolysterDatabase } from '../../db/dexie/database'
+import { listAll } from '../../db/repo'
 import { seedAll } from './all'
 
-/* supabaseClient reads import.meta.env once at module load, so the real guard is
-   armed by whether the machine has a .env -- green here, red in CI. Mocked. */
-const { isSupabaseConfigured } = vi.hoisted(() => ({ isSupabaseConfigured: vi.fn() }))
-vi.mock('../../lib/supabaseClient', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/supabaseClient')>()),
-  isSupabaseConfigured,
-}))
+const opened: PolysterDatabase[] = []
+let counter = 0
 
-beforeEach(() => {
-  isSupabaseConfigured.mockReturnValue(false)
-})
-
-const created: AppDatabase[] = []
-
-async function freshDatabase(): Promise<AppDatabase> {
-  const db = await createDatabase({
-    name: `all_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    devMode: true,
-  })
-  created.push(db)
+function freshDatabase(): PolysterDatabase {
+  const db = createDatabase(`all_${++counter}`)
+  opened.push(db)
   return db
 }
 
 afterEach(async () => {
-  await Promise.all(created.splice(0).map((db) => db.remove()))
+  for (const db of opened.splice(0)) {
+    db.close()
+    await db.delete()
+  }
 })
 
 describe('seedAll', () => {
   it('runs every fixture end to end', async () => {
-    const db = await freshDatabase()
-    const tenants = await seedAll(db, { force: true })
+    const db = freshDatabase()
+    const tenants = await seedAll(db)
 
     expect(tenants.northFound.name).toBe('NORTH//FOUND')
     expect(new Set(Object.values(tenants).map((shop) => shop.id)).size).toBe(3)
   }, 120000)
 
-  it('leaves no replicated collection empty', async () => {
-    // The bug this guards: a fixture that silently stops covering a collection,
-    // so a screen reads from a table nothing ever writes to.
-    const db = await freshDatabase()
-    await seedAll(db, { force: true })
+  it('leaves no core collection empty', async () => {
+    // The bug this guards: a fixture that silently stops covering a store, so a
+    // screen reads from a table nothing ever writes to.
+    const db = freshDatabase()
+    await seedAll(db)
 
     const empty: string[] = []
-    for (const table of REPLICATED_TABLES) {
-      const docs = await db.collections[table].find().exec()
-      if (docs.length === 0) empty.push(table)
+    for (const store of [
+      'shops', 'staff', 'clients', 'measurement_fields', 'measurement_profiles',
+      'orders', 'payments', 'order_stage_history', 'order_units', 'sales',
+      'expenses', 'message_log', 'tenant_features', 'events',
+    ] as const) {
+      if ((await db.table(store).toArray()).length === 0) empty.push(store)
     }
 
     expect(empty).toEqual([])
   }, 120000)
 
-  it('refuses to seed over a configured Supabase unless forced', async () => {
-    // Replication pushes as well as pulls, so an unguarded seed here would
-    // copy three fixture tenants into the remote database.
-    isSupabaseConfigured.mockReturnValue(true)
-    const db = await freshDatabase()
-    await expect(seedAll(db)).rejects.toThrow(/replication would push/)
-
-    const shops = await db.shops.find().exec()
-    expect(shops).toHaveLength(0)
-  }, 120000)
-
-  // The other half of the guard, which no test could reach while the answer
-  // came from the machine's own .env.
-  it('seeds without force when there is no Supabase to push to', async () => {
-    const db = await freshDatabase()
-    await expect(seedAll(db)).resolves.toBeDefined()
-    expect(await db.shops.count().exec()).toBe(3)
-  }, 120000)
-
   it('seeds enough of everything to exercise lists, filters and reports', async () => {
-    const db = await freshDatabase()
-    await seedAll(db, { force: true })
+    const db = freshDatabase()
+    await seedAll(db)
 
     const counts = {
-      clients: (await db.clients.find().exec()).length,
-      orders: (await db.orders.find().exec()).length,
-      payments: (await db.payments.find().exec()).length,
-      sales: (await db.sales.find().exec()).length,
-      expenses: (await db.expenses.find().exec()).length,
+      clients: (await listAll(db.clients)).length,
+      orders: (await listAll(db.orders)).length,
+      payments: (await listAll(db.payments)).length,
+      sales: (await listAll(db.sales)).length,
+      expenses: (await listAll(db.expenses)).length,
     }
 
     expect(counts).toMatchObject({
@@ -97,14 +70,14 @@ describe('seedAll', () => {
   }, 180000)
 
   it('spreads sales and orders across dates rather than stacking them on today', async () => {
-    const db = await freshDatabase()
-    await seedAll(db, { force: true })
+    const db = freshDatabase()
+    await seedAll(db)
 
     const soldDays = new Set(
-      (await db.sales.find().exec()).map((sale) => sale.sold_at.slice(0, 10)),
+      (await listAll(db.sales)).map((sale) => sale.sold_at.slice(0, 10)),
     )
     const dueDays = new Set(
-      (await db.orders.find().exec()).map((order) => order.pickup_due_date),
+      (await listAll(db.orders)).map((order) => order.pickup_due_date),
     )
 
     expect(soldDays.size).toBeGreaterThanOrEqual(10)
@@ -112,10 +85,10 @@ describe('seedAll', () => {
   }, 180000)
 
   it('covers every order type the schema allows', async () => {
-    const db = await freshDatabase()
-    await seedAll(db, { force: true })
+    const db = freshDatabase()
+    await seedAll(db)
 
-    const orders = await db.orders.find().exec()
+    const orders = await listAll(db.orders)
     const types = new Set(orders.map((order) => order.order_type))
 
     expect(types).toEqual(

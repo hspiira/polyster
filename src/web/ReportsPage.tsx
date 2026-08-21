@@ -2,9 +2,8 @@
    a device handed to a second shop would otherwise mix one shop's income in. */
 import { useMemo, useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
-import { observeShopBalances } from '../db/balances'
 import { profitAndLoss } from '../db/profit'
 import { customerLifetimeValues } from '../db/customerValue'
 import { repairMetrics } from '../db/repairMetrics'
@@ -17,6 +16,7 @@ import { cn } from '../lib/cn'
 import { Page } from './Page'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import { PeriodSwitch, RANGES, type RangeKey } from './period'
+import { observeClients, observeExpenses, observeOrders, observePayments, observeSales, observeShopBalances } from '../db/repo'
 
 export function ReportsPage() {
   const { db, shop } = useCurrentShop()
@@ -25,60 +25,43 @@ export function ReportsPage() {
   const now = today()
   const from = addDays(now, -(RANGES[range].days - 1))
 
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const saleDocs = useRxQuery(
-    () => db.sales.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const expenseDocs = useRxQuery(
-    () => db.expenses.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const paymentDocs = useRxQuery(() => db.payments.find().$, [db], [])
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const orders = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const saleRows = useQuery(() => observeSales(db, shop.id), [db, shop.id], [])
+  const expenseRows = useQuery(() => observeExpenses(db, shop.id), [db, shop.id], [])
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const paymentRows = useQuery(() => observePayments(db), [db], [])
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
-  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
   const orderIds = useMemo(() => new Set(orders.map((order) => order.id)), [orders])
 
   const topCustomers = useMemo(
     () =>
       customerLifetimeValues(
-        clientDocs.map((doc) => doc.toJSON()),
+        clientRows,
         orders,
-        paymentDocs.map((doc) => doc.toJSON()),
-        saleDocs.map((doc) => doc.toJSON()),
+        paymentRows,
+        saleRows,
       ).slice(0, 5),
-    [clientDocs, orders, paymentDocs, saleDocs],
+    [clientRows, orders, paymentRows, saleRows],
   )
 
   const repairs = useMemo(
-    () => repairMetrics(orders, paymentDocs.map((doc) => doc.toJSON())),
-    [orders, paymentDocs],
+    () => repairMetrics(orders, paymentRows),
+    [orders, paymentRows],
   )
 
   const pnl = useMemo(
     () =>
       profitAndLoss({
-        sales: saleDocs.map((doc) => doc.toJSON()),
-        payments: paymentDocs
-          .map((doc) => doc.toJSON())
+        sales: saleRows,
+        payments: paymentRows
+          
           .filter((payment) => orderIds.has(payment.order_id)),
-        expenses: expenseDocs.map((doc) => doc.toJSON()),
+        expenses: expenseRows,
         from,
         to: now,
       }),
-    [saleDocs, paymentDocs, expenseDocs, orderIds, from, now],
+    [saleRows, paymentRows, expenseRows, orderIds, from, now],
   )
 
   const outstanding = useMemo(() => {

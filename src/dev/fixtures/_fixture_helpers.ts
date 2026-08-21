@@ -12,11 +12,11 @@ export {
   recordSale,
   saveMeasurements,
   setFeatureEnabled,
-} from '../../db/writes'
+} from '../../db/repo'
 
 // `seedTenant` is a fixture-level composition in ./base, not a write helper.
-// Re-exporting it from db/writes threw at module load, as a blank page.
+// Re-exporting it from db/repo threw at module load, as a blank page.
 export { seedTenant } from './base'
 
 export type { ShopDoc } from '../../db/schema'
-export type { AppDatabase } from '../../db/database'
+export type { PolysterDatabase } from '../../db/dexie/database'

@@ -8,7 +8,7 @@ import { MEASURE, cn } from '../ui'
 import { IconSettings } from '../components/icons'
 import { recordVisit } from '../lib/navigation'
 import type { AuthState } from '../lib/auth'
-import type { ReplicationStatus } from '../hooks/useReplication'
+import type { ReplicationStatus } from '../lib/syncState'
 
 import { Today } from './today/Today'
 

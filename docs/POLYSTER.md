@@ -125,27 +125,28 @@ The current architecture is:
 ```text
 Preact + Vite
        ↓
-     RxDB
+  src/db/repo
        ↓
- IndexedDB/Dexie
-       ↓
-Supabase replication
-       ↓
-Postgres + RLS
+ Dexie / IndexedDB
 ```
 
-The application is explicitly local-first. UI reads and writes should continue to use RxDB rather than directly calling Supabase. Supabase is the synchronization backend, not the UI's synchronous data source.
+**Amended 2026-08-21 (§46.2).** As written this read
+`Preact → RxDB → IndexedDB/Dexie → Supabase replication → Postgres + RLS`.
+RxDB and replication are both gone; Postgres and its policies remain, but the
+app no longer reaches them for shop data.
+
+The application is explicitly local-first. UI reads and writes go through
+`src/db/repo/` rather than calling Supabase. (Written when that layer was RxDB;
+see §46.2.)
 
 Preserve:
 
 - Preact
 - Vite
 - Tailwind
-- RxDB
 - Dexie
-- Supabase
+- Supabase Auth and Storage
 - Postgres
-- Supabase Auth
 - Supabase Realtime
 - Cloudflare Pages
 - existing write abstraction
@@ -2044,7 +2045,9 @@ The agent must inspect existing migrations before choosing the final numbers.
 
 # 45. RxDB Requirement
 
-**Amended 2026-08-12 — see §46.1.** RxDB's open-source tier hard-caps a database at 14 open collections (verified empirically against the installed `rxdb@17.4.0`; the library's own error text says 13, which is off by one from what it actually enforces). This app was already at 13 after Phase 1. This section's rule below still applies to any table that can fit in the remaining budget; it no longer applies unconditionally to every new table — see §46.1 for what happens when it doesn't fit.
+**Superseded 2026-08-21 — see §46.2. RxDB is no longer in the project.** Read the
+rest of this section as history: the cap it describes is what forced §46.1, and
+removing it is what §46.2 records. Nothing below is a live rule.
 
 Every synced Postgres table requires a corresponding RxDB collection schema.
 
@@ -2094,11 +2097,11 @@ replication
 Supabase
 ```
 
-This is a core architectural invariant for every table that has an RxDB collection. See §46.1 for the one class of exception.
+This is a core architectural invariant for every table that has an RxDB collection. See §46.1 for the one class of exception. **Both superseded by §46.2**: the invariant now reads component → `src/db/repo/` → Dexie, with no replication step.
 
 ---
 
-## 46.1 Online-Only Modules (amendment, 2026-08-12)
+## 46.1 Online-Only Modules (amendment, 2026-08-12 — **reversed 2026-08-21, see §46.2**)
 
 RxDB's free tier caps a database at 14 collections; this app was already at 13 after Phase 1 (tenant configuration). Phase 2's catalogue tables would have pushed it to 16.
 
@@ -2116,9 +2119,44 @@ Every online-only module must still meet the rest of this document's UI bar (§5
 
 ---
 
+## 46.2 Storage switched to Dexie; §46.1 reversed (amendment, 2026-08-21)
+
+§46.1 chose option 3 — new tables online-only — because RxDB's collection cap
+left no room. That cap was the whole reason, so the switch removes the reason.
+
+**RxDB is out.** Storage is Dexie on IndexedDB, which has no collection limit
+and gives atomic multi-store transactions RxDB never had. Full record:
+`docs/superpowers/plans/2026-08-21-dexie-switch.md`.
+
+**Every one of the eleven online-only areas is now local**, and
+`useOnlineFeature` is deleted. Catalogue, product variants and categories,
+collections, suppliers, materials, inventory and its ledger, production batches
+and costing, garment units, and the advanced reports all read and write the
+device.
+
+**The rule for a new table, replacing §46.1's:** add it to
+`src/db/dexie/stores.ts` with a schema version bump in the same commit, give it
+a module under `src/db/repo/`, and let screens reach it only through there. No
+screen calls Supabase, and no module outside `src/online/` calls it at all.
+
+**What may still be remote**, and the bar it has to clear: the data is not
+needed on the shop floor, *and* holding it locally would be actively wrong.
+Two things qualify today — image upload, because a photo is a URL the shop
+shares rather than megabytes on a phone, and the garment passport, because it is
+read by anonymous visitors and the Postgres function is the security boundary.
+
+**The cost, stated plainly:** replication went with RxDB and has not been
+rebuilt. A shop's data lives on one device and the backup export is the only way
+off it. That is a worse position than §46.1 left us in on that one axis, and it
+is recorded as the largest open item in ARCHITECTURE.md §11.
+
+---
+
 # 47. Offline Behaviour
 
-Every newly introduced module must work offline, **except an online-only module under §46.1** — those must instead fail fast and clearly when there is no connection, never hang or silently do nothing.
+Every newly introduced module must work offline. The §46.1 exception is gone —
+see §46.2. The only permitted remote calls are the two named there, and neither
+is on a path a tailor uses with no signal.
 
 For example:
 
@@ -2754,7 +2792,7 @@ Notes
 
 # 62. Reports UI
 
-Reports must be generated locally from RxDB wherever possible.
+Reports must be generated locally from the device wherever possible.
 
 Do not make the dashboard dependent on a network-only Supabase query.
 
@@ -3471,8 +3509,7 @@ Read:
 README.md
 docs/ARCHITECTURE.md
 docs/DESIGN_SYSTEM.md
-docs/IMPLEMENTATION_PLAN.md
-docs/pwa-schema-and-screens.md
+docs/STATUS.md
 ```
 
 before modifying architecture.

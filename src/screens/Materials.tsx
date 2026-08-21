@@ -1,5 +1,5 @@
-/* Materials. Online-only (see src/online/materials.ts). */
-import { useEffect, useMemo, useState } from 'preact/hooks'
+/* Materials, on the device. */
+import { useMemo, useState } from 'preact/hooks'
 import {
   Button,
   Card,
@@ -14,24 +14,22 @@ import {
   Segmented,
   Select,
   Sheet,
-  Skeleton,
 } from '../ui'
 import { IconChevronRight, IconPlus, IconTag } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
+import { useQuery } from '../hooks/useQuery'
 import {
-  MATERIAL_TYPES,
   createMaterial,
-  listMaterials,
+  findInventoryItem,
+  liveQuery,
+  observeInventoryItems,
+  observeMaterials,
+  observeSuppliers,
   setMaterialActive,
   updateMaterial,
-  type Material,
   type MaterialInput,
-  type MaterialType,
-} from '../online/materials'
-import { listSuppliers, type Supplier } from '../online/suppliers'
-import { findInventoryItem, listInventoryItems } from '../online/inventory'
+} from '../db/repo'
+import { MATERIAL_TYPES, type Material, type MaterialType, type Supplier } from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
 import { filterByQuery } from '../lib/search'
@@ -68,35 +66,24 @@ const TOGGLE_OPTIONS = [
 
 export function Materials() {
   const back = useBack()
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-  const [materials, setMaterials] = useState<Material[] | null>(null)
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [quantities, setQuantities] = useState<Map<string, number>>(new Map())
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Material | null>(null)
 
-  async function reload() {
-    try {
-      const [materialList, supplierList, items] = await withTimeout(
-        Promise.all([listMaterials(shop.id), listSuppliers(shop.id), listInventoryItems(shop.id)]),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      setMaterials(materialList)
-      setSuppliers(supplierList)
-      setQuantities(
-        new Map(
-          items.filter((item) => item.material_id).map((item) => [item.material_id as string, item.quantity]),
-        ),
-      )
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load materials.')
-    }
-  }
+  const materials = useQuery(() => observeMaterials(db, shop.id), [db, shop.id], [])
+  const suppliers = useQuery(() => observeSuppliers(db, shop.id), [db, shop.id], [])
+  const items = useQuery(() => observeInventoryItems(db, shop.id), [db, shop.id], [])
+
+  const quantities = useMemo(
+    () =>
+      new Map(
+        items
+          .filter((item) => item.material_id)
+          .map((item) => [item.material_id as string, item.quantity]),
+      ),
+    [items],
+  )
 
   // Ledger quantity where tracked, falling back to the creation-time value
   // for a material that has never had a movement recorded.
@@ -104,33 +91,15 @@ export function Materials() {
     return quantities.get(material.id) ?? material.quantity_on_hand
   }
 
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, shop.id])
-
   const supplierName = useMemo(() => {
     const byId = new Map(suppliers.map((s) => [s.id, s.name]))
     return (id: string | null) => (id ? (byId.get(id) ?? null) : null)
   }, [suppliers])
 
-  const matches = useMemo(() => {
-    if (!materials) return []
-    return filterByQuery(materials, search, (m) => ({ text: [m.name] }))
-  }, [materials, search])
-
-  if (!online) {
-    return (
-      <Screen title="Materials" back={back}>
-        <EmptyState
-          spacious
-          illustration={<IconTag size={48} />}
-          title="No connection"
-          description="Materials live on the server, so this needs a connection to load."
-        />
-      </Screen>
-    )
-  }
+  const matches = useMemo(
+    () => filterByQuery(materials, search, (m) => ({ text: [m.name] })),
+    [materials, search],
+  )
 
   return (
     <>
@@ -138,22 +107,13 @@ export function Materials() {
         title="Materials"
         back={back}
         action={
-          materials && materials.length > 0 ? (
+          materials.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />
           ) : undefined
         }
       >
         <div class="space-y-4">
-          {loadError && <ErrorNote>{loadError}</ErrorNote>}
-
-          {materials === null && !loadError && (
-            <div class="space-y-2">
-              <Skeleton class="h-14" />
-              <Skeleton class="h-14" />
-            </div>
-          )}
-
-          {materials && materials.length > 0 && (
+          {materials.length > 0 && (
             <SearchInput
               placeholder="Search by name"
               value={search}
@@ -161,7 +121,7 @@ export function Materials() {
             />
           )}
 
-          {materials && materials.length === 0 && (
+          {materials.length === 0 && (
             <EmptyState
               spacious
               illustration={<IconTag size={48} />}
@@ -216,14 +176,14 @@ export function Materials() {
         </div>
       </Screen>
 
-      <MaterialSheet open={adding} suppliers={suppliers} onClose={() => setAdding(false)} onSaved={reload} />
+      <MaterialSheet open={adding} suppliers={suppliers} onClose={() => setAdding(false)} />
       {editing && (
         <MaterialSheet
           open={Boolean(editing)}
           material={editing}
           suppliers={suppliers}
           onClose={() => setEditing(null)}
-          onSaved={reload}
+         
         />
       )}
     </>
@@ -235,15 +195,13 @@ function MaterialSheet({
   material,
   suppliers,
   onClose,
-  onSaved,
 }: {
   open: boolean
   material?: Material
   suppliers: Supplier[]
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const { draft, set } = useDraft<MaterialDraft>(() => ({
     name: material?.name ?? '',
     materialType: material?.material_type ?? 'fabric',
@@ -258,18 +216,18 @@ function MaterialSheet({
     colour: material?.colour ?? '',
     pattern: material?.pattern ?? '',
   }))
-  const [liveQuantity, setLiveQuantity] = useState<number | null>(null)
+  // What the ledger says now, which is what the form must show rather than
+  // the balance the material was created with.
+  const stock = useQuery(
+    () =>
+      liveQuery(async () =>
+        material ? findInventoryItem(db, shop.id, 'material', { materialId: material.id }) : null,
+      ),
+    [db, shop.id, material?.id],
+    null,
+  )
+  const liveQuantity = material ? (stock?.quantity ?? material.quantity_on_hand) : null
 
-  useEffect(() => {
-    if (!material) return
-    let cancelled = false
-    void findInventoryItem('material', { materialId: material.id }).then((item) => {
-      if (!cancelled) setLiveQuantity(item?.quantity ?? material.quantity_on_hand)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [material])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -297,12 +255,11 @@ function MaterialSheet({
     }
     try {
       if (material) {
-        await updateMaterial(material.id, input)
+        await updateMaterial(db, material.id, input)
       } else {
-        await createMaterial(shop.id, input)
+        await createMaterial(db, shop.id, input)
       }
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this material.')
     } finally {
@@ -429,7 +386,7 @@ function MaterialSheet({
             <Segmented
               value={material.active ? 'on' : 'off'}
               options={TOGGLE_OPTIONS}
-              onChange={(value) => void setMaterialActive(material.id, value === 'on').then(onSaved)}
+              onChange={(value) => void setMaterialActive(db, material.id, value === 'on')}
               label="Material status"
             />
           </Field>

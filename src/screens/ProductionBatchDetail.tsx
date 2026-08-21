@@ -18,25 +18,25 @@ import {
 } from '../ui'
 import { IconEdit, IconPlus, IconTrash } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
+import { useQuery, useQueryStatus } from '../hooks/useQuery'
 import { formatMinor } from '../lib/money'
 import {
-  BATCH_STATUSES,
-  COST_TYPES,
   addBatchCost,
-  getProductionBatch,
-  listBatchCosts,
+  observeBatchCosts,
+  observeProduct,
+  observeProductionBatch,
   removeBatchCost,
   summarizeBatchCosts,
   updateBatchProgress,
   type BatchProgressInput,
+} from '../db/repo'
+import {
+  BATCH_STATUSES,
+  COST_TYPES,
   type BatchStatus,
   type CostType,
   type ProductionBatch,
-  type ProductionBatchCost,
-} from '../online/production'
-import { getProduct, type Product } from '../online/catalogue'
+} from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
 
@@ -78,58 +78,27 @@ export function ProductionBatchDetail() {
   const back = useBack()
   const { params } = useRoute()
   const batchId = params.id ?? ''
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-
-  const [batch, setBatch] = useState<ProductionBatch | null | undefined>(undefined)
-  const [product, setProduct] = useState<Product | null>(null)
-  const [costs, setCosts] = useState<ProductionBatchCost[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [editingProgress, setEditingProgress] = useState(false)
   const [addingCost, setAddingCost] = useState(false)
 
-  async function reload() {
-    try {
-      const found = await withTimeout(getProductionBatch(batchId), 8000, 'No response from the server.')
-      setBatch(found)
-      if (found) {
-        const [prod, costList] = await Promise.all([getProduct(found.product_id), listBatchCosts(found.id)])
-        setProduct(prod)
-        setCosts(costList)
-      }
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load this batch.')
-    }
-  }
+  const found = useQueryStatus(() => observeProductionBatch(db, batchId), [db, batchId], null)
+  const batch = found.value
+  const costs = useQuery(() => observeBatchCosts(db, batchId), [db, batchId], [])
+  const product = useQuery(
+    () => observeProduct(db, batch?.product_id ?? '__none__'),
+    [db, batch?.product_id],
+    null,
+  )
 
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, batchId])
-
-  if (!online) {
-    return (
-      <Screen title="Batch" back={back}>
-        <EmptyState spacious title="No connection" description="This needs a connection to load." />
-      </Screen>
-    )
-  }
-  if (loadError) {
-    return (
-      <Screen title="Batch" back={back}>
-        <ErrorNote>{loadError}</ErrorNote>
-      </Screen>
-    )
-  }
-  if (batch === undefined) {
+  if (!found.loaded) {
     return (
       <Screen title="Batch" back={back}>
         <Skeleton class="h-32" />
       </Screen>
     )
   }
-  if (batch === null) {
+  if (!batch) {
     return (
       <Screen title="Batch" back={back}>
         <EmptyState
@@ -207,7 +176,7 @@ export function ProductionBatchDetail() {
                           variant="ghost"
                           size="sm"
                           aria-label="Remove cost"
-                          onClick={() => void removeBatchCost(cost.id).then(reload)}
+                          onClick={() => void removeBatchCost(db, cost.id)}
                         >
                           <IconTrash size={16} />
                         </Button>
@@ -240,14 +209,12 @@ export function ProductionBatchDetail() {
         open={editingProgress}
         batch={batch}
         onClose={() => setEditingProgress(false)}
-        onSaved={reload}
       />
       <AddCostSheet
         open={addingCost}
         shopId={shop.id}
         batchId={batch.id}
         onClose={() => setAddingCost(false)}
-        onSaved={reload}
       />
     </>
   )
@@ -266,12 +233,10 @@ function ProgressSheet({
   open,
   batch,
   onClose,
-  onSaved,
 }: {
   open: boolean
   batch: ProductionBatch
   onClose: () => void
-  onSaved: () => void
 }) {
   const progressOf = (source: ProductionBatch): ProgressDraft => ({
     status: source.status,
@@ -282,6 +247,7 @@ function ProgressSheet({
     notes: source.notes ?? '',
   })
   const { draft, set, reset } = useDraft<ProgressDraft>(() => progressOf(batch))
+  const { db } = useCurrentShop()
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -307,9 +273,8 @@ function ProgressSheet({
     setSaving(true)
     setError(null)
     try {
-      await updateBatchProgress(batch.id, input, batch.status)
+      await updateBatchProgress(db, batch.id, input, batch.status)
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this update.')
     } finally {
@@ -385,14 +350,13 @@ function AddCostSheet({
   shopId,
   batchId,
   onClose,
-  onSaved,
 }: {
   open: boolean
   shopId: string
   batchId: string
   onClose: () => void
-  onSaved: () => void
 }) {
+  const { db } = useCurrentShop()
   const { draft: cost, set: setCost, reset: resetCost } = useDraft<CostDraft>(() => ({
     costType: 'materials',
     description: '',
@@ -406,14 +370,13 @@ function AddCostSheet({
     setSaving(true)
     setError(null)
     try {
-      await addBatchCost(shopId, batchId, {
+      await addBatchCost(db, shopId, batchId, {
         cost_type: cost.costType,
         description: cost.description,
         amount_minor: Math.max(0, Math.round(Number(cost.amount) || 0)),
       })
       resetCost({ costType: cost.costType, description: '', amount: '0' })
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this cost.')
     } finally {

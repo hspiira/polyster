@@ -16,7 +16,7 @@ import {
 } from '../ui'
 import { IconPlus, IconReceipt } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQueryStatus } from '../hooks/useRxQuery'
+import { useQueryStatus } from '../hooks/useQuery'
 import { usePermission } from '../hooks/usePermission'
 import { usePeriod } from '../hooks/usePeriod'
 import { useReportCurrency } from '../hooks/useReportCurrency'
@@ -26,6 +26,7 @@ import { AddExpenseSheet, ExpenseDetailSheet } from './ExpenseSheet'
 import { useMoneySections } from './moneySections'
 import { EXPENSE_CATEGORY_LABELS } from './expenseCategories'
 import type { ExpenseCategory, ExpenseDoc } from '../db/schema'
+import { observeExpenses } from '../db/repo'
 
 export function Expenses() {
   const { db, shop } = useCurrentShop()
@@ -35,12 +36,12 @@ export function Expenses() {
   const [adding, setAdding] = useState(false)
   const [open, setOpen] = useState<ExpenseDoc | null>(null)
 
-  const { value: expenseDocs, loaded } = useRxQueryStatus(
-    () => db.expenses.find({ selector: { shop_id: shop.id }, sort: [{ spent_on: 'desc' }] }).$,
+  const { value: expenseDocs, loaded } = useQueryStatus(
+    () => observeExpenses(db, shop.id),
     [db, shop.id],
     [],
   )
-  const allExpenses = useMemo(() => expenseDocs.map((doc) => doc.toJSON()), [expenseDocs])
+  const allExpenses = expenseDocs
 
   const { currency, options: currencies, setCurrency } = useReportCurrency(
     shop.currency,

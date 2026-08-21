@@ -1,6 +1,6 @@
 /* The shop's people. Deactivated, never deleted: orders point at these rows.
    PINs use the same pad as the staff gate, so every encounter looks alike. */
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import {
   Avatar,
   Button,
@@ -20,16 +20,10 @@ import { ChoosePinPad } from '../../components/ChoosePinPad'
 import { IconPlus } from '../../components/icons'
 import { IllustrationBook } from '../../components/illustrations'
 import { useShop } from '../../state/ShopProvider'
-import { useRxQuery } from '../../hooks/useRxQuery'
+import { useQuery } from '../../hooks/useQuery'
 import { useAuth } from '../../hooks/useAuth'
 import { useOnline } from '../../hooks/useOnline'
-import {
-  createStaff,
-  setStaffActive,
-  setStaffPermissionOverrides,
-  setStaffPin,
-  setStaffRole,
-} from '../../db/writes'
+import { createStaff, observeStaff, setStaffActive, setStaffPermissionOverrides, setStaffPin, setStaffRole } from '../../db/repo'
 import { PIN_LENGTH } from '../../lib/pin'
 import { ROLE_DEFAULT_PERMISSIONS } from '../../lib/permissions'
 import { PERMISSION_KEYS, STAFF_ROLES, type PermissionKey, type StaffDoc, type StaffRole } from '../../db/schema'
@@ -65,13 +59,12 @@ export function StaffSettings() {
 
   // Not filtered to active, unlike the picker -- this is where someone is
   // brought back after being deactivated by mistake.
-  const staffDocs = useRxQuery(
+  const staff = useQuery(
     () =>
-      db.staff.find({ selector: { shop_id: shop?.id ?? '__none__' }, sort: [{ name: 'asc' }] }).$,
+      observeStaff(db, shop?.id ?? '__none__'),
     [db, shop?.id],
     [],
   )
-  const staff = useMemo(() => staffDocs.map((doc) => doc.toJSON()), [staffDocs])
 
   const [adding, setAdding] = useState(false)
   const [resetting, setResetting] = useState<StaffDoc | null>(null)

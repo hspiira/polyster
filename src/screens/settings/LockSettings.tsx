@@ -5,7 +5,7 @@ import { Button, Card, cn, ErrorNote, InfoNote, Screen, SectionTitle } from '../
 import { IconAlert, IconLock } from '../../components/icons'
 import { ChoosePinPad } from '../../components/ChoosePinPad'
 import { useShop } from '../../state/ShopProvider'
-import { clearStaffPin, setStaffPin } from '../../db/writes'
+import { clearStaffPin, setStaffPin } from '../../db/repo'
 import {
   DEFAULT_ITERATIONS,
   PIN_LENGTH,

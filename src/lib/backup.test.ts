@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createDatabase, type AppDatabase } from '../db/database'
-import { REPLICATED_TABLES } from '../db/replication'
-import { createClient, createShop } from '../db/writes'
+import { createDatabase, type PolysterDatabase } from '../db/dexie/database'
+import { STORE_NAMES } from '../db/dexie/stores'
+import { createClient, createShop } from '../db/repo'
 import {
   BACKUP_FORMAT_VERSION,
   backupFilename,
@@ -13,42 +13,43 @@ import {
   type Backup,
 } from './backup'
 
-const created: AppDatabase[] = []
+const opened: PolysterDatabase[] = []
+let counter = 0
 
-async function freshDatabase(): Promise<AppDatabase> {
-  const db = await createDatabase({
-    name: `backup_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    devMode: true,
-  })
-  created.push(db)
+function freshDatabase(): PolysterDatabase {
+  const db = createDatabase(`backup_${++counter}`)
+  opened.push(db)
   return db
 }
 
 afterEach(async () => {
-  await Promise.all(created.splice(0).map((db) => db.remove()))
+  for (const db of opened.splice(0)) {
+    db.close()
+    await db.delete()
+  }
   localStorage.clear()
   vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
 describe('buildBackup', () => {
-  /* The failure this guards is silent: a collection added to the app but not to
-     the dump, and nobody finds out until a phone is lost. */
-  it('covers every replicated table', async () => {
-    const backup = await buildBackup(await freshDatabase())
-    expect(Object.keys(backup.data).sort()).toEqual([...REPLICATED_TABLES].sort())
-    expect(Object.keys(backup.counts).sort()).toEqual([...REPLICATED_TABLES].sort())
+  /* The failure this guards is silent: a store added to the app but not to the
+     dump, and nobody finds out until a phone is lost. */
+  it('covers every store', async () => {
+    const backup = await buildBackup(freshDatabase())
+    expect(Object.keys(backup.data).sort()).toEqual([...STORE_NAMES].sort())
+    expect(Object.keys(backup.counts).sort()).toEqual([...STORE_NAMES].sort())
   })
 
   it('is an empty but complete dump for a shop with nothing in it', async () => {
-    const backup = await buildBackup(await freshDatabase())
+    const backup = await buildBackup(freshDatabase())
     expect(Object.values(backup.counts).every((n) => n === 0)).toBe(true)
     expect(backup.format).toBe('tailor-tracker-backup')
     expect(backup.version).toBe(BACKUP_FORMAT_VERSION)
   })
 
   it('captures rows that were written', async () => {
-    const db = await freshDatabase()
+    const db = freshDatabase()
     const shop = await createShop(db, { name: 'Kampala Tailors' })
     await createClient(db, shop.id, { name: 'Mrs. Okello', phone: '0700000000' })
 
@@ -62,20 +63,20 @@ describe('buildBackup', () => {
   /* A count that disagrees with the rows would have someone believe a backup
      holds work it does not. */
   it('never reports a count that disagrees with the rows', async () => {
-    const db = await freshDatabase()
+    const db = freshDatabase()
     const shop = await createShop(db, { name: 'Kampala Tailors' })
     for (const name of ['Ama', 'Ben', 'Cara']) await createClient(db, shop.id, { name })
 
     const backup = await buildBackup(db)
 
-    for (const table of REPLICATED_TABLES) {
+    for (const table of STORE_NAMES) {
       expect(backup.counts[table]).toBe(backup.data[table]?.length)
     }
     expect(backup.counts.clients).toBe(3)
   })
 
   it('survives a round trip through JSON, which is how it is written out', async () => {
-    const db = await freshDatabase()
+    const db = freshDatabase()
     const shop = await createShop(db, { name: 'Kampala Tailors' })
     await createClient(db, shop.id, { name: 'Mrs. Okello' })
 
@@ -84,7 +85,7 @@ describe('buildBackup', () => {
   })
 
   it('stamps when it was taken', async () => {
-    const backup = await buildBackup(await freshDatabase())
+    const backup = await buildBackup(freshDatabase())
     expect(Number.isNaN(Date.parse(backup.exported_at))).toBe(false)
   })
 })

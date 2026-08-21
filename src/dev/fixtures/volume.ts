@@ -1,4 +1,4 @@
-import type { AppDatabase } from '../../db/database'
+import type { PolysterDatabase } from '../../db/dexie/database'
 import type { ExpenseCategory, OrderType, PaymentMethod, ShopDoc } from '../../db/schema'
 import { stagesFor } from '../../screens/orderStage'
 import { addDays, today } from '../../lib/dates'
@@ -10,6 +10,7 @@ import {
   recordPayment,
   recordSale,
 } from './_fixture_helpers'
+import { listBy, patchRow } from '../../db/repo'
 
 export interface VolumeCatalogue {
   garments: readonly { item: string; price: number; type: OrderType }[]
@@ -71,14 +72,14 @@ function stageFor(type: OrderType, dueOffset: number, index: number): ReturnType
 }
 
 export async function seedVolume(
-  db: AppDatabase,
+  db: PolysterDatabase,
   shop: Pick<ShopDoc, 'id' | 'currency'>,
   input: VolumeInput,
 ): Promise<void> {
-  const staff = await db.staff.find({ selector: { shop_id: shop.id, active: true } }).exec()
-  const staffIds = staff.map((doc) => doc.id)
+  const staff = (await listBy(db.staff, 'shop_id', shop.id)).filter((row) => row.active)
+  const staffIds = staff.map((row) => row.id)
   if (staffIds.length === 0) throw new Error('seedVolume needs at least one active staff member.')
-  const owner = staff.find((doc) => doc.role === 'owner')?.id ?? staffIds[0]!
+  const owner = staff.find((row) => row.role === 'owner')?.id ?? staffIds[0]!
 
   for (let i = 0; i < input.extraClients; i += 1) {
     const notes = pick(CLIENT_NOTES, i, 5)
@@ -89,8 +90,7 @@ export async function seedVolume(
     })
   }
 
-  const clientDocs = await db.clients.find({ selector: { shop_id: shop.id } }).exec()
-  const clientIds = clientDocs.map((doc) => doc.id)
+  const clientIds = (await listBy(db.clients, 'shop_id', shop.id)).map((row) => row.id)
   if (clientIds.length === 0) return
 
   const start = today()
@@ -154,7 +154,7 @@ export async function seedVolume(
 
     const soldAt = `${addDays(start, -((i * 3) % 45))}T${String(9 + (i % 8)).padStart(2, '0')}:20:00.000Z`
     // recordSale stamps now(); Reports read by date range.
-    await (await db.sales.findOne(sale.id).exec())?.patch({ sold_at: soldAt })
+    await patchRow(db.sales, sale.id, { sold_at: soldAt })
   }
 
   for (let i = 0; i < input.expenses; i += 1) {

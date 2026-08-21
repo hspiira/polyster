@@ -1,5 +1,5 @@
-import type { AppDatabase } from '../../db/database'
-import { createShop, createStaff, setFeatureEnabled, updateShop } from '../../db/writes'
+import type { PolysterDatabase } from '../../db/dexie/database'
+import { createShop, createStaff, setFeatureEnabled, updateShop } from '../../db/repo'
 import type { BusinessType, FeatureKey, ShopDoc } from '../../db/schema'
 
 export interface SeedTenantInput {
@@ -13,7 +13,7 @@ export interface SeedTenantInput {
   featureOverrides?: Partial<Record<FeatureKey, boolean>>
 }
 
-export async function seedTenant(db: AppDatabase, input: SeedTenantInput): Promise<ShopDoc> {
+export async function seedTenant(db: PolysterDatabase, input: SeedTenantInput): Promise<ShopDoc> {
   const shop = await createShop(db, {
     name: input.name,
     whatsapp_number: input.whatsappNumber ?? '+256772000418',
@@ -37,7 +37,7 @@ export async function seedTenant(db: AppDatabase, input: SeedTenantInput): Promi
     await setFeatureEnabled(db, shop.id, key as FeatureKey, enabled as boolean)
   }
 
-  const updated = await db.shops.findOne(shop.id).exec()
+  const updated = await db.shops.get(shop.id)
   if (!updated) throw new Error('Shop vanished immediately after creation.')
-  return updated.toJSON()
+  return updated
 }

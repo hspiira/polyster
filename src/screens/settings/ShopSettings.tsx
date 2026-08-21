@@ -23,7 +23,7 @@ import {
   IconWhatsApp,
 } from '../../components/icons'
 import { useShop } from '../../state/ShopProvider'
-import { updateShop } from '../../db/writes'
+import { updateShop } from '../../db/repo'
 import { toWaNumber } from '../../lib/whatsapp'
 import { BUSINESS_TYPES, type BusinessType } from '../../db/schema'
 import { useBack } from '../../hooks/useBack'

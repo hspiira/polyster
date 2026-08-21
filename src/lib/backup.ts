@@ -1,7 +1,7 @@
 /* Export backup (ARCHITECTURE.md D7). Browser storage is not permanent, and for
    an unclaimed shop this JSON dump is the only copy off the device. */
-import type { AppDatabase } from '../db/database'
-import { REPLICATED_TABLES } from '../db/replication'
+import type { PolysterDatabase } from '../db/dexie/database'
+import { STORE_NAMES } from '../db/dexie/stores'
 
 export const BACKUP_FORMAT_VERSION = 1
 
@@ -9,20 +9,19 @@ export interface Backup {
   format: 'tailor-tracker-backup'
   version: number
   exported_at: string
-  /** Every replicated collection, keyed by collection name. */
+  /** Every store on the device, keyed by store name. */
   data: Record<string, unknown[]>
   counts: Record<string, number>
 }
 
-export async function buildBackup(db: AppDatabase): Promise<Backup> {
+export async function buildBackup(db: PolysterDatabase): Promise<Backup> {
   const data: Record<string, unknown[]> = {}
   const counts: Record<string, number> = {}
 
-  for (const table of REPLICATED_TABLES) {
-    const docs = await db.collections[table].find().exec()
-    const rows = docs.map((doc) => doc.toJSON())
-    data[table] = rows
-    counts[table] = rows.length
+  for (const store of STORE_NAMES) {
+    const rows = await db.table(store).toArray()
+    data[store] = rows
+    counts[store] = rows.length
   }
 
   return {

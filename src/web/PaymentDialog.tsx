@@ -2,7 +2,7 @@
    phone does: only where you are standing differs. */
 import { useState } from 'preact/hooks'
 import { useCurrentShop } from '../state/ShopProvider'
-import { recordPayment } from '../db/writes'
+import { recordPayment } from '../db/repo'
 import { PAYMENT_METHODS, type PaymentMethod } from '../db/schema'
 import { PAYMENT_METHOD_LABELS } from '../screens/orderStage'
 import { formatMinor, parseToMinor } from '../lib/money'

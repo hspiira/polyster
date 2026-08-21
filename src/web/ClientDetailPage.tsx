@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useRoute } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
-import { clientTotals, observeShopBalances } from '../db/balances'
-import { saveMeasurements, updateClient } from '../db/writes'
+import { useQuery } from '../hooks/useQuery'
+import { clientTotals } from '../db/balances'
+import { observeClient, observeClientOrders, observeMeasurementFields, observeMeasurementProfile, observeShopBalances, saveMeasurements, updateClient } from '../db/repo'
 import { formatMinor } from '../lib/money'
 import { dueBucket, formatDate, formatDateTime, formatDueDate, today } from '../lib/dates'
 import { waLink, suggestedMessage } from '../lib/whatsapp'
@@ -26,21 +26,16 @@ export function ClientDetailPage() {
   const { db, shop } = useCurrentShop()
   const [tab, setTab] = useState<Tab>('orders')
 
-  const clientDoc = useRxQuery(() => db.clients.findOne(clientId).$, [db, clientId], null)
-  const client = clientDoc?.toJSON() ?? null
+  const client = useQuery(() => observeClient(db, clientId), [db, clientId], null)
 
-  const orderDocs = useRxQuery(
+  const orders = useQuery(
     () =>
-      db.orders.find({
-        selector: { shop_id: shop.id, client_id: clientId },
-        sort: [{ pickup_due_date: 'desc' }],
-      }).$,
+      observeClientOrders(db, clientId),
     [db, shop.id, clientId],
     [],
   )
-  const balances = useRxQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
+  const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
 
-  const orders = useMemo(() => orderDocs.map((doc) => doc.toJSON()), [orderDocs])
 
   const summary = useMemo(() => clientTotals(orders, balances), [orders, balances])
 
@@ -241,24 +236,16 @@ function Fact({
 function Measurements({ clientId }: { clientId: string }) {
   const { db, shop, activeStaff } = useCurrentShop()
 
-  const fieldDocs = useRxQuery(
+  const fields = useQuery(
     () =>
-      db.measurement_fields.find({
-        selector: { shop_id: shop.id },
-        sort: [{ display_order: 'asc' }],
-      }).$,
+      observeMeasurementFields(db, shop.id),
     [db, shop.id],
     [],
   )
-  const profileDoc = useRxQuery(
-    () => db.measurement_profiles.findOne({ selector: { client_id: clientId } }).$,
-    [db, clientId],
-    null,
-  )
+  const profileRow = useQuery(() => observeMeasurementProfile(db, clientId), [db, clientId], null)
 
-  const fields = useMemo(() => fieldDocs.map((doc) => doc.toJSON()), [fieldDocs])
-  const stored = useMemo(() => profileDoc?.toJSON().values ?? {}, [profileDoc])
-  const updatedAt = profileDoc?.toJSON().updated_at
+  const stored = useMemo(() => profileRow?.values ?? {}, [profileRow])
+  const updatedAt = profileRow?.updated_at
 
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [dirty, setDirty] = useState(false)

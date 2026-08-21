@@ -1,4 +1,4 @@
-import type { AppDatabase } from '../../db/database'
+import type { PolysterDatabase } from '../../db/dexie/database'
 import {
   changeOrderStage,
   createClient,
@@ -14,6 +14,7 @@ import {
   type ShopDoc,
 } from './_fixture_helpers'
 import { seedVolume, type VolumeCatalogue } from './volume'
+import { listBy } from '../../db/repo'
 
 /* Generic tailoring-shop fixture, with none of the catalogue/production
    features enabled. Default test PIN for all seeded staff: 123456 */
@@ -46,7 +47,7 @@ const MIREMBE_CATALOGUE: VolumeCatalogue = {
   ],
 }
 
-export async function seedGenericTailorData(db: AppDatabase): Promise<ShopDoc> {
+export async function seedGenericTailorData(db: PolysterDatabase): Promise<ShopDoc> {
   const shop = await seedTenant(db, {
     name: 'Mirembe Tailoring House',
     businessType: 'tailor',
@@ -56,9 +57,8 @@ export async function seedGenericTailorData(db: AppDatabase): Promise<ShopDoc> {
     website: 'https://mirembetailoring.co.ug',
   })
 
-  const ownerDoc = await db.staff.findOne({ selector: { shop_id: shop.id, role: 'owner' } }).exec()
-  if (!ownerDoc) throw new Error('Seed owner was not created.')
-  const owner = ownerDoc.toJSON()
+  const owner = (await listBy(db.staff, 'shop_id', shop.id)).find((row) => row.role === 'owner')
+  if (!owner) throw new Error('Seed owner was not created.')
   const tailor = await createStaff(db, shop.id, {
     name: 'Patrick Walusimbi',
     pin: '123456',

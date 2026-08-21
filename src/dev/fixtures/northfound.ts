@@ -1,4 +1,4 @@
-import type { AppDatabase } from '../../db/database'
+import type { PolysterDatabase } from '../../db/dexie/database'
 import {
   changeOrderStage,
   createClient,
@@ -15,6 +15,7 @@ import {
   type ShopDoc,
 } from './_fixture_helpers'
 import { seedVolume, type VolumeCatalogue } from './volume'
+import { listBy } from '../../db/repo'
 
 /* Full NORTH//FOUND offline fixture; online-only domains come from seed.sql.
    Default test PIN for all seeded staff: 123456 */
@@ -49,7 +50,7 @@ const NORTHFOUND_CATALOGUE: VolumeCatalogue = {
   ],
 }
 
-export async function seedNorthFoundData(db: AppDatabase): Promise<ShopDoc> {
+export async function seedNorthFoundData(db: PolysterDatabase): Promise<ShopDoc> {
   const shop = await seedTenant(db, {
     name: 'NORTH//FOUND',
     businessType: 'apparel_brand',
@@ -74,9 +75,8 @@ export async function seedNorthFoundData(db: AppDatabase): Promise<ShopDoc> {
     },
   })
 
-  const ownerDoc = await db.staff.findOne({ selector: { shop_id: shop.id, role: 'owner' } }).exec()
-  if (!ownerDoc) throw new Error('Seed owner was not created.')
-  const owner = ownerDoc.toJSON()
+  const owner = (await listBy(db.staff, 'shop_id', shop.id)).find((row) => row.role === 'owner')
+  if (!owner) throw new Error('Seed owner was not created.')
   const manager = await createStaff(db, shop.id, {
     name: 'Nadia Kato',
     pin: '123456',

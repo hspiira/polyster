@@ -1,4 +1,4 @@
-import { uploadProductImage, deleteProductImage } from '../online/catalogue'
+import { deleteProductImage, uploadProductImage } from '../online/images'
 import { ImageUploadField } from './ImageUploadField'
 
 export function ProductImageField({

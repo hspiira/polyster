@@ -1,17 +1,18 @@
-/* The shop is the tenant every RLS policy scopes to; the staff member only
-   attributes actions. Read from the replicated collection, so local-only works. */
+/* The shop is the tenant every policy scopes to; the staff member only
+   attributes actions. */
 import { createContext } from 'preact'
-import { useCallback, useContext, useMemo, useState } from 'preact/hooks'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
-import type { AppDatabase } from '../db/database'
+import type { PolysterDatabase } from '../db/dexie/database'
 import type { ShopDoc, StaffDoc } from '../db/schema'
-import { useRxQueryStatus } from '../hooks/useRxQuery'
+import { observeActiveStaff, observeShops, setActor } from '../db/repo'
+import { useQueryStatus } from '../hooks/useQuery'
 
 const ACTIVE_STAFF_KEY = 'tailor_tracker.active_staff_id'
 
 export interface ShopContextValue {
-  db: AppDatabase
-  /** Null until the first replication pull brings the shop row down. */
+  db: PolysterDatabase
+  /** Null until the shop row exists on this device. */
   shop: ShopDoc | null
   /** Active staff for this shop, ordered by name. */
   staff: StaffDoc[]
@@ -44,19 +45,21 @@ function writeStoredStaffId(id: string | null): void {
   }
 }
 
-export function ShopProvider({ db, children }: { db: AppDatabase; children: ComponentChildren }) {
+export function ShopProvider({
+  db,
+  children,
+}: {
+  db: PolysterDatabase
+  children: ComponentChildren
+}) {
   const [storedStaffId, setStoredStaffId] = useState<string | null>(readStoredStaffId)
 
-  const shops = useRxQueryStatus(() => db.shops.find().$, [db], [])
-  const staffDocs = useRxQueryStatus(
-    () => db.staff.find({ selector: { active: true }, sort: [{ name: 'asc' }] }).$,
-    [db],
-    [],
-  )
+  const shops = useQueryStatus(() => observeShops(db), [db], [])
+  const staffRows = useQueryStatus(() => observeActiveStaff(db), [db], [])
 
-  const shop = useMemo(() => shops.value[0]?.toJSON() ?? null, [shops.value])
-  const staff = useMemo(() => staffDocs.value.map((doc) => doc.toJSON()), [staffDocs.value])
-  const loaded = shops.loaded && staffDocs.loaded
+  const shop = shops.value[0] ?? null
+  const staff = staffRows.value
+  const loaded = shops.loaded && staffRows.loaded
 
   const activeStaff = useMemo(
     () => staff.find((member) => member.id === storedStaffId) ?? null,
@@ -67,6 +70,11 @@ export function ShopProvider({ db, children }: { db: AppDatabase; children: Comp
     writeStoredStaffId(member?.id ?? null)
     setStoredStaffId(member?.id ?? null)
   }, [])
+
+  // Who the audit log credits, for as long as this person holds the device.
+  useEffect(() => {
+    setActor(activeStaff?.id ?? null)
+  }, [activeStaff])
 
   const value = useMemo<ShopContextValue>(
     () => ({ db, shop, staff, activeStaff, setActiveStaff, loaded }),

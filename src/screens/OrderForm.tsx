@@ -1,6 +1,6 @@
 /* New and edit in one component, because the fields are identical. The save
    button is pinned: below the fields it is two scrolls from where you type. */
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { useLocation, useRoute } from 'preact-iso'
 import {
   Button,
@@ -20,18 +20,26 @@ import { IconPlus } from '../components/icons'
 import { ClientPicker } from '../components/ClientPicker'
 import { OrderTypePicker } from '../components/OrderTypePicker'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import {
   addOrderUnit,
   createClient,
   createOrder,
+  listBy,
+  observeActiveMeasurementFields,
+  observeClients,
+  observeMeasurementProfile,
+  observeOrder,
+  observeOrderUnits,
+  observeRecentOrders,
+  observeRetiredMeasurementFields,
   removeOrderUnit,
   saveMeasurements,
   setOrderAdjustment,
   updateOrderHeader,
   updateOrderUnit,
-} from '../db/writes'
+} from '../db/repo'
 import { CUSTOMER_TYPES, ORDER_TYPES, type OrderDoc } from '../db/schema'
 import { CUSTOMER_TYPE_LABELS } from './orderStage'
 import { formatDate } from '../lib/dates'
@@ -76,46 +84,27 @@ export function OrderForm() {
   const orderId = params.id
   const isEdit = Boolean(orderId)
 
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id }, sort: [{ name: 'asc' }] }).$,
-    [db, shop.id],
-    [],
-  )
-  const clients = useMemo(() => clientDocs.map((doc) => doc.toJSON()), [clientDocs])
+  const clients = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
 
-  const orderDoc = useRxQuery(
-    () => (orderId ? db.orders.findOne(orderId).$ : db.orders.findOne('__none__').$),
-    [db, orderId],
-    null,
-  )
+  const orderRow = useQuery(() => (orderId ? observeOrder(db, orderId) : observeOrder(db, '__none__')), [db, orderId], null)
 
-  const existingUnitDocs = useRxQuery(
+  const existingUnits = useQuery(
     () =>
       orderId
-        ? db.order_units.find({ selector: { order_id: orderId }, sort: [{ position: 'asc' }] }).$
-        : db.order_units.find({ selector: { order_id: '__none__' } }).$,
+        ? observeOrderUnits(db, orderId)
+        : observeOrderUnits(db, '__none__'),
     [db, orderId],
     [],
   )
-  const existingUnits = useMemo(() => existingUnitDocs.map((doc) => doc.toJSON()), [existingUnitDocs])
 
-  const activeFieldDocs = useRxQuery(
+  const activeFields = useQuery(
     () =>
-      db.measurement_fields.find({
-        selector: { shop_id: shop.id, active: { $ne: false } },
-        sort: [{ display_order: 'asc' }],
-      }).$,
+      observeActiveMeasurementFields(db, shop.id),
     [db, shop.id],
     [],
   )
-  const activeFields = useMemo(() => activeFieldDocs.map((doc) => doc.toJSON()), [activeFieldDocs])
 
-  const retiredFieldDocs = useRxQuery(
-    () => db.measurement_fields.find({ selector: { shop_id: shop.id, active: false } }).$,
-    [db, shop.id],
-    [],
-  )
-  const retiredFields = useMemo(() => retiredFieldDocs.map((doc) => doc.toJSON()), [retiredFieldDocs])
+  const retiredFields = useQuery(() => observeRetiredMeasurementFields(db, shop.id), [db, shop.id], [])
 
   const [header, setHeader] = useState<HeaderDraft>(() => ({
     ...blankHeader(),
@@ -176,44 +165,36 @@ export function OrderForm() {
   }
 
   useEffect(() => {
-    if (!isEdit || loaded || !orderDoc || existingUnits.length === 0) return
-    const draft = draftFromOrder(orderDoc.toJSON(), existingUnits)
+    if (!isEdit || loaded || !orderRow || existingUnits.length === 0) return
+    const draft = draftFromOrder(orderRow, existingUnits)
     setHeader(draft.header)
     setUnits(draft.units)
     setLoaded(true)
-  }, [isEdit, loaded, orderDoc, existingUnits])
+  }, [isEdit, loaded, orderRow, existingUnits])
 
   // A new order opens on whatever this shop takes most often, so the usual
   // order needs no choice at all.
-  const recentOrderDocs = useRxQuery(
+  const recentOrderRows = useQuery(
     () =>
-      db.orders.find({
-        selector: { shop_id: shop.id },
-        sort: [{ created_at: 'desc' }],
-        limit: 20,
-      }).$,
+      observeRecentOrders(db, shop.id, 20),
     [db, shop.id],
     [],
   )
 
   useEffect(() => {
-    if (isEdit || typeTouched.current || recentOrderDocs.length === 0) return
-    const usual = usualOrderType(recentOrderDocs.map((doc) => doc.order_type))
+    if (isEdit || typeTouched.current || recentOrderRows.length === 0) return
+    const usual = usualOrderType(recentOrderRows.map((doc) => doc.order_type))
     setHeader((current) => (current.order_type === usual ? current : { ...current, order_type: usual }))
-  }, [isEdit, recentOrderDocs])
+  }, [isEdit, recentOrderRows])
 
   // The order's own snapshotted currency once one is in scope (editing);
   // otherwise the shop's, since no order exists yet to snapshot from.
-  const currency = orderDoc?.toJSON().currency ?? shop.currency
+  const currency = orderRow?.currency ?? shop.currency
 
   const clientName = clients.find((client) => client.id === header.client_id)?.name ?? 'this client'
 
-  const clientProfileDoc = useRxQuery(
-    () => db.measurement_profiles.findOne({ selector: { client_id: header.client_id || '__none__' } }).$,
-    [db, header.client_id],
-    null,
-  )
-  const clientProfileValues = clientProfileDoc?.toJSON().values ?? null
+  const clientProfileRow = useQuery(() => observeMeasurementProfile(db, header.client_id || '__none__'), [db, header.client_id], null)
+  const clientProfileValues = clientProfileRow?.values ?? null
 
   /** Task 10 step 2 (O6): ask once per client selection, never on every keystroke. */
   async function selectClient(clientId: string) {
@@ -221,18 +202,12 @@ export function OrderForm() {
     if (isEdit || !clientId || checkedClientRef.current === clientId) return
     checkedClientRef.current = clientId
 
-    const openSameDay = await db.orders
-      .find({
-        selector: {
-          client_id: clientId,
-          pickup_due_date: header.pickup_due_date,
-          stage: { $nin: [...CLOSED_STAGES] },
-        },
-      })
-      .exec()
-    if (openSameDay.length > 0) {
-      setSameDayMatches(openSameDay.map((doc) => doc.toJSON()))
-    }
+    const sameDay = (await listBy(db.orders, 'client_id', clientId)).filter(
+      (order) =>
+        order.pickup_due_date === header.pickup_due_date &&
+        !CLOSED_STAGES.includes(order.stage),
+    )
+    if (sameDay.length > 0) setSameDayMatches(sameDay)
   }
 
   function copyFromClientInto(unitKey: string) {

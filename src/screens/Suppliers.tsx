@@ -1,5 +1,5 @@
-/* Suppliers. Online-only (see src/online/suppliers.ts). */
-import { useEffect, useMemo, useState } from 'preact/hooks'
+/* Suppliers, on the device. */
+import { useMemo, useState } from 'preact/hooks'
 import {
   Button,
   Card,
@@ -13,21 +13,19 @@ import {
   SearchInput,
   Segmented,
   Sheet,
-  Skeleton,
   Textarea,
 } from '../ui'
 import { IconChevronRight, IconPlus, IconUsers } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
+import { useQuery } from '../hooks/useQuery'
 import {
   createSupplier,
-  listSuppliers,
+  observeSuppliers,
   setSupplierActive,
   updateSupplier,
-  type Supplier,
   type SupplierInput,
-} from '../online/suppliers'
+} from '../db/repo'
+import type { Supplier } from '../db/schema'
 import { useBack } from '../hooks/useBack'
 import { useDraft } from '../hooks/useDraft'
 import { filterByQuery } from '../lib/search'
@@ -47,50 +45,17 @@ interface SupplierDraft {
 
 export function Suppliers() {
   const back = useBack()
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-  const [suppliers, setSuppliers] = useState<Supplier[] | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Supplier | null>(null)
 
-  async function reload() {
-    try {
-      const list = await withTimeout(
-        listSuppliers(shop.id),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      setSuppliers(list)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load suppliers.')
-    }
-  }
+  const suppliers = useQuery(() => observeSuppliers(db, shop.id), [db, shop.id], [])
 
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, shop.id])
-
-  const matches = useMemo(() => {
-    if (!suppliers) return []
-    return filterByQuery(suppliers, search, (s) => ({ text: [s.name], phone: [s.phone] }))
-  }, [suppliers, search])
-
-  if (!online) {
-    return (
-      <Screen title="Suppliers" back={back}>
-        <EmptyState
-          spacious
-          illustration={<IconUsers size={48} />}
-          title="No connection"
-          description="Suppliers live on the server, so this needs a connection to load."
-        />
-      </Screen>
-    )
-  }
+  const matches = useMemo(
+    () => filterByQuery(suppliers, search, (s) => ({ text: [s.name], phone: [s.phone] })),
+    [suppliers, search],
+  )
 
   return (
     <>
@@ -98,22 +63,13 @@ export function Suppliers() {
         title="Suppliers"
         back={back}
         action={
-          suppliers && suppliers.length > 0 ? (
+          suppliers.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />
           ) : undefined
         }
       >
         <div class="space-y-4">
-          {loadError && <ErrorNote>{loadError}</ErrorNote>}
-
-          {suppliers === null && !loadError && (
-            <div class="space-y-2">
-              <Skeleton class="h-14" />
-              <Skeleton class="h-14" />
-            </div>
-          )}
-
-          {suppliers && suppliers.length > 0 && (
+          {suppliers.length > 0 && (
             <SearchInput
               placeholder="Search by name or phone"
               value={search}
@@ -121,7 +77,7 @@ export function Suppliers() {
             />
           )}
 
-          {suppliers && suppliers.length === 0 && (
+          {suppliers.length === 0 && (
             <EmptyState
               spacious
               illustration={<IconUsers size={48} />}
@@ -167,13 +123,12 @@ export function Suppliers() {
         </div>
       </Screen>
 
-      <SupplierSheet open={adding} onClose={() => setAdding(false)} onSaved={reload} />
+      <SupplierSheet open={adding} onClose={() => setAdding(false)} />
       {editing && (
         <SupplierSheet
           open={Boolean(editing)}
           supplier={editing}
           onClose={() => setEditing(null)}
-          onSaved={reload}
         />
       )}
     </>
@@ -184,14 +139,12 @@ function SupplierSheet({
   open,
   supplier,
   onClose,
-  onSaved,
 }: {
   open: boolean
   supplier?: Supplier
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop } = useCurrentShop()
+  const { db, shop } = useCurrentShop()
   const { draft, set } = useDraft<SupplierDraft>(() => ({
     name: supplier?.name ?? '',
     phone: supplier?.phone ?? '',
@@ -213,12 +166,11 @@ function SupplierSheet({
     const input: SupplierInput = { ...draft }
     try {
       if (supplier) {
-        await updateSupplier(supplier.id, input)
+        await updateSupplier(db, supplier.id, input)
       } else {
-        await createSupplier(shop.id, input)
+        await createSupplier(db, shop.id, input)
       }
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this supplier.')
     } finally {
@@ -255,7 +207,7 @@ function SupplierSheet({
             <Segmented
               value={supplier.active ? 'on' : 'off'}
               options={TOGGLE_OPTIONS}
-              onChange={(value) => void setSupplierActive(supplier.id, value === 'on').then(onSaved)}
+              onChange={(value) => void setSupplierActive(db, supplier.id, value === 'on')}
               label="Supplier status"
             />
           </Field>

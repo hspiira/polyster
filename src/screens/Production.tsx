@@ -1,5 +1,5 @@
-/* Production batches. Online-only (see src/online/production.ts). */
-import { useEffect, useMemo, useState } from 'preact/hooks'
+/* Production batches, on the device. */
+import { useMemo, useState } from 'preact/hooks'
 import {
   Button,
   Card,
@@ -12,20 +12,13 @@ import {
   Screen,
   Select,
   Sheet,
-  Skeleton,
   Textarea,
 } from '../ui'
 import { IconBox, IconChevronRight, IconPlus } from '../components/icons'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useOnlineFeature } from '../hooks/useOnlineFeature'
-import { withTimeout } from '../lib/withTimeout'
-import {
-  createProductionBatch,
-  listProductionBatches,
-  type BatchStatus,
-  type ProductionBatch,
-} from '../online/production'
-import { listProducts, type Product } from '../online/catalogue'
+import { useQuery } from '../hooks/useQuery'
+import { createProductionBatch, observeProductionBatches, observeProducts } from '../db/repo'
+import type { BatchStatus, Product } from '../db/schema'
 import { useBack } from '../hooks/useBack'
 
 const STATUS_LABELS: Record<BatchStatus, string> = {
@@ -39,45 +32,16 @@ const STATUS_LABELS: Record<BatchStatus, string> = {
 
 export function Production() {
   const back = useBack()
-  const { shop } = useCurrentShop()
-  const online = useOnlineFeature()
-  const [batches, setBatches] = useState<ProductionBatch[] | null>(null)
-  const [products, setProducts] = useState<Product[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { db, shop } = useCurrentShop()
   const [adding, setAdding] = useState(false)
 
-  async function reload() {
-    try {
-      const [batchList, productList] = await withTimeout(
-        Promise.all([listProductionBatches(shop.id), listProducts(shop.id)]),
-        8000,
-        'No response from the server. Check your connection and try again.',
-      )
-      setBatches(batchList)
-      setProducts(productList)
-      setLoadError(null)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load production batches.')
-    }
-  }
-
-  useEffect(() => {
-    if (online) void reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, shop.id])
+  const batches = useQuery(() => observeProductionBatches(db, shop.id), [db, shop.id], [])
+  const products = useQuery(() => observeProducts(db, shop.id), [db, shop.id], [])
 
   const productName = useMemo(() => {
     const byId = new Map(products.map((p) => [p.id, p.name]))
     return (id: string) => byId.get(id) ?? 'Unknown product'
   }, [products])
-
-  if (!online) {
-    return (
-      <Screen title="Production" back={back}>
-        <EmptyState spacious illustration={<IconBox size={48} />} title="No connection" description="Production lives on the server, so this needs a connection to load." />
-      </Screen>
-    )
-  }
 
   return (
     <>
@@ -85,22 +49,13 @@ export function Production() {
         title="Production"
         back={back}
         action={
-          batches && batches.length > 0 ? (
+          batches.length > 0 ? (
             <HeaderAction label="Add" icon={<IconPlus size={16} />} onClick={() => setAdding(true)} />
           ) : undefined
         }
       >
         <div class="space-y-4">
-          {loadError && <ErrorNote>{loadError}</ErrorNote>}
-
-          {batches === null && !loadError && (
-            <div class="space-y-2">
-              <Skeleton class="h-14" />
-              <Skeleton class="h-14" />
-            </div>
-          )}
-
-          {batches && batches.length === 0 && (
+          {batches.length === 0 && (
             <EmptyState
               spacious
               illustration={<IconBox size={48} />}
@@ -140,7 +95,7 @@ export function Production() {
         </div>
       </Screen>
 
-      <AddBatchSheet open={adding} products={products} onClose={() => setAdding(false)} onSaved={reload} />
+      <AddBatchSheet open={adding} products={products} onClose={() => setAdding(false)} />
     </>
   )
 }
@@ -149,14 +104,12 @@ function AddBatchSheet({
   open,
   products,
   onClose,
-  onSaved,
 }: {
   open: boolean
   products: Product[]
   onClose: () => void
-  onSaved: () => void
 }) {
-  const { shop, activeStaff } = useCurrentShop()
+  const { db, shop, activeStaff } = useCurrentShop()
   const [productId, setProductId] = useState('')
   const [batchNumber, setBatchNumber] = useState('')
   const [plannedQuantity, setPlannedQuantity] = useState('0')
@@ -178,6 +131,7 @@ function AddBatchSheet({
     setError(null)
     try {
       await createProductionBatch(
+        db,
         shop.id,
         {
           product_id: productId,
@@ -188,7 +142,6 @@ function AddBatchSheet({
         activeStaff?.id,
       )
       onClose()
-      onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save this batch.')
     } finally {

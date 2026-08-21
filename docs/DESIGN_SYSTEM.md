@@ -52,6 +52,11 @@ guaranteed contrast)
 
 ## Responsiveness
 
+**Amended by `superpowers/specs/2026-08-11-web-and-phone-split-design.md`.** The
+shell is chosen by pointer type, not viewport width: `(pointer: fine)` gets the
+desktop shell, coarse gets the phone one. Resizing a window never switches
+shells. What follows still governs layout *within* a shell.
+
 Adapt to available space, not window size:
 
 - **Fluid before stepped.** `--gutter` and the display type scale are `clamp()`,
@@ -86,12 +91,40 @@ two sets of derived values free to disagree. Describe the record once as
 `Column[]` and hand it to `DataList`; both presentations are CSS layouts of the
 same DOM.
 
-## `warning` is not `money`
+## Nothing means anything by hue alone
 
-Amber is money and only money, so a stalled sync cannot borrow it. `warning`
-(hue 55, between danger's 27 and money's 75) is the "needs attention, nothing
-has failed" status: offline, unsynced, only-on-this-phone. If you reach for
-amber and the subject is not a balance, you want `warning`.
+The owner cannot reliably distinguish colours, and roughly 8% of male users
+share that constraint. So every signal has to survive being rendered in
+greyscale, and there are two halves to that.
+
+**Colour is reinforcement, never the signal.** Whatever a colour says, something
+else must say too — a word, a sign, a glyph, or presence against absence. This
+already holds: an owed column shows a figure or "Paid", `formatDueDate` says "3
+days overdue" in words, and money in and out carry `+`/`−` and an arrow. Keep it
+holding. A red date with no other cue, or an amber figure whose only sibling is
+another amber figure, is the shape to watch for.
+
+**The semantic roles are separated in lightness, not only in hue.** Four roles
+in one lightness band are one grey. They step instead, and the step reads as
+intensity:
+
+| Role | Light | Dark | Meaning |
+|---|---|---|---|
+| `money` | 0.540 | 0.855 | an outstanding balance, and nothing else |
+| `success` | 0.455 | 0.775 | done, paid, synced |
+| `warning` | 0.375 | 0.695 | needs attention, nothing has failed |
+| `danger` | 0.300 | 0.615 | overdue, destructive, failed |
+
+The smallest gap between any pair is 0.075, and all eight values clear 4.5:1 as
+text on their own page. Amber is still money and only money, so a stalled sync
+takes `warning` rather than borrowing it — but that distinction now survives
+greyscale, which it did not when both sat at 0.545.
+
+**`--accent` is the open one.** It is a brand hue at 0.483, inside the same band,
+so a primary button and a `success` state are one grey. Fixing it properly means
+having no brand hue at all: the primary surface becomes the inverse of the
+background, which is how moat avoids the problem entirely. That is a visual
+reset, not a token change, so it is a decision rather than a rule.
 
 ## Adding a screen
 

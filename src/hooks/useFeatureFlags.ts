@@ -1,9 +1,9 @@
-import type { AppDatabase } from '../db/database'
-import { observeFeatureFlags } from '../db/features'
+import type { PolysterDatabase } from '../db/dexie/database'
+import { observeFeatureFlags } from '../db/repo'
 import { DEFAULT_FEATURE_FLAGS, type FeatureKey } from '../db/schema'
-import { useRxQuery } from './useRxQuery'
+import { useQuery } from './useQuery'
 
 /** Live, resolved feature flags for a shop -- defaults until the first emit. */
-export function useFeatureFlags(db: AppDatabase, shopId: string): Record<FeatureKey, boolean> {
-  return useRxQuery(() => observeFeatureFlags(db, shopId), [db, shopId], DEFAULT_FEATURE_FLAGS)
+export function useFeatureFlags(db: PolysterDatabase, shopId: string): Record<FeatureKey, boolean> {
+  return useQuery(() => observeFeatureFlags(db, shopId), [db, shopId], DEFAULT_FEATURE_FLAGS)
 }

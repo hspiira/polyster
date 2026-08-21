@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useLocation } from 'preact-iso'
 import { useCurrentShop } from '../state/ShopProvider'
-import { useRxQuery } from '../hooks/useRxQuery'
+import { useQuery } from '../hooks/useQuery'
 import { saleTotalMinor } from '../db/profit'
 import { formatMinor } from '../lib/money'
 import { cn } from '../lib/cn'
 import { RADIUS, TEXT_SM, TEXT_XS } from './chrome'
 import { matchesQuery } from '../lib/search'
+import { observeClients, observeOrders, observeSales } from '../db/repo'
 
 interface Hit {
   id: string
@@ -31,25 +32,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const closeRef = useRef(onClose)
   closeRef.current = onClose
 
-  const orderDocs = useRxQuery(
-    () => db.orders.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const clientDocs = useRxQuery(
-    () => db.clients.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
-  const saleDocs = useRxQuery(
-    () => db.sales.find({ selector: { shop_id: shop.id } }).$,
-    [db, shop.id],
-    [],
-  )
+  const orderRows = useQuery(() => observeOrders(db, shop.id), [db, shop.id], [])
+  const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
+  const saleRows = useQuery(() => observeSales(db, shop.id), [db, shop.id], [])
 
   const clientNames = useMemo(
-    () => new Map(clientDocs.map((doc) => [doc.id, doc.name])),
-    [clientDocs],
+    () => new Map(clientRows.map((doc) => [doc.id, doc.name])),
+    [clientRows],
   )
 
   const hits = useMemo<Hit[]>(() => {
@@ -57,8 +46,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     if (term.length < 2) return []
     const found: Hit[] = []
 
-    for (const doc of clientDocs) {
-      const client = doc.toJSON()
+    for (const client of clientRows) {
       if (matchesQuery(term, { text: [client.name], phone: [client.phone] })) {
         found.push({
           id: client.id,
@@ -70,8 +58,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       }
     }
 
-    for (const doc of orderDocs) {
-      const order = doc.toJSON()
+    for (const order of orderRows) {
       const client = clientNames.get(order.client_id) ?? ''
       if (
         matchesQuery(term, { text: [order.summary, client, order.reference] })
@@ -86,8 +73,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       }
     }
 
-    for (const doc of saleDocs) {
-      const sale = doc.toJSON()
+    for (const sale of saleRows) {
       if (matchesQuery(term, { text: [sale.item_description] })) {
         found.push({
           id: sale.id,
@@ -103,7 +89,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     // then sales, which are history rather than work.
     const rank = { Order: 0, Client: 1, Sale: 2 } as const
     return found.sort((a, b) => rank[a.kind] - rank[b.kind]).slice(0, LIMIT)
-  }, [query, orderDocs, clientDocs, saleDocs, clientNames, shop.currency])
+  }, [query, orderRows, clientRows, saleRows, clientNames, shop.currency])
 
   // Reset per opening, so ⌘K is always a fresh search rather than the last one.
   useEffect(() => {

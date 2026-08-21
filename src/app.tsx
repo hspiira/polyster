@@ -7,7 +7,7 @@ import { useAuth } from './hooks/useAuth'
 import { useAutoLock } from './hooks/useAutoLock'
 import { useDatabase } from './hooks/useDatabase'
 import { useOnline } from './hooks/useOnline'
-import { useReplication } from './hooks/useReplication'
+import { NOT_SYNCING, type ReplicationStatus } from './lib/syncState'
 import { ShopProvider, useShop } from './state/ShopProvider'
 import { Landing } from './screens/entry/Landing'
 import { SignIn } from './screens/entry/SignIn'
@@ -18,7 +18,7 @@ import { Logomark } from './components/Logomark'
 import { decideEntryScreen, isLocked } from './lib/entryState'
 import { DEFAULT_LOCK_AFTER_MINUTES } from './lib/lockPolicy'
 import { usePlatform } from './hooks/usePlatform'
-import type { AppDatabase } from './db/database'
+
 import type { AuthState } from './lib/auth'
 
 export function App() {
@@ -31,16 +31,15 @@ export function App() {
   return (
     <ShopProvider db={database.db}>
       <LocationProvider>
-        <Entry auth={auth} db={database.db} />
+        <Entry auth={auth} />
       </LocationProvider>
     </ShopProvider>
   )
 }
 
-function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
+function Entry({ auth }: { auth: AuthState }) {
   const online = useOnline()
   const { shop, staff, activeStaff, setActiveStaff, loaded } = useShop()
-  const replication = useReplication(db, auth.status === 'signed_in')
 
   const [registering, setRegistering] = useState(false)
 
@@ -63,7 +62,7 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
     claimed: Boolean(shop?.supabase_auth_user_id),
     locked,
     registering,
-    awaitingFirstPull: replication.status === 'syncing',
+    awaitingFirstPull: false,
   })
 
   if (screen === 'splash') return <Splash />
@@ -78,7 +77,7 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
 
   if (screen === 'lock') return <LockScreen authStatus={auth.status} />
 
-  return <AppShell online={online} auth={auth} replication={replication} />
+  return <AppShell online={online} auth={auth} replication={NOT_SYNCING} />
 }
 
 /* Picks one of the two designs (spec W1, W2). Both surface sync state, so both
@@ -86,7 +85,7 @@ function Entry({ auth, db }: { auth: AuthState; db: AppDatabase }) {
 type ShellProps = {
   online: boolean
   auth: AuthState
-  replication: ReturnType<typeof useReplication>
+  replication: ReplicationStatus
 }
 
 /* Only this device's shell is fetched. Imported statically, both shells and

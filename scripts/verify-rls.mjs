@@ -18,7 +18,7 @@
 // What this does NOT verify: whether `select * from order_balances` as
 // shop A actually returns only shop A's rows. That needs two real shop
 // accounts and a live login -- see the Phase 0 exit checklist in
-// docs/IMPLEMENTATION_PLAN.md. This script checks the structural
+// docs/STATUS.md. This script checks the structural
 // preconditions (RLS enabled, at least one policy, roles configured
 // correctly, the view's security_invoker flag) that make that manual test
 // meaningful, not a substitute for running it.
@@ -161,5 +161,5 @@ if (failures.length > 0) {
 console.log('All RLS structural checks passed.')
 console.log(
   'Reminder: this does not replace the manual two-shop-account test in ' +
-    "docs/IMPLEMENTATION_PLAN.md's Phase 0 exit checklist.",
+    "docs/STATUS.md's Phase 0 sign-off.",
 )
