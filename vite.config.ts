@@ -1,4 +1,3 @@
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import preact from '@preact/preset-vite'
 import tailwindcss from '@tailwindcss/vite'
@@ -58,16 +57,6 @@ export default defineConfig({
      * on disk is real and a future plugin or resolver could pick differently.
      */
     dedupe: ['preact', 'preact/hooks', 'preact/jsx-runtime', 'preact/compat'],
-    /* The geist package exports only its Next.js font wrappers, not the woff2
-       it ships, so the file is aliased rather than copied into the repo. */
-    alias: {
-      'geist-sans-variable': fileURLToPath(
-        new URL(
-          './node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2',
-          import.meta.url,
-        ),
-      ),
-    },
   },
   plugins: [
     preact(),

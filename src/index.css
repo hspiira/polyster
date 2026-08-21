@@ -4,14 +4,14 @@
 @import './styles/theme.css';
 @import './styles/components.css';
 
-/* One typeface, one file. Geist ships a single variable woff2 covering 100-900,
-   so there is no subset to trim and no second face to keep in step. */
+/* One typeface, one file: weights 100-900 from a single variable woff2, so there
+   is no subset to trim and no second face to keep in step. See fonts/README.md. */
 @font-face {
   font-family: 'Geist';
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
-  src: url('geist-sans-variable') format('woff2-variations');
+  src: url('./fonts/Geist-Variable.woff2') format('woff2-variations');
 }
 
 /* "Room to set two things side by side", for the entry landing. Two conditions,
