@@ -1,7 +1,7 @@
 # Durability, and the gaps left after the storage switch
 
 Date: 2026-08-22
-Status: **in progress** — Phases 0 and 1 done
+Status: **in progress** — Phases 0, 1 and 2 done; Decision 1 is the gate
 Decision owner: Piira
 
 ## Why
@@ -193,8 +193,32 @@ Independent of sync, and cheaper to do before the log is in a year of backups.
 - An index or a bounded default on `observeShopEvents` — 316 ms at five years,
   in-memory, is the one read that does not stay cheap.
 
-*Verified by:* re-running the two measurements in this document; a browser check
-that a second boot does no import work.
+*Verified by:* re-running the measurements; seven importer tests with three
+mutation checks.
+
+**Done 2026-08-22.** Measured, not claimed:
+
+| | Before | After |
+|---|---|---|
+| Audit vs. data | 8.7× | **2.84×** |
+| Bytes per event | 641 | **231** |
+| Events per order | 10.9 | **10.0** |
+| Backup file, 60 orders | 269 KB | **136 KB** |
+
+Three changes, and one finding that shaped them. A `created` event no longer
+copies the row and a `deleted` one no longer copies what was there, because soft
+delete means the row is still in its store — the log needs to say who and when,
+not hold a second copy. An update stores only the fields that differ. And 51 of
+168 updates recorded nothing but a bumped `updated_at`, which is a write rather
+than a change, so those write no event at all.
+
+What is left is mostly envelope: id, shop, timestamp, entity, action. 2.84× is
+close to the floor without giving up either the index or the attribution, so
+Decision 2B — a retention window — stays available but is not needed yet.
+
+The importer now records that it finished, skips discovery on later launches, and
+deletes the databases it read. It refuses to mark itself done if any row was
+unusable, so a partial transfer is retried rather than stranded.
 
 ### Phase 3 — Sync (the large one)
 

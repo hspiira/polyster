@@ -50,12 +50,18 @@ function file() {
 }
 
 describe('buildBackup', () => {
-  /* The failure this guards is silent: a store added to the app but not to the
-     dump, and nobody finds out until a phone is lost. */
-  it('covers every store', async () => {
+  /* Guards a silent failure: a store added to the app but not to the dump.
+     `events` is the one deliberate omission, so it is named rather than filtered. */
+  it('covers every store but the audit log', async () => {
+    const expected = STORE_NAMES.filter((store) => store !== 'events').sort()
     const backup = await buildBackup(freshDatabase())
+    expect(Object.keys(backup.data).sort()).toEqual(expected)
+    expect(Object.keys(backup.counts).sort()).toEqual(expected)
+  })
+
+  it('covers every store when history is asked for', async () => {
+    const backup = await buildBackup(freshDatabase(), { includeHistory: true })
     expect(Object.keys(backup.data).sort()).toEqual([...STORE_NAMES].sort())
-    expect(Object.keys(backup.counts).sort()).toEqual([...STORE_NAMES].sort())
   })
 
   it('is an empty but complete dump for a shop with nothing in it', async () => {
@@ -239,7 +245,7 @@ describe('restoreBackup', () => {
     const shop = await createShop(db, { name: 'Kampala Tailors' })
     for (const name of ['Ama', 'Ben', 'Cara']) await createClient(db, shop.id, { name })
 
-    const exported = await buildBackup(db)
+    const exported = await buildBackup(db, { includeHistory: true })
     const before = await snapshot(db)
 
     // A different device: everything gone, then the file applied.
@@ -269,6 +275,22 @@ describe('restoreBackup', () => {
 
     const names = (await db.clients.toArray()).map((row) => row.name)
     expect(names).toEqual(['Ama'])
+  })
+
+  /* The default export leaves history out, so restoring it clears the log on
+     the device rather than restoring one. Replace means replace. */
+  it('does not bring history back when the file has none', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    await createClient(db, shop.id, { name: 'Ama' })
+    expect(await db.events.count()).toBeGreaterThan(0)
+
+    const parsed = parseBackup(await buildBackup(db))
+    if (!parsed.ok) throw new Error(parsed.error)
+    await restoreBackup(db, parsed.backup)
+
+    expect(await db.clients.count()).toBe(1)
+    expect(await db.events.count()).toBe(0)
   })
 
   /* A failure part way through must leave the device as it was. The file has to
@@ -305,5 +327,39 @@ describe('restoreBackup', () => {
 
     expect(await db.clients.count()).toBe(1)
     expect(await db.shops.count()).toBe(0)
+  })
+})
+
+describe('buildBackup and history', () => {
+  /* The audit log is the largest store on the device and describes who changed
+     what, not what the shop is. A restore needs the second, not the first. */
+  it('leaves the audit log out by default', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    await createClient(db, shop.id, { name: 'Ama' })
+
+    const backup = await buildBackup(db)
+    expect(backup.data).not.toHaveProperty('events')
+    expect(backup.counts).not.toHaveProperty('events')
+    expect(backup.data.clients).toHaveLength(1)
+  })
+
+  it('includes it when asked', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    await createClient(db, shop.id, { name: 'Ama' })
+
+    const backup = await buildBackup(db, { includeHistory: true })
+    expect(backup.counts.events).toBeGreaterThan(0)
+  })
+
+  it('is smaller without the log than with it', async () => {
+    const db = freshDatabase()
+    const shop = await createShop(db, { name: 'Kampala Tailors' })
+    for (const name of ['Ama', 'Ben', 'Cara']) await createClient(db, shop.id, { name })
+
+    const lean = JSON.stringify(await buildBackup(db)).length
+    const full = JSON.stringify(await buildBackup(db, { includeHistory: true })).length
+    expect(lean).toBeLessThan(full)
   })
 })

@@ -19,11 +19,24 @@ export interface Backup {
   counts: Record<string, number>
 }
 
-export async function buildBackup(db: PolysterDatabase): Promise<Backup> {
+/* The audit log is left out unless asked for. It is the largest store on the
+   device and says who changed what, not what the shop currently is. */
+export interface BackupOptions {
+  includeHistory?: boolean
+}
+
+export async function buildBackup(
+  db: PolysterDatabase,
+  options: BackupOptions = {},
+): Promise<Backup> {
   const data: Record<string, unknown[]> = {}
   const counts: Record<string, number> = {}
 
-  for (const store of STORE_NAMES) {
+  const stores = options.includeHistory
+    ? STORE_NAMES
+    : STORE_NAMES.filter((store) => store !== 'events')
+
+  for (const store of stores) {
     const rows = await db.table(store).toArray()
     data[store] = rows
     counts[store] = rows.length

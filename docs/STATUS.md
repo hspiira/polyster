@@ -93,6 +93,13 @@ device and discovering the restore screen was unreachable.
 
 Replace only. Merge needs a conflict rule and waits for sync.
 
+### ~~Audit log and importer footprint~~ — done 2026-08-22
+
+Was never in this list; it was created by the storage switch and found by
+measuring. Events carried a full copy of every row on both sides, at 8.7× the
+data they described. Now 2.84×, and the default backup is half the size. The
+RxDB importer runs once rather than on every launch, and deletes what it read.
+
 ### 3. Nothing has run on real hardware
 
 Every screen has been driven in a headless desktop browser at phone dimensions,

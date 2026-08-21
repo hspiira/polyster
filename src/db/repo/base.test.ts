@@ -3,12 +3,14 @@ import { createDatabase, type PolysterDatabase } from '../dexie/database'
 import type { ClientDoc } from '../schema'
 import {
   alive,
+  changedFields,
   buildEvent,
   getActor,
   gone,
   insertRow,
   loadOrThrow,
   missing,
+  nothingToRecord,
   patchRow,
   present,
   prune,
@@ -125,7 +127,8 @@ describe('insertRow', () => {
       actor_staff_id: 'staff-3',
       summary: 'Added Amina',
     })
-    expect(events[0]?.after).toMatchObject({ name: 'Amina' })
+    // No row copy: the row is in its own store, and soft delete keeps it there.
+    expect(events[0]?.after).toBeUndefined()
   })
 
   it('writes no event when the insert fails', async () => {
@@ -152,14 +155,56 @@ describe('patchRow', () => {
     expect(await db.clients.get('c1')).not.toHaveProperty('phone')
   })
 
-  it('records both sides of the change', async () => {
+  it('records both sides of the change, and only what changed', async () => {
     const db = fresh()
     await insertRow(db.clients, client('c1'), 'shop-1')
     await patchRow(db.clients, 'c1', { name: 'Grace' })
 
     const event = (await db.events.toArray()).find((row) => row.action === 'updated')
-    expect(event?.before).toMatchObject({ name: 'Amina' })
-    expect(event?.after).toMatchObject({ name: 'Grace' })
+    expect(event?.before).toEqual({ name: 'Amina' })
+    expect(event?.after).toEqual({ name: 'Grace' })
+  })
+
+  /* The whole point of the diff: an event about one field must not carry a copy
+     of every other field on the row. */
+  it('leaves untouched fields out of the event', async () => {
+    const db = fresh()
+    await insertRow(db.clients, { ...client('c1'), phone: '0700000123' }, 'shop-1')
+    await patchRow(db.clients, 'c1', { name: 'Grace' })
+
+    const event = (await db.events.toArray()).find((row) => row.action === 'updated')
+    expect(Object.keys(event?.after ?? {})).toEqual(['name'])
+    expect(event?.after).not.toHaveProperty('phone')
+    expect(event?.after).not.toHaveProperty('shop_id')
+  })
+
+  it('writes no event at all when nothing actually changed', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await patchRow(db.clients, 'c1', { name: 'Amina' })
+
+    expect((await db.events.toArray()).some((row) => row.action === 'updated')).toBe(false)
+  })
+
+  /* A recalculate that finds the same total writes updated_at and nothing else.
+     Logging that says a row was touched without saying anything happened. */
+  it('writes no event when only updated_at moved', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await patchRow(db.clients, 'c1', { updated_at: '2026-09-09T00:00:00.000Z' })
+
+    expect((await db.events.toArray()).some((row) => row.action === 'updated')).toBe(false)
+    expect((await db.clients.get('c1'))?.updated_at).toBe('2026-09-09T00:00:00.000Z')
+  })
+
+  // A caller that passed a summary meant to say something, even about a no-op.
+  it('still records a no-op that was given a summary', async () => {
+    const db = fresh()
+    await insertRow(db.clients, client('c1'), 'shop-1')
+    await patchRow(db.clients, 'c1', { name: 'Amina' }, { summary: 'reviewed' })
+
+    const event = (await db.events.toArray()).find((row) => row.action === 'updated')
+    expect(event?.summary).toBe('reviewed')
   })
 
   it('takes the shop id off the row', async () => {
@@ -204,7 +249,8 @@ describe('softDeleteRow', () => {
 
     const event = (await db.events.toArray()).find((row) => row.action === 'deleted')
     expect(event).toMatchObject({ entity: 'clients', shop_id: 'shop-1', summary: 'Archived Amina' })
-    expect(event?.before).toMatchObject({ name: 'Amina' })
+    // The row is still on disk, stamped, so the event carries no copy of it.
+    expect(event?.before).toBeUndefined()
   })
 
   it('does nothing twice', async () => {
@@ -433,5 +479,57 @@ describe('the one-shot reads', () => {
     await insertRow(db.clients, client('c1'), 'shop-1')
     await softDeleteRow(db.clients, 'c1')
     expect(await getRow(db.clients, 'c1')).toBeNull()
+  })
+})
+
+describe('changedFields', () => {
+  it('returns only the keys that differ', () => {
+    const diff = changedFields({ a: 1, b: 2, c: 3 }, { a: 1, b: 9, c: 3 })
+    expect(diff).toEqual({ before: { b: 2 }, after: { b: 9 } })
+  })
+
+  it('reports a key that appeared', () => {
+    expect(changedFields({ a: 1 }, { a: 1, b: 2 })).toEqual({ before: {}, after: { b: 2 } })
+  })
+
+  it('reports a key that went away', () => {
+    expect(changedFields({ a: 1, b: 2 }, { a: 1 })).toEqual({ before: { b: 2 }, after: {} })
+  })
+
+  it('is empty when nothing changed', () => {
+    expect(changedFields({ a: 1 }, { a: 1 })).toEqual({ before: {}, after: {} })
+  })
+
+  /* measurements and permission_overrides are object columns. Comparing them by
+     reference would log a change on every save that merely re-set them. */
+  it('compares object values, not references', () => {
+    const before = { measurements: { chest: 40 } }
+    const after = { measurements: { chest: 40 } }
+    expect(changedFields(before, after)).toEqual({ before: {}, after: {} })
+  })
+
+  it('sees a real change inside an object value', () => {
+    const diff = changedFields({ m: { chest: 40 } }, { m: { chest: 42 } })
+    expect(diff.after).toEqual({ m: { chest: 42 } })
+  })
+
+  it('does not treat undefined and absent as different', () => {
+    expect(changedFields({ a: 1, b: undefined }, { a: 1 })).toEqual({ before: {}, after: {} })
+  })
+})
+
+describe('nothingToRecord', () => {
+  it('is true for an empty diff', () => {
+    expect(nothingToRecord({ before: {}, after: {} })).toBe(true)
+  })
+
+  it('is true when only updated_at moved', () => {
+    expect(nothingToRecord({ before: { updated_at: 'a' }, after: { updated_at: 'b' } })).toBe(true)
+  })
+
+  it('is false when a real field moved alongside updated_at', () => {
+    expect(
+      nothingToRecord({ before: { name: 'a', updated_at: 'x' }, after: { name: 'b', updated_at: 'y' } }),
+    ).toBe(false)
   })
 })

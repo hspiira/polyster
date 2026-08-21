@@ -76,6 +76,45 @@ function asRecord<T>(row: T): Record<string, unknown> {
   return row as unknown as Record<string, unknown>
 }
 
+/* What changed between two versions of a row, both sides. Soft delete means the
+   row itself is never gone, so an event only has to carry the difference. */
+export function changedFields<T>(
+  before: T,
+  after: T,
+): { before: Record<string, unknown>; after: Record<string, unknown> } {
+  const from = asRecord(before)
+  const to = asRecord(after)
+  const changedBefore: Record<string, unknown> = {}
+  const changedAfter: Record<string, unknown> = {}
+
+  for (const key of new Set([...Object.keys(from), ...Object.keys(to)])) {
+    if (same(from[key], to[key])) continue
+    if (key in from) changedBefore[key] = from[key]
+    if (key in to) changedAfter[key] = to[key]
+  }
+
+  return { before: changedBefore, after: changedAfter }
+}
+
+/* True when a diff holds nothing worth recording. A bumped updated_at is a
+   write, not a change: the row itself already carries when it was touched. */
+export function nothingToRecord(diff: {
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+}): boolean {
+  const keys = new Set([...Object.keys(diff.before), ...Object.keys(diff.after)])
+  keys.delete('updated_at')
+  return keys.size === 0
+}
+
+/* Compares by value one level deep, which covers the object-valued columns --
+   measurements and permission_overrides -- without a general deep equal. */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
 type Rows<T extends { id: string }> = EntityTable<Stored<T>, 'id'>
 
 /* Dexie derives its key and insert types from the row type, which TypeScript
@@ -100,7 +139,6 @@ export async function insertRow<T extends { id: string }>(
         entity: table.name,
         entity_id: row.id,
         action: 'created',
-        after: asRecord(row),
         ...(summary ? { summary } : {}),
       }),
     )
@@ -127,14 +165,16 @@ export async function patchRow<T extends { id: string }>(
     await rows(table).put(next)
     updated = next
 
+    const diff = changedFields(before as Stored<T>, next)
+    if (nothingToRecord(diff) && !options.summary) return
+
     await events.add(
       buildEvent({
         shop_id: options.shopId ?? shopIdOf(next) ?? '',
         entity: table.name,
         entity_id: id,
         action: 'updated',
-        before: asRecord(before),
-        after: asRecord(next),
+        ...diff,
         ...(options.summary ? { summary: options.summary } : {}),
       }),
     )
@@ -165,7 +205,6 @@ export async function softDeleteRow<T extends { id: string }>(
         entity: table.name,
         entity_id: id,
         action: 'deleted',
-        before: asRecord(before),
         ...(options.summary ? { summary: options.summary } : {}),
       }),
     )
@@ -193,8 +232,6 @@ export async function restoreRow<T extends { id: string }>(
         entity: table.name,
         entity_id: id,
         action: 'restored',
-        before: asRecord(before),
-        after: asRecord(next),
       }),
     )
   })
@@ -354,8 +391,7 @@ export async function voidRow<T extends { id: string }>(
         entity: table.name,
         entity_id: id,
         action: 'deleted',
-        before: asRecord(before),
-        after: asRecord(next),
+        ...changedFields(before as Stored<T>, next),
         ...(input.reason?.trim() ? { summary: input.reason.trim() } : {}),
       }),
     )

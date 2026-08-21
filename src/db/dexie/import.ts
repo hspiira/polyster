@@ -12,6 +12,38 @@ import {
 /** The name RxDB's databases were kept under. */
 const RXDB_NAME = 'tailor_tracker'
 
+const DONE_KEY = 'polyster.rxdb_import_done'
+
+/* Whether the import has already finished on this device. Without it the app
+   re-opens up to fourteen databases on every launch, forever. */
+export function importDone(): boolean {
+  try {
+    return localStorage.getItem(DONE_KEY) !== null
+  } catch {
+    // Private browsing. Discovery runs again and finds nothing.
+    return false
+  }
+}
+
+function markImportDone(): void {
+  try {
+    localStorage.setItem(DONE_KEY, new Date().toISOString())
+  } catch {
+    // Not worth failing a successful import over.
+  }
+}
+
+function deleteDatabase(name: string): Promise<void> {
+  return new Promise((resolve) => {
+    const request = indexedDB.deleteDatabase(name)
+    // Resolves either way: reclaiming the space is best effort, and a blocked
+    // delete must not stop the app opening.
+    request.onsuccess = () => resolve()
+    request.onerror = () => resolve()
+    request.onblocked = () => resolve()
+  })
+}
+
 export interface StoreReport {
   store: StoreName
   from: string
@@ -26,6 +58,8 @@ export interface ImportReport {
   stores: StoreReport[]
   written: number
   unknown: string[]
+  /** True when the import had already finished on a previous launch. */
+  skipped?: boolean
 }
 
 /** Every IndexedDB database name, or none where databases() is missing. */
@@ -71,8 +105,22 @@ export async function planImport(db: PolysterDatabase = getDatabase()): Promise<
   return run(db, false)
 }
 
+/* Runs once per device. Later launches skip discovery entirely, and the
+   databases that were read are deleted so the space comes back. */
 export async function runImport(db: PolysterDatabase = getDatabase()): Promise<ImportReport> {
-  return run(db, true)
+  if (importDone()) return { sources: 0, stores: [], written: 0, unknown: [], skipped: true }
+
+  const report = await run(db, true)
+
+  /* Only once every source was read without an unusable row left behind: a
+     partial read must be retried on the next launch, not marked finished. */
+  const clean = report.stores.every((store) => store.unusable === 0)
+  if (clean) {
+    markImportDone()
+    for (const store of report.stores) await deleteDatabase(store.from)
+  }
+
+  return report
 }
 
 async function run(db: PolysterDatabase, write: boolean): Promise<ImportReport> {
