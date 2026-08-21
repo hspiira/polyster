@@ -238,9 +238,10 @@ because a backup importer is the fallback for sync going wrong.
   is exactly the break it exists to catch. `verify:schema` then caught two more —
   an RLS policy name I had guessed wrong, and twelve `seed.sql` inserts that had
   no `shop_id` to give.
-- **3c — the push/pull loop.** Design not settled and deliberately not sketched
-  here; it needs its own plan once Decision 1 is made. The offline-conflict
-  question returns with it and is still unanswered.
+- **3c — the push/pull loop.** Designed in
+  `2026-08-22-sync-design.md`, awaiting four decisions. The short version: the
+  twenty-eight stores split into append-only and mutable, and the append-only half
+  — which includes payments — needs no conflict rule at all.
 - **3d — a purge policy for soft-deleted rows**, once there is a reconciliation
   horizon to purge against.
 

@@ -78,8 +78,9 @@ Replication went with RxDB on 2026-08-21 and has not been rebuilt. A shop's data
 lives on one device, and the backup export is the only way off it. Two devices
 cannot share a shop.
 
-This is the largest open item in the project, and it makes item 2 urgent rather
-than tidy.
+This is the largest open item in the project. Designed in
+`superpowers/plans/2026-08-22-sync-design.md` and waiting on four decisions;
+`shop_id` on payments (its one prerequisite) shipped 2026-08-22.
 
 The id question is settled (2026-08-22): ids stay cuid2 and our own id columns
 are `text`, verified by `pnpm verify:schema`. Only `shops.supabase_auth_user_id`
