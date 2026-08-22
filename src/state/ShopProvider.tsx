@@ -84,6 +84,12 @@ export function ShopProvider({
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>
 }
 
+/* Drops the remembered staff member. A restore replaces the staff rows, so the
+   id in this session may no longer exist. */
+export function forgetActiveStaff(): void {
+  writeStoredStaffId(null)
+}
+
 export function useShop(): ShopContextValue {
   const value = useContext(ShopContext)
   if (!value) throw new Error('useShop must be used inside a ShopProvider')

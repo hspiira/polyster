@@ -15,7 +15,7 @@ export const STORES = {
   orders: 'id, shop_id, client_id, created_at, [shop_id+pickup_due_date], [shop_id+stage]',
   order_units: 'id, order_id',
   order_stage_history: 'id, order_id',
-  payments: 'id, order_id',
+  payments: 'id, order_id, shop_id',
 
   // -- money ------------------------------------------------------------
   sales: 'id, shop_id, [shop_id+sold_at]',
@@ -43,8 +43,54 @@ export const STORES = {
   production_batches: 'id, shop_id, created_at',
   production_batch_costs: 'id, batch_id',
   garment_units: 'id, shop_id, created_at',
+
+  // -- sync bookkeeping, never synced itself ----------------------------
+  sync_outbox: 'id, store',
+  sync_cursors: 'id',
 } as const
 
 export type StoreName = keyof typeof STORES
 
 export const STORE_NAMES = Object.keys(STORES) as StoreName[]
+
+/* Bookkeeping this device keeps about syncing. Never synced, never backed up:
+   restoring another device's outbox would replay its pending pushes here. */
+export const LOCAL_ONLY_STORES = ['sync_outbox', 'sync_cursors'] as const
+
+export type LocalOnlyStore = (typeof LOCAL_ONLY_STORES)[number]
+export type SyncedStore = Exclude<StoreName, LocalOnlyStore>
+
+/** The stores that hold shop data, in the order they are safe to write. */
+export const SYNCED_STORES = STORE_NAMES.filter(
+  (name): name is SyncedStore => !(LOCAL_ONLY_STORES as readonly string[]).includes(name),
+)
+
+/* The version Dexie opens. Bump it in the same commit as any change to STORES,
+   or an installed app cannot open the database it already has. */
+export const SCHEMA_VERSION = 3
+
+/** A store list reduced to one comparable string. */
+export function fingerprint(stores: Record<string, string>): string {
+  const canonical = Object.keys(stores)
+    .sort()
+    .map((name) => `${name}=${stores[name]}`)
+    .join(';')
+
+  // FNV-1a, for something short and stable enough to commit.
+  let hash = 0x811c9dc5
+  for (let i = 0; i < canonical.length; i++) {
+    hash ^= canonical.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+/* Every shipped version, fingerprinted. Append when STORES changes; never edit
+   an entry, and never compute one -- that would agree with any change. */
+export const SCHEMA_HISTORY: Record<number, string> = {
+  1: '28e34301',
+  // shop_id on payments, so they can be read without joining orders.
+  2: '9beadae7',
+  // updated_at everywhere, plus the outbox and cursors sync keeps.
+  3: 'a638c2a8',
+}

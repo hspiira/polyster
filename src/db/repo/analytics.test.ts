@@ -76,6 +76,7 @@ const batchCost = (over: Partial<ProductionBatchCost> = {}): ProductionBatchCost
   amount_minor: 100000,
   currency: 'UGX',
   created_at: '2026-08-01T00:00:00.000Z',
+  updated_at: '2026-08-01T00:00:00.000Z',
   ...over,
 })
 

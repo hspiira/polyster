@@ -72,7 +72,7 @@ create trigger trg_staff_modified
 
 alter table clients
   add column updated_at timestamptz not null default now(),
-  add column created_by uuid references staff(id) on delete set null;
+  add column created_by text references staff(id) on delete set null;
 
 drop trigger trg_clients_modified on clients;
 create trigger trg_clients_modified
@@ -102,7 +102,7 @@ alter table payments
     check (kind in ('payment', 'refund')),
   add column created_at timestamptz not null default now(),
   add column reference text,
-  add column voided_by uuid references staff(id) on delete set null,
+  add column voided_by text references staff(id) on delete set null,
   add column voided_at timestamptz,
   add column void_reason text;
 
@@ -193,8 +193,8 @@ alter table order_stage_history add constraint order_stage_history_to_stage_chec
 -- ---- order_units (model doc section 3) ----
 
 create table order_units (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references orders(id) on delete cascade,
+  id text primary key,
+  order_id text not null references orders(id) on delete cascade,
   position integer not null default 0,
 
   -- Null means "for the client themselves". Free text by design: beneficiaries
@@ -211,7 +211,7 @@ create table order_units (
     check (fabric_source in ('client', 'shop')),
   done boolean not null default false,
 
-  catalogue_item_id uuid,  -- Phase 2. Moved off orders; no FK until that table exists.
+  catalogue_item_id text,  -- Phase 2. Moved off orders; no FK until that table exists.
   photo_url text,          -- Phase 2 Supabase Storage. Reserved, unwritten.
 
   notes text,
@@ -246,9 +246,9 @@ create policy "shop scoped via order" on order_units
 -- ---- message_log (model doc section 4) ----
 
 create table message_log (
-  id uuid primary key default gen_random_uuid(),
-  client_id uuid not null references clients(id) on delete cascade,
-  order_id uuid references orders(id) on delete cascade,  -- null: not about an order
+  id text primary key,
+  client_id text not null references clients(id) on delete cascade,
+  order_id text references orders(id) on delete cascade,  -- null: not about an order
 
   channel text not null default 'whatsapp'
     check (channel in ('whatsapp', 'sms', 'call')),
@@ -261,7 +261,7 @@ create table message_log (
   order_stage text,
 
   sent_at timestamptz not null default now(),
-  sent_by uuid references staff(id) on delete set null,
+  sent_by text references staff(id) on delete set null,
   _modified timestamptz not null default now(),
   _deleted boolean not null default false
 );

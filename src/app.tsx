@@ -7,7 +7,8 @@ import { useAuth } from './hooks/useAuth'
 import { useAutoLock } from './hooks/useAutoLock'
 import { useDatabase } from './hooks/useDatabase'
 import { useOnline } from './hooks/useOnline'
-import { NOT_SYNCING, type ReplicationStatus } from './lib/syncState'
+import { type ReplicationStatus } from './lib/syncState'
+import { useSync } from './hooks/useSync'
 import { ShopProvider, useShop } from './state/ShopProvider'
 import { Landing } from './screens/entry/Landing'
 import { SignIn } from './screens/entry/SignIn'
@@ -39,7 +40,8 @@ export function App() {
 
 function Entry({ auth }: { auth: AuthState }) {
   const online = useOnline()
-  const { shop, staff, activeStaff, setActiveStaff, loaded } = useShop()
+  const { db, shop, staff, activeStaff, setActiveStaff, loaded } = useShop()
+  const sync = useSync(db, online, auth.status === 'signed_in')
 
   const [registering, setRegistering] = useState(false)
 
@@ -77,7 +79,9 @@ function Entry({ auth }: { auth: AuthState }) {
 
   if (screen === 'lock') return <LockScreen authStatus={auth.status} />
 
-  return <AppShell online={online} auth={auth} replication={NOT_SYNCING} />
+  return (
+    <AppShell online={online} auth={auth} replication={sync.status} pending={sync.pending} />
+  )
 }
 
 /* Picks one of the two designs (spec W1, W2). Both surface sync state, so both
@@ -86,6 +90,7 @@ type ShellProps = {
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
+  pending: number
 }
 
 /* Only this device's shell is fetched. Imported statically, both shells and

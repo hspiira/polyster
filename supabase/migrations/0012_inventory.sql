@@ -8,11 +8,11 @@
 begin;
 
 create table inventory_items (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
   item_type text not null check (item_type in ('product_variant', 'material')),
-  product_variant_id uuid references product_variants(id) on delete cascade,
-  material_id uuid references materials(id) on delete cascade,
+  product_variant_id text references product_variants(id) on delete cascade,
+  material_id text references materials(id) on delete cascade,
   quantity numeric(12, 2) not null default 0,
   unit text not null default 'unit',
   created_at timestamptz not null default now(),
@@ -34,9 +34,9 @@ create index idx_inventory_items_shop on inventory_items(shop_id);
 -- write path.
 
 create table inventory_movements (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
-  inventory_item_id uuid not null references inventory_items(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
+  inventory_item_id text not null references inventory_items(id) on delete cascade,
 
   movement_type text not null
     check (movement_type in (
@@ -51,13 +51,13 @@ create table inventory_movements (
   -- Polymorphic, deliberately no FK: a movement may point at a purchase,
   -- a production batch, an order, or nothing at all.
   reference_type text,
-  reference_id uuid,
+  reference_id text,
 
   -- Required for 'adjustment' specifically (section 28: "a stock adjustment
   -- must have a reason") -- enforced below, optional for every other type.
   reason text,
   notes text,
-  created_by uuid references staff(id) on delete set null,
+  created_by text references staff(id) on delete set null,
   created_at timestamptz not null default now(),
 
   constraint inventory_movements_adjustment_needs_reason check (

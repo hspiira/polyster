@@ -20,6 +20,7 @@ export function TodayTop({
   online,
   auth,
   replication,
+  pending,
 }: {
   /** YYYY-MM-DD. */
   date: string
@@ -27,13 +28,14 @@ export function TodayTop({
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
+  pending: number
 }) {
   const local = toLocalDate(date)
 
   return (
     <header class="mb-3">
       <div class="flex items-center justify-between gap-3">
-        <SyncBadge online={online} auth={auth} replication={replication} />
+        <SyncBadge online={online} auth={auth} replication={replication} pending={pending} />
 
         {/* Two targets, not one. The gear was previously inside the same link
             as the avatar, so tapping a face opened preferences. */}

@@ -136,10 +136,12 @@ export function SideRail({
   online,
   auth,
   replication,
+  pending,
 }: {
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
+  pending: number
 }) {
   const { path } = useLocation()
   const { db, shop, activeStaff } = useCurrentShop()
@@ -220,7 +222,7 @@ export function SideRail({
       </div>
 
       <div class="mt-auto px-3 pt-4">
-        <SyncBadge online={online} auth={auth} replication={replication} />
+        <SyncBadge online={online} auth={auth} replication={replication} pending={pending} />
       </div>
     </nav>
   )

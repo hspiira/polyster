@@ -1,12 +1,17 @@
-/* Export backup (ARCHITECTURE.md D7). Browser storage is not permanent, and for
-   an unclaimed shop this JSON dump is the only copy off the device. */
+/* Backup, in both directions (ARCHITECTURE.md D7). Browser storage is not
+   permanent, and this file is the only copy off the device. */
 import type { PolysterDatabase } from '../db/dexie/database'
-import { STORE_NAMES } from '../db/dexie/stores'
+import { LOCAL_ONLY_STORES, SYNCED_STORES, type StoreName } from '../db/dexie/stores'
+import {
+  BACKUP_FORMAT,
+  BACKUP_FORMAT_VERSION,
+  type ParsedBackup,
+} from './backupFile'
 
-export const BACKUP_FORMAT_VERSION = 1
+export { BACKUP_FORMAT_VERSION }
 
 export interface Backup {
-  format: 'tailor-tracker-backup'
+  format: typeof BACKUP_FORMAT
   version: number
   exported_at: string
   /** Every store on the device, keyed by store name. */
@@ -14,18 +19,31 @@ export interface Backup {
   counts: Record<string, number>
 }
 
-export async function buildBackup(db: PolysterDatabase): Promise<Backup> {
+/* The audit log is left out unless asked for. It is the largest store on the
+   device and says who changed what, not what the shop currently is. */
+export interface BackupOptions {
+  includeHistory?: boolean
+}
+
+export async function buildBackup(
+  db: PolysterDatabase,
+  options: BackupOptions = {},
+): Promise<Backup> {
   const data: Record<string, unknown[]> = {}
   const counts: Record<string, number> = {}
 
-  for (const store of STORE_NAMES) {
+  const stores = options.includeHistory
+    ? SYNCED_STORES
+    : SYNCED_STORES.filter((store) => store !== 'events')
+
+  for (const store of stores) {
     const rows = await db.table(store).toArray()
     data[store] = rows
     counts[store] = rows.length
   }
 
   return {
-    format: 'tailor-tracker-backup',
+    format: BACKUP_FORMAT,
     version: BACKUP_FORMAT_VERSION,
     exported_at: new Date().toISOString(),
     data,
@@ -85,4 +103,34 @@ export function daysSinceBackup(now: Date = new Date()): number | null {
   const last = lastBackupAt()
   if (!last) return null
   return Math.floor((now.getTime() - last.getTime()) / 86_400_000)
+}
+
+/* Replaces everything on the device with what the file holds, as one
+   transaction: a failure part-way leaves the device exactly as it was. */
+export async function restoreBackup(
+  db: PolysterDatabase,
+  backup: ParsedBackup,
+): Promise<RestoreReport> {
+  const tables = [...SYNCED_STORES, ...LOCAL_ONLY_STORES].map((store) => db.table(store))
+  const written: { store: StoreName; rows: number }[] = []
+
+  await db.transaction('rw', tables, async () => {
+    for (const store of SYNCED_STORES) {
+      const rows = backup.stores[store] ?? []
+      await db.table(store).clear()
+      if (rows.length > 0) await db.table(store).bulkAdd(rows)
+      if (rows.length > 0) written.push({ store, rows: rows.length })
+    }
+
+    /* Sync state describes a conversation this data was not part of. Cleared,
+       so the next sync pushes nothing stale and pulls everything. */
+    for (const store of LOCAL_ONLY_STORES) await db.table(store).clear()
+  })
+
+  return { stores: written, rows: written.reduce((sum, entry) => sum + entry.rows, 0) }
+}
+
+export interface RestoreReport {
+  stores: { store: StoreName; rows: number }[]
+  rows: number
 }

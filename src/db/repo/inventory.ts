@@ -123,6 +123,7 @@ export async function recordMovement(
     notes: input.notes?.trim() || null,
     created_by: staffId ?? null,
     created_at: timestamp,
+    updated_at: timestamp,
   }
 
   await db.transaction(

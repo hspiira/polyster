@@ -3,9 +3,9 @@
 begin;
 
 create table production_batches (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
-  product_id uuid not null references products(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
+  product_id text not null references products(id) on delete cascade,
 
   batch_number text not null check (length(trim(batch_number)) > 0),
   planned_quantity integer not null default 0 check (planned_quantity >= 0),
@@ -24,7 +24,7 @@ create table production_batches (
   -- quantity columns above; this is the why.
   rejected_reason text,
 
-  created_by uuid references staff(id) on delete set null,
+  created_by text references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
@@ -43,11 +43,11 @@ create trigger trg_production_batches_updated_at
 
 
 create table production_batch_costs (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   -- Denormalised from production_batches.shop_id (docs/POLYSTER.md section
   -- 65) so RLS doesn't need a join.
-  shop_id uuid not null references shops(id) on delete cascade,
-  batch_id uuid not null references production_batches(id) on delete cascade,
+  shop_id text not null references shops(id) on delete cascade,
+  batch_id text not null references production_batches(id) on delete cascade,
 
   cost_type text not null default 'other'
     check (cost_type in ('materials', 'labour', 'transport', 'packaging', 'labels', 'quality_control', 'other')),

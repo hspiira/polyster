@@ -3,7 +3,8 @@
 import { liveQuery, type EntityTable, type Observable, type Table } from 'dexie'
 import { newId } from '../../lib/ids'
 import type { Stored } from '../dexie/database'
-import type { EventAction, EventDoc } from '../schema'
+import type { EventAction, EventDoc, OutboxEntry, SyncOperation } from '../schema'
+import type { SyncedStore } from '../dexie/stores'
 
 export type { Observable }
 export { liveQuery }
@@ -41,9 +42,41 @@ export function getActor(): string | null {
 }
 
 type Events = EntityTable<Stored<EventDoc>, 'id'>
+type Outbox = EntityTable<OutboxEntry, 'id'>
 
 function eventsOf(table: Table): Events {
   return table.db.table('events') as Events
+}
+
+function outboxOf(table: Table): Outbox {
+  return table.db.table('sync_outbox') as Outbox
+}
+
+/* What this device still owes the server for one row. Keyed store:row_id, so
+   repeated edits accumulate fields rather than queueing again. */
+async function queueForPush(
+  table: Table,
+  rowId: string,
+  operation: SyncOperation,
+  fields: string[],
+  updatedAt: string,
+): Promise<void> {
+  const outbox = outboxOf(table)
+  const id = `${table.name}:${rowId}`
+  const existing = await outbox.get(id)
+
+  await outbox.put({
+    id,
+    store: table.name as SyncedStore,
+    row_id: rowId,
+    /* A row the server has never seen stays 'created' however often it is
+       edited: the push sends the whole row either way. A delete outranks both. */
+    operation:
+      operation === 'deleted' ? 'deleted' : existing?.operation === 'created' ? 'created' : operation,
+    fields: [...new Set([...(existing?.fields ?? []), ...fields])],
+    updated_at: updatedAt,
+    attempts: 0,
+  })
 }
 
 export interface EventInput {
@@ -59,9 +92,11 @@ export interface EventInput {
 /** Builds an event row without writing it. */
 export function buildEvent(input: EventInput): EventDoc {
   const actor = getActor()
+  const at = now()
   return {
     id: newId(),
-    at: now(),
+    at,
+    updated_at: at,
     ...(actor ? { actor_staff_id: actor } : {}),
     ...input,
   }
@@ -74,6 +109,45 @@ export async function logEvent(table: Table, input: EventInput): Promise<void> {
 
 function asRecord<T>(row: T): Record<string, unknown> {
   return row as unknown as Record<string, unknown>
+}
+
+/* What changed between two versions of a row, both sides. Soft delete means the
+   row itself is never gone, so an event only has to carry the difference. */
+export function changedFields<T>(
+  before: T,
+  after: T,
+): { before: Record<string, unknown>; after: Record<string, unknown> } {
+  const from = asRecord(before)
+  const to = asRecord(after)
+  const changedBefore: Record<string, unknown> = {}
+  const changedAfter: Record<string, unknown> = {}
+
+  for (const key of new Set([...Object.keys(from), ...Object.keys(to)])) {
+    if (same(from[key], to[key])) continue
+    if (key in from) changedBefore[key] = from[key]
+    if (key in to) changedAfter[key] = to[key]
+  }
+
+  return { before: changedBefore, after: changedAfter }
+}
+
+/* True when a diff holds nothing worth recording. A bumped updated_at is a
+   write, not a change: the row itself already carries when it was touched. */
+export function nothingToRecord(diff: {
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+}): boolean {
+  const keys = new Set([...Object.keys(diff.before), ...Object.keys(diff.after)])
+  keys.delete('updated_at')
+  return keys.size === 0
+}
+
+/* Compares by value one level deep, which covers the object-valued columns --
+   measurements and permission_overrides -- without a general deep equal. */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
+  return JSON.stringify(a) === JSON.stringify(b)
 }
 
 type Rows<T extends { id: string }> = EntityTable<Stored<T>, 'id'>
@@ -92,7 +166,9 @@ export async function insertRow<T extends { id: string }>(
   summary?: string,
 ): Promise<T> {
   const events = eventsOf(table)
-  await table.db.transaction('rw', [table, events], async () => {
+  const outbox = outboxOf(table)
+
+  await table.db.transaction('rw', [table, events, outbox], async () => {
     await rows(table).add(row)
     await events.add(
       buildEvent({
@@ -100,10 +176,10 @@ export async function insertRow<T extends { id: string }>(
         entity: table.name,
         entity_id: row.id,
         action: 'created',
-        after: asRecord(row),
         ...(summary ? { summary } : {}),
       }),
     )
+    await queueForPush(table, row.id, 'created', [], updatedAtOf(row) ?? now())
   })
   return row
 }
@@ -117,9 +193,10 @@ export async function patchRow<T extends { id: string }>(
   options: { shopId?: string; summary?: string; label?: string } = {},
 ): Promise<Stored<T>> {
   const events = eventsOf(table)
+  const outbox = outboxOf(table)
   let updated: Stored<T> | undefined
 
-  await table.db.transaction('rw', [table, events], async () => {
+  await table.db.transaction('rw', [table, events, outbox], async () => {
     const before = await rows(table).get(id)
     if (gone(before)) throw missing(options.label ?? table.name)
 
@@ -127,14 +204,24 @@ export async function patchRow<T extends { id: string }>(
     await rows(table).put(next)
     updated = next
 
+    const diff = changedFields(before as Stored<T>, next)
+    if (nothingToRecord(diff) && !options.summary) return
+
+    await queueForPush(
+      table,
+      id,
+      'updated',
+      Object.keys(diff.after),
+      updatedAtOf(next) ?? now(),
+    )
+
     await events.add(
       buildEvent({
         shop_id: options.shopId ?? shopIdOf(next) ?? '',
         entity: table.name,
         entity_id: id,
         action: 'updated',
-        before: asRecord(before),
-        after: asRecord(next),
+        ...diff,
         ...(options.summary ? { summary: options.summary } : {}),
       }),
     )
@@ -151,13 +238,16 @@ export async function softDeleteRow<T extends { id: string }>(
   options: { summary?: string } = {},
 ): Promise<void> {
   const events = eventsOf(table)
+  const outbox = outboxOf(table)
 
-  await table.db.transaction('rw', [table, events], async () => {
+  await table.db.transaction('rw', [table, events, outbox], async () => {
     const before = await rows(table).get(id)
     if (gone(before)) return
 
-    const next = { ...(before as Stored<T>), deleted_at: now() }
+    const stamp = now()
+    const next = { ...(before as Stored<T>), deleted_at: stamp }
     await rows(table).put(next)
+    await queueForPush(table, id, 'deleted', ['deleted_at'], stamp)
 
     await events.add(
       buildEvent({
@@ -165,7 +255,6 @@ export async function softDeleteRow<T extends { id: string }>(
         entity: table.name,
         entity_id: id,
         action: 'deleted',
-        before: asRecord(before),
         ...(options.summary ? { summary: options.summary } : {}),
       }),
     )
@@ -178,14 +267,16 @@ export async function restoreRow<T extends { id: string }>(
   id: string,
 ): Promise<void> {
   const events = eventsOf(table)
+  const outbox = outboxOf(table)
 
-  await table.db.transaction('rw', [table, events], async () => {
+  await table.db.transaction('rw', [table, events, outbox], async () => {
     const before = await rows(table).get(id)
     if (!before?.deleted_at) return
 
     const { deleted_at: _cleared, ...rest } = before
     const next = rest as Stored<T>
     await rows(table).put(next)
+    await queueForPush(table, id, 'updated', ['deleted_at'], now())
 
     await events.add(
       buildEvent({
@@ -193,11 +284,14 @@ export async function restoreRow<T extends { id: string }>(
         entity: table.name,
         entity_id: id,
         action: 'restored',
-        before: asRecord(before),
-        after: asRecord(next),
       }),
     )
   })
+}
+
+function updatedAtOf(row: unknown): string | undefined {
+  const value = (row as { updated_at?: unknown }).updated_at
+  return typeof value === 'string' ? value : undefined
 }
 
 function shopIdOf(row: unknown): string | undefined {
@@ -333,8 +427,9 @@ export async function voidRow<T extends { id: string }>(
   input: { reason?: string; staffId?: string } = {},
 ): Promise<void> {
   const events = eventsOf(table)
+  const outbox = outboxOf(table)
 
-  await table.db.transaction('rw', [table, events], async () => {
+  await table.db.transaction('rw', [table, events, outbox], async () => {
     const before = await rows(table).get(id)
     if (gone(before)) return
 
@@ -347,6 +442,7 @@ export async function voidRow<T extends { id: string }>(
       ...(input.reason?.trim() ? { void_reason: input.reason.trim() } : {}),
     } as Stored<T>
     await rows(table).put(next)
+    await queueForPush(table, id, 'deleted', Object.keys(changedFields(before, next).after), timestamp)
 
     await events.add(
       buildEvent({
@@ -354,8 +450,7 @@ export async function voidRow<T extends { id: string }>(
         entity: table.name,
         entity_id: id,
         action: 'deleted',
-        before: asRecord(before),
-        after: asRecord(next),
+        ...changedFields(before as Stored<T>, next),
         ...(input.reason?.trim() ? { summary: input.reason.trim() } : {}),
       }),
     )

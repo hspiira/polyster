@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import Dexie from 'dexie'
 import type { EventDoc, Product } from '../schema'
 import { createDatabase, type PolysterDatabase } from './database'
-import { STORE_NAMES, STORES } from './stores'
+import {
+  SCHEMA_HISTORY,
+  SCHEMA_VERSION,
+  STORE_NAMES,
+  STORES,
+  fingerprint,
+} from './stores'
 
 const opened: PolysterDatabase[] = []
 
@@ -100,7 +107,7 @@ describe('audit', () => {
   const at = (n: number) => `2026-08-2${n}T00:00:00.000Z`
   const event = (id: string, over: Partial<EventDoc> = {}): EventDoc => ({
     id, shop_id: 's1', at: at(1), entity: 'orders', entity_id: 'o1',
-    action: 'updated', ...over,
+    action: 'updated', updated_at: at(1), ...over,
   })
 
   it('reads a shop feed in time order', async () => {
@@ -206,5 +213,90 @@ describe('reading and writing', () => {
     ).rejects.toThrow('write failed halfway')
 
     expect(await db.order_stage_history.get('h1')).toBeUndefined()
+  })
+})
+
+describe('schema version', () => {
+  /* The failure this guards: a store or an index changes, every other test
+     still passes, and an installed app cannot open the database it has. */
+  it('matches the fingerprint recorded for its version', () => {
+    expect(SCHEMA_HISTORY[SCHEMA_VERSION]).toBe(fingerprint(STORES))
+  })
+
+  it('is the newest version in the history', () => {
+    const versions = Object.keys(SCHEMA_HISTORY).map(Number)
+    expect(SCHEMA_VERSION).toBe(Math.max(...versions))
+  })
+
+  it('has no gaps, so every shipped version is accounted for', () => {
+    const versions = Object.keys(SCHEMA_HISTORY).map(Number).sort((a, b) => a - b)
+    expect(versions).toEqual(Array.from({ length: SCHEMA_VERSION }, (_, i) => i + 1))
+  })
+
+  it('fingerprints the indexes, not just the store names', () => {
+    const withExtraIndex = { ...STORES, shops: `${STORES.shops}, name` }
+    expect(fingerprint(withExtraIndex)).not.toBe(fingerprint(STORES))
+  })
+
+  it('does not depend on the order stores are declared in', () => {
+    const reversed = Object.fromEntries(Object.entries(STORES).reverse())
+    expect(fingerprint(reversed)).toBe(fingerprint(STORES))
+  })
+})
+
+describe('the v1 to v2 upgrade', () => {
+  /* An installed app has payments with no shop_id. The order they belong to is
+     where it comes from, and nothing else can supply it. */
+  it('fills shop_id in from the order', async () => {
+    const name = `upgrade_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    const v1 = new Dexie(name)
+    v1.version(1).stores({ ...STORES, payments: 'id, order_id' })
+    await v1.table('orders').add({ id: 'o1', shop_id: 'shop-1' })
+    await v1.table('orders').add({ id: 'o2', shop_id: 'shop-2' })
+    await v1.table('payments').bulkAdd([
+      { id: 'p1', order_id: 'o1', amount_minor: 1000 },
+      { id: 'p2', order_id: 'o2', amount_minor: 2000 },
+    ])
+    v1.close()
+
+    const db = createDatabase(name)
+    opened.push(db)
+    await db.open()
+
+    expect((await db.payments.get('p1'))?.shop_id).toBe('shop-1')
+    expect((await db.payments.get('p2'))?.shop_id).toBe('shop-2')
+    expect(await db.payments.where('shop_id').equals('shop-1').count()).toBe(1)
+  })
+
+  // An orphan must not block the upgrade: the app has to open regardless.
+  it('leaves a payment whose order is gone, and still opens', async () => {
+    const name = `orphan_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    const v1 = new Dexie(name)
+    v1.version(1).stores({ ...STORES, payments: 'id, order_id' })
+    await v1.table('payments').add({ id: 'p1', order_id: 'missing', amount_minor: 1000 })
+    v1.close()
+
+    const db = createDatabase(name)
+    opened.push(db)
+    await expect(db.open()).resolves.toBeTruthy()
+    expect((await db.payments.get('p1'))?.shop_id).toBeUndefined()
+  })
+
+  it('does not overwrite a shop_id that is already there', async () => {
+    const name = `keep_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    const v1 = new Dexie(name)
+    v1.version(1).stores({ ...STORES, payments: 'id, order_id' })
+    await v1.table('orders').add({ id: 'o1', shop_id: 'shop-1' })
+    await v1.table('payments').add({ id: 'p1', order_id: 'o1', shop_id: 'shop-kept' })
+    v1.close()
+
+    const db = createDatabase(name)
+    opened.push(db)
+    await db.open()
+
+    expect((await db.payments.get('p1'))?.shop_id).toBe('shop-kept')
   })
 })

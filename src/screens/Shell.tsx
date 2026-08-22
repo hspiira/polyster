@@ -3,6 +3,7 @@
 import { useEffect } from 'preact/hooks'
 import { ErrorBoundary, Route, Router, lazy, useLocation } from 'preact-iso'
 import { SideRail, TabBar } from '../components/TabBar'
+import { StatusBarBleed } from '../components/StatusBarBleed'
 import { SyncBadge } from '../components/SyncBadge'
 import { MEASURE, cn } from '../ui'
 import { IconSettings } from '../components/icons'
@@ -48,9 +49,10 @@ interface ShellProps {
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
+  pending: number
 }
 
-export function Shell({ online, auth, replication }: ShellProps) {
+export function Shell({ online, auth, replication, pending }: ShellProps) {
   const { path } = useLocation()
 
   // Feeds useBackTo: a screen with two parents points back at the one you
@@ -61,7 +63,8 @@ export function Shell({ online, auth, replication }: ShellProps) {
 
   return (
     <div class="min-h-svh bg-page lg:pl-60">
-      <SideRail online={online} auth={auth} replication={replication} />
+      <StatusBarBleed />
+      <SideRail online={online} auth={auth} replication={replication} pending={pending} />
       {/*
         Page-coloured and unbordered, so this and the Screen header below it read
         as one quiet block rather than two stacked bars. Nothing here is a
@@ -76,7 +79,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
           // Hidden at lg: the rail carries the same identity and sync state,
           // permanently and on every screen including Today.
           <div class={cn(MEASURE, 'flex items-center justify-between gap-3 px-4 pt-2.5 pb-1 lg:hidden')}>
-            <SyncBadge online={online} auth={auth} replication={replication} />
+            <SyncBadge online={online} auth={auth} replication={replication} pending={pending} />
             {/* A gear beside an avatar read as two controls -- a theme toggle
                 that did nothing, and a profile that opened Settings. One
                 button, and it looks like what it opens. */}
@@ -95,7 +98,7 @@ export function Shell({ online, auth, replication }: ShellProps) {
       <main>
         <ErrorBoundary>
           <Router>
-            <Route path="/" component={Today} online={online} auth={auth} replication={replication} />
+            <Route path="/" component={Today} online={online} auth={auth} replication={replication} pending={pending} />
             <Route path="/clients" component={Clients} />
             <Route path="/clients/:id" component={ClientDetail} />
             <Route path="/orders" component={Orders} />

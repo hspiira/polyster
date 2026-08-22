@@ -8,7 +8,7 @@
 begin;
 
 alter table orders
-  add column garment_unit_id uuid references garment_units(id) on delete set null;
+  add column garment_unit_id text references garment_units(id) on delete set null;
 
 do $$
 declare

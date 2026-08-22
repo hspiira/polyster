@@ -58,7 +58,7 @@ $$;
 -- ============================================================
 
 create table shops (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   name text not null check (length(trim(name)) > 0),
   whatsapp_number text,
   supabase_auth_user_id uuid not null unique references auth.users(id) on delete restrict,
@@ -80,7 +80,7 @@ create trigger trg_shops_modified
 -- the mapping with the definer's rights keeps the tenant lookup independent
 -- of the policies built on top of it.
 create or replace function current_shop_id()
-returns uuid
+returns text
 language sql
 stable
 security definer
@@ -98,8 +98,8 @@ grant execute on function current_shop_id() to authenticated;
 -- ============================================================
 
 create table staff (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
   name text not null check (length(trim(name)) > 0),
   pin_hash text not null,
   role text not null default 'staff' check (role in ('owner', 'staff')),
@@ -120,8 +120,8 @@ create trigger trg_staff_modified
 -- ============================================================
 
 create table clients (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
   name text not null check (length(trim(name)) > 0),
   phone text,
   notes text,
@@ -142,8 +142,8 @@ create trigger trg_clients_modified
 -- ============================================================
 
 create table measurement_fields (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
   label text not null check (length(trim(label)) > 0),
   unit text,
   display_order integer not null default 0,
@@ -163,13 +163,13 @@ create trigger trg_measurement_fields_modified
 -- ============================================================
 
 create table measurement_profiles (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   -- "One profile per client" is stated in ARCHITECTURE.md section 5. Enforce
   -- it, rather than leaving the app to hope there is only ever one row.
-  client_id uuid not null unique references clients(id) on delete cascade,
+  client_id text not null unique references clients(id) on delete cascade,
   values jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now(),
-  updated_by uuid references staff(id) on delete set null,
+  updated_by text references staff(id) on delete set null,
   _modified timestamptz not null default now(),
   _deleted boolean not null default false
 );
@@ -186,9 +186,9 @@ create trigger trg_measurement_profiles_modified
 -- ============================================================
 
 create table orders (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
-  client_id uuid not null references clients(id) on delete restrict,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
+  client_id text not null references clients(id) on delete restrict,
   order_type text not null check (order_type in ('tailor_made', 'rental', 'purchase')),
   item_description text not null check (length(trim(item_description)) > 0),
   stage text not null default 'measured'
@@ -196,9 +196,9 @@ create table orders (
   price_total numeric(12, 2) not null default 0 check (price_total >= 0),
   pickup_due_date date not null,
   return_due_date date,
-  catalogue_item_id uuid, -- reserved for Phase 2, no FK yet
+  catalogue_item_id text, -- reserved for Phase 2, no FK yet
   notes text,
-  created_by uuid references staff(id) on delete set null,
+  created_by text references staff(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   _modified timestamptz not null default now(),
@@ -225,15 +225,15 @@ create trigger trg_orders_modified
 -- ============================================================
 
 create table payments (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references orders(id) on delete cascade,
+  id text primary key,
+  order_id text not null references orders(id) on delete cascade,
   -- Positive only. A mistaken payment is voided by setting _deleted, not by
   -- entering a negative correcting row -- see pwa-stack-options.md section 3.
   amount numeric(12, 2) not null check (amount > 0),
   payment_date timestamptz not null default now(),
   method text not null default 'cash'
     check (method in ('cash', 'mobile_money', 'bank', 'other')),
-  recorded_by uuid references staff(id) on delete set null,
+  recorded_by text references staff(id) on delete set null,
   notes text,
   _modified timestamptz not null default now(),
   _deleted boolean not null default false
@@ -252,11 +252,11 @@ create trigger trg_payments_modified
 -- ============================================================
 
 create table order_stage_history (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references orders(id) on delete cascade,
+  id text primary key,
+  order_id text not null references orders(id) on delete cascade,
   from_stage text check (from_stage in ('measured', 'in_progress', 'ready', 'picked_up', 'returned')),
   to_stage text not null check (to_stage in ('measured', 'in_progress', 'ready', 'picked_up', 'returned')),
-  changed_by uuid references staff(id) on delete set null,
+  changed_by text references staff(id) on delete set null,
   changed_at timestamptz not null default now(),
   _modified timestamptz not null default now(),
   _deleted boolean not null default false

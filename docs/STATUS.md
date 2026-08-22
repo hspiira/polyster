@@ -9,7 +9,9 @@ what happened in August.
 If you ship work and do not update this file in the same commit, it becomes
 actively misleading rather than merely incomplete. That has happened once.
 
-**Last revised:** 2026-08-21, after the storage switch.
+**Last revised:** 2026-08-22, after backup import. Open items are planned in
+`superpowers/plans/2026-08-22-durability-and-gaps.md`; this file stays the index
+of what is open, that file carries the sequencing and the decisions.
 
 ## Feature phases
 
@@ -43,11 +45,13 @@ adding scope, so there is no remaining feature phase.
 | Accessibility and hook rules | `eslint.config.js`, inside `pnpm verify` |
 | Model-to-screen wiring, in a real browser | `pnpm test:e2e` |
 | RLS structural preconditions | `pnpm verify:rls` |
+| Migrations, seed, push order and tenant isolation | `pnpm verify:schema` |
 | A write and a read with the network off | `run-polyster` skill, by hand |
 | Design-system rules | `scripts/check-standards.mjs` |
 
-47 test files, 697 tests, `pnpm verify` green. 20 migrations under
-`supabase/migrations`, none of which the app reads for shop data any more.
+49 test files, 759 tests, `pnpm verify` green. 21 migrations under
+`supabase/migrations`, none of which the app reads for shop data any more, but
+all of which now apply to a throwaway database on demand.
 
 `check-standards.mjs` is a guard script, not a linter: it enforces the
 `DESIGN_SYSTEM.md` colour rules and the two-line comment ceiling lexically.
@@ -68,25 +72,43 @@ flow end to end. **Reading the code does not verify the code.**
 
 ## Open, in order of value
 
-### 1. There is no sync
+### ~~1. There is no sync~~ — built 2026-08-22
 
-Replication went with RxDB on 2026-08-21 and has not been rebuilt. A shop's data
-lives on one device, and the backup export is the only way off it. Two devices
-cannot share a shop.
+Push then pull, every store, row-level last-write-wins guarded so an older write
+cannot overwrite a newer one. An edit sends only the fields it changed. Designed
+in `superpowers/plans/2026-08-22-sync-design.md`.
 
-This is the largest open item in the project, and it makes item 2 urgent rather
-than tidy.
+**Not yet run against a real Supabase project.** The rules are tested against a
+fake server and the SQL semantics against a local Postgres — a partial update
+leaving other columns alone, the guard declining a stale write, and tenant
+isolation across nine tables with two accounts. What has not happened is a real
+login, two devices, and a shop's data moving between them.
 
-Rebuilding it needs the id question settled first: ids are cuid2 (`ARCHITECTURE.md`
-D8) and Postgres rejects a non-uuid in a `uuid` column, so either those columns
-become `text` or ids go back to uuid. The offline-conflict question returns with
-sync; it is deferred, not answered.
+What it costs: two devices editing the same row at once loses the older edit
+rather than merging field by field. Per-field would need a timestamp per column
+on twenty-one tables. The case that actually happens — two devices taking
+payments on one order — is append-only and conflict-free either way.
 
-### 2. Backup exports but cannot import
+The id question is settled (2026-08-22): ids stay cuid2 and our own id columns
+are `text`, verified by `pnpm verify:schema`. Only `shops.supabase_auth_user_id`
+is still `uuid`, because Supabase owns it. The offline-conflict question returns
+with sync; it is deferred, not answered.
 
-Reopened by item 1. The 2026-08-14 position was that the recovery path is
-Supabase, so no JSON import was needed — true until replication went. Leaving
-both undone means a lost phone is a lost shop.
+### ~~2. Backup exports but cannot import~~ — done 2026-08-22
+
+`parseBackupText` reads a file, `restoreBackup` applies it as one transaction,
+and the entry point is on the **landing screen** as well as in Settings: a
+replacement phone has no shop, so it can never reach Settings. Found by wiping a
+device and discovering the restore screen was unreachable.
+
+Replace only. Merge needs a conflict rule and waits for sync.
+
+### ~~Audit log and importer footprint~~ — done 2026-08-22
+
+Was never in this list; it was created by the storage switch and found by
+measuring. Events carried a full copy of every row on both sides, at 8.7× the
+data they described. Now 2.84×, and the default backup is half the size. The
+RxDB importer runs once rather than on every launch, and deletes what it read.
 
 ### 3. Nothing has run on real hardware
 

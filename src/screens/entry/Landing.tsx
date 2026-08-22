@@ -5,6 +5,7 @@ import { Logomark } from '../../components/Logomark'
 import { IconArrowUpRight } from '../../components/icons'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { useForcedTheme } from '../../hooks/useForcedTheme'
+import { RestoreBackup } from '../../components/RestoreBackup'
 
 export function Landing({
   onStart,
@@ -103,6 +104,22 @@ export function Landing({
                 I already have a shop
               </button>
             )}
+
+            {/* The path a replacement phone takes. Quiet, but it has to be here:
+                with no shop yet there is no Settings to reach it from. */}
+            <RestoreBackup>
+              {(open, restoring) => (
+                <button
+                  type="button"
+                  onClick={open}
+                  disabled={restoring}
+                  class="mt-1 min-h-11 w-full text-center text-sm text-content-muted
+                         hover:text-content active:text-content disabled:text-content-subtle"
+                >
+                  {restoring ? 'Restoring...' : 'Restore from a backup file'}
+                </button>
+              )}
+            </RestoreBackup>
 
             {!install.isStandalone && install.canPrompt && (
               <button

@@ -9,6 +9,8 @@ export type PaymentKind = (typeof PAYMENT_KINDS)[number]
 
 export interface PaymentDoc {
   id: string
+  /** The order's shop, copied so payments can be read without joining orders. */
+  shop_id: string
   order_id: string
   amount_minor: number
   /** A refund is a positive row with kind 'refund', never a negative payment. */
@@ -25,6 +27,7 @@ export interface PaymentDoc {
   void_reason?: string
   /** When it was typed in, which offline is not when it moved. */
   created_at: string
+  updated_at: string
 }
 
 export interface OrderStageHistoryDoc {
@@ -36,4 +39,6 @@ export interface OrderStageHistoryDoc {
   note?: string
   changed_by?: string
   changed_at: string
+  created_at: string
+  updated_at: string
 }

@@ -23,12 +23,14 @@ function sale(over: Partial<SaleDoc> = {}): SaleDoc {
 function payment(over: Partial<PaymentDoc> = {}): PaymentDoc {
   return {
     id: 'payment-1',
+    shop_id: 'shop-1',
     order_id: 'order-1',
     amount_minor: 50_000,
     kind: 'payment',
     payment_date: '2026-08-13T09:00:00.000Z',
     method: 'mobile_money',
     created_at: '2026-08-13T09:00:00.000Z',
+    updated_at: '2026-08-13T09:00:00.000Z',
     ...over,
   }
 }

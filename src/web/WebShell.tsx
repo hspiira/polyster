@@ -7,6 +7,7 @@ import { CommandPalette } from './CommandPalette'
 import { Sidebar } from './Sidebar'
 import { useShortcuts } from './useShortcuts'
 import type { AuthState } from '../lib/auth'
+import { StatusBarBleed } from '../components/StatusBarBleed'
 import type { ReplicationStatus } from '../lib/syncState'
 
 const TodayPage = lazy(() => import('./TodayPage').then((m) => m.TodayPage))
@@ -70,10 +71,12 @@ export function WebShell({
   online,
   auth,
   replication,
+  pending,
 }: {
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
+  pending: number
 }) {
   const location = useLocation()
   const [searching, setSearching] = useState(false)
@@ -87,9 +90,10 @@ export function WebShell({
 
   return (
     <div class="flex h-svh flex-col overflow-hidden bg-page text-content">
+      <StatusBarBleed />
       <AppBar onSearch={() => setSearching(true)} />
       <div class="flex min-h-0 flex-1">
-        <Sidebar online={online} auth={auth} replication={replication} />
+        <Sidebar online={online} auth={auth} replication={replication} pending={pending} />
         <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
           <ErrorBoundary>
             <Router>

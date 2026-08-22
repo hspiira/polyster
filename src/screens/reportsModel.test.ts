@@ -20,12 +20,14 @@ function sale(soldAt: string, unitPriceMinor: number, quantity = 1): SaleDoc {
 function payment(date: string, amountMinor: number, kind: PaymentDoc['kind'] = 'payment'): PaymentDoc {
   return {
     id: `payment-${date}-${amountMinor}-${kind}`,
+    shop_id: 'shop-1',
     order_id: 'order-1',
     amount_minor: amountMinor,
     kind,
     payment_date: date,
     method: 'cash',
     created_at: date,
+    updated_at: date,
   }
 }
 

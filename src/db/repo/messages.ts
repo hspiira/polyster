@@ -26,12 +26,15 @@ export async function logMessage(
   // message_log has no shop of its own; the client it was sent to carries one.
   const client = await loadOrThrow(db.clients, input.client_id, 'client')
 
+  const timestamp = now()
   const row: MessageLogDoc = {
     id: newId(),
     client_id: input.client_id,
     channel: 'whatsapp',
     template: input.template,
-    sent_at: now(),
+    sent_at: timestamp,
+    created_at: timestamp,
+    updated_at: timestamp,
     ...(input.order_id ? { order_id: input.order_id } : {}),
     ...(input.order_stage ? { order_stage: input.order_stage } : {}),
     ...(staffId ? { sent_by: staffId } : {}),

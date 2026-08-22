@@ -4,8 +4,8 @@
 begin;
 
 create table collections (
-  id uuid primary key default gen_random_uuid(),
-  shop_id uuid not null references shops(id) on delete cascade,
+  id text primary key,
+  shop_id text not null references shops(id) on delete cascade,
 
   name text not null check (length(trim(name)) > 0),
   code text,
@@ -38,7 +38,7 @@ create trigger trg_collections_updated_at
   for each row execute function set_updated_at();
 
 alter table products
-  add column collection_id uuid references collections(id) on delete set null;
+  add column collection_id text references collections(id) on delete set null;
 
 create index idx_products_collection on products(collection_id);
 

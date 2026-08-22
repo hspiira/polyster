@@ -6,6 +6,8 @@ interface SyncBadgeProps {
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
+  /** Rows this device still owes the server. */
+  pending?: number
 }
 
 export type SyncTone = 'good' | 'waiting' | 'bad' | 'neutral'
@@ -26,10 +28,10 @@ const SYNC_TEXT_TONES: Record<SyncTone, string> = {
 
 /* One honest line about whether this device's work has reached the server. Never
    hidden when fine: staff learn what fine looks like, so they notice when it is not. */
-export function SyncBadge({ online, auth, replication }: SyncBadgeProps) {
+export function SyncBadge({ online, auth, replication, pending = 0 }: SyncBadgeProps) {
   const { shop } = useShop()
   const claimed = Boolean(shop?.supabase_auth_user_id)
-  const { label, tone } = describe(online, auth, replication, claimed)
+  const { label, tone } = describe(online, auth, replication, claimed, pending)
 
   // An unclaimed shop has nowhere to sync to, and the fix is one screen away.
   if (!claimed && auth.status !== 'local_only') {
@@ -75,6 +77,7 @@ export function describe(
   auth: AuthState,
   replication: ReplicationStatus,
   claimed = true,
+  pending = 0,
 ): { label: string; tone: SyncTone } {
   if (auth.status === 'local_only') {
     return { label: 'Local only', tone: 'neutral' }
@@ -89,20 +92,31 @@ export function describe(
     return { label: 'Sign in again to sync', tone: 'bad' }
   }
   if (auth.status === 'offline_stale') {
-    return { label: 'Offline, not yet synced', tone: 'waiting' }
+    return { label: waiting('Offline', pending), tone: 'waiting' }
   }
   if (!online) {
-    return { label: 'Offline, saved on device', tone: 'waiting' }
+    return { label: waiting('Offline', pending), tone: 'waiting' }
   }
 
   switch (replication.status) {
     case 'synced':
-      return { label: 'Synced', tone: 'good' }
+      // Work done since the run finished is still owed, and saying so is better
+      // than a green tick over a queue.
+      return pending > 0
+        ? { label: waiting('Saved here', pending), tone: 'waiting' }
+        : { label: 'Synced', tone: 'good' }
     case 'syncing':
       return { label: 'Syncing', tone: 'waiting' }
     case 'error':
-      return { label: 'Sync problem, saved locally', tone: 'bad' }
+      return { label: waiting('Sync problem', pending), tone: 'bad' }
     case 'idle':
-      return { label: 'Not syncing', tone: 'neutral' }
+      return { label: pending > 0 ? waiting('Not syncing', pending) : 'Not syncing', tone: 'neutral' }
   }
+}
+
+/* A count, so "offline" says how much is at stake rather than only that it is.
+   One is spelled out: "1 not sent" reads as a typo. */
+function waiting(prefix: string, pending: number): string {
+  if (pending <= 0) return prefix
+  return `${prefix}, ${pending === 1 ? 'one change' : `${pending} changes`} not sent`
 }

@@ -161,6 +161,7 @@ export async function addBatchCost(
 ): Promise<ProductionBatchCost> {
   await loadOrThrow(db.production_batches, batchId, 'batch')
   const shop = await db.shops.get(shopId)
+  const timestamp = now()
 
   const row: ProductionBatchCost = {
     id: newId(),
@@ -170,7 +171,8 @@ export async function addBatchCost(
     description: input.description?.trim() || null,
     amount_minor: input.amount_minor,
     currency: shop?.currency ?? DEFAULT_CURRENCY,
-    created_at: now(),
+    created_at: timestamp,
+    updated_at: timestamp,
   }
   return insertRow(db.production_batch_costs, row, shopId, input.cost_type)
 }

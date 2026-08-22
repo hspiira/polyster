@@ -59,7 +59,7 @@ export function Money() {
     [],
   )
   const clientRows = useQuery(() => observeClients(db, shop.id), [db, shop.id], [])
-  const paymentRows = useQuery(() => observePayments(db), [db], [])
+  const paymentRows = useQuery(() => observePayments(db, shop.id), [db, shop.id], [])
   const allSales = useQuery(() => observeSales(db, shop.id), [db, shop.id], [])
   const allExpenses = useQuery(() => observeExpenses(db, shop.id), [db, shop.id], [])
   const balances = useQuery(() => observeShopBalances(db, shop.id), [db, shop.id], new Map())
@@ -97,12 +97,11 @@ export function Money() {
     [allExpenses, currency],
   )
 
-  /* A payment carries no shop_id, so it is scoped through its order -- which
-     also settles which currency it was taken in. */
+  // Scoped by shop in the query; the order is only for the currency, which a
+  // payment does not carry.
   const payments = useMemo(
     () =>
       paymentRows
-        
         .filter((payment) => orderIndex.get(payment.order_id)?.currency === currency),
     [paymentRows, orderIndex, currency],
   )
