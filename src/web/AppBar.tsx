@@ -13,7 +13,10 @@ export function AppBar({ onSearch }: { onSearch: () => void }) {
   return (
     <header
       class={cn(
-        'flex h-11 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-3',
+        // safe-top on top of the fixed height, so the bar grows by the island
+        // rather than putting its own controls under it.
+        'safe-top flex h-11 shrink-0 items-center gap-2.5 border-b border-line bg-surface px-3',
+        'box-content',
         TEXT_UI,
       )}
     >

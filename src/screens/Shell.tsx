@@ -3,6 +3,7 @@
 import { useEffect } from 'preact/hooks'
 import { ErrorBoundary, Route, Router, lazy, useLocation } from 'preact-iso'
 import { SideRail, TabBar } from '../components/TabBar'
+import { StatusBarBleed } from '../components/StatusBarBleed'
 import { SyncBadge } from '../components/SyncBadge'
 import { MEASURE, cn } from '../ui'
 import { IconSettings } from '../components/icons'
@@ -62,6 +63,7 @@ export function Shell({ online, auth, replication, pending }: ShellProps) {
 
   return (
     <div class="min-h-svh bg-page lg:pl-60">
+      <StatusBarBleed />
       <SideRail online={online} auth={auth} replication={replication} pending={pending} />
       {/*
         Page-coloured and unbordered, so this and the Screen header below it read

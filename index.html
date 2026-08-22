@@ -17,7 +17,19 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <meta name="apple-mobile-web-app-title" content="Polyster" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!--
+      black-translucent, not default. `default` gives an installed app an opaque
+      status bar and starts the web view underneath it, so the page can never
+      reach the top of the screen and safe-area-inset-top reads 0. Translucent
+      hands the whole screen over and reports the island as an inset, which is
+      what `safe-top` then pads content clear of.
+
+      The cost: iOS draws status bar content white with this set, so whatever
+      is behind it has to be dark. The entry flow is pinned dark already; the
+      shell paints StatusBarBleed behind the inset for the same reason, because
+      bg-page is light in light mode and white on light cannot be read.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!--
       Starting value only. src/lib/theme.ts overwrites the content with
