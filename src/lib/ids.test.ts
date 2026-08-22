@@ -13,10 +13,12 @@ describe('newId', () => {
     expect(id).toMatch(/^[a-z0-9]+$/)
   })
 
+  // 20,000 catches a generator that repeats, and it timed out under a full
+  // suite run at the default 5s, so it says how long it may take.
   it('does not repeat', () => {
     const ids = new Set(Array.from({ length: 20000 }, newId))
     expect(ids.size).toBe(20000)
-  })
+  }, 30000)
 
   it('does not sort by creation time', () => {
     const ids = Array.from({ length: 200 }, newId)

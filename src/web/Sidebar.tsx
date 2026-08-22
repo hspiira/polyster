@@ -48,10 +48,12 @@ export function Sidebar({
   online,
   auth,
   replication,
+  pending,
 }: {
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
+  pending: number
 }) {
   const { db, shop } = useCurrentShop()
   const { path } = useLocation()
@@ -180,7 +182,7 @@ export function Sidebar({
           property of this device, not of the page you are on, and the phone
           build makes the same call for the same reason. */}
       <div class={cn('mt-auto px-2 py-1.5', TEXT_XS)}>
-        <SyncBadge online={online} auth={auth} replication={replication} />
+        <SyncBadge online={online} auth={auth} replication={replication} pending={pending} />
       </div>
     </nav>
   )

@@ -7,7 +7,7 @@
  * can sit in CI where there is none.
  */
 import { execFileSync } from 'node:child_process'
-import { readdirSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -138,6 +138,50 @@ try {
   if (leftoverDeleted) {
     problems.push(`_deleted should be deleted_at: ${leftoverDeleted.split('\n').join(', ')}`)
   }
+
+  /* PUSH_ORDER has to be a topological order of the foreign keys, or a push
+     writes a child before its parent and the key refuses. Checked against the
+     database rather than trusted, so a new reference that breaks it fails here. */
+  const edges = psql([
+    '-t',
+    '-A',
+    '-F',
+    '|',
+    '-c',
+    `select distinct c.relname, p.relname
+      from pg_constraint k
+      join pg_class c on c.oid = k.conrelid
+      join pg_class p on p.oid = k.confrelid
+     where k.contype='f'
+       and c.relnamespace='public'::regnamespace
+       and p.relnamespace='public'::regnamespace
+       and c.relname <> p.relname`,
+  ])
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.split('|'))
+
+  const source = readFileSync('src/db/sync/order.ts', 'utf8')
+  const declared = [...source.matchAll(/^ {2}'([a-z_]+)',$/gm)].map((m) => m[1])
+  const position = new Map(declared.map((table, index) => [table, index]))
+
+  for (const [child, parent] of edges) {
+    const childAt = position.get(child)
+    const parentAt = position.get(parent)
+    if (childAt === undefined) {
+      problems.push(`PUSH_ORDER does not name ${child}`)
+      continue
+    }
+    if (parentAt === undefined) {
+      problems.push(`PUSH_ORDER does not name ${parent}, which ${child} references`)
+      continue
+    }
+    if (parentAt > childAt) {
+      problems.push(`PUSH_ORDER puts ${child} before ${parent}, which it references`)
+    }
+  }
+  console.log(`push order covers ${declared.length} tables and ${edges.length} references`)
 
   const counts = psql([
     '-t',

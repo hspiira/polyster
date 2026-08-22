@@ -27,9 +27,10 @@ interface TodayProps {
   online: boolean
   auth: AuthState
   replication: ReplicationStatus
+  pending: number
 }
 
-export function Today({ online, auth, replication }: TodayProps) {
+export function Today({ online, auth, replication, pending }: TodayProps) {
   const { db, shop, activeStaff } = useCurrentShop()
   const now = today()
 
@@ -77,7 +78,7 @@ export function Today({ online, auth, replication }: TodayProps) {
           staffName={activeStaff?.name}
           online={online}
           auth={auth}
-          replication={replication}
+          replication={replication} pending={pending}
         />
         <div class="space-y-5">
           <Skeleton class="h-16 w-3/4" />
@@ -100,7 +101,7 @@ export function Today({ online, auth, replication }: TodayProps) {
           staffName={activeStaff?.name}
           online={online}
           auth={auth}
-          replication={replication}
+          replication={replication} pending={pending}
         />
         <EmptyState
           spacious
@@ -141,7 +142,7 @@ export function Today({ online, auth, replication }: TodayProps) {
         staffName={activeStaff?.name}
         online={online}
         auth={auth}
-        replication={replication}
+        replication={replication} pending={pending}
       />
       <DayStrip cells={dayCells} />
       <Hero segments={segments} />
