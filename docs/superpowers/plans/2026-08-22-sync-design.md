@@ -1,7 +1,7 @@
 # Sync: what it has to decide before it can be built
 
 Date: 2026-08-22
-Status: **design, awaiting decisions** — no code
+Status: **built 2026-08-22.** Decisions taken below; see Outcome.
 Decision owner: Piira
 
 ## Why this is a plan and not a commit
@@ -154,3 +154,34 @@ design around them.
 
 Steps 1 and 2 are small and unblock everything. Step 3 is where the real work and
 the real surprises are. I would not commit to a date past step 3 before it exists.
+
+## Outcome
+
+Built the same day, all of it: every store, both directions.
+
+**Decisions as taken**, which differ from the recommendations above in two places:
+
+| | Recommended | Taken | Why the change |
+|---|---|---|---|
+| A | Append-only first, then row-level | **All stores at once, row-level** | "No shortcuts" — shipping half of sync and deciding later is the thing that was rejected. |
+| B | Server adopts `updated_at`, dropping `_modified` | **Both kept** | The recommendation was wrong. Collapsing them breaks the pull cursor: a row written offline Monday and pushed Friday carries Monday's `updated_at`, and a device that pulled Wednesday must still receive it. Client time orders edits; server time drives the cursor. |
+| C | Audit log push-only | **Pushed and pulled like anything else** | Uniformity was worth more than the saving. One code path, no special case, and a shop-wide history falls out for free. |
+| D | Paged and resumable | **Batched at 500 a pull, 200 a push** | Still unmeasured against a real device. |
+
+**What the conflict rule costs, stated plainly.** Two devices editing the same
+row at once loses the older edit rather than merging it field by field.
+Per-field would need a timestamp per column on twenty-one tables plus a
+server-side merge. The case that actually happens in a shop — two devices taking
+payments on one order — is append-only and conflict-free either way.
+
+**What is proved, and how.** 86 tests over the rules against a fake server, with
+eight mutation checks. The SQL semantics against a local Postgres: a partial
+update leaving other columns untouched, the guard declining a stale write, a
+newer write to a different field landing beside it, and tenant isolation across
+nine tables with two accounts — that last one closing a gap `verify-rls.mjs`
+names as beyond it. The outbox filling and collapsing, in a browser.
+
+**What is not proved.** No real Supabase project, no real login, and no second
+device. Everything above says the rules are right; none of it says the round trip
+works against Supabase's own API, its auth, or its rate limits. That is the next
+thing, and it needs credentials rather than code.
