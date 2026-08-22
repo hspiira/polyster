@@ -15,6 +15,9 @@ export interface PushItem {
   /* Whole row for a create; only the changed fields for an update, so a field
      this device did not touch keeps what the other device put there. */
   payload: Row
+  /* For when an edit finds no row to edit. The diff cannot be inserted: the
+     columns it leaves out are not null. */
+  whole: Row
   /** The device's own clock, which is what decides a competing edit. */
   updatedAt: string
 }
@@ -30,6 +33,7 @@ export function toPushItem(entry: OutboxEntry, row: Row | undefined): PushItem |
       rowId: entry.row_id,
       operation: 'created',
       payload: forWire(row),
+      whole: forWire(row),
       updatedAt: entry.updated_at,
     }
   }
@@ -50,6 +54,7 @@ export function toPushItem(entry: OutboxEntry, row: Row | undefined): PushItem |
     rowId: entry.row_id,
     operation: entry.operation,
     payload: forWire(payload),
+    whole: forWire(row),
     updatedAt: entry.updated_at,
   }
 }

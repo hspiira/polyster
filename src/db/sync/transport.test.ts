@@ -37,6 +37,16 @@ function fakeRemote() {
       if (error) throw error
       const at = key(store, String(payload.id))
       if (rows.has(at)) throw Object.assign(new Error('duplicate key value'), { code: '23505' })
+      /* Every synced table is NOT NULL on these, so an insert carrying only the
+         fields an edit changed would be rejected rather than accepted. */
+      for (const column of ['shop_id', 'created_at', 'updated_at']) {
+        if (store !== 'shops' && !(column in payload)) {
+          throw Object.assign(
+            new Error(`null value in column "${column}" violates not-null constraint`),
+            { code: '23502' },
+          )
+        }
+      }
       calls.push({ kind: 'insert', store, id: String(payload.id), payload })
       rows.set(at, { ...payload })
     },
@@ -45,9 +55,11 @@ function fakeRemote() {
       if (error) throw error
       const at = key(store, id)
       const existing = rows.get(at)
-      if (existing && String(existing.updated_at ?? '') > updatedAt) return false
+      // No row means nothing matched, the way `update ... where id = ?` behaves.
+      if (!existing) return false
+      if (String(existing.updated_at ?? '') > updatedAt) return false
       calls.push({ kind: 'update', store, id, payload })
-      rows.set(at, { ...(existing ?? {}), ...payload })
+      rows.set(at, { ...existing, ...payload })
       return true
     },
   }
@@ -231,6 +243,26 @@ describe('pushOutbox', () => {
     const server = fakeRemote()
     expect((await pushOutbox(db, server.remote)).sent).toBe(0)
     expect(server.calls).toEqual([])
+  })
+})
+
+describe('an edit to a row the server has never seen', () => {
+  /* Reachable through restore, which clears the outbox: rows from the file were
+     never pushed, so the next edit queues 'updated' against nothing. */
+  it('creates the row rather than dropping the edit', async () => {
+    const db = fresh()
+    const { client } = await shopWithClient(db)
+    const server = fakeRemote()
+
+    // The state a restore leaves: rows here, nothing owed, server empty.
+    await db.sync_outbox.clear()
+
+    await patchRow(db.clients, client.id, { name: 'Edited after a restore' })
+    const report = await pushOutbox(db, server.remote)
+
+    expect(report.failed).toEqual([])
+    expect(server.get('clients', client.id)?.name).toBe('Edited after a restore')
+    expect(await countPending(db)).toBe(0)
   })
 })
 

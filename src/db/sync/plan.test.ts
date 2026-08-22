@@ -271,3 +271,25 @@ describe('PUSH_ORDER', () => {
     expect(DELETE_ORDER[DELETE_ORDER.length - 1]).toBe('shops')
   })
 })
+
+describe('the whole row alongside the diff', () => {
+  /* An edit that finds no row to edit has to insert one, and the diff cannot be
+     inserted: the columns it leaves out are not null. */
+  it('carries the whole row even when the payload is a diff', () => {
+    const item = toPushItem(entry({ fields: ['name'] }), row)
+    expect(item?.payload).not.toHaveProperty('shop_id')
+    expect(item?.whole).toEqual(row)
+  })
+
+  it('is the same thing twice for a create', () => {
+    const item = toPushItem(entry({ operation: 'created', fields: [] }), row)
+    expect(item?.whole).toEqual(item?.payload)
+  })
+
+  it('leaves the server cursor column out of both', () => {
+    const withCursor = { ...row, _modified: '2026-08-22T00:00:00.000Z' }
+    const item = toPushItem(entry({ fields: ['name'] }), withCursor)
+    expect(item?.whole).not.toHaveProperty('_modified')
+    expect(item?.payload).not.toHaveProperty('_modified')
+  })
+})

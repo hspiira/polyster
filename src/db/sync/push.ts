@@ -59,18 +59,29 @@ export async function pushOutbox(db: PolysterDatabase, remote: Remote): Promise<
   return report
 }
 
-/* A create that finds the row there falls back to an update: a push can
-   succeed and lose its acknowledgement, and then retries as a create. */
+/* Create and edit both end up doing whichever the server needs. A create can
+   find the row already there, and an edit can find no row to edit. */
 async function send(remote: Remote, item: PushItem): Promise<void> {
-  if (item.operation !== 'created') {
-    await remote.update(item.store, item.rowId, item.payload, item.updatedAt)
+  if (item.operation === 'created') {
+    await insertThenUpdate(remote, item)
     return
   }
 
+  const applied = await remote.update(item.store, item.rowId, item.payload, item.updatedAt)
+  if (applied) return
+
+  /* Nothing matched: the server holds something newer, or has no such row.
+     Only an insert tells them apart, and only the second needs one. */
+  await insertThenUpdate(remote, item)
+}
+
+async function insertThenUpdate(remote: Remote, item: PushItem): Promise<void> {
   try {
-    await remote.insert(item.store, item.payload)
+    await remote.insert(item.store, item.whole)
   } catch (error) {
     if (!isDuplicate(error)) throw error
+    // The row is there after all, so the guard decides. A decline is the
+    // correct outcome: the server holds a newer version of this row.
     await remote.update(item.store, item.rowId, item.payload, item.updatedAt)
   }
 }
