@@ -45,7 +45,7 @@ adding scope, so there is no remaining feature phase.
 | Accessibility and hook rules | `eslint.config.js`, inside `pnpm verify` |
 | Model-to-screen wiring, in a real browser | `pnpm test:e2e` |
 | RLS structural preconditions | `pnpm verify:rls` |
-| Migrations and seed, against a real Postgres | `pnpm verify:schema` |
+| Migrations, seed, push order and tenant isolation | `pnpm verify:schema` |
 | A write and a read with the network off | `run-polyster` skill, by hand |
 | Design-system rules | `scripts/check-standards.mjs` |
 
@@ -72,15 +72,22 @@ flow end to end. **Reading the code does not verify the code.**
 
 ## Open, in order of value
 
-### 1. There is no sync
+### ~~1. There is no sync~~ — built 2026-08-22
 
-Replication went with RxDB on 2026-08-21 and has not been rebuilt. A shop's data
-lives on one device, and the backup export is the only way off it. Two devices
-cannot share a shop.
+Push then pull, every store, row-level last-write-wins guarded so an older write
+cannot overwrite a newer one. An edit sends only the fields it changed. Designed
+in `superpowers/plans/2026-08-22-sync-design.md`.
 
-This is the largest open item in the project. Designed in
-`superpowers/plans/2026-08-22-sync-design.md` and waiting on four decisions;
-`shop_id` on payments (its one prerequisite) shipped 2026-08-22.
+**Not yet run against a real Supabase project.** The rules are tested against a
+fake server and the SQL semantics against a local Postgres — a partial update
+leaving other columns alone, the guard declining a stale write, and tenant
+isolation across nine tables with two accounts. What has not happened is a real
+login, two devices, and a shop's data moving between them.
+
+What it costs: two devices editing the same row at once loses the older edit
+rather than merging field by field. Per-field would need a timestamp per column
+on twenty-one tables. The case that actually happens — two devices taking
+payments on one order — is append-only and conflict-free either way.
 
 The id question is settled (2026-08-22): ids stay cuid2 and our own id columns
 are `text`, verified by `pnpm verify:schema`. Only `shops.supabase_auth_user_id`

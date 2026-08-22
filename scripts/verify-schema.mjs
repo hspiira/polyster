@@ -19,7 +19,10 @@ const MIGRATIONS = 'supabase/migrations'
 const STUBS = `
 create schema if not exists auth;
 create table if not exists auth.users (id uuid primary key, email text);
-create or replace function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
+-- Reads the claim the way Supabase does from a JWT, so isolation is testable.
+create or replace function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+$$;
 
 create schema if not exists storage;
 create table if not exists storage.buckets (id text primary key, name text, public boolean default false);
@@ -182,6 +185,60 @@ try {
     }
   }
   console.log(`push order covers ${declared.length} tables and ${edges.length} references`)
+
+  /* Tenant isolation, as two accounts rather than as structure. verify-rls.mjs
+     checks RLS is enabled and policies exist but says outright that it cannot
+     check this: it needs two shops and a login. Here it is, locally. */
+  const ISOLATED = [
+    'clients',
+    'orders',
+    'payments',
+    'sales',
+    'expenses',
+    'events',
+    'expense_categories',
+    'material_types',
+    'staff',
+  ]
+
+  const asShop = (uid, sql) =>
+    psql([
+      '-t',
+      '-A',
+      '-c',
+      `set role authenticated; set request.jwt.claim.sub = '${uid}'; ${sql}`,
+    ]).trim()
+
+  const SHOP_A = '10000000-0000-4000-8000-000000000001'
+  const SHOP_B = '10000000-0000-4000-8000-000000000002'
+
+  psql([
+    '-c',
+    `grant usage on schema public to authenticated;
+     grant select, insert, update, delete on all tables in schema public to authenticated;
+     grant select on auth.users to authenticated;`,
+  ])
+
+  for (const table of ISOLATED) {
+    const leaked = asShop(
+      SHOP_A,
+      `select count(*) from ${table} where shop_id is not null
+        and shop_id <> (select id from shops where supabase_auth_user_id = '${SHOP_A}')`,
+    )
+    if (leaked !== '0') problems.push(`${table}: shop A can see ${leaked} of another shop's rows`)
+  }
+
+  const aSeesB = asShop(SHOP_A, `select count(*) from shops where supabase_auth_user_id = '${SHOP_B}'`)
+  if (aSeesB !== '0') problems.push(`shops: shop A can see shop B's row`)
+
+  /* Both accounts must actually see their own data, or the check above passes
+     for the wrong reason -- RLS denying everything looks the same as isolation. */
+  const aSeesOwn = Number(asShop(SHOP_A, 'select count(*) from clients'))
+  const bSeesOwn = Number(asShop(SHOP_B, 'select count(*) from clients'))
+  if (aSeesOwn === 0 || bSeesOwn === 0) {
+    problems.push(`isolation is vacuous: shop A sees ${aSeesOwn} clients, shop B sees ${bSeesOwn}`)
+  }
+  console.log(`isolation across ${ISOLATED.length} tables: A sees ${aSeesOwn}, B sees ${bSeesOwn} clients`)
 
   const counts = psql([
     '-t',
