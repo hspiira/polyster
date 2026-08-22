@@ -2,7 +2,7 @@
    rules are in ./plan.ts and the drain is in ./push.ts and ./pull.ts. */
 import { getSupabase } from '../../lib/supabaseClient'
 import type { SyncedStore } from '../dexie/stores'
-import { SERVER_CURSOR_COLUMN, type Row } from './plan'
+import { SERVER_CURSOR_COLUMN, type Cursor, type Row } from './plan'
 import type { Remote } from './push'
 import type { Source } from './pull'
 
@@ -34,14 +34,26 @@ export function supabaseRemote(): Remote {
 
 export function supabaseSource(): Source {
   return {
-    async since(store: SyncedStore, since: string, limit: number): Promise<Row[]> {
-      const { data, error } = await getSupabase()
+    /* Ordered and filtered on the pair, not the timestamp alone. A page that
+       ends inside a group sharing one timestamp resumes inside that group. */
+    async since(store: SyncedStore, since: Cursor, limit: number): Promise<Row[]> {
+      const query = getSupabase()
         .from(store)
         .select('*')
-        .gt(SERVER_CURSOR_COLUMN, since)
         .order(SERVER_CURSOR_COLUMN, { ascending: true })
+        .order('id', { ascending: true })
         .limit(limit)
 
+      /* No id yet means the first pull, where the timestamp alone is enough.
+         Sending `id.gt.` with an empty value would be a malformed filter. */
+      const scoped = since.id
+        ? query.or(
+            `${SERVER_CURSOR_COLUMN}.gt.${since.modified},` +
+              `and(${SERVER_CURSOR_COLUMN}.eq.${since.modified},id.gt.${since.id})`,
+          )
+        : query.gt(SERVER_CURSOR_COLUMN, since.modified)
+
+      const { data, error } = await scoped
       if (error) throw asError(error)
       return (data ?? []) as Row[]
     },

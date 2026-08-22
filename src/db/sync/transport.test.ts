@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createDatabase, type PolysterDatabase } from '../dexie/database'
 import { createClient, createShop, createStaff, patchRow, softDeleteRow } from '../repo'
 import { PUSH_ORDER } from './order'
-import { EPOCH, type Row } from './plan'
+import { EPOCH, compareCursors, cursorOf, isAfterCursor, serializeCursor, type Row } from './plan'
 import { countPending, isDuplicate, pushOutbox, stuckEntries, type Remote } from './push'
 import { pullChanges, resetCursors, type Source } from './pull'
 
@@ -65,12 +65,14 @@ function fakeRemote() {
   }
 }
 
+/* Pages the way the real source does: ordered and filtered on the cursor pair,
+   so a tie at a page boundary is exercised rather than assumed away. */
 function fakeSource(byStore: Partial<Record<string, Row[]>>): Source {
   return {
     async since(store, since, limit) {
       return (byStore[store] ?? [])
-        .filter((row) => String(row._modified) > since)
-        .sort((a, b) => String(a._modified).localeCompare(String(b._modified)))
+        .filter((row) => isAfterCursor(cursorOf(row), since))
+        .sort((a, b) => compareCursors(cursorOf(a), cursorOf(b)))
         .slice(0, limit)
     },
   }
@@ -311,7 +313,9 @@ describe('pullChanges', () => {
         ],
       }),
     )
-    expect((await db.sync_cursors.get('clients'))?.pulled_through).toBe('2026-08-05T00:00:00.000Z')
+    expect((await db.sync_cursors.get('clients'))?.pulled_through).toBe(
+      serializeCursor({ modified: '2026-08-05T00:00:00.000Z', id: 'b' }),
+    )
   })
 
   it('asks only for what it has not seen on the next run', async () => {
@@ -354,7 +358,9 @@ describe('pullChanges', () => {
       fakeSource({ clients: [remoteClient({ id: client.id, _modified: '2026-09-09T00:00:00.000Z' })] }),
     )
 
-    expect((await db.sync_cursors.get('clients'))?.pulled_through).toBe('2026-09-09T00:00:00.000Z')
+    expect((await db.sync_cursors.get('clients'))?.pulled_through).toBe(
+      serializeCursor({ modified: '2026-09-09T00:00:00.000Z', id: client.id }),
+    )
   })
 
   it('applies a soft delete from another device', async () => {
