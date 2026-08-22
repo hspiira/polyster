@@ -120,11 +120,19 @@ text on their own page. Amber is still money and only money, so a stalled sync
 takes `warning` rather than borrowing it — but that distinction now survives
 greyscale, which it did not when both sat at 0.545.
 
-**`--accent` is the open one.** It is a brand hue at 0.483, inside the same band,
-so a primary button and a `success` state are one grey. Fixing it properly means
-having no brand hue at all: the primary surface becomes the inverse of the
-background, which is how moat avoids the problem entirely. That is a visual
-reset, not a token change, so it is a decision rather than a rule.
+**`--accent` was the open one, and it is settled (2026-08-23).** It was a brand
+hue at lightness 0.483, inside the same band as `success`, so a primary button
+and a success state were one grey. It is now the **inverse of the background** —
+near-black on the light page, near-white on the dark one — and the neutrals are
+true greys at zero chroma rather than leaning toward the brand hue.
+
+The rule that follows: **chrome is monochrome, colour belongs to money.** A
+primary action can no longer be mistaken for a figure that went up, which is the
+mistake a brand hue in the money band invites. Taken from moat, whose own CSS
+states it plainly.
+
+The brand hue survives where it is identity rather than chrome: the logomark,
+the entry flow's glow, the splash. Nothing a shop taps to do work is coloured.
 
 ## Adding a screen
 

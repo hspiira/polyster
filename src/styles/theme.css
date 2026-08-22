@@ -15,9 +15,9 @@
   --hue-danger: 27;
   --hue-success: 158;
 
-  /* A trace of the brand hue, so the greys read as part of the family. */
+  /* A grey that leans toward the brand hue competes with it. */
   --hue-ink: var(--hue-brand);
-  --chroma-ink: 0.01;
+  --chroma-ink: 0;
 }
 
 /* ══════════════════════════════════════════════════════ 2. THE RAMPS ═══
@@ -115,12 +115,13 @@
   --content-subtle: var(--ink-500);
   --content-inverted: var(--ink-50);
 
-  /* Carries the primary button. */
-  --accent: var(--brand-600);
-  --accent-hover: var(--brand-700);
+  /* Carries the primary button: the inverse of the background, not a hue, so it
+     can never be mistaken for a figure that went up. */
+  --accent: var(--ink-900);
+  --accent-hover: var(--ink-800);
   --accent-content: var(--ink-0);
-  --accent-soft: var(--brand-100);
-  --accent-on-soft: var(--brand-800);
+  --accent-soft: var(--ink-100);
+  --accent-on-soft: var(--ink-900);
 
   --money: var(--money-700);
   --money-soft: var(--money-100);
@@ -143,7 +144,7 @@
   --neutral-soft: var(--ink-200);
   --neutral-on-soft: var(--ink-700);
 
-  --focus: var(--brand-600);
+  --focus: var(--ink-600);
   --scrim: oklch(0.208 0.01 var(--hue-ink) / 0.45);
 
   /* The OS status bar. A hand-matched hex of `--page`, because meta and
@@ -163,9 +164,7 @@
 [data-theme='dark'] {
   color-scheme: dark;
 
-  /* Chroma reads far stronger at the dark end; the light-mode 0.01 turns a
-     dark surface visibly blue. */
-  --chroma-ink: 0.003;
+  --chroma-ink: 0;
 
   --page: var(--ink-1000);
   --surface: var(--ink-975);
@@ -186,11 +185,11 @@
 
   /* One step lighter: brand-600 on a near-black page is a hole, not a button,
      and the step up also flips what reads on top of it. */
-  --accent: var(--brand-500);
-  --accent-hover: var(--brand-400);
+  --accent: var(--ink-50);
+  --accent-hover: var(--ink-200);
   --accent-content: var(--ink-1000);
-  --accent-soft: var(--brand-950);
-  --accent-on-soft: var(--brand-300);
+  --accent-soft: var(--ink-800);
+  --accent-on-soft: var(--ink-50);
 
   --money: var(--money-400);
   --money-soft: var(--money-950);
@@ -213,7 +212,7 @@
   --neutral-soft: var(--ink-800);
   --neutral-on-soft: var(--ink-300);
 
-  --focus: var(--brand-400);
+  --focus: var(--ink-400);
   --scrim: oklch(0.1 0.01 var(--hue-ink) / 0.65);
 
   /* See the light-theme note. Also the value in vite.config.ts's manifest and
