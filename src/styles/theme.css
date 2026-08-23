@@ -11,7 +11,6 @@
   /* Meaning, not style. Separated in lightness as well as hue, so they stay
      apart with hue removed entirely -- see docs/DESIGN_SYSTEM.md. */
   --hue-money: 75;
-  --hue-warning: 55;
   --hue-danger: 27;
   --hue-success: 158;
 
@@ -61,13 +60,6 @@
   --money-950: oklch(0.255 0.062 var(--hue-money));
 
   /* -- warning. Needs attention, but nothing has failed: offline, unsynced. */
-  --warning-100: oklch(0.945 0.045 var(--hue-warning));
-  --warning-300: oklch(0.83 0.115 var(--hue-warning));
-  --warning-400: oklch(0.695 0.145 var(--hue-warning));
-  --warning-500: oklch(0.7 0.165 var(--hue-warning));
-  --warning-700: oklch(0.375 0.115 var(--hue-warning));
-  --warning-900: oklch(0.375 0.09 var(--hue-warning));
-  --warning-950: oklch(0.25 0.06 var(--hue-warning));
 
   /* -- danger. Overdue, destructive, failed. ----------------------------- */
   --danger-100: oklch(0.935 0.035 var(--hue-danger));
@@ -127,9 +119,11 @@
   --money-soft: var(--money-100);
   --money-on-soft: var(--money-900);
 
-  --warning: var(--warning-700);
-  --warning-soft: var(--warning-100);
-  --warning-on-soft: var(--warning-900);
+  /* The same amber as money. Owed work and unsent work are one signal to a
+     shop: look at this, it is not resolved. */
+  --warning: var(--money);
+  --warning-soft: var(--money-soft);
+  --warning-on-soft: var(--money-on-soft);
 
   --danger: var(--danger-600);
   --danger-hover: var(--danger-700);
@@ -195,9 +189,9 @@
   --money-soft: var(--money-950);
   --money-on-soft: var(--money-300);
 
-  --warning: var(--warning-400);
-  --warning-soft: var(--warning-950);
-  --warning-on-soft: var(--warning-300);
+  --warning: var(--money);
+  --warning-soft: var(--money-soft);
+  --warning-on-soft: var(--money-on-soft);
 
   --danger: var(--danger-400);
   --danger-hover: var(--danger-300);

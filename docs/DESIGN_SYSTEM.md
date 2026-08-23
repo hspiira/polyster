@@ -134,6 +134,18 @@ states it plainly.
 The brand hue survives where it is identity rather than chrome: the logomark,
 the entry flow's glow, the splash. Nothing a shop taps to do work is coloured.
 
+**There is one amber, not two.** `--warning` was its own ramp at hue 55 against
+money's 75 — 20 degrees apart, where the rule on this page says 45. Worse, the
+tone vocabulary had no `warning` at all: legacy `warn` resolved to `money`, so
+the "only on this phone" card painted itself with money colours by accident.
+
+Four semantic hues do not fit: danger, warning and money all want the warm half,
+and no arrangement gets warning 45 degrees from both. So there are three, and
+`--warning` now points at `--money`. Owed work and unsent work are the same
+signal to a shop — look at this, it is not resolved.
+
+That leaves ink, amber, red and green. The same shape as moat's.
+
 ## Adding a screen
 
 Import from `../ui` and nothing else; there is no second path any more. Name
