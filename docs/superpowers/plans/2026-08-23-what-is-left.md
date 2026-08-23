@@ -29,12 +29,20 @@ live instance. So this is testable today.
 
 What it needs, and why it needs your word first:
 
-- Migrations `0021` and `0022` have to be applied to that project. They are
-  **destructive**: `0022` drops `_deleted` from twenty-four tables, alters
-  eighty-three id columns to `text`, and rebuilds `order_balances`. You said on
-  2026-08-22 that the data there is disposable, but that was about the cuid2
-  decision, and running these against a live project is a different act. I want
-  it said again before I do it.
+- **A full reset, not an incremental migration.** I had this wrong. There is no
+  migration ledger — 0001 says it is not rerunnable, and 0001..0020 were
+  rewritten on 2026-08-22 to declare text ids. The project was migrated on
+  2026-08-15, so it holds a schema the repository no longer describes.
+
+  Rehearsed locally against a stand-in built from the pre-cuid2 migrations:
+  applying 0021 and 0022 to it fails on the first foreign key, because
+  `shop_id text references shops(id)` cannot point at a uuid. `supabase/reset.sql`
+  then empties the schema, all twenty-two apply clean, and the seed lands 53
+  orders. `verify:schema` now runs that rehearsal so it cannot rot.
+
+  So the act is: drop the public schema on the live project and rebuild it.
+  Every row goes. **Destructive, and it needs saying out loud rather than
+  inferred from a remark about cuid2.**
 - Then: `pnpm seed:auth`, sign in as `owner@northfound.ug`, and watch one shop's
   work push and a second browser pull it.
 

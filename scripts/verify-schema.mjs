@@ -254,6 +254,29 @@ try {
   if (Number(psql(['-t', '-A', '-c', 'select count(*) from orders']).trim()) === 0) {
     problems.push('the seed produced no orders')
   }
+
+  /* reset.sql is the only way to migrate a project that already has an older
+     version of this schema, and it is destructive, so it is exercised rather
+     than trusted: dirty the database, reset it, apply everything again. */
+  psql(['-f', 'supabase/reset.sql'])
+  const afterReset = Number(
+    psql(['-t', '-A', '-c', "select count(*) from pg_tables where schemaname='public'"]).trim(),
+  )
+  if (afterReset !== 0) problems.push(`reset.sql left ${afterReset} tables behind`)
+
+  psql(['-f', stubFile])
+  for (const file of files) {
+    try {
+      psql(['-f', join(MIGRATIONS, file)])
+    } catch (error) {
+      problems.push(`after reset, ${file}: ${String(error.stderr ?? error.message).trim().split('\n')[0]}`)
+    }
+  }
+  const rebuilt = Number(
+    psql(['-t', '-A', '-c', "select count(*) from pg_tables where schemaname='public'"]).trim(),
+  )
+  console.log(`reset and rebuilt to ${rebuilt} tables`)
+
 } catch (error) {
   problems.push(String(error.stderr ?? error.message).trim().split('\n')[0])
 } finally {
