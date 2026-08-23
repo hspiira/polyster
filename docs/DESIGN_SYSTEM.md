@@ -43,9 +43,9 @@ lives at `ARCHITECTURE.md` §9b for exactly this reason.
 Surfaces `page` `surface` `surface-raised` `surface-sunken` `hover` `pressed`
 · Lines `line` `line-strong`
 · Text `content` `content-muted` `content-subtle` `content-inverted`
-· Status `accent` `money` `warning` `danger` `success` `neutral`, each with
+· Status `accent` `money` `danger` `success` `neutral`, each with
 `-soft` and `-on-soft` (always take the pair — a fill without its text has no
-guaranteed contrast)
+guaranteed contrast). `warning` still resolves, as an alias of `money`.
 · Glass, for the fixed-dark entry flow: `glass-edge`, `glass-rule`
 · Also `focus`, `scrim`, `shadow-raise|float|overlay`, `px-gutter`, `min-h-tap`,
 `max-w-measure`, `max-w-wide`.
@@ -110,15 +110,25 @@ intensity:
 
 | Role | Light | Dark | Meaning |
 |---|---|---|---|
-| `money` | 0.540 | 0.855 | an outstanding balance, and nothing else |
+| `money` | 0.540 | 0.855 | an outstanding balance, or work not yet sent |
 | `success` | 0.455 | 0.775 | done, paid, synced |
-| `warning` | 0.375 | 0.695 | needs attention, nothing has failed |
 | `danger` | 0.300 | 0.615 | overdue, destructive, failed |
 
-The smallest gap between any pair is 0.075, and all eight values clear 4.5:1 as
-text on their own page. Amber is still money and only money, so a stalled sync
-takes `warning` rather than borrowing it — but that distinction now survives
-greyscale, which it did not when both sat at 0.545.
+Three roles since `--warning` folded into `money` (below), which widened the
+smallest gap from 0.075 to 0.085. All six values clear 4.5:1 as text on their
+own page.
+
+**0.085 is not enough, and it cannot be fixed here.** Three semantic colours all
+need AA contrast on a light page, which caps them around 0.55, and body text
+holds 0.208 — 0.34 of room for three rungs that each want 0.15. It does not fit.
+moat hit the same wall and its CSS records losing it: *"Contrast won instead …
+That leaves them only 0.05 apart. Making --pos lighter fails WCAG AA there."*
+
+So the ladder is a best effort and the redundancy rule below is what actually
+carries the meaning. Measured in greyscale on 2026-08-23: the Orders list stays
+readable because "10 days overdue" is **bold** as well as red, every stage is a
+word, and every amount is prefixed `USh`. An amber amount and a green stage
+label do land on the same grey — they are told apart by one being a number.
 
 **`--accent` was the open one, and it is settled (2026-08-23).** It was a brand
 hue at lightness 0.483, inside the same band as `success`, so a primary button
