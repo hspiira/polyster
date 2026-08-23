@@ -9,7 +9,8 @@ what happened in August.
 If you ship work and do not update this file in the same commit, it becomes
 actively misleading rather than merely incomplete. That has happened once.
 
-**Last revised:** 2026-08-22, after backup import. Open items are planned in
+**Last revised:** 2026-08-23. What is open is sequenced in
+`superpowers/plans/2026-08-23-what-is-left.md`. Earlier planning is in
 `superpowers/plans/2026-08-22-durability-and-gaps.md`; this file stays the index
 of what is open, that file carries the sequencing and the decisions.
 
@@ -111,6 +112,10 @@ data they described. Now 2.84×, and the default backup is half the size. The
 RxDB importer runs once rather than on every launch, and deletes what it read.
 
 ### 3. Nothing has run on real hardware
+
+Now covers three claims, not one: the iOS full-screen change (whether iOS really
+draws white status-bar content over `StatusBarBleed`), the monochrome palette in
+daylight, and install plus airplane mode.
 
 Every screen has been driven in a headless desktop browser at phone dimensions,
 which simulates a phone. The install-and-airplane-mode checks from the original
