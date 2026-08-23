@@ -13,11 +13,12 @@ const VARIANTS: Record<Variant, string> = {
   ghost: 'text-content-muted hover:bg-hover hover:text-content',
 }
 
-/** 44px floor: below it mis-taps become common, with a thumb or a mouse. */
+/* 44px is the thumb floor. A mouse does not need it, and a back office full of
+   44px controls reads as a phone app someone stretched. */
 const SIZES: Record<Size, string> = {
-  sm: 'min-h-9 px-3 text-sm',
-  md: 'min-h-tap px-4 text-[15px]',
-  lg: 'min-h-12 px-5 text-base',
+  sm: 'min-h-9 px-3 text-sm fine:min-h-7 fine:px-2.5',
+  md: 'min-h-tap px-4 text-[15px] fine:min-h-9 fine:px-3.5 fine:text-sm',
+  lg: 'min-h-12 px-5 text-base fine:min-h-10',
 }
 
 type ButtonBase = {
@@ -26,7 +27,7 @@ type ButtonBase = {
   block?: boolean
 }
 
-type ButtonProps = ButtonBase & JSX.IntrinsicElements['button'] & { linkTo?: never }
+type ButtonProps = ButtonBase & JSX.IntrinsicElements['button']
 
 /* `linkTo` renders an anchor that looks like a button, so navigation actions
    stop being `<a><Button/></a>` -- invalid, and two tab stops for a keyboard. */
@@ -34,7 +35,9 @@ type ButtonLinkProps = ButtonBase &
   Omit<JSX.IntrinsicElements['a'], 'href'> & { linkTo: string }
 
 export function Button(props: ButtonProps | ButtonLinkProps) {
-  const { variant = 'primary', size = 'md', block = false, class: className } = props
+  /* One destructure. `in` discriminates the union on its own now that ButtonProps
+     no longer declares linkTo, which is what forced the old hand-narrowing. */
+  const { variant = 'primary', size = 'md', block = false, class: className, ...rest } = props
 
   const classes = cn(
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-control font-medium',
@@ -46,20 +49,17 @@ export function Button(props: ButtonProps | ButtonLinkProps) {
     className,
   )
 
-  if (props.linkTo) {
-    // Children spelled out rather than left in the spread: an anchor whose
-    // content arrives that way cannot be checked for having any.
-    const { linkTo, variant: _v, size: _s, block: _b, class: _c, children, ...rest } = props
+  if ('linkTo' in rest) {
+    // Children spelled out, not left in the spread: an anchor whose content
+    // arrives that way cannot be checked for having any.
+    const { linkTo, children, ...anchor } = rest
     return (
-      <a {...rest} href={linkTo} class={classes}>
+      <a {...anchor} href={linkTo} class={classes}>
         {children}
       </a>
     )
   }
 
-  // Narrowed by hand: `linkTo?: never` does not discriminate the union well
-  // enough for TypeScript to keep anchor-only attributes out of the rest.
-  const { variant: _v, size: _s, block: _b, class: _c, linkTo: _l, ...rest } = props as ButtonProps
   return <button {...rest} class={classes} />
 }
 

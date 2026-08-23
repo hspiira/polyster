@@ -3,7 +3,16 @@
 import type { PolysterDatabase } from '../dexie/database'
 import type { SyncedStore } from '../dexie/stores'
 import { PUSH_ORDER } from './order'
-import { EPOCH, fromWire, nextCursor, pendingIds, shouldAccept, type Row } from './plan'
+import {
+  fromWire,
+  nextCursor,
+  parseCursor,
+  pendingIds,
+  serializeCursor,
+  shouldAccept,
+  type Cursor,
+  type Row,
+} from './plan'
 
 export interface PullReport {
   applied: number
@@ -13,9 +22,9 @@ export interface PullReport {
 }
 
 export interface Source {
-  /* Rows modified after `since`, oldest first. The order matters: the cursor
-     only passes a row once everything before it has been seen. */
-  since(store: SyncedStore, since: string, limit: number): Promise<Row[]>
+  /* Rows after `since`, ordered by timestamp then id. The order matters: the
+     cursor only passes a row once everything before it has been seen. */
+  since(store: SyncedStore, since: Cursor, limit: number): Promise<Row[]>
 }
 
 const BATCH = 500
@@ -25,7 +34,7 @@ export async function pullChanges(db: PolysterDatabase, source: Source): Promise
   const outbox = await db.sync_outbox.toArray()
 
   for (const store of PUSH_ORDER) {
-    const cursor = (await db.sync_cursors.get(store))?.pulled_through ?? EPOCH
+    const cursor = parseCursor((await db.sync_cursors.get(store))?.pulled_through)
     const rows = await source.since(store, cursor, BATCH)
     if (rows.length === 0) continue
 
@@ -41,11 +50,15 @@ export async function pullChanges(db: PolysterDatabase, source: Source): Promise
       }
       /* Moves for the whole batch, held-back rows included: their own push
          brings them round, and standing still re-delivers this batch forever. */
-      await db.sync_cursors.put({ id: store, pulled_through: through, at: new Date().toISOString() })
+      await db.sync_cursors.put({
+        id: store,
+        pulled_through: serializeCursor(through),
+        at: new Date().toISOString(),
+      })
     })
 
     report.applied += accepted.length
-    report.stores.push({ store, applied: accepted.length, through })
+    report.stores.push({ store, applied: accepted.length, through: serializeCursor(through) })
   }
 
   return report

@@ -43,9 +43,9 @@ lives at `ARCHITECTURE.md` §9b for exactly this reason.
 Surfaces `page` `surface` `surface-raised` `surface-sunken` `hover` `pressed`
 · Lines `line` `line-strong`
 · Text `content` `content-muted` `content-subtle` `content-inverted`
-· Status `accent` `money` `warning` `danger` `success` `neutral`, each with
+· Status `accent` `money` `danger` `success` `neutral`, each with
 `-soft` and `-on-soft` (always take the pair — a fill without its text has no
-guaranteed contrast)
+guaranteed contrast). `warning` still resolves, as an alias of `money`.
 · Glass, for the fixed-dark entry flow: `glass-edge`, `glass-rule`
 · Also `focus`, `scrim`, `shadow-raise|float|overlay`, `px-gutter`, `min-h-tap`,
 `max-w-measure`, `max-w-wide`.
@@ -110,21 +110,61 @@ intensity:
 
 | Role | Light | Dark | Meaning |
 |---|---|---|---|
-| `money` | 0.540 | 0.855 | an outstanding balance, and nothing else |
+| `money` | 0.540 | 0.855 | an outstanding balance, or work not yet sent |
 | `success` | 0.455 | 0.775 | done, paid, synced |
-| `warning` | 0.375 | 0.695 | needs attention, nothing has failed |
 | `danger` | 0.300 | 0.615 | overdue, destructive, failed |
 
-The smallest gap between any pair is 0.075, and all eight values clear 4.5:1 as
-text on their own page. Amber is still money and only money, so a stalled sync
-takes `warning` rather than borrowing it — but that distinction now survives
-greyscale, which it did not when both sat at 0.545.
+Three roles since `--warning` folded into `money` (below), which widened the
+smallest gap from 0.075 to 0.085. All six values clear 4.5:1 as text on their
+own page.
 
-**`--accent` is the open one.** It is a brand hue at 0.483, inside the same band,
-so a primary button and a `success` state are one grey. Fixing it properly means
-having no brand hue at all: the primary surface becomes the inverse of the
-background, which is how moat avoids the problem entirely. That is a visual
-reset, not a token change, so it is a decision rather than a rule.
+**0.085 is not enough, and it cannot be fixed here.** Three semantic colours all
+need AA contrast on a light page, which caps them around 0.55, and body text
+holds 0.208 — 0.34 of room for three rungs that each want 0.15. It does not fit.
+moat hit the same wall and its CSS records losing it: *"Contrast won instead …
+That leaves them only 0.05 apart. Making --pos lighter fails WCAG AA there."*
+
+So the ladder is a best effort and the redundancy rule below is what actually
+carries the meaning. Measured in greyscale on 2026-08-23: the Orders list stays
+readable because "10 days overdue" is **bold** as well as red, every stage is a
+word, and every amount is prefixed `USh`. An amber amount and a green stage
+label do land on the same grey — they are told apart by one being a number.
+
+**`--accent` was the open one, and it is settled (2026-08-23).** It was a brand
+hue at lightness 0.483, inside the same band as `success`, so a primary button
+and a success state were one grey. It is now the **inverse of the background** —
+near-black on the light page, near-white on the dark one — and the neutrals are
+true greys at zero chroma rather than leaning toward the brand hue.
+
+The rule that follows: **chrome is monochrome, colour belongs to money.** A
+primary action can no longer be mistaken for a figure that went up, which is the
+mistake a brand hue in the money band invites. Taken from moat, whose own CSS
+states it plainly.
+
+The brand hue survives where it is identity rather than chrome: the logomark,
+the entry flow's glow, the splash. Nothing a shop taps to do work is coloured.
+
+**There is one amber, not two.** `--warning` was its own ramp at hue 55 against
+money's 75 — 20 degrees apart, where the rule on this page says 45. Worse, the
+tone vocabulary had no `warning` at all: legacy `warn` resolved to `money`, so
+the "only on this phone" card painted itself with money colours by accident.
+
+Four semantic hues do not fit: danger, warning and money all want the warm half,
+and no arrangement gets warning 45 degrees from both. So there are three, and
+`--warning` now points at `--money`. Owed work and unsent work are the same
+signal to a shop — look at this, it is not resolved.
+
+That leaves ink, amber, red and green. The same shape as moat's.
+
+**Controls shrink for a mouse.** 44px is the thumb floor and a back office full
+of 44px controls reads as a phone app someone stretched. The `fine` variant is
+`(pointer: fine)` — the same query `lib/platform.ts` picks the shell with, so a
+control gets its desktop size exactly where the desktop layout appears rather
+than at a width a touch tablet can reach.
+
+`text-base` on inputs is load-bearing on touch: below 16px iOS zooms on focus and
+does not zoom back. A mouse has no such behaviour, which is why the smaller text
+lives behind `fine` and not behind a breakpoint.
 
 ## Adding a screen
 

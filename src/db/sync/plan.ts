@@ -15,6 +15,9 @@ export interface PushItem {
   /* Whole row for a create; only the changed fields for an update, so a field
      this device did not touch keeps what the other device put there. */
   payload: Row
+  /* For when an edit finds no row to edit. The diff cannot be inserted: the
+     columns it leaves out are not null. */
+  whole: Row
   /** The device's own clock, which is what decides a competing edit. */
   updatedAt: string
 }
@@ -30,6 +33,7 @@ export function toPushItem(entry: OutboxEntry, row: Row | undefined): PushItem |
       rowId: entry.row_id,
       operation: 'created',
       payload: forWire(row),
+      whole: forWire(row),
       updatedAt: entry.updated_at,
     }
   }
@@ -50,6 +54,7 @@ export function toPushItem(entry: OutboxEntry, row: Row | undefined): PushItem |
     rowId: entry.row_id,
     operation: entry.operation,
     payload: forWire(payload),
+    whole: forWire(row),
     updatedAt: entry.updated_at,
   }
 }
@@ -84,15 +89,50 @@ export function shouldAccept(rowId: string, pending: ReadonlySet<string>): boole
   return !pending.has(rowId)
 }
 
-/* How far a pull got. The newest `_modified` in the batch, or the cursor it
-   started from when the batch was empty. Never the device's clock. */
-export function nextCursor(rows: readonly Row[], current: string): string {
-  let newest = current
+/* A timestamp and an id. A bulk write gives many rows one timestamp, and a
+   timestamp alone cannot say which of them a page stopped at. */
+export interface Cursor {
+  modified: string
+  id: string
+}
+
+const CURSOR_SEPARATOR = '|'
+
+export function serializeCursor(cursor: Cursor): string {
+  return `${cursor.modified}${CURSOR_SEPARATOR}${cursor.id}`
+}
+
+export function parseCursor(raw: string | undefined): Cursor {
+  if (!raw) return { modified: EPOCH, id: '' }
+  const at = raw.indexOf(CURSOR_SEPARATOR)
+  if (at === -1) return { modified: raw, id: '' }
+  return { modified: raw.slice(0, at), id: raw.slice(at + 1) }
+}
+
+/** Ascending by timestamp, then by id. The order a pull must read in. */
+export function compareCursors(left: Cursor, right: Cursor): number {
+  if (left.modified !== right.modified) return left.modified < right.modified ? -1 : 1
+  if (left.id === right.id) return 0
+  return left.id < right.id ? -1 : 1
+}
+
+export function isAfterCursor(candidate: Cursor, cursor: Cursor): boolean {
+  return compareCursors(candidate, cursor) > 0
+}
+
+export function cursorOf(row: Row): Cursor {
+  return { modified: String(row[SERVER_CURSOR_COLUMN] ?? EPOCH), id: String(row.id ?? '') }
+}
+
+/* How far a pull got: the furthest row in the batch, or where it started when
+   the batch was empty. Never the device's clock, and never backwards. */
+export function nextCursor(rows: readonly Row[], current: Cursor): Cursor {
+  let furthest = current
   for (const row of rows) {
-    const value = row[SERVER_CURSOR_COLUMN]
-    if (typeof value === 'string' && value > newest) newest = value
+    const candidate = cursorOf(row)
+    if (isAfterCursor(candidate, furthest)) furthest = candidate
   }
-  return newest
+  return furthest
 }
 
 /** The ids in a batch of outbox entries, for deciding what a pull may overwrite. */

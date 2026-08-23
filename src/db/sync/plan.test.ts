@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { OutboxEntry } from '../schema'
 import {
   EPOCH,
+  compareCursors,
+  parseCursor,
+  serializeCursor,
+  type Cursor,
   forWire,
   fromWire,
   nextCursor,
@@ -159,24 +163,66 @@ describe('shouldAccept', () => {
 })
 
 describe('nextCursor', () => {
-  it('advances to the newest row in the batch', () => {
-    const rows = [{ _modified: '2026-08-01T00:00:00Z' }, { _modified: '2026-08-03T00:00:00Z' }]
-    expect(nextCursor(rows, EPOCH)).toBe('2026-08-03T00:00:00Z')
+  const start: Cursor = { modified: EPOCH, id: '' }
+
+  it('advances to the furthest row in the batch', () => {
+    const rows = [
+      { id: 'a', _modified: '2026-08-01T00:00:00Z' },
+      { id: 'b', _modified: '2026-08-03T00:00:00Z' },
+    ]
+    expect(nextCursor(rows, start)).toEqual({ modified: '2026-08-03T00:00:00Z', id: 'b' })
+  })
+
+  /* The whole reason the cursor carries an id: a bulk write gives many rows one
+     timestamp, and the cursor has to say which of them the page stopped at. */
+  it('breaks a tie on the id, so a page can resume inside one timestamp', () => {
+    const same = '2026-08-01T00:00:00Z'
+    const rows = [
+      { id: 'c1', _modified: same },
+      { id: 'c2', _modified: same },
+    ]
+    expect(nextCursor(rows, start)).toEqual({ modified: same, id: 'c2' })
   })
 
   it('stays where it was on an empty batch', () => {
-    expect(nextCursor([], '2026-08-01T00:00:00Z')).toBe('2026-08-01T00:00:00Z')
+    const at: Cursor = { modified: '2026-08-01T00:00:00Z', id: 'x' }
+    expect(nextCursor([], at)).toEqual(at)
   })
 
-  /* Never goes backwards. A row arriving with an older stamp than the cursor
-     would otherwise re-deliver everything after it on the next pull. */
   it('never moves backwards', () => {
-    const rows = [{ _modified: '2026-07-01T00:00:00Z' }]
-    expect(nextCursor(rows, '2026-08-01T00:00:00Z')).toBe('2026-08-01T00:00:00Z')
+    const at: Cursor = { modified: '2026-08-01T00:00:00Z', id: 'x' }
+    expect(nextCursor([{ id: 'a', _modified: '2026-07-01T00:00:00Z' }], at)).toEqual(at)
+  })
+})
+
+describe('the cursor round trip', () => {
+  it('survives being written down and read back', () => {
+    const cursor: Cursor = { modified: '2026-08-22T10:00:00.000Z', id: 'abc123' }
+    expect(parseCursor(serializeCursor(cursor))).toEqual(cursor)
   })
 
-  it('ignores a row with no cursor value', () => {
-    expect(nextCursor([{ id: 'x' }, { _modified: 7 }], EPOCH)).toBe(EPOCH)
+  it('reads a bare timestamp as the start of that timestamp', () => {
+    expect(parseCursor('2026-08-22T10:00:00.000Z')).toEqual({
+      modified: '2026-08-22T10:00:00.000Z',
+      id: '',
+    })
+  })
+
+  it('reads nothing as the epoch', () => {
+    expect(parseCursor(undefined)).toEqual({ modified: EPOCH, id: '' })
+  })
+
+  it('keeps an id containing no separator intact', () => {
+    const cursor: Cursor = { modified: 'x', id: 'a|b' }
+    expect(parseCursor(serializeCursor(cursor)).id).toBe('a|b')
+  })
+
+  it('orders by timestamp first, then id', () => {
+    const a: Cursor = { modified: '1', id: 'z' }
+    const b: Cursor = { modified: '2', id: 'a' }
+    expect(compareCursors(a, b)).toBeLessThan(0)
+    expect(compareCursors({ modified: '1', id: 'a' }, { modified: '1', id: 'b' })).toBeLessThan(0)
+    expect(compareCursors(a, a)).toBe(0)
   })
 })
 
@@ -223,5 +269,27 @@ describe('PUSH_ORDER', () => {
   it('deletes children before parents', () => {
     expect(DELETE_ORDER[0]).toBe('payments')
     expect(DELETE_ORDER[DELETE_ORDER.length - 1]).toBe('shops')
+  })
+})
+
+describe('the whole row alongside the diff', () => {
+  /* An edit that finds no row to edit has to insert one, and the diff cannot be
+     inserted: the columns it leaves out are not null. */
+  it('carries the whole row even when the payload is a diff', () => {
+    const item = toPushItem(entry({ fields: ['name'] }), row)
+    expect(item?.payload).not.toHaveProperty('shop_id')
+    expect(item?.whole).toEqual(row)
+  })
+
+  it('is the same thing twice for a create', () => {
+    const item = toPushItem(entry({ operation: 'created', fields: [] }), row)
+    expect(item?.whole).toEqual(item?.payload)
+  })
+
+  it('leaves the server cursor column out of both', () => {
+    const withCursor = { ...row, _modified: '2026-08-22T00:00:00.000Z' }
+    const item = toPushItem(entry({ fields: ['name'] }), withCursor)
+    expect(item?.whole).not.toHaveProperty('_modified')
+    expect(item?.payload).not.toHaveProperty('_modified')
   })
 })

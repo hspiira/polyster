@@ -14,6 +14,14 @@
   src: url('./fonts/Geist-Variable.woff2') format('woff2-variations');
 }
 
+/* A mouse. The same query lib/platform.ts picks the shell with, so a control
+   shrinks exactly where the desktop layout appears -- not at some width. */
+@custom-variant fine {
+  @media (pointer: fine) {
+    @slot;
+  }
+}
+
 /* "Room to set two things side by side", for the entry landing. Two conditions,
    because a short landscape window stops stacking for a different reason. */
 @custom-variant entry-wide {

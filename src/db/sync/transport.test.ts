@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createDatabase, type PolysterDatabase } from '../dexie/database'
 import { createClient, createShop, createStaff, patchRow, softDeleteRow } from '../repo'
 import { PUSH_ORDER } from './order'
-import { EPOCH, type Row } from './plan'
+import { EPOCH, compareCursors, cursorOf, isAfterCursor, serializeCursor, type Row } from './plan'
 import { countPending, isDuplicate, pushOutbox, stuckEntries, type Remote } from './push'
 import { pullChanges, resetCursors, type Source } from './pull'
 
@@ -37,6 +37,16 @@ function fakeRemote() {
       if (error) throw error
       const at = key(store, String(payload.id))
       if (rows.has(at)) throw Object.assign(new Error('duplicate key value'), { code: '23505' })
+      /* Every synced table is NOT NULL on these, so an insert carrying only the
+         fields an edit changed would be rejected rather than accepted. */
+      for (const column of ['shop_id', 'created_at', 'updated_at']) {
+        if (store !== 'shops' && !(column in payload)) {
+          throw Object.assign(
+            new Error(`null value in column "${column}" violates not-null constraint`),
+            { code: '23502' },
+          )
+        }
+      }
       calls.push({ kind: 'insert', store, id: String(payload.id), payload })
       rows.set(at, { ...payload })
     },
@@ -45,9 +55,11 @@ function fakeRemote() {
       if (error) throw error
       const at = key(store, id)
       const existing = rows.get(at)
-      if (existing && String(existing.updated_at ?? '') > updatedAt) return false
+      // No row means nothing matched, the way `update ... where id = ?` behaves.
+      if (!existing) return false
+      if (String(existing.updated_at ?? '') > updatedAt) return false
       calls.push({ kind: 'update', store, id, payload })
-      rows.set(at, { ...(existing ?? {}), ...payload })
+      rows.set(at, { ...existing, ...payload })
       return true
     },
   }
@@ -65,12 +77,14 @@ function fakeRemote() {
   }
 }
 
+/* Pages the way the real source does: ordered and filtered on the cursor pair,
+   so a tie at a page boundary is exercised rather than assumed away. */
 function fakeSource(byStore: Partial<Record<string, Row[]>>): Source {
   return {
     async since(store, since, limit) {
       return (byStore[store] ?? [])
-        .filter((row) => String(row._modified) > since)
-        .sort((a, b) => String(a._modified).localeCompare(String(b._modified)))
+        .filter((row) => isAfterCursor(cursorOf(row), since))
+        .sort((a, b) => compareCursors(cursorOf(a), cursorOf(b)))
         .slice(0, limit)
     },
   }
@@ -232,6 +246,26 @@ describe('pushOutbox', () => {
   })
 })
 
+describe('an edit to a row the server has never seen', () => {
+  /* Reachable through restore, which clears the outbox: rows from the file were
+     never pushed, so the next edit queues 'updated' against nothing. */
+  it('creates the row rather than dropping the edit', async () => {
+    const db = fresh()
+    const { client } = await shopWithClient(db)
+    const server = fakeRemote()
+
+    // The state a restore leaves: rows here, nothing owed, server empty.
+    await db.sync_outbox.clear()
+
+    await patchRow(db.clients, client.id, { name: 'Edited after a restore' })
+    const report = await pushOutbox(db, server.remote)
+
+    expect(report.failed).toEqual([])
+    expect(server.get('clients', client.id)?.name).toBe('Edited after a restore')
+    expect(await countPending(db)).toBe(0)
+  })
+})
+
 describe('the not-older guard', () => {
   /* An edit made on Monday and pushed on Friday must not overwrite Tuesday's
      edit from another device. */
@@ -311,7 +345,9 @@ describe('pullChanges', () => {
         ],
       }),
     )
-    expect((await db.sync_cursors.get('clients'))?.pulled_through).toBe('2026-08-05T00:00:00.000Z')
+    expect((await db.sync_cursors.get('clients'))?.pulled_through).toBe(
+      serializeCursor({ modified: '2026-08-05T00:00:00.000Z', id: 'b' }),
+    )
   })
 
   it('asks only for what it has not seen on the next run', async () => {
@@ -354,7 +390,9 @@ describe('pullChanges', () => {
       fakeSource({ clients: [remoteClient({ id: client.id, _modified: '2026-09-09T00:00:00.000Z' })] }),
     )
 
-    expect((await db.sync_cursors.get('clients'))?.pulled_through).toBe('2026-09-09T00:00:00.000Z')
+    expect((await db.sync_cursors.get('clients'))?.pulled_through).toBe(
+      serializeCursor({ modified: '2026-09-09T00:00:00.000Z', id: client.id }),
+    )
   })
 
   it('applies a soft delete from another device', async () => {
