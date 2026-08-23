@@ -20,7 +20,18 @@ export function AppBar({ onSearch }: { onSearch: () => void }) {
         TEXT_UI,
       )}
     >
-      <span class="flex w-[13.25rem] shrink-0 items-center gap-2">
+      {/* A switcher even with one shop: it is where a second one would appear,
+          and it names the shop you are working in without a page having to. */}
+      <button
+        type="button"
+        class={cn(
+          'flex shrink-0 items-center gap-2 pl-1 pr-1.5 font-medium text-content',
+          'hover:bg-hover',
+          CONTROL,
+          RADIUS,
+          TEXT_SM,
+        )}
+      >
         {shop?.logo_url ? (
           <img src={shop.logo_url} alt="" class="size-5 shrink-0 rounded object-cover" />
         ) : (
@@ -32,23 +43,8 @@ export function AppBar({ onSearch }: { onSearch: () => void }) {
             {shop ? getInitials(shop.name) : '·'}
           </span>
         )}
-        <b class="truncate text-[13px] font-semibold tracking-tight">Polyster</b>
-      </span>
-
-      {/* A switcher even with one shop: it is where a second one would appear,
-          and it names the shop you are working in without a page having to. */}
-      <button
-        type="button"
-        class={cn(
-          'flex shrink-0 items-center gap-1.5 px-1.5 font-medium text-content-muted',
-          'hover:bg-hover hover:text-content',
-          CONTROL,
-          RADIUS,
-          TEXT_SM,
-        )}
-      >
         <span class="max-w-[11rem] truncate">{shop?.name ?? 'No shop'}</span>
-        <IconChevronRight size={11} class="rotate-90" />
+        <IconChevronRight size={11} class="rotate-90 text-content-muted" />
       </button>
 
       <span class="flex-1" />
