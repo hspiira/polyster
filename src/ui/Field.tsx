@@ -1,13 +1,15 @@
-/* Form controls. `text-base` is load-bearing: below 16px iOS zooms on focus and
-   does not zoom back. Focus is drawn once in index.css. */
+/* Form controls. Focus is drawn once in index.css. */
 import { createContext, type ComponentChildren, type JSX } from 'preact'
 import { useContext, useId } from 'preact/hooks'
 import { IconSearch } from '../components/icons'
 import { cn } from '../lib/cn'
 
+/* text-base is load-bearing on touch: below 16px iOS zooms on focus. A mouse
+   has no such behaviour, so `fine` is where the control gets its real size. */
 const CONTROL = cn(
   'w-full rounded-control border-0 bg-surface-sunken px-3.5 text-base text-content',
   'outline-none transition-colors placeholder:text-content-subtle',
+  'fine:px-3 fine:text-sm',
 )
 
 /* `onValue` exists so screens stop writing (e.target as HTMLInputElement).value
@@ -46,7 +48,7 @@ export function Input({
       {...useFieldAria()}
       {...props}
       onInput={valueHandler(onValue, onInput)}
-      class={cn('min-h-tap', CONTROL, className)}
+      class={cn('min-h-tap fine:min-h-9', CONTROL, className)}
     />
   )
 }
@@ -79,7 +81,7 @@ export function Select({
       {...useFieldAria()}
       {...props}
       onChange={valueHandler(onValue, onChange)}
-      class={cn('min-h-tap', CONTROL, 'pr-8', className)}
+      class={cn('min-h-tap fine:min-h-9', CONTROL, 'pr-8', className)}
     />
   )
 }
@@ -100,7 +102,7 @@ export function SearchInput({
         {...props}
         onInput={valueHandler(onValue, onInput)}
         type="search"
-        class={cn('min-h-tap', CONTROL, 'pl-10', className)}
+        class={cn('min-h-tap fine:min-h-9', CONTROL, 'pl-10', className)}
       />
     </div>
   )

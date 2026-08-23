@@ -146,6 +146,16 @@ signal to a shop — look at this, it is not resolved.
 
 That leaves ink, amber, red and green. The same shape as moat's.
 
+**Controls shrink for a mouse.** 44px is the thumb floor and a back office full
+of 44px controls reads as a phone app someone stretched. The `fine` variant is
+`(pointer: fine)` — the same query `lib/platform.ts` picks the shell with, so a
+control gets its desktop size exactly where the desktop layout appears rather
+than at a width a touch tablet can reach.
+
+`text-base` on inputs is load-bearing on touch: below 16px iOS zooms on focus and
+does not zoom back. A mouse has no such behaviour, which is why the smaller text
+lives behind `fine` and not behind a breakpoint.
+
 ## Adding a screen
 
 Import from `../ui` and nothing else; there is no second path any more. Name

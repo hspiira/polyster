@@ -13,11 +13,12 @@ const VARIANTS: Record<Variant, string> = {
   ghost: 'text-content-muted hover:bg-hover hover:text-content',
 }
 
-/** 44px floor: below it mis-taps become common, with a thumb or a mouse. */
+/* 44px is the thumb floor. A mouse does not need it, and a back office full of
+   44px controls reads as a phone app someone stretched. */
 const SIZES: Record<Size, string> = {
-  sm: 'min-h-9 px-3 text-sm',
-  md: 'min-h-tap px-4 text-[15px]',
-  lg: 'min-h-12 px-5 text-base',
+  sm: 'min-h-9 px-3 text-sm fine:min-h-7 fine:px-2.5',
+  md: 'min-h-tap px-4 text-[15px] fine:min-h-9 fine:px-3.5 fine:text-sm',
+  lg: 'min-h-12 px-5 text-base fine:min-h-10',
 }
 
 type ButtonBase = {
